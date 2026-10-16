@@ -302,6 +302,12 @@
     if ((b = t.closest('button.sw[data-l-wt]'))) { setWorktree(b.getAttribute('aria-checked') === 'true'); return; }
     if ((b = t.closest('[data-l-tpl]'))) { template(b); return; }
     if ((b = t.closest('[data-l-todo]'))) { useTodo(b); return; }
+    if ((b = t.closest('[data-l-switch]'))) {  // the launch_redirects hint: switch the picker to that project
+      const p = b.getAttribute('data-l-switch');
+      $('[data-l-proj]').value = p;
+      load(p).then((ok) => { if (ok) focusFirst(); });
+      return;
+    }
     if ((b = t.closest('a[data-l-agent]')) && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
       openAgent(b.getAttribute('data-l-agent'));

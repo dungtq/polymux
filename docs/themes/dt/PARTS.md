@@ -533,8 +533,10 @@ Short contracts for the parts M3 added; the file named first owns the markup, th
 launch_data>]`). Openers: any `[data-l-open]` (`data-l-project`, `data-l-todo`; the top-bar Launch, hidden < 700px),
 `pm7.launch.open({project, todo})` (project head `[data-pj-launch]`, Backlog Dispatch), key N and the `>` command
 "Launch an agent" (the key table's row `launch`). Launch posts `<base>/launch` (`open=1`: the new agent opens as a
-tab); Launch in background toasts after the server's OK. `data-l-data` is also read by the New project dialog
-(`tests/web/dt/test_projects.py` fails on a rename).
+tab); Launch in background toasts after the server's OK. Under the title row, `[data-l-hint]` (only when
+`launch_redirects` in pm.toml maps the project to another listed one) says "Work on <target> code?" and its button
+`[data-l-switch=<target>]` sets the picker `[data-l-proj]` to the target and loads its form. `data-l-data` is also
+read by the New project dialog (`tests/web/dt/test_projects.py` fails on a rename).
 
 **Attachments** (`js/attach.js`, look `.chip.att` in `css/parts.css`). The one upload + chip helper, used by the Launch
 prompt box (upload at once, the chip is `.up` until the server answers) and the Add issue dialog (a chip per picked
