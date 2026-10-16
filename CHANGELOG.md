@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 (Faster tab switches and Inbox; account menu Settings opens the popup)
+
+- dt tab switches (Shift+[ / ], tab clicks) no longer revalidate every script and stylesheet: versioned /static files (`?v=` equal to the file's current hash) are cached as immutable; a page switch makes a few requests instead of ~100.
+- Inbox renders faster: notification owners are looked up in one query, and Devin context % reads the lock map once per pass (was ~550 ms on a busy host).
+- dt: the top bar account menu's Settings opens the Settings popup like the sidebar foot and Ctrl+, (a plain link on /settings).
+
 ## 2026-10-16 (dt theme ships with polymux)
 
 - The `dt` theme now ships with polymux: a keyboard-driven shell with tabs, a sessions sidebar, command menus and layered panels; vim-style list keys (J/K, G then a letter, `/`, `?`) and macOS-style search and switching (⌘K, ⌘P, ⌘B, ⌘,; Ctrl elsewhere). Pick it per browser in Settings or with `?ui=dt`, or server-wide with `theme = "dt"` in `pm.toml`; classic stays the default. Code: `src/pm/web/dt`, `src/pm/web/themes/dt`; rules and design: `docs/themes/dt/`.
