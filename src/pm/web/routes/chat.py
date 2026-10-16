@@ -12,13 +12,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
 from pm.agents import slash
+from pm.chat import items as chat_items
 from pm.chat import stats as chat_stats
 from pm.chat import strip as chat_strip
 from pm.chat.stats import human as human_tokens
 from pm.chat.text import clean_text, tool_family
 from pm.core import executors, prefs
 from pm.core.errors import PmError
-from pm.core.fsutil import resolve_md
+from pm.core.fsutil import md_mentions, resolve_md
 from pm.core.markdown_render import render_markdown
 from pm.core.models import ChatView, Tier
 from pm.core.uploads import IMG_MAX_BYTES, UPLOAD_RE, sniff_image, store_upload
@@ -106,13 +107,37 @@ MD_MAX_BYTES = 512 * 1024
 _NOSTORE = {"Cache-Control": "no-store"}
 
 
+MD_SEEN_PAGES = 2  # chat items read for a relative ref no folder has: the newest 2 x 1000
+
+
+def _mentioned_md(settings, agent_id: str):
+    """Absolute .md paths the agent's chat items name (tool targets first, then text), newest item first. A
+    generator: ``resolve_md`` reads it only when the agent's folder and project miss, so the DB is read only then."""
+    seen: set[str] = set()
+    before = None
+    for _ in range(MD_SEEN_PAGES):
+        page = chat_items.list_items(settings, agent_id, before_seq=before, limit=chat_items.MAX_LIMIT)
+        for it in reversed(page):
+            for m in md_mentions(it.line if it.kind == "tool" else it.text):
+                if m not in seen:
+                    seen.add(m)
+                    yield m
+        if len(page) < chat_items.MAX_LIMIT:
+            return
+        before = page[0].seq
+
+
 @router.get("/a/{agent_id}/md", dependencies=AUTH)
 async def agent_md(request: Request, agent_id: str, path: str = "") -> Response:
+    """One .md file as rendered, escaped markdown. A relative ``path`` is looked up in the agent's folder, its
+    project, then among the files its chat named (``resolve_md``); hidden folders stay refused."""
     snap = await snapshot(request)
     agent = chatctx.live_or_ended(request, snap, agent_id)[0]
-    real = resolve_md(path, agent.cwd)
+    proj = snap.project(agent.project) if agent.project else None
+    seen = _mentioned_md(deps.settings(request), agent.id)
+    real = await executors.run_collectors(resolve_md, path, agent.cwd, (proj.path,) if proj else (), seen)
     if real is None:
-        raise HTTPException(404, "file not found")
+        raise HTTPException(404, "file not found (or in a hidden folder)")
     try:
         with open(real, "rb") as f:
             data = f.read(MD_MAX_BYTES + 1)

@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import secrets
 import stat
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -147,16 +148,36 @@ def safe_join(root, rel, *, allow_symlink_leaf: bool = False) -> Path:
     return joined
 
 
-def resolve_md(raw: str, cwd: str = "") -> Path | None:
+def resolve_md(raw: str, cwd: str = "", roots: Iterable[str] = (), seen: Iterable[str] = ()) -> Path | None:
     """Real path of a readable .md file anywhere on disk, else None.
 
-    Relative paths join ``cwd``, ``~`` expands. Any dot-directory/file in the resolved real path is
-    refused (``~/.ssh``, ``~/.cfg``, ``~/.agents-git``) except under ``~/.claude/plans``."""
+    ``~`` expands. A relative path is tried against ``cwd`` (``/`` when empty), then each of ``roots`` (e.g. the
+    agent's project root), then the first of ``seen`` (absolute paths, newest first, e.g. the files an agent's chat
+    named; may be a lazy iterator, read only this far) that ends with ``/<raw>`` (a bare name: ``/<name>``). Every
+    candidate gets the same checks: any dot-directory/file in the resolved real path is refused (``~/.ssh``,
+    ``~/.cfg``, ``~/.agents-git``) except under ``~/.claude/plans``; symlinks are resolved first."""
     if not raw or len(raw) > 1024 or "\0" in raw or not raw.lower().endswith(".md"):
         return None
     p = Path(os.path.expanduser(raw)) if raw.startswith("~") else Path(raw)
-    if not p.is_absolute():
-        p = Path(cwd or "/") / p
+    if p.is_absolute():
+        return _md_real(p)
+    for base in dict.fromkeys((cwd or "/", *roots)):
+        real = _md_real(Path(base) / p) if base else None
+        if real is not None:
+            return real
+    rel = PurePosixPath(p)
+    if ".." in rel.parts:
+        return None
+    tail = "/" + str(rel)
+    for s in seen:
+        if isinstance(s, str) and s.endswith(tail) and s.startswith(("/", "~/")):
+            real = _md_real(Path(os.path.expanduser(s)))
+            if real is not None:
+                return real
+    return None
+
+
+def _md_real(p: Path) -> Path | None:
     try:
         real = p.resolve(strict=True)
     except (OSError, RuntimeError):
@@ -173,3 +194,11 @@ def resolve_md(raw: str, cwd: str = "") -> Path | None:
     if any(part.startswith(".") for part in parts):
         return None
     return real
+
+
+_MD_MENTION = re.compile(r"(?<![\w.~/:-])(~?/[\w.@+~/-]*\.md)(?![\w-]|\.\w)", re.IGNORECASE)
+
+
+def md_mentions(text: str) -> list[str]:
+    """Absolute (or ``~/``) .md paths written in ``text``, in order, each once (``resolve_md``'s ``seen``)."""
+    return list(dict.fromkeys(_MD_MENTION.findall(text or ""))) if ".md" in (text or "").lower() else []

@@ -234,3 +234,45 @@ def test_todo_add_refuses_file_mode_bad_form_and_no_origin(env):
     assert _add(c, csrf, "pm", text="a\nb").status_code == 400
     assert _add(c, csrf, "nope", text="x").status_code == 404
     assert _add(c, csrf, "pm", origin=None, text="x").status_code in (400, 403)
+
+
+def _edit(c, csrf, name, origin=ORIGIN, headers=None, **data):
+    h = {"Origin": origin} if origin else {}
+    return c.post(f"/p/{name}/todo/edit", data={"csrf": csrf, **data}, headers={**h, **(headers or {})},
+                  follow_redirects=False)
+
+
+def test_todo_edit_tracker_project(env):
+    """Edit changes an item's text in pm.db (TODO.md re-renders); a script gets JSON, a form POST the page; the
+    audit line has the item number, never the text."""
+    from pm.projects.tracker import mdimport, store
+
+    c, f, s = env
+    other = f.parent.parent / "other" / "TODO.md"
+    other.write_text(SEED)
+    mdimport.import_project(s, "other", other.parent)
+    _, csrf, _ = fields(c, "other")
+    r = _edit(c, csrf, "other", headers={"X-Requested-With": "fetch"}, num="2", text="  renamed `task` ")
+    assert r.status_code == 200 and r.json() == {"ok": True, "num": 2, "project": "other"}
+    assert store.get_item(s, "other", "todo", 2).title == "renamed `task`" and "- [ ] renamed `task`" in other.read_text()
+    assert "todo_edit" in audit_text(s) and "renamed" not in audit_text(s)
+    r = _edit(c, csrf, "other", num="2", text="again")
+    assert r.status_code == 303 and r.headers["location"] == "/p/other#todo"
+    assert _edit(c, csrf, "other", num="99", text="x").status_code == 404
+    assert _edit(c, csrf, "other", num="x", text="x").status_code == 400
+    assert _edit(c, csrf, "other", num="2", text="a\nb").status_code == 400
+    assert _edit(c, csrf, "other", num="2", text=" ").status_code == 400
+    assert _edit(c, csrf, "other", num="2", text="y" * 2001).status_code == 400
+    assert store.get_item(s, "other", "todo", 2).title == "again"
+
+
+def test_todo_edit_refuses_file_mode_unknown_and_no_origin(env):
+    c, f, s = env
+    _, csrf, _ = fields(c)
+    r = _edit(c, csrf, "pm", num="1", text="x")
+    assert r.status_code == 409 and "tracker" in r.json()["detail"]
+    assert f.read_text() == SEED
+    assert _edit(c, csrf, "nope", num="1", text="x").status_code == 404
+    assert _edit(c, csrf, "pm", origin=None, num="1", text="x").status_code in (400, 403)
+    assert _edit(c, "bad", "pm", num="1", text="x").status_code in (400, 403)
+    assert "todo_edit" in audit_text(s)  # the refusals are audited under their own action
