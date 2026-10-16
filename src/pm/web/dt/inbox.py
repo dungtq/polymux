@@ -394,7 +394,7 @@ _logged: set[str] = set()
 
 def bind(settings_of: Callable[[], object]):
     """The ``dt_inbox`` global: ``dt_inbox()`` in a template returns the ``Inbox`` of the page being rendered;
-    ``settings_of()`` gives the plugin's settings (``DtPlugin.configure``). Never raises (None on an error)."""
+    ``settings_of()`` gives the plugin's settings (``DtTheme.configure``). Never raises (None on an error)."""
     @pass_context
     def dt_inbox(ctx):
         try:

@@ -13,15 +13,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install tmux and git
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends tmux git
 
+      # the static JS tests run in node and skip without it; pin it so they always run
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Require node
+        run: |
+          command -v node || { echo "node is missing: the JS tests would be skipped"; exit 1; }
+          node --version
+
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6.0.1
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.12.21"
           enable-cache: true
@@ -29,8 +40,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
-      - name: Lint
-        run: uv run ruff check src tests tools
+      # ruff + architecture check (incl. the dt theme's static tree), the same gate as `make check`
+      - name: Check
+        run: ./tools/check.sh
 
       - name: Tests
         run: uv run pytest -q

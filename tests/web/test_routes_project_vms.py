@@ -1,5 +1,7 @@
 """Project-scoped VM routes under /p/{name}/vms/{vm}/... (web.routes.servers) with an in-memory fake virsh."""
 
+import os
+
 from helpers import ORIGIN, audit_text, make_client, make_settings, pane_line
 from infra.fakevirt import FakeVirt
 
@@ -13,6 +15,13 @@ from pm.security.csrf import Csrf
 def _env(fake_tmux, tmp_path, monkeypatch, login=True, pats="lab-*", **over):
     fv = FakeVirt()
     monkeypatch.setattr(libvirt, "run_argv", fv.run_argv)
+    # libvirt.collect() first asks which("virsh"): put a never-run stub on PATH so hosts without libvirt
+    # (CI runners) list the FakeVirt domains too; every virsh call goes through fv.run_argv
+    stub = tmp_path / "bin" / "virsh"
+    stub.parent.mkdir()
+    stub.write_text("#!/bin/sh\nexit 1\n")
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub.parent}{os.pathsep}{os.environ.get('PATH', '')}")
     s = make_settings(fake_tmux, tmp_path, state="st", disable_poll=True, virsh_bin="virsh",
                       virsh_write_sg=False, **over)
     alpha = tmp_path / "dev" / "alpha"
