@@ -1,4 +1,4 @@
-"""Live strip facts (``#chat`` under the items, docs/CHAT-SYNC.md "live strip").
+"""Live strip facts (``#chat``, the live strip under the items).
 
 Besides the ``ChatView`` (ask card, state, Claude's own queued message) the strip shows the open
 turn's tool count and, for a tool running longer than ``WAIT_S``, its name, start and the masked

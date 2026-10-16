@@ -294,7 +294,7 @@ _DEVIN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,79}$")  # session name, e.g.
 
 def resume_ident(kind: str, ident: str | None) -> str | None:
     """The strictly validated id ``<cli> resume`` takes for this kind, or None. Never starts
-    with ``-`` (so it can not be read as an option). See docs/RESUME-AGENTS.md."""
+    with ``-`` (so it can not be read as an option)."""
     ident = ident or ""
     if kind in ("claude", "cursor-agent"):  # Claude sessionId / Cursor chat dir name: a UUID
         return ident if UUID_RE.fullmatch(ident) else None

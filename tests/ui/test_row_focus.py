@@ -85,7 +85,7 @@ def test_inbox_selected_row_is_filled(make_page, inst):
 
 @pytest.mark.parametrize("path", ["/", "/p/{project}"])
 def test_pin_moves_row_and_open_recap_survives(make_page, inst, path):
-    """#161/#162: pinning moves the row to the Pinned group (across lists: Idle fold -> top list) and back; the live
+    """Pinning moves the row to the Pinned group (across lists: Idle fold -> top list) and back; the live
     morph moves the same node, so an open recap is neither blanked nor fetched again (nodiff.js keyed pool)."""
     pg = make_page(width=1400, theme="light")
     fetches = []

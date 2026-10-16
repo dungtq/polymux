@@ -1,7 +1,7 @@
 """pm's own SSH key (``<state_dir>/ssh/id_ed25519_pm``) and the read-only list of ``~/.ssh/*.pub``.
 
 Only public keys are ever read or rendered. The private key is created by ``ssh-keygen`` (argv, no
-shell, timeout), never opened by pm, never logged. Design: docs/DESIGN-GIT-REMOTES-SERVERS.md section 4.
+shell, timeout), never opened by pm, never logged.
 """
 
 from __future__ import annotations

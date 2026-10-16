@@ -1,4 +1,4 @@
-"""Per-kind identity colours (docs/mock/v5/pages/agent-colors.html): tokens, data-kind hooks, no stray hex."""
+"""Per-kind identity colours: tokens, data-kind hooks, no stray hex."""
 import re
 from pathlib import Path
 

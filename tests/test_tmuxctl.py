@@ -157,7 +157,7 @@ def test_send_falls_back_to_paste_buffer_when_client_read_only(monkeypatch):
         tmuxctl.send_key(None, "%1", "Enter")
 
 
-# ---- #204: argv words for tmux, per-shell quoting for typed commands -------------------------------------------
+# ---- argv words for tmux, per-shell quoting for typed commands -------------------------------------------------
 INJECT = ["printf", "%s|", "x\\", "; echo INJECTED #"]
 NASTY = ["x\\", "; echo INJECTED #", "a'b", 'a"b', "$(echo P)", "`echo P`", "$HOME", "*", "~", "{a,b}", "=x",
          "%self", "a\\'b", "it's\\", "--model=x", "é ü", "", "-", "a b", ";", "x;", "x\\;", "fix it;", "x\\\\;",
@@ -199,7 +199,7 @@ def test_quote_for_shell_unit():
 
 @pytest.mark.parametrize("name", ["fish", "sh", "bash", "zsh", "dash"])
 def test_quote_for_shell_is_one_literal_argument_per_word_in_a_real_shell(name, tmp_path):
-    """The #204 injection (an argument ending in a backslash, then '; cmd') stays literal in every shell."""
+    """The injection case (an argument ending in a backslash, then '; cmd') stays literal in every shell."""
     out = _run_shell(name, t.quote_for_shell(name, INJECT), tmp_path)
     assert out == "x\\|; echo INJECTED #|"
     out = _run_shell(name, t.quote_for_shell(name, ["printf", "<%s>", *NASTY]), tmp_path)
@@ -281,7 +281,7 @@ def test_split_and_respawn_run_argv_through_the_default_shell(fake_tmux, monkeyp
 @pytest.mark.parametrize("name", ["fish", "bash", "zsh", "dash", "sh"])
 def test_start_words_in_a_real_tmux_per_default_shell(private_tmux, tmp_path, name):
     """Real tmux with each default-shell (own HOME / XDG dirs: never the user's rc files): a program path with
-    spaces, quotes, a trailing backslash and ';', and the #204 injection argv run literally; fish's config.fish
+    spaces, quotes, a trailing backslash and ';', and the injection argv run literally; fish's config.fish
     still applies (it exports SSH_AUTH_SOCK / runs mise for the user). Words and a cwd ending in ';' (tmux's
     command separator, even after --) arrive unchanged."""
     s = private_tmux

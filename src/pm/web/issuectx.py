@@ -1,4 +1,4 @@
-"""Web helpers for tracker projects (docs/TRACKER-PLAN.md) shared by the route modules (issues, backlog, todo):
+"""Web helpers for tracker projects shared by the route modules (issues, backlog, todo):
 item numbers posted by the pages, the ``audit=`` callable the routes hand to the tracker mutators, and the
 "Send to agent" links, and which agent an issue was dispatched to. The domain (summaries, toggle, project checks, issue creation) is ``pm.projects.tracker``."""
 

@@ -1,4 +1,4 @@
-"""Live sidebar status dots: GET /side/dots (projects / agents) and the side.js wiring (#185)."""
+"""Live sidebar status dots: GET /side/dots (projects / agents) and the side.js wiring."""
 import time
 from pathlib import Path
 from types import SimpleNamespace as NS

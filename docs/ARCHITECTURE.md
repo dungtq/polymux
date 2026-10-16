@@ -4,8 +4,8 @@ Where code goes, which shared helper to use, and the limits that keep the tree c
 sub-agent (`.claude/agents/arch-guard.md`) checks every code change against this file **before** and
 **after** it is written. Other agents (Codex, Devin, Cursor) follow it by hand and run `./tools/check.sh`.
 
-The flat modules were moved into the packages below in Phase 3 (2026-10-12, a pure scripted move). Put new
-code in the package that owns the domain, never in a new top-level module.
+Every module lives in one of the packages below. Put new code in the package that owns the domain, never in a
+new top-level module.
 
 ## Target layout
 
@@ -87,7 +87,7 @@ mistakes, not malice.
 | Lock a shared file | `pm.core.filelock.locked()` / leases | raw `fcntl.flock` |
 | Cache | `pm.core.cache.LRU` (bounded) or `SWR` (background refresh) | a module-level dict without a size limit |
 | Time/duration text | `pm.core.timefmt` / `web.render.ago` | another `human()` |
-| Pane text out of the process | `security.mask.render_pane` / `mask` | sending raw pane text (except the P7 terminal stream) |
+| Pane text out of the process | `security.mask.render_pane` / `mask` | sending raw pane text (except the terminal stream) |
 | Mutating route | `Depends(mutation_guard(action, tier))` + `audit_result`; special cases (step-up, header-only CSRF): `csrf_session_guard(...)` | hand-copied session/Origin/CSRF checks |
 | Thread pool from async | `pm.core.executors.run_*` | blocking IO or subprocess inside `async def` |
 | Setting | a typed field in `pm.core.config.Settings` | `settings.extras.get("new_key")` |
@@ -113,16 +113,12 @@ mistakes, not malice.
 
 - adds or updates tests (`uv run pytest` green),
 - passes `tools/check.sh` (= `make check`: ruff + `tools/archcheck.py`),
-- updates `CHANGELOG.md` when behaviour changes and `FEATURES.md` for user-visible ones,
+- describes behaviour and user-visible changes in the PR (`CHANGELOG.md` and `FEATURES.md` are generated;
+  never edit them by hand),
 - follows `docs/UI-RULES.md` for UI and the hard rules in `AGENTS.md`.
 
 ## Migration status
 
-| Phase | What | Status |
-|---|---|---|
-| 1 | Stabilise: fix red tests, ruff, `tools/archcheck.py` + baseline, `make check`, logging setup, route-guard test, `atfiles` containment, git timeout | done 2026-10-12 |
-| 2 | Shared helpers in `pm.core` (`run_argv`, `atomic_write`, `JsonStore`, `safe_join`, errors), replace copies, typed `extras` | done 2026-10-12 |
-| 3 | Move modules into the packages above, break cycles, import contracts | done 2026-10-12 |
-| 4 | Split long functions, move logic out of routes; one `csrf_session_guard`; route handlers ≤ 40 lines (archcheck `route-lines`) | done 2026-10-12 |
-| 5 | Frontend: one `tokens.css`, CSS files named by purpose (`base`, `chrome`, `rows`, `data`, `agent`, `shell`, `icons`, `nav`, ...), `core.js`, `chat.js`/`qchat.js` split, `tools/uidiff.py` (pixel + computed-style diff vs main) | done 2026-10-12 |
-| 6 | Docs and repo: split CHANGELOG, archive stale docs and old mocks, rename tests, shared test fixtures | done 2026-10-12 (left for the user: old mocks v0–v3, merged gitdev branches, CHANGELOG fragments) |
+The move to this layout is done: shared helpers live in `pm.core`, every module sits in its package, route
+handlers are thin, and the frontend has one `tokens.css` and one `core.js`. What remains is old debt listed in
+`tools/archcheck_baseline.json`; it may only shrink.

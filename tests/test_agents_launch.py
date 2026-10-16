@@ -46,7 +46,7 @@ def test_build_each_kind(settings):
 
 @pytest.mark.parametrize("word", ["doctor", "update", "logout"])
 def test_one_word_prompt_is_never_a_subcommand(settings, word):
-    """#171: claude / cursor-agent run ``<cli> -- doctor`` as the doctor subcommand; a trailing space stops it."""
+    """Claude / cursor-agent run ``<cli> -- doctor`` as the doctor subcommand; a trailing space stops it."""
     for k in AgentKind:
         if k in L.MODEL_FLAG:
             assert L.build_command(Launch("p", k, prompt=word), settings)[-2:] == ["--", word + " "]
@@ -219,7 +219,7 @@ def test_command_string_quoted(fake_tmux, tmp_path, stand_in):
         del os.environ["FAKE_TMUX_OUT"]
     log = s.extras["log"].read_text().split("---\n")
     nw = [c.split("\n") for c in log if c.startswith("-L") and "new-window" in c][-1]
-    # the fake tmux has no default-shell: the /bin/sh fallback, argv as "$@" (#204)
+    # the fake tmux has no default-shell: the /bin/sh fallback, argv as "$@"
     assert nw[nw.index("--") + 1:-1] == ["/bin/sh", "-c", 'exec "$@"', "sh", str(b), "--", "a b'; id #"]
 
 
@@ -247,7 +247,7 @@ sleep 30
 
 
 def test_launch_under_fish_default_shell_keeps_config_and_argv(private_tmux, tmp_path):
-    """#204: the tmux default-shell is fish, which reads sh quoting differently. Launch and a split still run
+    """The tmux default-shell is fish, which reads sh quoting differently. Launch and a split still run
     the agent through fish (config.fish applies: SSH_AUTH_SOCK, mise, PATH), but with the argv as $argv, so an
     sh-quoted prompt that would break out under fish stays one argument."""
     out = tmp_path / "argv.out"
@@ -367,7 +367,7 @@ def test_split_pane_adds_a_pane_to_the_source_window(private_tmux, tmp_path, sta
         if out.exists() and out.read_text():
             break
         time.sleep(0.1)
-    assert out.read_text() == "--\nhello \n"  # one-word prompt: trailing space (#171)
+    assert out.read_text() == "--\nhello \n"  # one-word prompt: trailing space
     con = sqlite3.connect(s.db_file)
     assert con.execute("select count(*) from launches where window_id=?", (res.window_id,)).fetchone()[0] == 2
 

@@ -253,7 +253,7 @@ def test_insert_and_on_stop_on_a_fake_dom():
 
 
 def test_heading_pill_follows_the_pm_composer_event():
-    """#155: the HX-Trigger pm:composer carries the heading pill (web/agentctl.composer_event); chat.js has one
+    """The HX-Trigger pm:composer carries the heading pill (web/agentctl.composer_event); chat.js has one
     document listener that sets the text and aria-label of #agent-pill (and the heading's data-model)."""
     js = (JSDIR / "chat.js").read_text()
     assert js.count("'pm:composer'") == 1

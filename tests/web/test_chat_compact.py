@@ -1,4 +1,4 @@
-"""Main chat Compact view (docs/HANDOFF-chat-compact.md): the pure planner of static/js/chat-compact.js run in
+"""Main chat Compact view: the pure planner of static/js/chat-compact.js run in
 node, the template hooks it relies on (data-turn, data-dur), the Detail | Compact toggle partial and where it is
 included, script/style order in base.html, and static rules for chat-compact.js."""
 

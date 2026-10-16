@@ -118,7 +118,7 @@ def test_route_window_and_audit(fake, monkeypatch, tmp_path):
     nw = next(x for x in calls if x[0] == "new-window")
     assert "-d" in nw and not any(x[0] == "split-window" for x in calls)  # background window only
     assert nw[nw.index("-n") + 1] == "agent-claude-fork" and nw[nw.index("-c") + 1] == str(proj)
-    assert nw[nw.index("--") + 1:][5:] == ["--resume", UUID, "--fork-session"]  # sh -c 'exec "$@"' sh bin ... (#204)
+    assert nw[nw.index("--") + 1:][5:] == ["--resume", UUID, "--fork-session"]  # sh -c 'exec "$@"' sh bin ...
     log = audit_text(st)
     assert "agent_fork" in log and "native" in log and UUID[:8] in log and UUID not in log
 

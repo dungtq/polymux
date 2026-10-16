@@ -72,7 +72,7 @@ def test_narrow_drawer_head_two_rows(make_page, inst, theme):
 
 
 def test_aside_pill_follows_pm_composer_in_the_frame(make_page, inst):
-    """#155: a model switch in the framed composer (HX-Trigger pm:composer {pill}) updates the aside pill."""
+    """A model switch in the framed composer (HX-Trigger pm:composer {pill}) updates the aside pill."""
     page = make_page(width=1512, height=900)
     page.goto("/p/fixproj#chat=/a/" + inst["agents"]["running"])
     page.wait_for_function("()=>!document.getElementById('vc-model').hidden")

@@ -63,7 +63,7 @@ def test_sa_live_absent_for_codex(env, monkeypatch):
 
 
 def test_one_source_for_head_rail_and_zoom():
-    """#164: agent_head, jump_rail, zoomctl and jumpzoom live once (_agentname.html, _chatchrome.html)."""
+    """agent_head, jump_rail, zoomctl and jumpzoom live once (_agentname.html, _chatchrome.html)."""
     from pathlib import Path
     t = TEMPLATE_DIR
     pages = {n: (t / n).read_text() for n in ("agent.html", "agent_ended.html", "builder.html", "_drawer.html")}
@@ -80,7 +80,7 @@ def test_one_source_for_head_rail_and_zoom():
 
 
 def test_macros_agent_text_has_no_name_clash():
-    """#164: _macros.html's plain label macro is agent_text; agent_name is only the canonical _agentname.html one."""
+    """_macros.html's plain label macro is agent_text; agent_name is only the canonical _agentname.html one."""
     import re
     from pathlib import Path
     t = TEMPLATE_DIR
@@ -93,7 +93,7 @@ def test_macros_agent_text_has_no_name_clash():
 
 
 def test_agent_page_head_pill_from_python(env, monkeypatch):
-    """#155: the heading pill comes from composer_ctx head_pill (agents.head.live_pill), no Jinja filter."""
+    """The heading pill comes from composer_ctx head_pill (agents.head.live_pill), no Jinja filter."""
     from pathlib import Path
     s, c = env
     login(s, c)

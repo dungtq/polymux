@@ -1,6 +1,6 @@
 """GET /a/<id>/items (web/routes/chatitems.py) and the live strip GET /a/<id>/chat that sits under it.
 
-pm.chat.items / pm.chat.outbox / pm.agents.chatfeed are faked (same call shapes, docs/CHAT-SYNC.md)."""
+pm.chat.items / pm.chat.outbox / pm.agents.chatfeed are faked (same call shapes)."""
 
 import re
 import time

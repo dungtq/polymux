@@ -1,5 +1,4 @@
-"""Branch gating for CHANGELOG / FEATURES drafts (docs/TRACKER-PLAN.md section 11). The only T3 module that
-calls git.
+"""Branch gating for CHANGELOG / FEATURES drafts. The only tracker module that calls git.
 
 A change made on the project's default branch (``main`` / ``master``, or the project setting "default
 branch"), on a detached HEAD or by an import is landed at once. One made in a work tree on another branch is a

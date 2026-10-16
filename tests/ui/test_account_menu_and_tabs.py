@@ -94,7 +94,7 @@ ACCENT = """() => { const d = document.createElement('i'); d.style.color = 'var(
 
 @pytest.mark.parametrize("url,tabs", [("/servers", ".srv-tabs .tab"), ("/agents", ".ag-tabs .tab"), ("/ntfy", ".ntfy-tabs .tab")])
 def test_boxed_tab_groups(page, url, tabs):
-    """#163 .tabs-seg (Servers, Agents, ntfy): grey boxed group, the current tab white, 600, blue --accent underline."""
+    """.tabs-seg (Servers, Agents, ntfy): grey boxed group, the current tab white, 600, blue --accent underline."""
     page.goto(url)
     rows, accent = page.evaluate(CUR, tabs), page.evaluate(ACCENT)
     bar = page.locator(tabs.split(" ")[0]).evaluate("e => [getComputedStyle(e).borderTopWidth, getComputedStyle(e).backgroundColor]")
@@ -106,7 +106,7 @@ def test_boxed_tab_groups(page, url, tabs):
 
 @pytest.mark.parametrize("tabs", ["#pj-tabbar .tab", "[data-ptabs] .tab"])
 def test_doc_tabs_border_underline(page, tabs):
-    """#163 .tabs-line (project docs, tmux|Stack|VM): 2px --accent border under the current tab, weight 500, no shadow."""
+    """.tabs-line (project docs, tmux|Stack|VM): 2px --accent border under the current tab, weight 500, no shadow."""
     page.goto("/p/fixproj")
     rows, accent = page.evaluate(CUR, tabs), page.evaluate(ACCENT)
     on = [r for r in rows if r[3] == accent]

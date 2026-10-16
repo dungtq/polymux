@@ -1,4 +1,4 @@
-"""#185: the sidebar status dots follow agent state events without a reload (side.js fetches /side/dots)."""
+"""The sidebar status dots follow agent state events without a reload (side.js fetches /side/dots)."""
 from __future__ import annotations
 
 import json

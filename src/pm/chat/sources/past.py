@@ -1,4 +1,4 @@
-"""Past CLI sessions on disk for a set of working directories ("Import past sessions", #156).
+"""Past CLI sessions on disk for a set of working directories ("Import past sessions").
 
 Pure discovery (stat, dir-list and a bounded head read; no subprocess, no pane text). Per kind:
 

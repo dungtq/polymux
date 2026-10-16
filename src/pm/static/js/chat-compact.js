@@ -1,4 +1,4 @@
-/* Main chat Compact view (docs/HANDOFF-chat-compact.md): the same chat items as Detail, regrouped on the page.
+/* Main chat Compact view: the same chat items as Detail, regrouped on the page.
    Mode: localStorage 'pm.chatView' = compact (default) | detail, per browser; #ci gets data-cv; every
    [data-chat-view] button (templates/_chatview.html) gets aria-pressed; a 'storage' event re-applies it (the
    drawer iframe follows its parent page). A mode change dispatches pm:chat-view; chat-items.js then settles.

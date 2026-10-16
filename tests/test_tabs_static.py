@@ -1,4 +1,4 @@
-"""Static contracts of the shared tab bar (#163): one rule file (css/tabs.css) with three looks (flat, .tabs-seg boxed
+"""Static contracts of the shared tab bar: one rule file (css/tabs.css) with three looks (flat, .tabs-seg boxed
 group, .tabs-line doc tabs), underline colours only as tokens, and every tablist in the templates made of role=tab +
 aria-selected tabs with the .tab class."""
 import re

@@ -50,9 +50,9 @@ def test_launch_button_is_primary_and_touch_selects_fit(env):  # noqa: F811
     login(s, c)
     t = c.get("/p/alpha/launch").text
     btn = re.search(r"<button[^>]*data-launch-open[^>]*>", t).group(0)
-    assert 'class="primary"' in btn  # #189: the shared green primary, no launch.css colour of its own
+    assert 'class="primary"' in btn  # the shared green primary, no launch.css colour of its own
     css = c.get("/static/css/launch.css").text
     assert "[data-launch-open] {" not in css and re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", css) is None
     touch = css[css.index("(pointer: coarse)"):]
     touch = touch[:touch.index("\n}\n")]
-    assert ".launch-compact select { height: auto; min-height: var(--ctl-h); }" in touch  # #187: 16px text not cut
+    assert ".launch-compact select { height: auto; min-height: var(--ctl-h); }" in touch  # 16px text not cut

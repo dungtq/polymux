@@ -1,4 +1,4 @@
-"""Append-only chat items (``chat_items`` in ``settings.db_file``; docs/CHAT-SYNC.md).
+"""Append-only chat items (``chat_items`` in ``settings.db_file``).
 
 Blocking; callers use an executor. ``pm.chat.itemsync`` writes (masked text only), the read API
 here returns ``pm.core.models.ChatItem`` in conversation order (seq, oldest first).

@@ -59,20 +59,20 @@ def _selectors(css: str) -> list[str]:
 
 
 def test_component_css_uses_size_tokens():
-    """#170: --fs-s and --r-pill instead of their literal values; 999px only as a media-query breakpoint."""
+    """--fs-s and --r-pill instead of their literal values; 999px only as a media-query breakpoint."""
     for name, css in _component_css().items():
         assert ".8125rem" not in css, name
         assert not re.search(r"(?<![\w-])999px", re.sub(r"@media[^{]*\{", "", css)), name
 
 
 def test_component_css_has_no_light_dark_literals():
-    """#170: theme pairs are named tokens in tokens.css, not light-dark(#..) in a component file."""
+    """Theme pairs are named tokens in tokens.css, not light-dark(#..) in a component file."""
     for name, css in _component_css().items():
         assert not re.search(r"light-dark\(\s*(#|rgb|hsl)", css), name
 
 
 def test_hcell_defined_once_in_rows_css():
-    """#170: the sort-link header cell has one spec (rows.css); the lists.css and chrome.css copies were dead."""
+    """The sort-link header cell has one spec (rows.css); the lists.css and chrome.css copies were dead."""
     bare = (".hcell", ".hcell:hover", ".hcell.on", ".hcell .arr")
     for name, css in _component_css().items():
         hits = [s for s in _selectors(css) if s in bare]
@@ -83,7 +83,7 @@ def test_hcell_defined_once_in_rows_css():
 
 
 def test_filter_chips_one_place_and_dead_chips_gone():
-    """#170: the filter chips (.aud-chip, .srv-chip, .set-chip) are styled in chrome.css only; unused chip classes are gone."""
+    """The filter chips (.aud-chip, .srv-chip, .set-chip) are styled in chrome.css only; unused chip classes are gone."""
     for name, css in _component_css().items():
         for dead in ("sortchip", "ntfy-btn", "ntfy-chips", "aud-clear"):
             assert dead not in css, (name, dead)

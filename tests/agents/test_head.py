@@ -271,7 +271,7 @@ def test_new_session_label_unknown_model_and_other_kinds(tmp_path):
 
 
 def test_live_pill_falls_back_to_the_settings_default_then_the_kind(tmp_path):
-    """#155: the heading pill shows the same model as the composer placeholder: live, else Claude's settings default,
+    """The heading pill shows the same model as the composer placeholder: live, else Claude's settings default,
     else the kind name (``live_model`` itself keeps the kind as its "unknown")."""
     from pm.agents.head import live_model, live_pill, placeholder
     a = _live(tmp_path, pid=0, aid="claude-p1")

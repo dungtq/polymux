@@ -1,4 +1,4 @@
-"""Chat items (docs/CHAT-SYNC.md): the append-only conversation of one agent as an HTML fragment.
+"""Chat items: the append-only conversation of one agent as an HTML fragment.
 
 ``GET /a/{id}/items`` renders ``_chatitems.html``: user prompts, one bubble per assistant text block,
 tool calls grouped under the reply that started them, turn-end lines, plus pm's own composer messages

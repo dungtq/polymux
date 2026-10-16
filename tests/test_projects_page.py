@@ -101,7 +101,7 @@ def test_project_page_tab_script_and_old_stack_block_gone(env):
     h = c.get("/p/alpha").text
     assert "/static/js/projtabs.js" in h and "<h2>Stack</h2>" not in h
     assert "#pj-tabbar .pj-tab" in c.get("/static/js/projview.js").text  # doc tabs ignore the tmux tabs
-    # #163: both tab bars use the shared .tabs/.tab (tabs.css) and pm.tabs (tabs.js, loaded by base.html)
+    # both tab bars use the shared .tabs/.tab (tabs.css) and pm.tabs (tabs.js, loaded by base.html)
     assert '<div class="tabs pj-tabs tabs-line" role="tablist" aria-label="Project documents">' in h
     assert h.count('<a class="tab pj-tab') >= 5 and 'class="pj-tab"' not in h
     assert '<div class="tabs tabs-line" role="tablist" aria-label="tmux, stack and VMs" data-ptabs data-tabs-key="pm.ptab">' in h

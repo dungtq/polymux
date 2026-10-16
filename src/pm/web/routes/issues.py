@@ -1,4 +1,4 @@
-"""Issues of a tracker project (docs/TRACKER-PLAN.md section 6): the project page's Issues tab and issue
+"""Issues of a tracker project: the project page's Issues tab and issue
 detail (fragments), add / done / reopen / edit / note / delete, and the composer's "Save as issue"
 (``POST /a/{agent_id}/issue``). Shared helpers: ``pm.web.issuectx``; the images (``/tracker/img``) are served
 next to ``/uploads`` in chat.py.

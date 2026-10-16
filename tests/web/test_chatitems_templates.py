@@ -1,4 +1,4 @@
-"""Chat items templates and static files (docs/CHAT-SYNC.md): page wiring, outbox bubble, composer
+"""Chat items templates and static files: page wiring, outbox bubble, composer
 placeholder, Jinja filters, and the static contract of chat-items.js / chatlog.js / chat-items.css."""
 
 import json

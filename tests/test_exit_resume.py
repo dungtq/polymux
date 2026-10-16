@@ -254,7 +254,7 @@ def test_resume_runs_claude_resume(client, monkeypatch, tmp_path):
 
 
 def _words(nw):
-    """The argv after tmux's ``--`` and the shell prefix: positional args, never one shell string (#204). The
+    """The argv after tmux's ``--`` and the shell prefix: positional args, never one shell string. The
     fake tmux has no default-shell, so the fallback /bin/sh runs it."""
     words = nw[nw.index("--") + 1:]
     assert words[:4] == ["/bin/sh", "-c", 'exec "$@"', "sh"]

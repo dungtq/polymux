@@ -327,7 +327,7 @@ html{scrollbar-gutter:stable}
   .pg-project .srow{grid-template-columns:minmax(24em,32em) minmax(0,1fr) auto;grid-template-areas:"main wins act"}
 }
 
-/* agent kind colour = WHO (docs/mock/v5/pages/agent-colors.html); state dots/badges keep WHAT. Tokens: tokens.css --k-*. */
+/* agent kind colour = WHO; state dots/badges keep WHAT. Tokens: tokens.css --k-*. */
 .vc-head[data-kind]{box-shadow:inset 0 3px 0 var(--k)}
 .agent-head[data-kind] .at-ico{color:var(--k)}
 .agent-head[data-kind] .agent-kind{color:var(--k)}

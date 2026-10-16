@@ -136,7 +136,7 @@ def check_safe(url: str, token_file: str) -> None:
 
 def devpm_start_cmd(port: int) -> list[str]:
     """Only --port: devpm then keeps the instance's own --pm-bin / --extra-toml / --limits, so a stale-code
-    restart never swaps a plugin instance for the classic pm (#206)."""
+    restart never swaps a plugin instance for the classic pm."""
     return [sys.executable, str(HERE / "devpm.py"), "start", "--port", str(port)]
 
 

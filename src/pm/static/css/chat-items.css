@@ -1,4 +1,4 @@
-/* Chat items (docs/CHAT-SYNC.md): the conversation list #ci, tool groups under a reply, turn-end lines,
+/* Chat items: the conversation list #ci, tool groups under a reply, turn-end lines,
    outbox bubbles (#ci-pending) and the live strip's waiting tool + pane tail. Bubbles reuse .chat-bubble
    (agent.css, shell.css), chips reuse .tchip (chat.css). Tokens only (tokens.css); light + dark via tokens.
    Linked before chrome/agent/shell.css: selectors that must win carry one class more. */

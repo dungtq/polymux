@@ -1,4 +1,4 @@
-"""CHANGELOG.md in pm.db (docs/TRACKER-PLAN.md section 11): parse, render, import, absorb, add / edit / rm,
+"""CHANGELOG.md in pm.db: parse, render, import, absorb, add / edit / rm,
 and what a merged or committed branch adds.
 
 The file is preamble lines (``tk_line``, everything before the first ``## `` line) and entries

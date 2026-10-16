@@ -1,6 +1,6 @@
 """Plans UI: ``/p/{name}/plans`` (list + create) and ``/p/{name}/plans/{plan}`` (read, edit, rename,
 delete). Files live in the agents' plan directories (~/.claude/plans, ~/.cursor/plans, filtered
-to the project) and in ``<project>/plans/*.md`` (see plans.py and docs/PLANS.md). The location is
+to the project) and in ``<project>/plans/*.md`` (see ``pm.projects.plans``). The location is
 the ``src`` query/form field (default ``project``); it is validated against a fixed allowlist.
 
 The project NAME is validated against the registry and the path is derived server-side; plan

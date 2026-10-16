@@ -12,7 +12,7 @@ atomic replace. Item operations (toggle/add) apply to the CURRENT content, so un
 by agents never break them. Full-file saves keep the token check, show a diff on conflict and
 honour an edit lease (people editing at the same time).
 
-Tracker projects (docs/TRACKER-PLAN.md) keep BACKLOG.md in pm.db: add / toggle / edit go to the store
+Tracker projects keep BACKLOG.md in pm.db: add / toggle / edit go to the store
 (``line`` is the issue number) and the whole-file editor is refused (409).
 """
 

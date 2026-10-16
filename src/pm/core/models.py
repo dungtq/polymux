@@ -252,7 +252,7 @@ class ChatMsg:
 
 @dataclass(frozen=True)
 class ChatItem:
-    """One append-only chat item (``pm.chat.items``, table ``chat_items``; docs/CHAT-SYNC.md).
+    """One append-only chat item (``pm.chat.items``, table ``chat_items``).
 
     A user prompt, one assistant text block, one tool call, or a turn end. Once stored, only a
     tool item's ``status``/``ended``/``note`` (and a user item's ``outbox`` link) may change; every

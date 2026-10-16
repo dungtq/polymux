@@ -6,7 +6,6 @@ last_test}``; never a password or a key. Host keys are pinned (after the user co
 (no shell, fixed binary, timeout, user values after ``--``) and is reduced to a result class; ssh stderr is
 never stored, shown or logged. The one-time install password travels through a private FIFO read by
 ``tools/pm-askpass`` (SSH_ASKPASS_REQUIRE=force); it is not in argv, env, on disk or in any log.
-Design: docs/DESIGN-GIT-REMOTES-SERVERS.md sections 3 and 5.
 """
 
 from __future__ import annotations

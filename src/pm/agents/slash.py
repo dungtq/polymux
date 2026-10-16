@@ -1,6 +1,6 @@
 """Per-kind slash command catalog and the server-side policy for messages starting with ``/``.
 
-Curated from docs/SLASH-COMMANDS.md (probed 2026-10-08). Names differ between CLIs, so there
+Curated by probing each CLI (2026-10-08). Names differ between CLIs, so there
 is one static list per agent kind. ``risk``: ``info`` (read-only, any time), ``action``
 (changes the session, only offered while the agent is not running), ``danger`` (ends or
 reconfigures the session; needs ``confirm=1`` in the POST, enforced here, not only in JS).

@@ -1,4 +1,4 @@
-"""FEATURES.md in pm.db (docs/TRACKER-PLAN.md section 11): render, import, absorb, set / rm / list, and what
+"""FEATURES.md in pm.db: render, import, absorb, set / rm / list, and what
 a merged or committed branch changed. Rows and grammar: ``featurestore``.
 
 A render of an import gives the same bytes. An entry of an area that has no heading line yet (a new area)

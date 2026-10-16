@@ -356,7 +356,7 @@ def cmd_start(port: int, limits: str | None = None, pm_bin: str | None = None, e
     if plan == "reuse":
         print(json.dumps(cur))
         return 0
-    if plan == "restart":  # new code or options: replace only the pm process, keep the seeded data (#206)
+    if plan == "restart":  # new code or options: replace only the pm process, keep the seeded data
         stop_pid(cur.get("pid", 0))
         info = dict(cur)
         if cur.get("limits", OPT_DEFAULTS["limits"]) != opts["limits"]:

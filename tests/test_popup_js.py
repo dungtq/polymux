@@ -167,7 +167,7 @@ def test_static_contracts():
     assert base.index("/static/css/nav.css") < base.index("/static/css/popup.css") < base.index("/static/css/filespane.css")
     dlg = (ROOT / "static/js/dialog.js").read_text()
     assert "window.pmDialog" in dlg and "htmx:afterRequest" in dlg and "requestConfig" in dlg
-    assert "var ok = el('button', o.danger ? 'small danger' : 'small primary'," in dlg  # #188: OK is never grey
+    assert "var ok = el('button', o.danger ? 'small danger' : 'small primary'," in dlg  # OK is never grey
     assert "t.id = 'pmdlg-t';" not in dlg and "'pmdlg-t' + (++seq)" in dlg  # unique title ids, no fixed id
     for old in ("launchpop.js", "plans-pop.js", "imgview.js", "palette.js"):
         assert "e.target === dlg" not in (ROOT / "static/js" / old).read_text(), old  # one backdrop rule, in dialog.js

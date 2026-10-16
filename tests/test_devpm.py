@@ -104,7 +104,7 @@ def test_start_opts_explicit_wins_else_remembered(tmp_path):
     cur = {"pm_bin": "/v/bin/pm", "extra_toml": "/x/plug.toml", "limits": "warn"}
     assert devpm.start_opts(cur, None, None, None) == cur
     assert devpm.start_opts(None, None, None, None) == devpm.OPT_DEFAULTS
-    assert devpm.start_opts({"url": "u"}, None, None, None) == devpm.OPT_DEFAULTS  # instance from before #206
+    assert devpm.start_opts({"url": "u"}, None, None, None) == devpm.OPT_DEFAULTS  # an older instance.json
     got = devpm.start_opts(cur, "", "", "red")  # '' resets to the default
     assert got == {"pm_bin": "", "extra_toml": "", "limits": "red"}
     rel = devpm.start_opts(cur, "bin/pm", None, None)["pm_bin"]
@@ -169,7 +169,7 @@ def _old_instance(root: Path, **opts) -> dict:
 
 
 def test_stale_restart_keeps_pm_bin_and_fixture_data(monkeypatch, tmp_path):
-    """#206: a stale restart (e.g. from uishot) kept dropping --pm-bin and re-seeding the fixtures."""
+    """A stale restart (e.g. from uishot) kept dropping --pm-bin and re-seeding the fixtures."""
     calls = _fake_start(monkeypatch, tmp_path, tmux_rc=0)
     root = tmp_path / "8330"
     extra = tmp_path / "plug.toml"
