@@ -5,7 +5,7 @@
 
     ar.agent_row(r, table="inbox", project=true, cur=false, sel=false)
       r = pm.web.dt.inbox.Row; the row's link (data-href, and the name as its row link: a new tab / window on a
-      modified or middle click) is /a/<id>. Cells in grid order: dot · Agent (unread count, pin, ctx chip) · Project (hide-n;
+      modified or middle click) is /a/<id>. Cells in grid order: dot · Agent (unread count, pin, model pill, ctx chip) · Project (hide-n;
       project=false leaves it out: the project view) · tmux (hide-n i-w: link to the read-only terminal tab) · Last
       message (source you / ntfy; pending question yellow, error red) · Age (ticks: data-since) · CPU · RAM (hide-n i-w)
       · phone line 2 · actions (details chevron, ⋯ = r.menu). Then the row details: answer buttons for a pending
@@ -40,6 +40,7 @@
 {%- if r.unread_n %}<span class="i-un" title="{{ r.unread_n }} unread">{{ r.unread_n }}<span class="vh"> unread</span></span>
 {%- elif r.unread %}<span class="i-un i-und" title="Unread"><span class="vh">unread</span></span>{% endif -%}
 {%- if r.pinned %}<span class="i-pin" title="Pinned">{{ icon("pin") }}<span class="vh">pinned</span></span>{% endif -%}
+{%- if r.model %}<span class="chip k i-mdl" data-kind="{{ r.kind }}" title="model: {{ r.model }}">{{ r.model }}</span>{% endif -%}
 {%- if r.ctx_pct is not none and r.ctx_pct >= 80 %}<span class="chip i-ctx" title="Context {{ r.ctx_pct }} % full">ctx {{ r.ctx_pct }}%</span>{% endif -%}
 {%- endmacro -%}
 

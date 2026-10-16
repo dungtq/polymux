@@ -260,6 +260,8 @@ def test_fragment_structure(env):
     assert f'data-i-recap="/a/{RUN.id}/recap-row"' in html and 'data-keep' in html
     assert f'data-key="rc-{RUN.id}"' in html
     assert 'class="chip i-ctx"' in html and "ctx 86%" in html
+    # the model pill sits in the Agent cell (Settings › Display › Show the model pill: html.no-mpill hides .i-mdl); none when unknown
+    assert html.count('class="chip k i-mdl"') == 2 and 'title="model: opus-4">opus-4</span>' in html
     assert 'class="i-q"' in html and 'class="i-err"' in html and '<span class="i-src"' in html
     assert 'data-i-term="$1"' in html and 'href="/term/s1?w=w7"' in html
     assert f'data-i-rk="{WAIT.id}:waiting" data-i-un="1"' in html

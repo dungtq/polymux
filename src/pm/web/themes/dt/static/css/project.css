@@ -107,14 +107,19 @@ button.pj-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px
 .pj-tab{min-width:0}
 .pj-ph{border-top:0;color:var(--muted)}
 /* agent rows (parts/_agentrow.html, project column left out): dot · Agent · tmux · Last message · Age · CPU · RAM ·
-   actions; tmux, CPU, RAM (.i-w) drop when the project main is <= 1000px, as on the Inbox. The Ended band's rows use
-   the same columns (ended_row live_cols) */
-.pj-ags{--g-cols:var(--dot) minmax(9rem,1fr) fit-content(9rem) minmax(0,2.2fr) auto auto auto auto;
-  --g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto;
+   actions; tmux, CPU, RAM (.i-w) drop when the project main is <= 1000px, as on the Inbox; the model pill (.i-mdl)
+   when it is <= 640px. The Ended band's rows use the same columns (ended_row live_cols) */
+.pj-ags{--g-cols:var(--dot) minmax(15rem,1fr) fit-content(9rem) minmax(0,2.2fr) auto auto auto auto;
+  --g-cols-n:var(--dot) minmax(17rem,1fr) minmax(0,2fr) auto auto;
   --g-cols-s:var(--dot) minmax(7rem,1fr) minmax(0,1.5fr) auto auto}
 @container pj (max-width:1000px){
-  .pj-ags{--g-cols:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto}
+  .pj-ags{--g-cols:var(--dot) minmax(17rem,1fr) minmax(0,2fr) auto auto}
   .pj-ags .i-w{display:none}
+}
+@container pj (max-width:640px){
+  .pj-ags{--g-cols:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto}
+  .pj-ags{--g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto}
+  .pj-ags .i-mdl{display:none}  /* the model pill needs the wide Agent column */
 }
 .pj-plans{--g-cols:minmax(0,1fr) fit-content(12rem) auto auto;--g-cols-s:minmax(0,1fr) auto auto}
 .pj-doctools{margin-bottom:var(--s3)}

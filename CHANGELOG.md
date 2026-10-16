@@ -1,8 +1,16 @@
 # Changelog
 
+## 2026-10-17 (dt: model pill in Inbox/project rows, Show the model pill setting works)
+
+The dt Inbox and project agent rows now show the model pill after the agent name. Settings > Display > "Show the model pill" had no effect: head.js set html.no-mpill but no CSS used it. It now hides the pill in those rows, the chat header and the message headers. Rows hide the pill under 640 px of page width and on phones; the Agent column is wider so the id stays readable.
+
 ## 2026-10-17 (Finished sub-agents no longer shown as running (transcript request replays))
 
 A finished Claude sub-agent no longer shows as running or "waiting" in the Sub-agents panel, the tab count and the agent rows for up to 30 minutes. Newer transcripts replay old tool calls inside `api-request*` entries; those replays re-opened the sub-agent's last call (usually its final hand-back) and inflated its call count. Tool calls are now read only from assistant entries and results only from user entries. The ntfy owner scan ignores the same replays.
+
+## 2026-10-17 (Several tmux-agents messages in one bubble group)
+
+A chat message that carries several `tmux-agents` envelopes at once (queued notices, a request and a reply arriving together, or an older notice without a sender) now shows one "Message from: <agent id>" block per envelope, each in its sender's colour, instead of one raw blue "You" bubble.
 
 ## 2026-10-17 (Messages from other agents show as "Message from: <agent id>")
 
