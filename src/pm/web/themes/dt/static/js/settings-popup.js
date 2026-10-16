@@ -9,10 +9,10 @@
    Globals: pm7.settings += {open(id?) -> Promise<bool>, close(), toggle(), isOpen()} (Object.assign onto
    js/settings.js's object).
    Openers: ⌘, (keys.js row "settings": toggle; it also fires while the popup is the top layer), [data-sp-open] (the
-   sidebar foot's Settings; data-sp-open="<id>" opens that section; a modified click follows the link), the search
-   command "Settings". On /settings there is no dialog: toggle() focuses the page's search box, open(id) shows that
-   section. Layers: pm7.dialog (layers.js: Esc, backdrop, focus trap, focus return); confirms, menus, toasts and
-   dialog#s-install stack on top of it and close first. */
+   sidebar foot's and the account menu's Settings; data-sp-open="<id>" opens that section; a modified click follows
+   the link), the search command "Settings". On /settings there is no dialog: toggle() focuses the page's search box,
+   open(id) shows that section. Layers: pm7.dialog (layers.js: Esc, backdrop, focus trap, focus return); confirms,
+   menus, toasts and dialog#s-install stack on top of it and close first. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;
@@ -86,6 +86,10 @@
     const a = e.target && e.target.closest ? e.target.closest('[data-sp-open]') : null;
     if (!a || !dlg() || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
     e.preventDefault();
+    const menu = a.closest('details[open]');  // the account menu: shut it; focus returns to its button on close
+    const sm = menu && menu.querySelector('summary');
+    if (menu) menu.open = false;
+    if (sm) sm.focus({ preventScroll: true });
     open(a.getAttribute('data-sp-open') || '');
   });
 

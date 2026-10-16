@@ -3,7 +3,8 @@
     phone title (a session tab: its state and position; an agent page not open as a tab, shell.home.state set: that
     agent's state and project; else the Inbox stats), the tab strip, then search, phone tabs button, bell, Launch (the
     dialog: js/launch.js opens it for [data-l-open] with this page's project; the href is the no-JS fallback), aside
-    toggle, account menu.
+    toggle, account menu (its Settings opens the Settings popup: [data-sp-open], js/settings-popup.js; a plain link
+    on /settings itself).
     Context: shell, cur_tab (base.html). Key labels are platform-specific, so titles carry none; keys.js may add
     them from data-k-title (the key table is the one source). -#}
 {%- set ic = "/static/t/dt/icons.svg#" -%}
@@ -11,6 +12,7 @@
 {%- set _lp = project.name if (project is defined and project and project.name is defined)
     else (agent.project if (agent is defined and agent and agent.project is defined) else "") -%}
 {%- set ntabs = shell.tabs | length + 1 -%}
+{%- set _onset = shell.foot | selectattr("key", "equalto", "settings") | selectattr("cur") | list -%}
 <header class="x-top">
   <div class="x-lead">
     <button class="x-ib x-sbtg" type="button" data-act="side" aria-controls="x-side" aria-label="Sidebar" title="Sidebar" data-k-title="mod+B"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}side-l"/></svg></button>
@@ -41,7 +43,7 @@
   <details class="x-acct" id="x-acct">
     <summary class="x-ib" aria-label="Account menu" title="Account"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}user"/></svg></summary>
     <div class="x-pop" role="menu" aria-label="Account">
-      <a href="/settings" role="menuitem"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}sliders"/></svg>Settings</a>
+      <a href="/settings" role="menuitem"{% if not _onset %} data-sp-open aria-haspopup="dialog" aria-controls="sp-dlg"{% endif %}><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}sliders"/></svg>Settings</a>
       <button type="button" role="menuitem" data-act="keys"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}kbd"/></svg>Keyboard shortcuts<kbd>?</kbd></button>
       <button type="button" role="menuitem" data-act="mode"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}moon"/></svg>Dark / light mode</button>
       {%- for name, label in (ui_themes if ui_themes is defined else []) if name != (ui_theme if ui_theme is defined else "dt") %}
