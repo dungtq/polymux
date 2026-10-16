@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from datetime import UTC, datetime, timezone
 
@@ -77,3 +78,49 @@ def test_agent_feed_resolves_title_ids_in_one_registry_query(tmp_path, monkeypat
     recs = ntfy_owner.title_records(s, (i.title for i in items))
     assert {i.id: ntfy_owner.owner_for(s, [], i.title, i.time, recs) for i in items} == before
     assert before["0"].label == "claude-aaaaaa-label" and before["0"].live and not before["1"].live
+
+
+def test_kind_owner_matches_the_one_session_covering_the_message():
+    def R(i, k, first, end=None, mtime=2000.0):
+        return type("R", (), {"id": i, "kind": k, "first_seen": first, "ended_at": end})(), mtime
+
+    recs = [R("devin-aaaaaa", "devin", 100.0, 500.0), R("devin-bbbbbb", "devin", 600.0), R("codex-cccccc", "codex", 0.0)]
+    assert ntfy_owner.kind_owner("devin - Done", 300.0, recs) == "devin-aaaaaa"
+    assert ntfy_owner.kind_owner("devin - Done", 900.0, recs) == "devin-bbbbbb"
+    assert ntfy_owner.kind_owner("devin - Done", 550.0, recs) is None  # between the sessions (beyond slack)
+    assert ntfy_owner.kind_owner("codex - Done", 900.0, recs) == "codex-cccccc"
+    assert ntfy_owner.kind_owner("devin - Done", 1000.0, recs + [R("devin-dddddd", "devin", 50.0)]) is None  # two live
+    idle = R("devin-ffffff", "devin", 50.0, mtime=800.0)  # wrote nothing since before the message: not the sender
+    assert ntfy_owner.kind_owner("devin - Done", 1000.0, recs + [idle]) == "devin-bbbbbb"
+    assert ntfy_owner.kind_owner("devin-aaaaaa - Done", 300.0, recs) is None  # id titles go through title_owner
+    assert ntfy_owner.kind_owner("plain", 300.0, recs) is None
+
+
+def test_agent_feed_attributes_kind_only_title_and_any_project_tag(tmp_path, monkeypatch):
+    from pm.agents import registry
+    from pm.core.config import Settings
+    from pm.notify import feed as ntfy_feed
+
+    s = Settings(state_dir=tmp_path / "state")
+    con = registry._connect(s)
+    live, stale = tmp_path / "live.json", tmp_path / "stale.json"
+    live.write_text("{}")
+    stale.write_text("{}")
+    os.utime(stale, (1.0, 1.0))
+    con.execute("INSERT INTO agent_records VALUES ('devin-44fd82','devin',NULL,1,1.0,2.0,'%1','pm','/x','l',?,NULL,'')",
+                (str(live),))
+    con.commit()
+    con.close()
+    it = NtfyItem(id="1", time=50.0, title="devin - Plan limits", message="m", tags=("/other/project",),
+                  project="/other/project")
+    monkeypatch.setattr(ntfy_feed, "recent", lambda settings: [it])
+    monkeypatch.setattr(ntfy_owner, "build_index", lambda settings, since: [])
+    assert ntfy_owner.agent_feed(s, {"devin-44fd82"}) == {"devin-44fd82": ntfy_owner.AgentFeed(it, 0)}
+    con = registry._connect(s)  # an idle devin elsewhere does not make the title ambiguous
+    con.execute("INSERT INTO agent_records VALUES ('devin-eeeeee','devin',NULL,2,1.0,2.0,'%2','other','/y','l2',?,NULL,'')",
+                (str(stale),))
+    con.execute("INSERT INTO agent_records VALUES ('devin-gggggg','devin',NULL,3,1.0,2.0,'%3','other','/z','l3',?,NULL,'')",
+                (str(live),))  # a second devin written after the message: ambiguous, nobody gets it
+    con.commit()
+    con.close()
+    assert ntfy_owner.agent_feed(s, {"devin-44fd82"}) == {}
