@@ -33,7 +33,9 @@
    Embed bridge: this file is also loaded in embed pages. In the aside's own iframe (window.frameElement inside
    #x-aside, same origin only) it registers a soft layer at rank 90 whose close posts {pm7: 'esc'} (so Esc closes
    the aside once the composer was left) and forwards ⌘L ⌘⇧L ⌘K ⌘P ⌘⇧P ⌘B ⌘, as {pm7: 'key', spec}; keys.js is not
-   loaded there. The parent accepts messages only from that iframe's window and its own origin. */
+   loaded there; the ⋯ item "Switch agent…" (event c:switch, handled by launch.js, not loaded there) is forwarded as
+   {pm7: 'switch', id}, and the shell opens its Launch dialog (pm7.launch.open({handoff: id})). The parent accepts
+   messages only from that iframe's window and its own origin. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document, R = d.documentElement;
@@ -63,6 +65,12 @@
       e.preventDefault();
       post({ pm7: 'key', spec: spec });
     }, true);
+    /* ⋯ Switch agent… (c:switch): launch.js is not loaded here, so the shell opens its Launch dialog */
+    d.addEventListener('c:switch', (e) => {
+      const s = e.target && e.target.closest ? e.target.closest('[data-agent]') : null;
+      const id = s ? s.getAttribute('data-agent') : '';
+      if (AGENT.test(id || '')) post({ pm7: 'switch', id: id });
+    });
     return;
   }
 
@@ -382,6 +390,10 @@
     if (!m || typeof m !== 'object') return;
     if (m.pm === 'drawer' && m.act === 'md') { if (pm7.md) pm7.md.open(m.id, m.path); return; }
     if (m.pm7 === 'esc') { close(); return; }
+    if (m.pm7 === 'switch') {  // the aside chat's ⋯ Switch agent…: Launch dialog with that chat as the prompt
+      if (typeof m.id === 'string' && AGENT.test(m.id) && pm7.launch) pm7.launch.open({ handoff: m.id });
+      return;
+    }
     if (m.pm7 !== 'key' || FWD.indexOf(m.spec) < 0) return;
     if (m.spec === 'mod+L') { close(); return; }
     if (m.spec === 'mod+shift+L') { toTab(); return; }

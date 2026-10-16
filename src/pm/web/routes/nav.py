@@ -6,8 +6,10 @@ from urllib.parse import quote, urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 
+from pm.agents import registry
+from pm.core import executors
 from pm.web import launchctx
-from pm.web.deps import AUTH, snapshot
+from pm.web.deps import AGENT_ID_RE, AUTH, snapshot
 from pm.web.render import fragment, get_template, page_ctx
 
 router = APIRouter()
@@ -34,13 +36,18 @@ async def launch_any(request: Request) -> RedirectResponse:
 
 
 @router.get("/launch/form", dependencies=AUTH)
-async def launch_form(request: Request, project: str = "", todo: str = "") -> Response:
+async def launch_form(request: Request, project: str = "", todo: str = "", handoff: str = "") -> Response:
     """The launch form of ``project`` (else as ``/launch`` picks one) as the theme's ``_launch_form.html`` partial;
-    ``todo=<n>`` preselects open TODO item n ("From TODO"). Data: ``launchctx.form_model``. 404 when no project."""
+    ``todo=<n>`` preselects open TODO item n ("From TODO"); ``handoff=<agent id>`` prefills the prompt with that
+    chat's hand-off (Switch agent; its project is the default). Data: ``launchctx.form_model``. 404 when no project."""
     snap = await snapshot(request)
-    p = snap.project(_pick(snap, project))
+    st = request.app.state.settings
+    src = None
+    if AGENT_ID_RE.fullmatch(handoff):  # a live agent or an ended record names its project
+        src = snap.agent(handoff) or await executors.run_collectors(registry.get, st, handoff)
+    p = snap.project(_pick(snap, project or (src.project if src and src.project else "")))
     if p is None:
         raise HTTPException(404, "no project")
     idx = int(todo) if todo.isdigit() and len(todo) < 6 else None
-    model = await launchctx.form_model(request.app.state.settings, snap, p, idx)
+    model = await launchctx.form_model(st, snap, p, idx, handoff)
     return fragment(request, get_template("_launch_form.html").render(**page_ctx(request), **model))

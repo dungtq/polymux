@@ -53,17 +53,26 @@ def _review(agent) -> str:
     return f"/p/{quote(agent.project, safe='')}/launch?review={quote(agent.id, safe='')}"
 
 
+def _switch(agent):
+    """Switch agent…: a page event (js/launch.js opens the Launch dialog with this chat as the prompt); needs a
+    project."""
+    if not getattr(agent, "project", None):
+        return None
+    return menus.item("switch", "Switch agent…", "right", note="hand-off", event="c:switch")
+
+
 # ------------------------------------------------------------------ ⋯ menus
 def live_menu(agent, clear: str, resumable: bool) -> list[dict]:
     """⋯ of a live agent. New chat clicks the composer's own form (classic newchat.js: confirm, then it follows the
     new agent id); Fork / Exit / Exit and kill window post after an in-page question (kill: typed agent id,
-    V7-SEC-6); Continue…, Usage and btw are page events (js/session.js)."""
+    V7-SEC-6); Continue…, Usage and btw are page events (js/session.js), Switch agent… one too (js/launch.js)."""
     base, aid = f"/a/{agent.id}", agent.id
     review = _review(agent)
     return menus.menu(
         menus.item("newchat", "New chat", "plus", note="clears", click="form[data-newchat] button[type=submit]")
         if clear else None,
         menus.item("continue", "Continue… in a new agent", "right", event="c:continue"),
+        _switch(agent),
         menus.item("fork", "Fork", "branch", post=f"{base}/fork", confirm=f"Fork {aid} into a new tmux window?",
                    body="Starts a copy of this conversation in the background. This chat stays as it is.", ok="Fork",
                    done="Fork started") if resumable else None,
@@ -81,7 +90,7 @@ def live_menu(agent, clear: str, resumable: bool) -> list[dict]:
 
 
 def ended_menu(agent, rec, can_act: bool) -> list[dict]:
-    """⋯ of an ended record: Resume (needs a recorded session id), Fork, Copy id."""
+    """⋯ of an ended record: Resume (needs a recorded session id), Switch agent…, Fork, Copy id."""
     base, aid = f"/a/{agent.id}", agent.id
     resume = None
     if can_act and getattr(rec, "resume_id", None):
@@ -91,6 +100,7 @@ def ended_menu(agent, rec, can_act: bool) -> list[dict]:
         resume = menus.item("resume", "Resume", "play", disabled=True, why="no session id recorded")
     return menus.menu(
         resume,
+        _switch(agent),
         menus.item("fork", "Fork", "branch", post=f"{base}/fork", confirm=f"Fork {aid} into a new tmux window?",
                    body="The original is left untouched.", ok="Fork", done="Fork started") if can_act else None,
         menus.copy_id(aid))

@@ -74,7 +74,7 @@ def test_live_session_tabs_radios_and_menu():
     assert s.radios == [("chat", False), ("pane", False), ("sub", True)]  # classic DOM order, no term
     assert s.bld == {"href": f"/a/{AID}/builder", "on": False}
     ids = [i.get("id") for i in s.menu if not i.get("sep")]
-    assert ids == ["newchat", "continue", "fork", "review", "usage", "btw", "copy", "exit", "exitkill"]
+    assert ids == ["newchat", "continue", "switch", "fork", "review", "usage", "btw", "copy", "exit", "exitkill"]
     kill = s.menu[-1]
     assert kill["typed"] == AID and AID in kill["confirm"] and kill["danger"]
 
@@ -93,15 +93,33 @@ def test_builder_and_ended_menus():
     rec = SimpleNamespace(project="alpha", kind="claude", resume_id="u1")
     b = session.builder({"agent": _agent(), "live": False, "rec": rec, "csrf": "t"}, ("claude",))
     assert b.state == "ended" and b.tabs == [] and b.can_act and b.bld == {"href": f"/a/{AID}", "on": True}
-    assert [i["id"] for i in b.menu] == ["resume", "fork", "copy"]
+    assert [i["id"] for i in b.menu] == ["resume", "switch", "fork", "copy"]
     e = session.ended({"agent": _agent(), "rec": SimpleNamespace(project="alpha", kind="claude", resume_id=None),
                        "csrf": "t"}, ("claude",))
     assert e.menu[0]["disabled"] and e.menu[0]["why"] == "no session id recorded"
     e = session.ended({"agent": _agent(), "rec": rec, "csrf": ""}, ("claude",))
-    assert not e.can_act and [i["id"] for i in e.menu] == ["copy"]
+    assert not e.can_act and [i["id"] for i in e.menu] == ["switch", "copy"]  # Switch needs only a project
 
 
 def test_dt_session_never_raises():
     env = jinja2.Environment()
     env.globals["dt_session"] = session.dt_session
     assert env.from_string('{{ dt_session("live", []) is none }}').render() == "True"  # no agent in the context
+
+
+def test_switch_agent_item_in_live_and_ended_menus():
+    ids = lambda m: [i.get("id") for i in m]  # noqa: E731
+    live = session.live_menu(_agent(), "", False)
+    assert ids(live).index("switch") == ids(live).index("continue") + 1
+    assert next(i for i in live if i["id"] == "switch")["event"] == "c:switch"
+    ended = session.ended_menu(_agent(), SimpleNamespace(resume_id=None), False)
+    assert "switch" in ids(ended) and ids(ended)[-1] == "copy"
+    for m in (session.live_menu(_agent(project=None), "", False), session.ended_menu(_agent(project=None), None, False)):
+        assert "switch" not in ids(m)
+
+
+def test_launch_js_opens_the_dialog_on_switch():
+    from pm.web import themes
+    js = (themes.HERE / "dt" / "static" / "js" / "launch.js").read_text()
+    assert "q.set('handoff'" in js and "o.handoff" in js
+    assert "addEventListener('c:switch'" in js and "closest('[data-agent]')" in js

@@ -9,8 +9,11 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from pm.agents import catalog, slash
+from pm.agents import catalog, registry, slash
 from pm.agents import launch as launch_mod
+from pm.agents.lineage import AGENT_ID_RE
+from pm.chat import handoff as handoff_mod
+from pm.chat import items as chat_items
 from pm.core import executors, prefs
 from pm.core.models import AgentKind
 
@@ -39,6 +42,17 @@ async def todo_rows(st, snap, project) -> list[tuple]:
     return rows
 
 
+def handoff_prompt(st, snap, project, agent_id: str) -> str:
+    """Hand-off prompt made from the chat of ``agent_id`` (a live agent or ended record of ``project``): "" for a
+    bad or foreign id or an empty chat. Blocking (SQLite read): run it through ``executors.run_collectors``."""
+    if not AGENT_ID_RE.fullmatch(agent_id or ""):
+        return ""
+    a = snap.agent(agent_id) or registry.get(st, agent_id)  # a live agent, else an ended record
+    if a is None or a.project != project.name:
+        return ""
+    return handoff_mod.build(chat_items.list_items(st, a.id, limit=chat_items.MAX_LIMIT))
+
+
 async def launch_data(st, project, kind_list: list[str], remembered_: dict, projects=()) -> dict:
     """JSON for the launch form script: remembered choices, templates, worktree hints, slash, modes, models, and
     ``hint``: the project ``launch_redirects`` suggests instead (one of ``projects``, the known names), else ""."""
@@ -55,7 +69,7 @@ async def launch_data(st, project, kind_list: list[str], remembered_: dict, proj
     }
 
 
-async def form_model(st, snap, project, todo: int | None = None) -> dict:
+async def form_model(st, snap, project, todo: int | None = None, handoff: str = "") -> dict:
     """Theme-neutral view model of one project's launch form.
 
     Keys: ``project`` (Project), ``base`` (``/p/<name>``; the form posts to ``base + "/launch"``, a TODO item to
@@ -71,6 +85,10 @@ async def form_model(st, snap, project, todo: int | None = None) -> dict:
     selected = todo if todo is not None and 0 <= todo < len(rows) and not rows[todo][3] else None
     if selected is not None:
         rem["prompt"] = rows[selected][2]
+    elif handoff:
+        text = await executors.run_collectors(handoff_prompt, st, snap, project, handoff)
+        if text:
+            rem["prompt"] = text
     names = sorted(p.name for p in snap.projects)
     return {
         "project": project,
