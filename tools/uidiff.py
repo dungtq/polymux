@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """uidiff: pixel + computed-style diff of the same pages served by two pm trees (dev instances only).
 
-Usage: uv run tools/uidiff.py --base ~/dev/pm --head ~/dev/pm-wt-refactor
+Usage: uv run tools/uidiff.py --base ~/polymux --head ~/polymux-wt-feature
        [--routes / /tmux ...] [--themes light,dark] [--widths 1300,1512,390] [--out DIR]
        [--tolerance N] [--base-port 8141] [--head-port 8142] [--keep] [--retries 1]
 

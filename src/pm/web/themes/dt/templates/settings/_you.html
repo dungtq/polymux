@@ -37,7 +37,7 @@
   {% call su.row("Composer text size", "0 = default (16 px on phones, no zoom).", "Fonts", s.label) %}
     <input class="x-in s-num" type="number" inputmode="numeric" min="0" max="32" data-s-b="cmp.size" placeholder="0" aria-label="Composer text size in px"><span class="s-unit">px</span>
   {% endcall %}
-  <div class="s-prev" aria-hidden="true"><span>The quick brown fox</span><span class="s-pchat">Chat text</span><span class="mono">~/dev/pm · main</span></div>
+  <div class="s-prev" aria-hidden="true"><span>The quick brown fox</span><span class="s-pchat">Chat text</span><span class="mono">~/projects/demo · main</span></div>
 {% endcall %}{% endcall %}
 <datalist id="s-fams">{% for f in sv.fonts %}<option value="{{ f }}"></option>{% endfor %}</datalist>
 <datalist id="s-fams-chat"><option value="same"></option>{% for f in sv.fonts %}<option value="{{ f }}"></option>{% endfor %}</datalist>
