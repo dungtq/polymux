@@ -14,11 +14,13 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from pm.agents import registry
 from pm.core import db, prefs
-from pm.core.config import Settings
+from pm.core.config import ACCOUNT_KINDS, Settings, account_env
 from pm.core.models import AgentKind, Launch, Project
 from pm.git import ctl as gitctl
 from pm.projects import projects
+from pm.projects import settings as pset
 from pm.tmux import ctl as tmuxctl
 
 MAX_PROMPT = 20_000
@@ -389,6 +391,14 @@ def _find_session(settings: Settings, project: Project) -> str:
     return tmuxctl.new_session(settings, new, project.path)
 
 
+def account_name(settings: Settings, kind: AgentKind, project: str) -> str:
+    """Account a new ``kind`` agent of ``project`` runs under (the project's setting); '' (default account)
+    for kinds without accounts."""
+    if kind.value not in ACCOUNT_KINDS:
+        return ""
+    return pset.load(settings, project).account(kind.value)
+
+
 def launch_agent(settings: Settings, launch: Launch, project: Project) -> LaunchResult:
     """Start the agent in a new window of the project session; the window stays when the agent quits
     (``tmuxctl.new_agent_window``)."""
@@ -400,6 +410,8 @@ def launch_agent(settings: Settings, launch: Launch, project: Project) -> Launch
     cwd = Path(project.path)
     if not cwd.is_dir():
         raise LaunchError("project path missing")
+    account = account_name(settings, launch.kind, project.name)
+    env = account_env(settings, launch.kind.value, account) if account else None  # Invalid: unknown account
     wt = None
     branch = None
     if launch.worktree_branch:
@@ -410,7 +422,8 @@ def launch_agent(settings: Settings, launch: Launch, project: Project) -> Launch
     wname = ("agent-" + launch.kind.value + ("-" + suffix if suffix else ""))[:64].rstrip("-.")
     tmuxctl.check_name(wname)
     sid = _find_session(settings, project)
-    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv)
+    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv, env=env)
+    registry.expect_account(settings, launch.kind.value, pid, account)
     _record(settings, project.name, launch.kind.value, wid, launch.prompt)
     return LaunchResult(sid, wid, wname, str(cwd), str(wt) if wt else None, branch, pid)
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from pm.agents import launch as launch_mod
 from pm.agents import message as msg
 from pm.agents import registry
-from pm.core.config import Settings
+from pm.core.config import Settings, account_env
 from pm.core.errors import Invalid
 from pm.core.models import AgentKind, Project
 from pm.tmux import ctl as tmuxctl
@@ -69,5 +69,7 @@ def resume_session(settings: Settings, rec: registry.Record, project: Project,
         raise launch_mod.LaunchError("project path missing")
     wname = f"agent-{rec.kind}-resume"
     sid = launch_mod._find_session(settings, project)
-    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv)
+    env = account_env(settings, rec.kind, rec.account) if rec.account else None  # the stored account, not the project's
+    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv, env=env)
+    registry.expect_account(settings, rec.kind, pid, rec.account)
     return launch_mod.LaunchResult(sid, wid, wname, str(cwd), pane_id=pid)

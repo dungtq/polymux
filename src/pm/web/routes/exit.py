@@ -19,6 +19,7 @@ from pm.agents import message as msg
 from pm.agents import resume as resume_mod
 from pm.agents import stop as stop_mod
 from pm.core import executors
+from pm.core.errors import PmError
 from pm.core.models import Tier
 from pm.infra import snapshot as services
 from pm.projects import projects
@@ -130,7 +131,7 @@ async def agent_resume(request: Request, agent_id: str,
         return _refuse(request, action, rec.id, 404, "Cannot resume: project no longer found.", reason="unknown project")
     try:
         res = await executors.run_tmux(resume_mod.resume_session, settings, rec, project, text)
-    except launch_mod.LaunchError as e:
+    except (launch_mod.LaunchError, PmError) as e:  # PmError: the stored account left [accounts]
         return _refuse(request, action, rec.id, 400, "Cannot resume: refused.", reason="resume refused", detail={"why": str(e)[:80]})
     except Exception:  # noqa: BLE001
         return _refuse(request, action, rec.id, 502, "Resume failed (tmux error).", "error", "resume failed")

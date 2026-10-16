@@ -1,4 +1,4 @@
-"""Project page > Settings: hidden components, default branch, linked projects (``project_settings.json``).
+"""Project page > Settings: hidden components, default branch, login accounts, linked projects (``project_settings.json``).
 
 Both POSTs: POST + CSRF + Origin + session + tier 1 + audit (``project_settings``, ``project_links``).
 The audit detail carries counts and names only, never paths. The panel is the fragment
@@ -41,6 +41,7 @@ def _build(request: Request, name: str, path, flash: str) -> str:
     return get_template("_project_settings.html").render(
         **page_ctx(request), project=project_of(request, name),
         base=f"/p/{quote(name)}", ps=ps, components=pset.COMPONENTS,
+        account_kinds=[(k, names) for k in pset.ACCOUNT_KINDS if (names := st.accounts.get(k))],
         choices=sorted(known - {name}), linked=[n for n in ps.links if n in known],
         pubkey=key.line if key else "", git_html=git_remotes_html(request, name, path), flash=flash)
 
@@ -80,15 +81,21 @@ async def save_settings(request: Request, name: str,
     hidden = [c for c in pset.COMPONENTS if c not in show]
     branch = await controlctl.form(request, "default_branch")
     vms = await controlctl.form(request, "vms")
+    # only kinds present in the form (the panel shows a select per configured kind); '' = default
+    accounts = {k: await controlctl.form(request, f"account_{k}") for k in pset.ACCOUNT_KINDS
+                if f"account_{k}" in form}
 
     def fn():
         pset.save_hidden(st, name, hidden)
         pset.save_default_branch(st, name, branch)
         pset.save_vms(st, name, vms)
+        if accounts:
+            pset.save_accounts(st, name, accounts)
 
     flash = await _save(request, "project_settings", name, fn,
                         {"hidden": len(hidden), "branch_set": int(bool(branch.strip())),
-                         "vms": len([x for x in vms.replace(",", "\n").splitlines() if x.strip()])})
+                         "vms": len([x for x in vms.replace(",", "\n").splitlines() if x.strip()]),
+                         **({"accounts": ",".join(f"{k}={v or 'default'}" for k, v in accounts.items())} if accounts else {})})
     return await _render(request, name, flash)
 
 

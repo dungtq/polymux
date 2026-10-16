@@ -1,8 +1,12 @@
 # Changelog
 
-## 2026-10-17 (dt: view tabs and the Sub-agents / Pane / Terminal panels back in the chat aside)
+## 2026-10-17 (Project settings: import a Cursor / VS Code workspace into the links)
 
-The chat aside's header shows the session's tabs again: Chat, Sub-agents (Claude), Pane and Terminal (icons only below 640 px of header width), next to Detail / Compact, Aa and ⋯. The Sub-agents list, the Pane with its keypad, snippets and Interrupt, and the read-only Terminal render in the aside; the composer's Keys button flips to Pane again. The aside opens on Chat or the `?st=` tab.
+The project settings panel (both themes) has an import section when `*.code-workspace` files are found in the project folders or their parent folders. Importing one links the workspace folders that are pm projects, keeps the existing links and reports how many folders are not pm projects. The audit line `project_links` carries counts only.
+
+## 2026-10-17 (dt: Switch agent… hands a chat over to another coding agent)
+
+A session's ⋯ menu (live and ended) has Switch agent…. It opens the Launch dialog with the chat as the prompt: your messages and the agent's text replies, without tool calls, command output or thinking, at most 8000 characters (the first message and the last reply stay whole). Pick the agent kind, edit the prompt and launch; the old agent is left running.
 
 ## 2026-10-17 (Agent rows show the last ntfy message of any agent)
 

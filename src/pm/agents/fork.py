@@ -32,7 +32,7 @@ from pathlib import Path
 from pm.agents import launch as launch_mod
 from pm.agents import lineage, registry
 from pm.chat.sources.claude import live_session_id
-from pm.core.config import Settings
+from pm.core.config import Settings, account_env
 from pm.core.models import Agent, AgentKind, Project
 from pm.tmux import ctl as tmuxctl
 
@@ -139,6 +139,9 @@ def fork_session(settings: Settings, obj, project: Project, prompt: str = "") ->
     wname = f"agent-{kind}-fork"[:64].rstrip("-.")
     tmuxctl.check_name(wname)
     sid = launch_mod._find_session(settings, project)
-    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv)
+    account = registry.account_of(settings, obj.id)  # a fork keeps its parent's account
+    env = account_env(settings, kind, account) if account else None
+    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv, env=env)
+    registry.expect_account(settings, kind, pid, account)
     lineage.record(settings, obj.id, "fork", pid, kind)
     return ForkResult(sid, wid, wname, str(cwd), pane_id=pid, mode=mode)

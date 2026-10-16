@@ -184,6 +184,7 @@ Sent to `ntfy_url`. A metric must be bad for `alerts_sustain` samples in a row.
 | `snippets` | `[]` | Composer snippets: `[[label, text], ...]` or `{label = text}` |
 | `layouts` | `{}` | Project to tmux window layout used by "ensure" |
 | `launch_redirects` | `{}` | Project to the project its code work usually belongs in, e.g. `launch_redirects = { pm = "polymux" }`. When the Launch form's project has an entry whose target is a known project, a hint under the project picker offers "Launch in <target>". Write it above any `[table]` header in pm.toml (it is a top-level key). Entries that are not two different non-empty names are logged and dropped |
+| `accounts` | `{}` | Named login accounts per agent kind (`claude`, `codex`): `[accounts]` with `claude = ["work"]` and `codex = ["a1"]`. Each named account gets its own login folder `state_dir/accounts/<kind>/<name>` (`CLAUDE_CONFIG_DIR` / `CODEX_HOME`); the default account is the CLI's own. Log in per account under Agents > the agent > Auth, pick the account per project in the project settings. A running agent keeps its account (resume and fork reuse it). Reading sessions and usage of non-default accounts is not supported yet |
 
 ## Theme and plugins
 

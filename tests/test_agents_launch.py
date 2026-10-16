@@ -11,6 +11,7 @@ from pm.agents import launch as L
 from pm.core.models import AgentKind, Launch, Project
 from pm.tmux import ctl as tmuxctl
 
+REAL_REGISTRY = True
 GIT_ENV = {"PATH": "/usr/bin:/bin", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
 
@@ -440,3 +441,72 @@ def test_launch_argv_new_window_with_remain_on_exit(fake_tmux, tmp_path, stand_i
     tmp = call[call.index("-n") + 1]
     assert tail == [";", "set-option", "-w", "-t", f"$4:={tmp}", "remain-on-exit", "on",
                     ";", "rename-window", "-t", f"$4:={tmp}", "--", "agent-claude"]
+
+
+def _acct_env(settings, tmp_path, monkeypatch, project_account=""):
+    """launch_agent with tmux faked: returns (settings, calls of new_agent_window as (argv, env))."""
+    from pm.projects import settings as pset
+    b = tmp_path / "fakeagent"
+    b.write_text("#!/bin/sh\n")
+    b.chmod(0o755)
+    s = dataclasses.replace(settings, agent_bins={k.value: str(b) for k in AgentKind},
+                            accounts={"claude": ("work",), "codex": ("alt",)})
+    (tmp_path / "proj").mkdir(exist_ok=True)
+    calls = []
+    monkeypatch.setattr(L, "_find_session", lambda st, p: "$3")
+    monkeypatch.setattr(tmuxctl, "new_agent_window",
+                        lambda st, sid, name, cwd, argv, *, env=None: calls.append((argv, env)) or ("@3", "%9"))
+    monkeypatch.setattr(pset, "load", lambda st, n: pset.ProjectSettings(
+        accounts=(("claude", project_account),) if project_account else ()))
+    return s, calls
+
+
+def test_launch_default_account_passes_no_env(settings, tmp_path, monkeypatch):
+    s, calls = _acct_env(settings, tmp_path, monkeypatch)
+    L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), Project("proj", str(tmp_path / "proj")))
+    assert calls[0][1] is None
+
+
+def test_launch_named_account_passes_env_and_is_stored(settings, tmp_path, monkeypatch):
+    from pm.agents import registry
+    from pm.core.models import Agent, AgentState
+    s, calls = _acct_env(settings, tmp_path, monkeypatch, project_account="work")
+    L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), Project("proj", str(tmp_path / "proj")))
+    want = {"CLAUDE_CONFIG_DIR": str(tmp_path / "accounts" / "claude" / "work")}
+    assert calls[0][1] == want
+    # codex has no account chosen for the project: default, even though claude has one
+    L.launch_agent(s, Launch("proj", AgentKind.CODEX), Project("proj", str(tmp_path / "proj")))
+    assert calls[1][1] is None
+    # the record minted on first sight in that pane takes the account; a default launch stores none
+    a = Agent(id="claude-1", kind=AgentKind.CLAUDE, pane_id="%9", session_id="$3", pid=5, cwd="/",
+              project="proj", state=AgentState.IDLE, ident="11111111-2222-3333-4444-555555555555")
+    rid = registry.assign(s, [a])[0].id
+    assert registry.get(s, rid).account == "work" and registry.account_of(s, rid) == "work"
+    other = dataclasses.replace(a, pane_id="%8", pid=6, ident="11111111-2222-3333-4444-555555555556")
+    assert registry.get(s, registry.assign(s, [other])[0].id).account == ""
+
+
+def test_launch_unknown_account_refused_before_any_worktree(settings, tmp_path, monkeypatch):
+    from pm.core.errors import Invalid
+    s, calls = _acct_env(settings, tmp_path, monkeypatch, project_account="nope")  # removed from [accounts]
+    made = []
+    monkeypatch.setattr(L, "create_worktree", lambda *a: made.append(a))
+    with pytest.raises(Invalid):
+        L.launch_agent(s, Launch("proj", AgentKind.CLAUDE, worktree_branch="feat/x"),
+                       Project("proj", str(tmp_path / "proj")))
+    assert not calls and not made
+
+
+def test_registry_account_column_migrates_an_old_table(settings):
+    from pm.agents import registry
+    from pm.core import db
+    settings.state_dir.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(settings.db_file)
+    con.execute("CREATE TABLE agent_records (id TEXT PRIMARY KEY, kind TEXT NOT NULL, ident TEXT, "
+                "pid INTEGER, first_seen REAL NOT NULL, last_seen REAL NOT NULL, last_pane TEXT, project TEXT, "
+                "cwd TEXT, label TEXT, transcript TEXT, ended_at REAL)")
+    con.execute("INSERT INTO agent_records VALUES ('claude-abc1','claude',NULL,0,1,1,'','p','/','','',NULL)")
+    con.commit()
+    con.close()
+    db.inited(registry._SCHEMA).discard(str(settings.db_file))
+    assert registry.get(settings, "claude-abc1").account == ""

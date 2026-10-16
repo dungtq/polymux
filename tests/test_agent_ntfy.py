@@ -20,8 +20,8 @@ def test_agent_ntfy_newest_per_wanted_id(monkeypatch):
     other = NtfyItem(id="3", time=15.0, title="b - x", message="m3")
     anon = NtfyItem(id="4", time=5.0, title="sys", message="m4")
     _patch(monkeypatch, [new, other, old, anon], {"a - new": "a", "a - old": "a", "b - x": "b", "sys": None})
-    assert ntfy_owner.agent_ntfy(None, {"a"}, None) == {"a": new}
-    assert ntfy_owner.agent_ntfy(None, ["a", "b"], "/p") == {"a": new, "b": other}
+    assert ntfy_owner.agent_ntfy(None, {"a"}) == {"a": new}
+    assert ntfy_owner.agent_ntfy(None, ["a", "b"]) == {"a": new, "b": other}
 
 
 def test_agent_ntfy_empty(monkeypatch):

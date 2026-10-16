@@ -282,6 +282,23 @@ def test_new_agent_window_and_respawn_run_argv_through_the_default_shell(fake_tm
     assert starts[1][starts[1].index("--") + 1:] == ["/usr/bin/fish", "-c", "exec $argv", "/x/a"]
 
 
+def test_env_goes_before_the_double_dash_and_bad_entries_are_rejected(fake_tmux, monkeypatch):
+    monkeypatch.setenv("FAKE_TMUX_OUT", "@3 %4")
+    t.new_agent_window(fake_tmux, "$1", "agent-x", "/w", ["/x/a"])
+    t.new_agent_window(fake_tmux, "$1", "agent-x", "/w", ["/x/a"], env={"A_B1": "v=1"})
+    t.respawn_pane(fake_tmux, "%4", "/w", ["/x/a"], env={"A_B1": "v=1"})
+    calls = [c.split("\n")[2:-1] for c in fake_tmux.extras["log"].read_text().split("---\n") if c]
+    starts = [c for c in calls if c[0] in ("new-window", "respawn-pane")]
+    assert "-e" not in starts[0]
+    for c in starts[1:]:
+        assert c.index("-e") + 1 == c.index("A_B1=v=1") < c.index("--")
+    n = len(calls)
+    for bad in ({"a": "x"}, {"1A": "x"}, {"A B": "x"}, {"A": "x\ny"}, {"A": "x\0y"}):
+        with pytest.raises(t.TmuxError):
+            t.respawn_pane(fake_tmux, "%4", "/w", ["/x/a"], env=bad)
+    assert len(fake_tmux.extras["log"].read_text().split("---\n")) - 1 == n
+
+
 def _sequence(call: list[str]) -> list[list[str]]:
     """One tmux argv split into its commands at the bare ``;`` words."""
     out = [[]]

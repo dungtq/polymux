@@ -197,7 +197,7 @@
 /* /agents/{name} Auth row (lazy fragment _agents_auth.html): one line when idle, login output below while signing in */
 .pg-agents .ag-auth{margin:0 0 4px;font-size:var(--fs-s)}
 .pg-agents .ag-auth-line{display:flex;align-items:center;gap:8px;min-width:0;min-height:var(--chip-h);line-height:1.7}
-.pg-agents .ag-auth-k{flex:0 0 6.5em}
+.pg-agents .ag-auth-k{flex:0 0 6.5em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pg-agents .ag-auth-line button,.pg-agents .ag-auth-line form{flex:0 0 auto;white-space:nowrap}
 .pg-agents .ag-auth-line button{margin-block:-2px}
 .pg-agents .ag-auth-ctl input,.pg-agents .ag-auth-ctl button{height:var(--ctl-h)}

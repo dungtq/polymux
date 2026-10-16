@@ -36,7 +36,7 @@ def env(fake_tmux, tmp_path, monkeypatch):
     con = registry._connect(s)
     for i, (aid, kind, ident, lab) in enumerate((("claude-aaaaaa", "claude", UUID, "work-3-claude"),
                                                   ("devin-bbbbbb", "devin", None, "work-4-devin"))):
-        con.execute("INSERT INTO agent_records VALUES (?,?,?,?,?,?,'%1','alpha',?,?,'',?)",
+        con.execute("INSERT INTO agent_records VALUES (?,?,?,?,?,?,'%1','alpha',?,?,'',?,'')",
                     (aid, kind, ident, 11 + i, now - 7200 - i, now - 3600 - i, cwd, lab, now - 3600 - i))
     con.commit()
     con.close()

@@ -176,6 +176,14 @@ def _tpane(pid=5, command="fish", dead=False):
     return TmuxPane(id="%2", window_id="@2", session_id="$2", pid=pid, command=command, cwd="/", dead=dead)
 
 
+@pytest.fixture(autouse=True)
+def _no_account(monkeypatch):
+    """These restart tests pass settings=None: no registry lookup (the default account)."""
+    from pm.agents import registry
+    monkeypatch.setattr(registry, "account_of", lambda s, i: "")
+    monkeypatch.setattr(registry, "expect_account", lambda *a: None)
+
+
 def test_restart_chat_in_an_interactive_shell_waits_for_the_agent_then_types_command(tmp_path, monkeypatch):
     from pm.agents import message as m
     _proc(tmp_path, 5, 1, ["-fish"])  # the user's interactive shell runs the agent: the pane outlives it
@@ -282,7 +290,7 @@ def test_restart_chat_on_a_launched_pane_respawns_it(tmp_path, monkeypatch, root
     monkeypatch.setattr(m, "_find_pane", lambda s, p: next(looks))
     monkeypatch.setattr(m.tmuxctl, "set_remain_on_exit", lambda s, p, on: log.append(("remain", p, on)))
     monkeypatch.setattr(m.tmuxctl, "clear_history", lambda s, p: log.append(("clear", p)))
-    monkeypatch.setattr(m.tmuxctl, "respawn_pane", lambda s, p, cwd, cmd: log.append(("respawn", p, cwd, cmd)))
+    monkeypatch.setattr(m.tmuxctl, "respawn_pane", lambda s, p, cwd, cmd, **kw: log.append(("respawn", p, cwd, cmd)))
     monkeypatch.setattr(m.tmuxctl, "send_keys", lambda *a: pytest.fail("typed into a pane that closes"))
     r = m.restart_chat(None, a, "/exit", proc_root=tmp_path, sleep=lambda x: None)
     assert r.ok and r.pane_id == "%2"
@@ -342,6 +350,22 @@ def test_newchat_claude_restarts_when_update_pending(fake, monkeypatch):
     app, c, sess, tok, st = mk_client(st)
     r = post(c, tok, "/a/claude-2/newchat")
     assert r.status_code == 200 and seen == [("claude-2", "/exit")]
+
+
+def test_newchat_restart_with_a_removed_account_is_a_400(fake, monkeypatch):
+    from pm.core.errors import Invalid
+    st, calls, _ = fake
+    old = free_agent()
+    snap_with(monkeypatch, [old])
+    monkeypatch.setattr(routes_agents.msg, "update_pending", lambda s, a: True)
+
+    def gone(s, a, cmd):
+        raise Invalid("unknown claude account 'gone'")
+    monkeypatch.setattr(routes_agents.msg, "restart_chat", gone)
+    app, c, sess, tok, st = mk_client(st)
+    r = post(c, tok, "/a/claude-2/newchat")
+    assert r.status_code == 400 and "chat restart refused" in r.text
+    assert '"action":"agent_newchat"' in audit_text(st)
 
 
 def test_update_pending_reads_status_line(monkeypatch):
@@ -477,3 +501,45 @@ def test_restart_chat_types_a_literal_relaunch_into_a_real_shell(private_tmux, t
         time.sleep(0.05)
     assert out.read_text().splitlines() == [f"<x\\><; touch {marker} #>"] * 2
     assert not marker.exists()
+
+
+@pytest.mark.parametrize("pane_ends", [True, False], ids=["respawn", "typed-line"])
+def test_restart_chat_keeps_the_stored_account_env(tmp_path, monkeypatch, pane_ends):
+    from pm.agents import message as m
+    from pm.agents import registry
+    if pane_ends:
+        _proc(tmp_path, 5, 1, ["claude", "--model", "haiku"])
+        pid = 5
+    else:
+        _proc(tmp_path, 5, 1, ["-bash"])
+        agent_dir = _proc(tmp_path, 7, 5, ["claude", "--model", "haiku"])
+        pid = 7
+    a = dataclasses.replace(free_agent(), pid=pid, cwd="/proj")
+    env = {"CLAUDE_CONFIG_DIR": "/st/accounts/claude/work"}
+    seen, log = [], []
+    monkeypatch.setattr(registry, "account_of", lambda s, i: "work")
+    monkeypatch.setattr(registry, "expect_account", lambda s, k, p, acc: seen.append((k, p, acc)))
+    monkeypatch.setattr(m, "account_env", lambda s, k, n: env if (k, n) == ("claude", "work") else pytest.fail(n))
+    monkeypatch.setattr(m, "verify_target", lambda *a, **k: None)
+    monkeypatch.setattr(m, "send_message", lambda *a, **k: None)
+    looks = iter([_tpane(), _tpane(), _tpane(dead=True)] if pane_ends else
+                 [_tpane(command="bash"), _tpane(command="claude"), _tpane(command="bash")])
+
+    def find(s, p):
+        pane = next(looks)
+        if pane.command == "bash" and not pane_ends and agent_dir.exists():
+            import shutil
+            shutil.rmtree(agent_dir)  # the agent process is gone once the shell shows again
+        return pane
+    monkeypatch.setattr(m, "_find_pane", find)
+    monkeypatch.setattr(m.tmuxctl, "set_remain_on_exit", lambda *a: None)
+    monkeypatch.setattr(m.tmuxctl, "clear_history", lambda *a: None)
+    monkeypatch.setattr(m.tmuxctl, "respawn_pane", lambda s, p, cwd, cmd, **kw: log.append(("respawn", cmd, kw)))
+    monkeypatch.setattr(m.tmuxctl, "send_keys", lambda s, p, t: log.append(("keys", t)))
+    monkeypatch.setattr(m.tmuxctl, "send_key", lambda *a: None)
+    m.restart_chat(None, a, "/exit", proc_root=tmp_path, sleep=lambda x: None)
+    if pane_ends:
+        assert log == [("respawn", ["claude", "--model", "haiku"], {"env": env})]
+    else:
+        assert log == [("keys", "clear; env 'CLAUDE_CONFIG_DIR=/st/accounts/claude/work' claude --model haiku")]
+    assert seen == [("claude", "%2", "work")]

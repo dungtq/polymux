@@ -37,7 +37,10 @@ _SCHEMA = (
     "cwd TEXT, label TEXT, transcript TEXT, ended_at REAL)",
     "CREATE INDEX IF NOT EXISTS agent_records_ident ON agent_records (kind, ident)",
     "CREATE INDEX IF NOT EXISTS agent_records_pane ON agent_records (kind, last_pane, last_seen)",
+    "CREATE TABLE IF NOT EXISTS agent_account_hint (kind TEXT NOT NULL, pane TEXT NOT NULL, "
+    "account TEXT NOT NULL, created REAL NOT NULL)",
 )
+ACCOUNT_HINT_S = 300.0  # how long after a start the new agent may first be seen
 _pruned: set[str] = set()
 _lock = threading.Lock()
 
@@ -56,6 +59,7 @@ class Record:
     label: str
     transcript: str
     ended_at: float | None
+    account: str = ""  # named login account the agent was started with ('' = the default account)
 
     @property
     def ended(self) -> bool:
@@ -68,17 +72,55 @@ class Record:
 
 
 _COLS = ("id, kind, ident, pid, first_seen, last_seen, last_pane, project, cwd, label, transcript, "
-         "ended_at")
+         "ended_at, account")
 
 
 def _row(r: tuple) -> Record:
     return Record(r[0], r[1], r[2], r[3] or 0, r[4], r[5], r[6] or "", r[7], r[8] or "", r[9] or "",
-                  r[10] or "", r[11])
+                  r[10] or "", r[11], r[12] or "")
+
+
+def _migrate(con: sqlite3.Connection) -> None:
+    """Add ``agent_records.account`` to a table created before it."""
+    if "account" not in {r[1] for r in con.execute("PRAGMA table_info(agent_records)")}:
+        try:
+            con.execute("ALTER TABLE agent_records ADD COLUMN account TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass  # another process added it first
+
+
+def expect_account(settings: Settings, kind: str, pane_id: str, account: str) -> None:
+    """Remember that the agent about to appear in ``pane_id`` runs under the named ``account``; the record
+    minted for it takes it on first sight. Nothing to store for the default account. Best effort."""
+    if not account or not pane_id:
+        return
+    try:
+        con = _connect(settings)
+        try:
+            con.execute("INSERT INTO agent_account_hint VALUES (?,?,?,?)", (kind, pane_id, account, time.time()))
+            con.execute("DELETE FROM agent_account_hint WHERE created < ?", (time.time() - 86400,))
+            con.commit()
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError):
+        return
+
+
+def account_of(settings: Settings, agent_id: str) -> str:
+    """Account stored for an agent id ('' = default or unknown)."""
+    rec = get(settings, agent_id)
+    return rec.account if rec else ""
+
+
+def _hint(con: sqlite3.Connection, a: Agent, now: float) -> str:
+    r = con.execute("SELECT account FROM agent_account_hint WHERE kind=? AND pane=? AND created >= ? "
+                    "ORDER BY created DESC LIMIT 1", (a.kind.value, a.pane_id, now - ACCOUNT_HINT_S)).fetchone()
+    return r[0] if r else ""
 
 
 def _connect(settings: Settings) -> sqlite3.Connection:
     """pm.db with the schema (run once per process and DB file, ``pm.core.db.connect``)."""
-    return db.connect(settings, _SCHEMA)
+    return db.connect(settings, _SCHEMA, _migrate)
 
 
 def mint_id(kind: str, ident: str | None) -> str:
@@ -167,9 +209,9 @@ def _assign(settings: Settings, found: list[Agent], complete: bool, now: float) 
                 aid = mint_id(a.kind.value, a.ident)
                 if aid in taken or con.execute("SELECT 1 FROM agent_records WHERE id=?", (aid,)).fetchone():
                     aid = mint_id(a.kind.value, None)
-                con.execute(f"INSERT INTO agent_records ({_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL)",
+                con.execute(f"INSERT INTO agent_records ({_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,?)",
                             (aid, a.kind.value, a.ident, a.pid, now, now, a.pane_id, a.project,
-                             a.cwd, a.label, a.transcript))
+                             a.cwd, a.label, a.transcript, _hint(con, a, now)))
             else:
                 aid = rec.id
                 ident = a.ident or rec.ident
@@ -369,7 +411,7 @@ def import_past(settings: Settings, rows, *, project: str | None = None) -> int:
                     aid = mint_id(r.kind, r.ident)
                     if con.execute("SELECT 1 FROM agent_records WHERE id=?", (aid,)).fetchone():
                         aid = mint_id(r.kind, None)
-                    con.execute(f"INSERT INTO agent_records ({_COLS}) VALUES (?,?,?,0,?,?,'',?,?,'',?,?)",
+                    con.execute(f"INSERT INTO agent_records ({_COLS}) VALUES (?,?,?,0,?,?,'',?,?,'',?,?,'')",
                                 (aid, r.kind, r.ident, r.mtime, r.mtime, project, r.cwd, str(r.path), r.mtime))
                     n += 1
                 con.commit()
@@ -389,6 +431,20 @@ def with_transcripts(settings: Settings, since: float) -> list[Record]:
             rows = con.execute(
                 f"SELECT {_COLS} FROM agent_records WHERE transcript != '' AND transcript IS NOT NULL "
                 "AND last_seen >= ? ORDER BY last_seen DESC LIMIT 500", (since,)).fetchall()
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError):
+        return []
+    return [_row(r) for r in rows]
+
+
+def of_kind_since(settings: Settings, kind: str, since: float) -> list[Record]:
+    """Records (live and ended, any project) of ``kind`` whose session was still going at ``since`` or later."""
+    try:
+        con = _connect(settings)
+        try:
+            rows = con.execute(f"SELECT {_COLS} FROM agent_records WHERE kind=? AND COALESCE(ended_at, last_seen) >= ? "
+                               "LIMIT 500", (kind, since)).fetchall()
         finally:
             con.close()
     except (sqlite3.Error, OSError):

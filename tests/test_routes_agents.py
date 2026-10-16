@@ -271,6 +271,20 @@ def test_message_routes_never_build_a_snapshot(fake, monkeypatch):
     assert services.build_count() == before
 
 
+def test_launch_with_a_removed_account_is_a_400(private_tmux, tmp_path, monkeypatch):
+    from pm.projects import settings as pset
+    _repo(tmp_path)
+    s = dataclasses.replace(
+        private_tmux, state_dir=tmp_path / "st", token_file=tmp_path / "tok",
+        totp_file=tmp_path / "totp", dev_root=tmp_path / "dev", extra_projects=(),
+        agent_bins={k.value: "/bin/true" for k in AgentKind})
+    app, c, sess, tok, st = mk_client(s)
+    monkeypatch.setattr(pset, "load", lambda st_, n: pset.ProjectSettings(accounts=(("claude", "gone"),)))
+    r = c.post("/p/repo/launch", headers={"Origin": ORIGIN, "HX-Request": "true"},
+               data={"csrf": tok, "kind": "claude"})
+    assert r.status_code == 400 and "launch refused" in r.text and "agent_launch" in audit_text(st)
+
+
 def test_launch_model_choice_and_page(private_tmux, tmp_path):
     _repo(tmp_path)
     s = dataclasses.replace(
