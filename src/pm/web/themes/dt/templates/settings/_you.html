@@ -132,7 +132,7 @@
   {% call su.row("Left edge in the agent colour", "A 3 px bar on the left of each agent message, and on list rows.", "Agent messages", s.label) %}
     {{ psw.switch("a_kind_edge", on=p.get("kind_edge"), label="Left edge in the agent colour", hide_label=true, attrs={"data-s-a": "kind_edge"}) }}
   {% endcall %}
-  {% call su.row("Model pill in the agent colour", "The model id in the message header and the chat header.", "Agent messages", s.label) %}
+  {% call su.row("Model pill in the agent colour", "The model id pill is filled with the agent colour: Inbox and project rows, the message header and the chat header. Off = a plain outlined pill.", "Agent messages", s.label) %}
     {{ psw.switch("a_kind_pill", on=p.get("kind_pill"), label="Model pill in the agent colour", hide_label=true, attrs={"data-s-a": "kind_pill"}) }}
   {% endcall %}
   {% endcall %}
