@@ -2,7 +2,7 @@
 # Claude Code status line command that feeds pm's usage limits.
 # Reads the status line JSON on stdin, stores only its `rate_limits` object (percentages and reset
 # times, no text) in ~/.local/state/pm/claude-limits.json, and prints nothing.
-# Enable: "statusLine": {"type": "command", "command": "~/dev/pm/tools/pm-statusline.sh"} in
+# Enable: "statusLine": {"type": "command", "command": "~/polymux/tools/pm-statusline.sh"} (path of your clone) in
 # ~/.claude/settings.json (or chain it from an existing status line script).
 d="${PM_STATE_DIR:-$HOME/.local/state/pm}"
 mkdir -p "$d" && exec python3 -c '

@@ -172,7 +172,7 @@ git remote add gitdev git@git.example.lan:you/project.git
 | libvirt `virsh` + `qemu-img` | | no (VMs) |
 | ntfy server | | no (notifications) |
 | Coding-agent CLIs (`claude`, `codex`, `devin`, `cursor-agent`) | | no (what you want to launch) |
-| `tmux-agents` (bundled in `deploy/tmux-agents/`) | | no (agent ids, agent-to-agent messages) |
+| `tmux-agents` (bundled in [`deploy/tmux-agents/`](deploy/tmux-agents/README.md)) | | no (agent ids recorded by `pmctl`) |
 
 Full table and what breaks without each: [docs/INSTALL.md](docs/INSTALL.md).
 

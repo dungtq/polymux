@@ -3,7 +3,7 @@
 ## Service
 
 systemd user unit `~/.config/systemd/user/pm.service` (source
-`deploy/pm.service`), runs `~/dev/pm/.venv/bin/pm`, `Restart=on-failure`.
+`deploy/pm.service`), runs `.venv/bin/pm` of your clone (default `~/polymux`), `Restart=on-failure`.
 
     systemctl --user status pm
     systemctl --user restart pm
@@ -15,7 +15,7 @@ After editing the unit: `systemctl --user daemon-reload && systemctl --user rest
 ## Reverse proxy
 
 pm speaks plain HTTP on loopback; put a TLS reverse proxy in front. Examples: `deploy/nginx/pm.conf`
-(nginx on the host) and `deploy/stack/` (nginx-ui + ntfy in Docker). The proxy needs `proxy_buffering off`,
+(nginx on the host) and `deploy/stack/` (nginx-ui + private CA + ntfy in Docker, see `deploy/stack/README.md`). The proxy needs `proxy_buffering off`,
 HTTP/1.1 upgrade headers (SSE and `/term` websocket) and `proxy_read_timeout 1h`.
 
 When nginx runs in a container it cannot reach the host's `127.0.0.1`. Proxy to the docker gateway
@@ -61,8 +61,9 @@ unlock with a 6-digit code at `/unlock` (valid `unlock_ttl_s`, 10 min).
 
 ## Claude hook
 
-See [claude-hook.md](claude-hook.md) for the snippet to install alongside the
-existing Stop hook (installed by the user through the cfg flow).
+See [claude-hook.md](claude-hook.md) for the snippet to add to
+`~/.claude/settings.json` next to any hooks you already have. You install it
+yourself; pm never edits that file.
 
 ## Troubleshooting
 
@@ -91,7 +92,7 @@ Terminal notes: sessions matching `pm*` are never attachable. Tickets
 (`/term/ticket`, single use, 30 s) appear in the URL query of the WebSocket
 request, so nginx and uvicorn access logs contain them; they are useless
 after use. When pm is the only client of a session its window takes the
-browser's size (see `docs/P7-spike-findings.md`); with other clients attached
+browser's size; with other clients attached
 their size wins. The CSP is set per response by the app, not by nginx
 (login and `/term` need inline styles; every other page does not).
 

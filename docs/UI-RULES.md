@@ -8,7 +8,7 @@ the list before finishing. Flat GitHub-style theme (v4): hairlines, whitespace, 
 ## Changing the design
 
 The theme is "v4" (flat GitHub style), approved by the user on 2026-10-08 and applied to the app
-the same day; the mock is `docs/mock/v4` (static, for reference only). It can change again under
+the same day; its design mock (static, not published) was for reference only. It can change again under
 three conditions:
 
 1. **Ask the user first.** Before changing the theme, a control style or any rule in this file,

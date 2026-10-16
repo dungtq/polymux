@@ -4,9 +4,8 @@ Where code goes, which shared helper to use, and the limits that keep the tree c
 sub-agent (`.claude/agents/arch-guard.md`) checks every code change against this file **before** and
 **after** it is written. Other agents (Codex, Devin, Cursor) follow it by hand and run `./tools/check.sh`.
 
-The flat modules were moved into the packages below in Phase 3 (2026-10-12, a pure move: `tools/moves.py`,
-mapping `tools/moves_phase3.json`). Put new code in the package that owns the domain, never in a new
-top-level module.
+The flat modules were moved into the packages below in Phase 3 (2026-10-12, a pure scripted move). Put new
+code in the package that owns the domain, never in a new top-level module.
 
 ## Target layout
 
@@ -20,7 +19,7 @@ top-level module.
 | `pm.chat` | live chat view, stored chat log, stats, text/markdown of chats, `sources/` | `live`, `log`, `stats`, `text`, `sources/` |
 | `pm.qchat` | quick chat runner, send preparation, settings, MCP config, skills, db | `run`, `send`, `cfg`, `mcpcfg`, `skills`, `db` |
 | `pm.infra` | servers, server store, libvirt, ssh keys, compose stacks, host resources, process control, snapshot | `servers` (+ `servers_model`, `hostmetrics`), `unitctl` (pm unit restart), `servers_store`, `libvirt`, `sshkeys`, `stacks`, `resources`, `procctl`, `snapshot` |
-| `pm.projects` | projects, BACKLOG/TODO (file mode), plans, project files, canvas; `tracker/` = BACKLOG/TODO/CHANGELOG/FEATURES in pm.db for imported projects (store, import/render, issues, views, branch drafts, git glue, the `pmctl` CLI; docs/TRACKER-PLAN.md) | `projects`, `backlog`, `todo`, `plans`, `projfiles`, `canvas`, `tracker/` (`schema`, `store`, `issues`, `mdimport`, `mdgen`, `views`, `resolve`, `gitglue`, `cli`, `cli_cmds`; T3: `changelog`, `featurelist` + `featurestore`, `docsync` (shared change/sync skeleton of the two), `drafts` (branch views, ancestor checks, post-commit stamps; the only T3 module that calls `pm.git`), `cli_docs`) |
+| `pm.projects` | projects, BACKLOG/TODO (file mode), plans, project files, canvas; `tracker/` = BACKLOG/TODO/CHANGELOG/FEATURES in pm.db for imported projects (store, import/render, issues, views, branch drafts, git glue, the `pmctl` CLI) | `projects`, `backlog`, `todo`, `plans`, `projfiles`, `canvas`, `tracker/` (`schema`, `store`, `issues`, `mdimport`, `mdgen`, `views`, `resolve`, `gitglue`, `cli`, `cli_cmds`; T3: `changelog`, `featurelist` + `featurestore`, `docsync` (shared change/sync skeleton of the two), `drafts` (branch views, ancestor checks, post-commit stamps; the only T3 module that calls `pm.git`), `cli_docs`) |
 | `pm.notify` | event hub, alerts, ntfy publish/feed/owner, watchdog, reload notice, client errors, side badges | `events`, `alerts`, `ntfy`, `feed`, `owner`, `watchdog`, `reloadneed`, `clienterrors`, `sidebadges` |
 | `pm.web` | app factory, deps, render, assets, stats, `routes/` | `app`, `assets`, `stats`, `deps`, `render`, `listing`, `docpane`, ... , `routes/` |
 | `pm.web.dt` | the `dt` theme's Python (pm v7): routes (prefix `/dt` and overrides of core pages), view models, v7-only stores; a first-party plugin, templates and static files in `src/pm/web/themes/dt` | `routes`, `shell`, `menus`, `stores`, `prefs`, `inbox`, `session`, `ntfy`, `agents*`, `projects`, `project`, `pjops`, `files`, `backlog`, `tmux`, `servers*`, `audit*`, `settings`, `launch` |

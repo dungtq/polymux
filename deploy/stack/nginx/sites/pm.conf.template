@@ -1,0 +1,68 @@
+# pm vhost. Rendered by install-sites.sh (envsubst: ${PM_HOST}, ${PM_PORT}).
+# pm runs on the host; host.docker.internal is the docker bridge gateway (extra_hosts in
+# compose.yaml). pm must bind that address (pm.toml binds), never 0.0.0.0.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${PM_HOST};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    # HTTP/2: over HTTP/1.1 browsers allow only 6 connections per site and each open tab holds
+    # an SSE stream, so a few tabs would starve every new request.
+    http2 on;
+    server_name ${PM_HOST};
+    access_log /var/log/nginx/${PM_HOST}.access.log;
+
+    ssl_certificate /etc/nginx/ssl/local/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/local/privkey.pem;
+
+    client_max_body_size 10m;  # pm caps image uploads at 5 MB
+
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+    # Content-Security-Policy is set per response by pm (login and /term differ);
+    # a second header here would be enforced as well and break them.
+
+    # Builder preview: pm's own sandboxed iframe may frame these; pm sets the sandbox CSP.
+    # add_header in a location replaces the inherited ones, so repeat them.
+    location ~ ^/a/[^/]+/builder/(frame|f)/ {
+        add_header X-Frame-Options SAMEORIGIN always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy same-origin always;
+        proxy_pass http://host.docker.internal:${PM_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+
+    location / {
+        proxy_pass http://host.docker.internal:${PM_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        # WebSocket (/term); map in nginx-ui.conf
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # SSE: no buffering, long reads
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+}

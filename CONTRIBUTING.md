@@ -4,11 +4,8 @@ Thanks for helping. Bug reports, fixes and small features are welcome.
 
 ## How changes flow
 
-Send pull requests to this repo (github.com/dungtq/polymux).
-The public repo is exported from the author's private development repo
-(`tools/release/export.sh`). Merged public changes are pulled back into it
-(`tools/release/pull.sh`). You do not need to do anything for that; just open
-a PR against `main`.
+Send pull requests to this repo (github.com/dungtq/polymux) against `main`.
+This repo is the source of truth for pm's code and docs.
 
 ## Dev setup
 
@@ -56,9 +53,10 @@ All of them must pass. CI runs ruff and pytest on every PR.
 
 ## Generated files
 
-`BACKLOG.md`, `TODO.md`, `CHANGELOG.md` and `FEATURES.md` are generated from
-pm's database in the private repo. In a PR, describe user-visible changes in
-the PR text; the maintainer adds the CHANGELOG and FEATURES entries.
+`CHANGELOG.md` and `FEATURES.md` are generated from the maintainer's pm
+tracker database (`pmctl change` / `pmctl feature`), so do not edit them by
+hand. In a PR, describe user-visible changes in the PR text; the maintainer
+adds the CHANGELOG and FEATURES entries.
 
 ## Commit and PR style
 

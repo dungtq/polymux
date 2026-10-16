@@ -1,0 +1,93 @@
+# pm edge stack: private CA + nginx-ui (reverse proxy for pm and ntfy) + ntfy.
+# pm itself is NOT in this stack: it runs on the host as a systemd user unit (port 8093)
+# and nginx reaches it through host.docker.internal. See README.md.
+name: pm-edge
+
+services:
+  cert-manager:
+    build: ./cert-manager
+    image: pm-edge/cert-manager:local
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-UTC}
+      # Must match nginx-ui's container_name below; used for the restart after a renewal.
+      NGINX_UI_CONTAINER: ${NGINX_UI_CONTAINER:-pm-nginx-ui}
+    volumes:
+      - ./data/pki:/pki
+      # Only used to run `docker restart <nginx-ui>` after the leaf is reissued, so the
+      # panel (EnableHTTPS) and nginx load the new files. Remove this line if you do not
+      # want a container with Docker API access; then restart nginx-ui yourself after a
+      # renewal (the log says when). Docker has no read-only API: :ro does not limit it.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  nginx-ui:
+    image: uozi/nginx-ui:v2.5.6
+    container_name: ${NGINX_UI_CONTAINER:-pm-nginx-ui}
+    depends_on:
+      cert-manager:
+        condition: service_healthy
+      ntfy:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-UTC}
+      NGINX_UI_SERVER_RUN_MODE: release
+      NGINX_UI_SERVER_ENABLE_HTTPS: "true"
+      NGINX_UI_SERVER_SSL_CERT: /etc/nginx/ssl/local/fullchain.pem
+      NGINX_UI_SERVER_SSL_KEY: /etc/nginx/ssl/local/privkey.pem
+    # pm runs on the host. host-gateway = the docker0 bridge address (172.17.0.1 by default).
+    # pm must listen on that address too (pm.toml binds), never on 0.0.0.0.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - nginx_data:/etc/nginx
+      - ./data/nginx-ui:/etc/nginx-ui
+      # Leaf from cert-manager (used by the panel and the pm / ntfy vhosts) plus a copy of
+      # the public root certificate (ca.crt). The CA directory itself (ca.key) is not mounted.
+      - ./data/pki/live/nginx-ui:/etc/nginx/ssl/local:ro
+      # Replaces the image's panel proxy: maps + catch-all only; :80/:443 stay for vhosts.
+      - ./nginx/nginx-ui.conf:/etc/nginx/conf.d/nginx-ui.conf:ro
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      # nginx-ui admin panel (HTTPS). Loopback by default; set NGINX_UI_PANEL_BIND=0.0.0.0
+      # (or a LAN address) to open it from other machines.
+      - "${NGINX_UI_PANEL_BIND:-127.0.0.1}:${NGINX_UI_HTTP_PORT:-9000}:9000"
+    restart: unless-stopped
+
+  ntfy:
+    image: binwiederhier/ntfy:v2.28.0
+    command: serve
+    init: true
+    environment:
+      TZ: ${TZ:-UTC}
+      # Overrides base-url in ntfy/server.yml.
+      NTFY_BASE_URL: https://${NTFY_HOST:?set NTFY_HOST in .env}
+    volumes:
+      - ./ntfy/server.yml:/etc/ntfy/server.yml:ro
+      - ./data/ntfy:/var/cache/ntfy
+    # No host port: nginx-ui reaches it as http://ntfy:80 on the stack network.
+    # For local debugging only, publish it on loopback:
+    # ports:
+    #   - "127.0.0.1:2586:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+networks:
+  default:
+    name: pm-edge
+
+volumes:
+  nginx_data:

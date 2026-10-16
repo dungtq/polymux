@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+# tmux-agents — spawn coding agents in tmux panes/windows, send them prompts,
+# and let them reply back to the pane that asked. Pure bash + tmux.
+#
+# State: pane user options (@agent_name, @agent_kind) live in tmux itself, so
+# agents persist as long as the tmux server does. Message envelopes live in
+# $TA_STATE/msgs/<id>.{meta,prompt,reply}.
+set -euo pipefail
+
+TA_STATE=${TA_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/tmux-agents}
+MSGS=$TA_STATE/msgs
+mkdir -p "$MSGS"
+
+die() { echo "tmux-agents: $*" >&2; exit 1; }
+need_tmux() { [[ -n ${TMUX:-} ]] || die "not inside tmux (TMUX unset)"; }
+
+usage() {
+cat <<'U'
+tmux-agents <cmd> [args]
+  spawn NAME [--agent devin|claude|codex|shell] [--mode quick|session]
+             [--where pane|window|session]
+             [--cwd DIR] [--perm MODE] [--split h|v] [--focus] [--cmd 'CMD']
+             [--wait-ready SEC] [--] [PROMPT]
+        --mode quick (default): split pane, closes itself ~3s after it replies;
+          result is recorded in $TA_STATE (see `log`). For one-shot tasks.
+        --mode session: new window, stays open for follow-ups. For long work.
+        --where overrides the placement. An existing NAME is reused. Optional PROMPT is
+        sent right after the agent is ready.
+  send NAME [-f FILE] [--no-reply] [--raw] [--] [TEXT | stdin]
+        Deliver a prompt. Default wraps it in an envelope telling the agent to
+        run `tmux-agents reply <id> ...` when finished (reply lands in the
+        pane that called send). --raw pastes TEXT verbatim, no envelope.
+        Prints the message id.
+  reply ID [-f FILE] [--] [TEXT | stdin]
+        Called by the receiving agent: store result, paste it into the origin
+        pane (long results: pasted as a file path).
+  wait ID [--timeout SEC]      Block until ID has a reply (exit 124 on timeout).
+  result ID                    Print the stored reply.
+  read NAME [-n LINES]         Capture the pane's visible text (+scrollback).
+  idle NAME [--quiet SEC] [--timeout SEC]  Wait until pane output stops changing.
+  run NAME [spawn opts] -- PROMPT   quick one-shot: spawn, send, wait, print reply
+  log [N]                      Last N recorded replies (id, agent, time, summary)
+  ls                           List named agent panes.
+  kill NAME                    Close the agent's pane/window.
+  whoami                       Print this pane's id and agent name.
+  id                           Print the pm agent id for $TMUX_PANE (pm.db live row, else the
+                               claude hash of $CLAUDE_CODE_SESSION_ID); empty + exit 1 if unknown.
+U
+}
+
+# ---- helpers ---------------------------------------------------------------
+pane_of() { # NAME|%id -> pane id
+  local n=$1
+  if [[ $n == %* ]]; then tmux display -p -t "$n" '#{pane_id}' 2>/dev/null || return 1; return; fi
+  tmux list-panes -a -F '#{pane_id} #{@agent_name}' | awk -v n="$n" '$2==n{print $1; exit}' | grep . || return 1
+}
+alive() { tmux display -p -t "$1" '#{pane_dead}' 2>/dev/null | grep -qx 0; }
+newid() { printf '%s-%04x' "$(date +%H%M%S)" $((RANDOM)); }
+
+# Paste text into a pane as one bracketed paste, then submit with Enter.
+# The delay lets TUIs finish ingesting the paste before Enter (else it's eaten).
+paste_submit() { # pane file
+  local pane=$1 file=$2 buf="ta-$$-$RANDOM"
+  tmux load-buffer -b "$buf" "$file"
+  tmux paste-buffer -p -d -b "$buf" -t "$pane"
+  sleep "${TA_SUBMIT_DELAY:-0.6}"
+  tmux send-keys -t "$pane" Enter
+}
+
+read_body() { # remaining args -> body on stdout (file, text, or stdin)
+  local f=""
+  while (($#)); do case $1 in -f) f=$2; shift 2;; --) shift; break;; *) break;; esac; done
+  if [[ -n $f ]]; then cat "$f"
+  elif (($#)); then printf '%s' "$*"
+  elif [[ ! -t 0 ]]; then cat
+  else die "no message (give TEXT, -f FILE or stdin)"; fi
+}
+
+agent_cmd() { # kind perm -> command line
+  local kind=$1 perm=$2
+  case $kind in
+    devin)  echo "devin --permission-mode ${perm:-smart}" ;;
+    claude) echo "claude --permission-mode ${perm:-auto} --allowedTools 'Bash(tmux-agents *)'" ;;
+    codex)  echo "codex" ;;
+    shell)  echo "" ;;
+    *) die "unknown agent kind: $kind" ;;
+  esac
+}
+
+# ---- commands --------------------------------------------------------------
+cmd_spawn() {
+  need_tmux
+  local name=${1:-}; [[ -n $name ]] || die "spawn NAME"; shift
+  local kind=devin where="" mode=quick cwd=$PWD perm="" split=h focus=0 cmd="" ready=${TA_READY:-4} prompt=""
+  while (($#)); do case $1 in
+    --agent) kind=$2; shift 2;; --mode) mode=$2; shift 2;; --where) where=$2; shift 2;; --cwd) cwd=$2; shift 2;;
+    --perm) perm=$2; shift 2;; --split) split=$2; shift 2;; --focus) focus=1; shift;;
+    --cmd) cmd=$2; shift 2;; --wait-ready) ready=$2; shift 2;;
+    --) shift; prompt="$*"; break;; *) prompt="$*"; break;;
+  esac; done
+
+  local pane
+  if pane=$(pane_of "$name") && alive "$pane"; then
+    echo "reusing $name ($pane)" >&2
+  else
+    [[ -n $cmd ]] || cmd=$(agent_cmd "$kind" "$perm")
+    if [[ -z $where ]]; then case $mode in quick) where=pane;; session) where=window;; *) die "--mode quick|session";; esac; fi
+    local d=(-d); ((focus)) && d=()
+    case $where in
+      pane)    pane=$(tmux split-window "${d[@]}" -"$split" -c "$cwd" -P -F '#{pane_id}');;
+      window)  pane=$(tmux new-window  "${d[@]}" -n "$name" -c "$cwd" -P -F '#{pane_id}');;
+      session) pane=$(tmux new-session -d -s "ta-$name" -c "$cwd" -P -F '#{pane_id}');;
+      *) die "--where pane|window|session";;
+    esac
+    tmux set-option -p -t "$pane" @agent_name "$name"
+    tmux set-option -p -t "$pane" @agent_kind "$kind"
+    tmux set-option -p -t "$pane" @agent_mode "$mode"
+    if [[ $mode == session ]]; then
+      # keep the pane (and its output) if the agent exits
+      tmux set-option -p -t "$pane" remain-on-exit on 2>/dev/null || tmux set-option -w -t "$pane" remain-on-exit on
+    fi
+    tmux select-pane -t "$pane" -T "$name" 2>/dev/null || true
+    [[ -n $cmd ]] && { tmux send-keys -t "$pane" -l "$cmd"; tmux send-keys -t "$pane" Enter; }
+    echo "spawned $name ($kind) in $pane" >&2
+    sleep "$ready"
+  fi
+  echo "$pane"
+  if [[ -n $prompt ]]; then cmd_send "$name" -- "$prompt"; fi
+}
+
+cmd_send() {
+  need_tmux
+  local name=${1:-}; [[ -n $name ]] || die "send NAME ..."; shift
+  local reply=1 raw=0 args=()
+  while (($#)); do case $1 in
+    --no-reply) reply=0; shift;; --raw) raw=1; reply=0; shift;;
+    -f) args+=(-f "$2"); shift 2;; --) shift; args+=(-- "$@"); break;; *) args+=("$1"); shift;;
+  esac; done
+  local pane; pane=$(pane_of "$name") || die "no agent named '$name'"
+  alive "$pane" || die "pane $pane for '$name' is dead"
+  local id; id=$(newid)
+  local body; body=$(read_body "${args[@]}")
+  printf '%s' "$body" > "$MSGS/$id.prompt"
+  local from=${TMUX_PANE:-}
+  {
+    echo "id=$id"; echo "to=$pane"; echo "from=$from"
+    echo "from_name=$(tmux display -p -t "${from:-$pane}" '#{@agent_name}' 2>/dev/null || true)"
+    echo "sent=$(date -Is)"
+  } > "$MSGS/$id.meta"
+
+  local out=$MSGS/$id.out
+  if ((raw)); then printf '%s' "$body" > "$out"
+  elif ((reply)); then
+    cat > "$out" <<E
+[tmux-agents request id=$id from pane ${from:-?}]
+$body
+
+---
+When you have finished, send your result back to the requester by running this
+shell command (it is the only way they will see it; keep the summary concise,
+and put long output in a file and mention its path):
+  tmux-agents reply $id "<what you did and the result>"
+If you fail or are blocked, reply the same way and say so.
+E
+  else printf '%s\n\n[tmux-agents id=%s, no reply expected]' "$body" "$id" > "$out"; fi
+
+  paste_submit "$pane" "$out"
+  echo "$id"
+}
+
+cmd_reply() {
+  need_tmux
+  local id=${1:-}; [[ -n $id ]] || die "reply ID ..."; shift
+  [[ -f $MSGS/$id.meta ]] || die "unknown message id $id"
+  local body; body=$(read_body "$@")
+  printf '%s\n' "$body" > "$MSGS/$id.reply"
+  local from; from=$(sed -n 's/^from=//p' "$MSGS/$id.meta")
+  local who=${TMUX_PANE:+$(tmux display -p -t "$TMUX_PANE" '#{@agent_name}')}
+  [[ -n $from ]] && alive "$from" || { echo "origin pane gone; stored at $MSGS/$id.reply" >&2; return 0; }
+  local out=$MSGS/$id.rout max=${TA_INLINE_MAX:-1500}
+  if ((${#body} <= max)); then
+    printf '[tmux-agents reply id=%s from %s]\n%s' "$id" "${who:-agent}" "$body" > "$out"
+  else
+    printf '[tmux-agents reply id=%s from %s] Result too long to inline (%d chars); read the file: %s\nPreview: %s...' \
+      "$id" "${who:-agent}" "${#body}" "$MSGS/$id.reply" "${body:0:300}" > "$out"
+  fi
+  printf '%s\t%s\t%s\t%s\n' "$(date -Is)" "$id" "${who:-agent}" "$(printf '%s' "$body" | tr '\n' ' ' | cut -c1-200)" >> "$TA_STATE/log.tsv"
+  paste_submit "$from" "$out"
+  echo "replied to $from"
+  # quick agents close their pane once the reply is delivered
+  if [[ -n ${TMUX_PANE:-} && $(tmux display -p -t "$TMUX_PANE" '#{@agent_mode}') == quick ]]; then
+    tmux run-shell -b "sleep ${TA_QUICK_LINGER:-3}; tmux kill-pane -t $TMUX_PANE"
+  fi
+}
+
+cmd_wait() {
+  local id=${1:-}; shift || true; local t=600
+  [[ ${1:-} == --timeout ]] && t=$2
+  local end=$((SECONDS + t))
+  while [[ ! -f $MSGS/$id.reply ]]; do ((SECONDS < end)) || exit 124; sleep 1; done
+  cat "$MSGS/$id.reply"
+}
+cmd_run() {
+  local name=${1:?NAME}; shift; local opts=()
+  while (($#)) && [[ $1 != -- ]]; do opts+=("$1"); shift; done
+  shift || true
+  cmd_spawn "$name" --mode quick "${opts[@]}" >/dev/null
+  local id; id=$(cmd_send "$name" -- "$*")
+  cmd_wait "$id" --timeout "${TA_RUN_TIMEOUT:-900}"
+}
+cmd_log() { tail -n "${1:-10}" "$TA_STATE/log.tsv" 2>/dev/null | awk -F'\t' '{printf "%s  %s  %-10s %s\n",$1,$2,$3,$4}'; }
+cmd_result() { cat "$MSGS/${1:?id}.reply"; }
+
+cmd_read() {
+  local name=${1:?NAME}; shift; local n=200
+  [[ ${1:-} == -n ]] && n=$2
+  local pane; pane=$(pane_of "$name") || die "no agent '$name'"
+  tmux capture-pane -p -J -t "$pane" -S "-$n" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+}
+
+cmd_idle() {
+  local name=${1:?NAME}; shift; local quiet=3 t=300
+  while (($#)); do case $1 in --quiet) quiet=$2; shift 2;; --timeout) t=$2; shift 2;; *) shift;; esac; done
+  local pane; pane=$(pane_of "$name") || die "no agent '$name'"
+  local end=$((SECONDS + t)) last="" cur still=0
+  while ((SECONDS < end)); do
+    cur=$(tmux capture-pane -p -t "$pane" | md5sum)
+    if [[ $cur == "$last" ]]; then ((++still >= quiet)) && return 0; else still=0; last=$cur; fi
+    sleep 1
+  done
+  return 124
+}
+
+cmd_ls() {
+  tmux list-panes -a -F '#{@agent_name}|#{pane_id}|#{@agent_kind}|#{session_name}:#{window_index}|#{?pane_dead,dead,live}|#{pane_current_command}' |
+    awk -F'|' '$1!=""{printf "%-14s %-6s %-7s %-12s %-5s %s\n",$1,$2,$3,$4,$5,$6}'
+}
+
+cmd_kill() {
+  local pane; pane=$(pane_of "${1:?NAME}") || die "no agent '$1'"
+  tmux kill-pane -t "$pane"
+}
+
+cmd_whoami() { need_tmux; echo "${TMUX_PANE} $(tmux display -p -t "$TMUX_PANE" '#{@agent_name}')"; }
+
+cmd_id() {
+  TA_PM_DB=${TA_PM_DB:-$HOME/.local/state/pm/pm.db} python3 -I -c '
+import hashlib, os, sqlite3, sys
+pane = os.environ.get("TMUX_PANE", "")
+db = os.environ["TA_PM_DB"]
+if pane and os.path.exists(db):
+    try:
+        con = sqlite3.connect("file:" + db + "?mode=ro", uri=True, timeout=2)
+        row = con.execute("SELECT id FROM agent_records WHERE last_pane=? AND ended_at IS NULL"
+                          " ORDER BY last_seen DESC LIMIT 1", (pane,)).fetchone()
+        con.close()
+        if row and row[0]:
+            print(row[0]); sys.exit(0)
+    except sqlite3.Error:
+        pass
+ident = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+if ident:
+    h = hashlib.sha256(("claude\0" + ident).encode()).hexdigest()[:6]
+    if h.isdigit():
+        h = "a" + h[1:]
+    print("claude-" + h); sys.exit(0)
+sys.exit(1)
+'
+}
+
+c=${1:-}; shift || true
+case $c in
+  spawn) cmd_spawn "$@";; send) cmd_send "$@";; reply) cmd_reply "$@";;
+  run) cmd_run "$@";; log) cmd_log "$@";; wait) cmd_wait "$@";; result) cmd_result "$@";; read) cmd_read "$@";;
+  idle) cmd_idle "$@";; ls) cmd_ls;; kill) cmd_kill "$@";; whoami) cmd_whoami;; id) cmd_id;;
+  ""|-h|--help|help) usage;; *) usage; die "unknown command: $c";;
+esac

@@ -1,0 +1,46 @@
+# ntfy vhost. Rendered by install-sites.sh (envsubst: ${NTFY_HOST}).
+# Upstream is the ntfy service on the stack network (http://ntfy:80), resolved at request
+# time through Docker's DNS so a recreated ntfy container is found again.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${NTFY_HOST};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${NTFY_HOST};
+    access_log /var/log/nginx/${NTFY_HOST}.access.log;
+
+    ssl_certificate /etc/nginx/ssl/local/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/local/privkey.pem;
+
+    resolver 127.0.0.11 valid=30s ipv6=off;
+    set $ntfy_upstream http://ntfy:80;
+
+    # Attachments are limited by ntfy itself (attachment-file-size-limit).
+    client_max_body_size 0;
+
+    location / {
+        proxy_pass $ntfy_upstream;
+        proxy_http_version 1.1;
+        proxy_redirect off;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # WebSocket subscriptions; map in nginx-ui.conf
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # Streaming subscriptions (JSON / SSE) and uploads
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_connect_timeout 3m;
+        proxy_send_timeout 3m;
+        proxy_read_timeout 3m;
+    }
+}

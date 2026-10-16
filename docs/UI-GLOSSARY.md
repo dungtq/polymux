@@ -144,7 +144,7 @@ The ended composer has only the notice line and the box (Resume / Fork). Page-le
 | doc body | Rendered markdown | T/_project_doc.html `.pj-doc.md`, `.pj-meta`, `.pj-note` | |
 | files browser | Read-only file tree | T/_project_files.html, `.pj-files` | Browse |
 | git status | Dirty-file view | tab `dirty`, T/_dirty.html | dirty |
-| git remotes panel | Remotes / gitdev state in the git card [flux] | project.html git block (`no gitdev remote` warning); DESIGN-GIT-REMOTES-SERVERS.md | remotes |
+| git remotes panel | Remotes / gitdev state in the git card [flux] | project.html git block (`no gitdev remote` warning) | remotes |
 | tmux section | Sessions of this project | `#proj-live` (T/_project_live.html) | live, sessions |
 | tmux session row | One session, expandable | `.lrow.srow` (`.srow-tg` chevron, `.srow-act`) | session row |
 | window row | A window/pane inside an expanded session (table `.tx-w`; `/tmux/<s>` redirects to `/tmux?open=<s>`, no separate session page; the window name links to the terminal, the agent name to the chat; the expanded row only carries Kill session) | rows under `.srow`; T/_tmux_session_rows.html | tmux window |

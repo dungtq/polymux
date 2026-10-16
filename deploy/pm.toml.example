@@ -34,7 +34,8 @@
 # past_sessions_interval_s = 600    # import past CLI sessions of each project folder (0 = off, min 60)
 # idle_after_s = 28800              # inbox: finished -> idle after this many seconds
 
-# UI theme: "classic" is built in; plugins (Python packages in the entry-point group "pm.plugins") may add more.
+# UI theme: "classic" (built in) or "dt" (ships with pm, docs/themes/dt/); plugins (entry-point group
+# "pm.plugins") may add more. Each browser can still pick its own in Settings or with ?ui=dt.
 # theme = "classic"
 # plugins_enabled = true            # false loads no plugin; env PM_NO_PLUGINS=1 skips installed ones
 # [plugins.example]                 # one table per plugin, handed to that plugin only

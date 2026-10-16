@@ -1,0 +1,21 @@
+# ntfy server config for the pm edge stack.
+# Reference: https://docs.ntfy.sh/config/
+# ntfy runs behind nginx-ui (https://NTFY_HOST) and has no host port of its own.
+
+# Placeholder only: compose.yaml sets NTFY_BASE_URL=https://${NTFY_HOST}, which overrides it.
+base-url: "https://ntfy.example.lan"
+listen-http: ":80"
+behind-proxy: true
+
+# Message cache, so clients (and pm's notification feed) see recent messages after a reconnect.
+cache-file: "/var/cache/ntfy/cache.db"
+cache-duration: "24h"
+attachment-cache-dir: "/var/cache/ntfy/attachments"
+
+# Access control. By default anyone who can reach NTFY_HOST may publish and subscribe.
+# To require logins, enable this and create users with `docker compose exec ntfy ntfy user add`:
+# auth-file: "/var/cache/ntfy/user.db"
+# auth-default-access: "deny-all"
+
+# iOS app push: ntfy.sh only forwards a wake-up poll request; the message stays on your server.
+# upstream-base-url: "https://ntfy.sh"

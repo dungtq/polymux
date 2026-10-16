@@ -17,7 +17,7 @@ to loopback and is reached through a TLS reverse proxy.
 | OpenSSH client (`ssh`, `ssh-keygen`) | | no | pm's own SSH key (Settings > SSH) and git over ssh |
 | ntfy server | | no | no push notifications, no ntfy mirror in the Inbox |
 | `claude`, `codex`, `devin`, `cursor-agent` | | no | that agent kind cannot be launched or resumed |
-| `tmux-agents` (`deploy/tmux-agents/`) | | no | agent ids for `pmctl` and agent-to-agent messages unavailable |
+| `tmux-agents` (`deploy/tmux-agents/`) | | no | `pmctl` records `$PM_ACTOR` or `agent` instead of the agent id |
 | Playwright | | dev only | UI test suite (`pytest -m ui`) |
 
 pm never needs root. It never binds `0.0.0.0`.
@@ -133,7 +133,7 @@ on `127.0.0.1` and `localhost`. From any other machine you need HTTPS
 ```sh
 mkdir -p ~/.config/systemd/user
 cp deploy/pm.service ~/.config/systemd/user/pm.service
-# edit WorkingDirectory and ExecStart to point at your clone, e.g. %h/polymux and %h/polymux/.venv/bin/pm
+# the unit expects the clone in ~/polymux (%h/polymux); edit WorkingDirectory and ExecStart if yours is elsewhere
 systemctl --user daemon-reload
 systemctl --user enable --now pm
 systemctl --user status pm
@@ -161,7 +161,7 @@ Put pm behind a TLS proxy and set `base_url` to its URL. The proxy must:
 Examples:
 
 - nginx vhost: [`deploy/nginx/pm.conf`](../deploy/nginx/pm.conf).
-- A full Docker stack with nginx-ui, a private CA and ntfy:
+- A Docker Compose stack with nginx-ui, a private CA and ntfy:
   [`deploy/stack/README.md`](../deploy/stack/README.md).
 
 If nginx runs in a container it cannot reach the host's `127.0.0.1`. Bind pm
@@ -183,11 +183,12 @@ waiting / finished / running at once. pm creates the secret
 snippet from [claude-hook.md](claude-hook.md) into `~/.claude/settings.json`
 yourself; pm never edits it.
 
-## 10. tmux-agents and tmux config (optional)
+## 10. tmux-agents (optional)
 
-`deploy/tmux-agents/` holds a small script that gives each agent pane an id
-(`tmux-agents id`) and lets agents message each other. pm and `pmctl` use it
-to record who made a change.
+`deploy/tmux-agents/` holds a small bash script that prints the pm agent id
+of the current pane (`tmux-agents id`) and can also spawn agents in tmux and
+pass messages between them. pm uses only `id`: `pmctl` records it as the
+author of a tracker change.
 
 ```sh
 install -m 755 deploy/tmux-agents/tmux-agents ~/.local/bin/tmux-agents
@@ -197,8 +198,8 @@ Details: [`deploy/tmux-agents/README.md`](../deploy/tmux-agents/README.md).
 To use it, set `actor_cmd = ["tmux-agents", "id"]` in `pm.toml` (an absolute path if it is not on the
 unit's `PATH`); without it `pmctl` uses `$PM_ACTOR`, else `agent`.
 
-`deploy/tmux/` has the author's `tmux.conf`. It is optional; pm works with
-any tmux config.
+pm needs no special tmux config; any `~/.tmux.conf` works. Only the tmux
+version matters (see `tmux_bin` above).
 
 ## 11. Verify
 

@@ -4,8 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/dev/pm
-ExecStart=%h/dev/pm/.venv/bin/pm
+# Path of your clone (docs/INSTALL.md step 7); change both lines if it is not ~/polymux.
+WorkingDirectory=%h/polymux
+ExecStart=%h/polymux/.venv/bin/pm
 Restart=on-failure
 TimeoutStopSec=15
 RestartSec=3
