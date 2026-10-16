@@ -32,7 +32,8 @@ log = logging.getLogger(__name__)
 
 EVENT = "chat_outbox"
 HOLD_S = 30.0  # after a send: wait for busy -> idle, at most this long, before the next one
-GONE_S = 60.0  # a due row of an agent pm does not see for this long fails ("agent gone")
+GONE_S = 60.0  # a due row of an agent pm does not see for this long fails ("agent gone"); counted from
+# the later of the row's last change and this deliverer's start (the first agent scan comes after a restart)
 BUSY_TICK_S = 1.0  # cadence while something is due or held
 IDLE_TICK_S = 15.0  # safety poll when nothing is known to be due (a kick wakes the loop at once)
 
@@ -56,6 +57,7 @@ class Deliverer:
     clock: Callable[[], float] = time.monotonic
     wake: asyncio.Event = field(default_factory=asyncio.Event)
     holds: dict[str, _Hold] = field(default_factory=dict)
+    started: float = field(default_factory=time.time)  # wall clock, like OutboxMsg.updated
 
     def changed(self, m: OutboxMsg) -> None:
         if self.publish is None:
@@ -109,7 +111,7 @@ class Deliverer:
         agent = self.get_agent(agent_id)
         if agent is None:
             self.holds.pop(agent_id, None)
-            if m is not None and time.time() - m.updated >= GONE_S:
+            if m is not None and time.time() - max(m.updated, self.started) >= GONE_S:
                 await self._set(m.id, "failed", error="agent gone")
             return
         if self._held(agent) or m is None:

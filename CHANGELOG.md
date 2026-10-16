@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-17 (Antigravity chat sync and plan usage limits)
+
+- **Antigravity chat sync** — `antigravity.read_entries` and `read_latest` wait for in-progress streaming steps (`CORTEX_STEP_STATUS` 1/2/8/9 in field 4 of `step_payload`) to finish before advancing the ingest cursor, so replies and tool calls are never truncated mid-stream or dropped during the thinking phase (`items.FORMAT = 4`, `log.FORMAT = 2` re-ingest earlier truncated conversations). `locate` also matches open `presence/<uuid>.lock` file descriptors when `agy` is idle, and `classify_pane_text` recognizes Antigravity's 8-dot braille spinner and `esc to cancel` footer as `RUNNING`. (`src/pm/chat/sources/antigravity.py`, `src/pm/chat/items.py`, `src/pm/chat/log.py`, `src/pm/agents/state.py`, `tests/test_antigravity.py`)
+- **Antigravity plan limits and usage stats** — `/a/<id>/stats` now shows 5-hour and weekly plan limits for Antigravity agents (from `agy -p /usage --output-format json`, cached in `antigravity-limits.json` via `SWR`, tagging the active model's weekly bucket such as Argon for the summary bar) as well as reply count, tool calls, duration and cache hit % in the usage section; `/usage` and `/quota` are added to the Antigravity slash palette, and `-p`/`--print`/`models` runs are ignored by agent detection. (`src/pm/agents/limits.py`, `src/pm/agents/usage.py`, `src/pm/agents/slash.py`, `src/pm/agents/detect.py`, `src/pm/web/routes/chat.py`, `src/pm/web/themes/classic/templates/_stats.html`)
+
+## 2026-10-17 (Queued messages survive a pm restart)
+
+A message waiting for an agent is no longer failed as "agent gone" right after pm restarts. The one-minute wait now counts from pm start, so the first agent scan can finish.
+
 ## 2026-10-17 (Fix Codex startup trust choice submission)
 
 - Codex startup folder and hook trust choices now send the selected digit followed by Enter, so clicking the trust row submits it instead of only moving the terminal selection.
