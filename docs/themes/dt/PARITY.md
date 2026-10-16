@@ -42,7 +42,7 @@ both UIs.
 | Jump rail | ported | `session/_frame.html` `[data-c-jump]` | dev | |
 | Installable app | classic-in-shell | manifest in dt `base.html` | dev | SW registration (`/static/pm.js`) and app badge (classic `inbox.js`) come from `_classic.html` |
 | Live updates | ported | dt `js/live.js` | dev | Inbox / chat still morph with classic `nodiff.js` |
-| Service reload banner | ported | `js/reload.js` bar at the top of `#main` | dev | M5: after Reload pm waits on `/healthz` (bounded) and reloads; on 502/503/504 offers Reload now |
+| Service reload banner | ported | `js/reload.js` bar at the top of `#main` | dev | M5: after Reload pm waits on `/healthz` (bounded) and reloads; on 502/503/504 offers Reload now; "New code: restart pm to load it" (+ commit subject) from the core's `pm_code` verdict, Restart pm after a confirm (or the systemctl command when reload is off) |
 | Sortable, filterable lists | ported | `parts/_table.html` (`a.p-sort`), `parts/_filter.html` | dev | |
 | List filter box | ported | `parts/_filter.html`, `js/filter.js` | dev | |
 | Notices | ported | toast `#x-toast` (`pm7.toast`) | dev | composer notice line is classic |
@@ -222,7 +222,7 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Poll loop and state tracker | n/a | backend | — | |
 | Chat feed and deliverer | n/a | backend | — | |
 | Event-loop watchdog | n/a | backend | — | |
-| Reload-need check | n/a | backend | — | |
+| Reload-need check | n/a | backend; its watcher's `pm_code` verdict drives the "new code" bar (`js/reload.js`) | — | |
 | pm.db daily backup | n/a | backend, `pmctl backup` | — | |
 
 ## Tools

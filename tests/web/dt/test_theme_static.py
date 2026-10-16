@@ -135,7 +135,7 @@ def test_icons_exist_in_the_sprite():
 @pytest.mark.parametrize("cur_agent", [False, True])
 def test_base_renders_the_shell(cur_agent):
     html = render_base(cur_agent)
-    for hook in ('<header class="x-top">', 'id="x-tabs"', 'id="x-side"', 'id="x-sess"', 'id="main"', 'id="flash"',
+    for hook in ('<header class="x-top"', 'id="x-tabs"', 'id="x-side"', 'id="x-sess"', 'id="main"', 'id="flash"',
                  'id="x-aside"', 'class="x-bnav"', 'id="x-pal"', 'id="x-keys"', 'id="x-dlg"', 'id="x-menu"',
                  'id="x-sheet"', 'id="x-scrim"', 'id="x-toast"', 'id="x-acct"', 'id="sp-dlg"', "data-live"):
         assert hook in html, hook
