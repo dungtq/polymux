@@ -9,7 +9,7 @@ This repo is the source of truth for pm's code and docs.
 
 ## Dev setup
 
-Linux, uv 0.12+, tmux and git.
+Linux, uv 0.12+, tmux, git and Node.js 20+ (the JS unit tests are skipped without node).
 
 ```sh
 git clone https://github.com/dungtq/polymux.git
@@ -17,7 +17,8 @@ cd polymux
 uv sync --group dev
 ```
 
-Run a local instance with `uv run pm` (see [docs/INSTALL.md](docs/INSTALL.md)).
+Run a local instance with `uv run pm` (see [docs/INSTALL.md](docs/INSTALL.md)). For the optional
+Playwright UI suite and screenshots, install the browsers once: `uv run playwright install chromium webkit`.
 
 ## Checks before a PR
 
@@ -25,10 +26,10 @@ Run a local instance with `uv run pm` (see [docs/INSTALL.md](docs/INSTALL.md)).
 |---|---|
 | `uv run pytest` | Test suite (UI tests are skipped by default) |
 | `uv run ruff check src tests tools` | Lint (`make lint`) |
-| `make check` (= `tools/check.sh`) | ruff plus `tools/archcheck.py`, the architecture gate |
-| `uv run pytest -m ui` | Optional Playwright UI suite against a dev instance |
+| `./tools/check.sh` (= `make check`) | ruff plus `tools/archcheck.py`, the architecture gate (also the dt static tree) |
+| `./tools/ui.sh` (= `make ui`) | Optional: screenshot smoke (`tools/uishot.py --smoke`) plus `uv run pytest -m ui`, the Playwright UI suite against a dev instance |
 
-All of them must pass. CI runs ruff and pytest on every PR.
+All of them must pass (the UI suite when you change the UI). CI runs `./tools/check.sh` and pytest on every PR.
 
 ## Rules
 
@@ -45,8 +46,12 @@ All of them must pass. CI runs ruff and pytest on every PR.
 - **Mutations**: POST + `mutation_guard` + audit line. No hand-written CSRF or
   Origin checks.
 - **Pane text** goes out only through `security.mask.render_pane`.
-- **UI**: follow `docs/UI-RULES.md`. No `alert()` / `confirm()` / `prompt()`;
-  use the in-page dialogs in `static/js/dialog.js`.
+- **UI**: classic follows `docs/UI-RULES.md`; the dt theme follows
+  `docs/themes/dt/CONDUCT.md` (start at `docs/themes/dt/README.md`). Never change
+  one theme's files for the other. No `alert()` / `confirm()` / `prompt()`:
+  classic uses `static/js/dialog.js` (`pmConfirm` / `pmPrompt`), dt uses its
+  layers (`pm7.confirm` / `pm7.dialog` in
+  `src/pm/web/themes/dt/static/js/layers.js`).
 - **Settings**: a new option is a typed field in `pm.core.config.Settings`,
   documented in `docs/CONFIG.md`.
 - **Secrets**: never commit tokens, keys, `.env` files or `*.db` files.

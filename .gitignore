@@ -11,12 +11,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# release extras
-.claude/
-*.db
-.env
-
-# personal agent rules (symlink from the private repo) and local Claude state
+# personal, host-specific agent rules and local Claude state
 CLAUDE.local.md
 .claude/settings.local.json
 .claude/worktrees/

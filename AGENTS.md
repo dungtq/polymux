@@ -3,6 +3,24 @@
 polymux (command `pm`) is a web control plane for projects, git, tmux and coding agents on one Linux host.
 Setup: `docs/INSTALL.md`; every `pm.toml` key: `docs/CONFIG.md`; code layout and rules: `docs/ARCHITECTURE.md`.
 
+## Where things are
+
+| Area | Code | Rules / docs |
+|---|---|---|
+| Classic UI (built-in default theme) | `src/pm/web/themes/classic/templates`, `src/pm/static` | `docs/UI-RULES.md`, `docs/UI-CONDUCT.md`, `docs/UI-GLOSSARY.md` |
+| dt UI (second theme, internally "pm v7") | `src/pm/web/dt`, `src/pm/web/themes/dt`, `tests/web/dt` | `docs/themes/dt/README.md` first, then `docs/themes/dt/CONDUCT.md` (`V7-*` ids), `docs/themes/dt/CODE.md` |
+| Core Python (domain, routes, security) | `src/pm/**` | `docs/ARCHITECTURE.md` (packages, shared helpers, limits) |
+| Plugins | `src/pm/web/plugins.py` (entry point `pm.plugins`) | `docs/CONFIG.md` "Theme and plugins" |
+| Deploy examples | `deploy/` | `docs/INSTALL.md`, `docs/operations.md` |
+| Dev instance, screenshots, UI tests | `tools/devpm.py`, `tools/uishot.py`, `tools/ui.sh` | `docs/DEV-TESTING-PLAN.md` |
+| Agents and skills (Claude Code) | `.claude/agents`, `.claude/skills` | `arch-guard`, `screen-validator`, `builder-preview`; maintainer only (need the tracker DB): `features-keeper`, `features-update`, `features-audit` |
+
+The two themes never mix: classic rules do not apply to dt files, dt rules do not apply to classic files, and work
+for one theme does not change the other's files.
+
+Checks: `./tools/check.sh` (= `make check`: ruff + architecture gate), `uv run pytest`, and for UI changes
+`./tools/ui.sh` (= `make ui`: screenshot smoke + `uv run pytest -m ui`).
+
 ## Stack
 
 Python 3.13, `uv`, FastAPI + Jinja2 + uvicorn, vendored HTMX (+ SSE ext), no JS build step. Runs on the host as a
@@ -42,7 +60,9 @@ systemd user unit (not Docker), behind a TLS reverse proxy.
 
 ## Working style
 
-- Read `docs/ARCHITECTURE.md` before a code change and check your diff against it; `./tools/check.sh` and
-  `uv run pytest` must pass. Never add a new top-level module in `src/pm/` or a new copy of a shared helper.
-- Add tests with every change. Add a CHANGELOG entry for every user-visible change and keep `FEATURES.md` true.
+- Read `docs/ARCHITECTURE.md` before a code change and check your diff against it; `./tools/check.sh`
+  (= `make check`) and `uv run pytest` must pass. Never add a new top-level module in `src/pm/` or a new copy of a
+  shared helper.
+- Add tests with every change. Do not edit `CHANGELOG.md` or `FEATURES.md` (generated); describe user-visible
+  changes in the PR and the maintainer adds the entries.
 - One topic per pull request; describe what changed and how you checked it (`CONTRIBUTING.md`).

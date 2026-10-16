@@ -135,7 +135,7 @@ Run these in order. A failed gate stops the work; report it, do not skip it.
 | **V7-GATE-3** Static checks | no hex / raw z-index / inline style in new CSS; files ≤ 500 lines | `./tools/check.sh` (it includes the dt static tree) and `uv run pytest` green (dt file rules: `tests/web/dt/test_theme_static.py`) |
 | **V7-GATE-4** Visual | Playwright on the mock: 1512, 2560, 3440, 440 (WebKit iPhone), light and dark, read every screenshot | `tools/uishot.py --ui dt` on the dev instance (`tools/devpm.py`), same screens; classic unchanged; read every screenshot |
 | **V7-GATE-5** Review | re-read `DESIGN.md` §6 for the components you touched | the diff checked against `docs/ARCHITECTURE.md`; no commit on a failure |
-| **V7-GATE-6** Docs | update the mock's decision and page notes and the matching `docs/themes/dt/*.md` | `PRD.md` acceptance ticked, `FEATURES.md` entry (area prefixed `v7`), CHANGELOG entry |
+| **V7-GATE-6** Docs | update the mock's decision and page notes and the matching `docs/themes/dt/*.md` | `PRD.md` acceptance ticked; user-visible change described in the PR (the maintainer adds the `FEATURES.md` entry, area `dt theme`, and the CHANGELOG entry) |
 | **V7-GATE-7** Finish | commit (`v7 ...:`), push (never force), check the open issues | same |
 
 - **V7-GATE-8** Never type into a live `/a/<agent>` composer or press mutating buttons on live pages

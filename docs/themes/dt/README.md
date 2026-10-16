@@ -52,7 +52,7 @@ core changes that dt needs are theme-neutral (`CONDUCT.md` V7-ISO-4).
 | The shell's Python / template / JS contract | `SHELL.md` |
 | Shell geometry, breakpoints, page layouts | `LAYOUT.md` |
 | What classic does that dt does (or does not) do yet | `PARITY.md` |
-| Where code goes, naming, limits | `docs/ARCHITECTURE.md`, `CONDUCT.md` §5 |
+| Where dt code goes (files, one helper per job), naming, limits | `CODE.md`, `CONDUCT.md` §5, `docs/ARCHITECTURE.md` |
 
 ## Precedence (dt only)
 
