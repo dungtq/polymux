@@ -18,8 +18,8 @@
 {% elif st and st.state == "out" %}<span class="ag-auth-st">{{ dot("idle", "not logged in") }}Not logged in</span>{{ act(r, "login", "Log in", "small primary") }}
 {% else %}<span class="ag-auth-st"{% if st and st.error %} title="{{ st.error }}"{% endif %}>{{ dot("unknown", "unknown") }}Unknown{% if st and st.error %} <span class="muted">&middot; {{ st.error }}</span>{% endif %}</span>{{ act(r, "login", "Log in", "small") }}
 {% endif %}
-{% if manage and not (view.active and not view.dead) %}{% if r.account == gdef %}<span class="muted ag-auth-def" title="Used when a project has no choice">Default</span>{% else %}{{ act(r, "default", "Make default", "small") }}{% endif %}
-{% if r.account and r.account not in readonly %}{{ act(r, "remove", "Remove", "small danger", "Remove " ~ r.account ~ " from the list? Its login folder is kept on disk.") }}{% elif r.account %}<span class="muted ag-auth-def" title="Defined in pm.toml, remove it there">pm.toml</span>{% elif gdef %}{{ act(r, "default", "Use CLI default", "small") }}{% endif %}{% endif %}</div>
+{% if manage and not (view.active and not view.dead) %}{% if r.account == gdef %}<span class="muted ag-auth-def" title="Used when a project has no choice">Default</span>{% else %}{{ act(r, "default", "Make default" if r.account else "Use CLI default", "small") }}{% endif %}
+{% if r.account and r.account not in readonly %}{{ act(r, "remove", "Remove", "small danger", "Remove " ~ r.account ~ " from the list? Its login folder is kept on disk.") }}{% elif r.account %}<span class="muted ag-auth-def" title="Defined in pm.toml, remove it there">pm.toml</span>{% endif %}{% endif %}</div>
 {% if sup and view.active %}<div class="ag-auth-run">
 {% if view.dead %}<p class="ag-auth-done">Login finished.</p>{% endif %}
 {{ out(r, not view.dead) }}

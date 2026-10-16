@@ -22,6 +22,7 @@ from pm.agents import launch as launch_mod
 from pm.agents import lineage
 from pm.chat.live import chat_view
 from pm.core import executors
+from pm.core.errors import PmError
 from pm.core.models import Launch, Tier
 from pm.security.audit import message_detail
 from pm.security.guard import mutation_guard
@@ -115,7 +116,7 @@ async def _start(request: Request, action: str, settings, a, project, prompt: st
     launch = Launch(project=project.name, kind=a.kind, model=None if model == a.kind.value else model, prompt=prompt)
     try:
         return await executors.run_tmux(launch_mod.launch_agent, settings, launch, project)
-    except launch_mod.LaunchError as e:
+    except (launch_mod.LaunchError, PmError) as e:  # PmError: the project's account was removed
         raise agentctl.stop(request, action, a.id, 400, "launch refused", detail=detail,
                             reason=f"launch refused: {str(e)[:80]}") from None
     except (tmuxctl.TmuxError, OSError):

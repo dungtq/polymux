@@ -46,6 +46,22 @@ def test_continue_launches_same_kind_with_message(fake, monkeypatch):
     assert "agent_continue" in audit_text(st) and "do the thing" not in audit_text(st)
 
 
+def test_continue_with_a_removed_account_is_a_400(fake, monkeypatch):
+    from pm.core.errors import Invalid
+    st, calls, _ = fake
+    app, c, tok, st = mk(st)
+    snap_with(monkeypatch, [agent()])
+    monkeypatch.setattr(pm.projects.projects, "discover", lambda s: [Project(name="proj", path="/tmp")])
+    monkeypatch.setattr(pm.web.routes.next, "chat_view", lambda s, a, p=None: ChatView(
+        agent_id=a.id, state=AgentState.IDLE, last_role="assistant", last_text="go"))
+
+    def gone(s, l, p):
+        raise Invalid("unknown claude account 'gone'")
+    monkeypatch.setattr(launch_mod, "launch_agent", gone)
+    r = post(c, tok, "/a/claude-1/continue")
+    assert r.status_code == 400 and "launch refused" in r.text and "agent_continue" in audit_text(st)
+
+
 def test_continue_keeps_the_agents_model(fake, monkeypatch):
     from pm.agents import head as agenthead
     st, calls, _ = fake

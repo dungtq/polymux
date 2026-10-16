@@ -202,7 +202,7 @@
 .pg-agents .ag-auth-line button{margin-block:-2px}
 .pg-agents .ag-auth-ctl input,.pg-agents .ag-auth-ctl button{height:var(--ctl-h)}
 @media (pointer:coarse){.pg-agents .ag-auth button{min-height:36px}}
-.pg-agents .ag-auth-st{display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-agents .ag-auth-st{display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:5.8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pg-agents .ag-auth-st>.muted{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .pg-agents .ag-auth-def{flex:0 0 auto;white-space:nowrap}
 .pg-agents .ag-auth-add{display:flex;align-items:center;gap:8px;margin:4px 0 0 calc(6.5em + 8px);min-width:0}
@@ -221,7 +221,8 @@
 .pg-agents .ag-auth-send{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;margin:0}
 .pg-agents .ag-auth-send input[type=text]{flex:1 1 auto;min-width:0;max-width:28em;font-family:var(--mono,ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace)}
 @media (max-width:699px){
-  .pg-agents .ag-auth-k{flex-basis:5.5em}
+  .pg-agents .ag-auth-line{gap:4px}
+  .pg-agents .ag-auth-k{flex:0 1 4.2em;min-width:3.3em}
   .pg-agents .ag-auth-note,.pg-agents .ag-auth-run,.pg-agents .ag-auth-add{margin-left:0}
   .pg-agents .ag-auth-add input[type=text]{font-size:16px}
   .pg-agents .ag-auth-send input[type=text]{font-size:16px}

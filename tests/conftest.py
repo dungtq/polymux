@@ -98,6 +98,16 @@ def fake_tmux(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_stale_account_roots():
+    """``create_app`` registers a process-wide extra-roots provider for named accounts: clear it around every test."""
+    from pm.agents import head
+
+    head.register_extra_roots(None)
+    yield
+    head.register_extra_roots(None)
+
+
+@pytest.fixture(autouse=True)
 def _pane_ids_unless_real_registry(request, monkeypatch):
     """Most tests use fake agents with pane based ids: keep them. A test module that sets
     ``REAL_REGISTRY = True`` exercises the permanent-id registry instead."""

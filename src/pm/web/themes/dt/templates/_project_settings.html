@@ -1,8 +1,8 @@
 {#- dt override of the core's project settings panel (GET /p/<name>/settings/panel; the answer of POST
     /p/<name>/settings, /settings/links and /settings/links/import: the same panel with flash "Saved.",
     "Linked N project(s). M folder(s) are not pm projects." or "Refused: ..."). Context: project, csrf, base,
-    ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, account_kinds ([(kind, names)] of the configured
-    login accounts), git_html (the dt _git_remotes.html), flash, workspaces ((id, label) of the *.code-workspace files found; the import block
+    ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, account_kinds ([(kind, names, choice, global_default)] of the
+    configured login accounts; choice = this project's pick: "" global default, "-" CLI default, or a name), git_html (the dt _git_remotes.html), flash, workspaces ((id, label) of the *.code-workspace files found; the import block
     shows only when there are some). Opened in the project view's reader aside by the head's Settings button
     or #settings (js/pjsettings.js; css/project.css .pjs). Blocks: Show (the components; a hidden one leaves the
     project view: tabs, Docs choices, the tmux tab), Default branch + VM names, Git remotes (the remotes panel),
