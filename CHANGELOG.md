@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-16 (dt: row links, ended sessions in the aside, search popups and project quick look, backlog bulk add and quick edit, md reader)
+
+- Rows: names in Inbox, project Agents, Projects and Agents tables are real links, so Ctrl/⌘/Shift or middle click opens a new browser tab (#247).
+- Ended sessions open in the chat aside (click / Enter), O opens a tab; their ⋯ menu has Open chat / Open in a tab (#243).
+- Search: Settings opens the Settings popup, sessions open in the aside, projects open a new project quick look (folder listing; files open in a new browser tab by default, Settings › Display "Quick look opens files in"); ⌘/Ctrl+Enter opens as a page; exact name matches come first (#244).
+- Backlog: add several issues at once (one per line, Add another), paste or drop screenshots into Add issue, quick edit of issues and TODO tasks (⋯ Edit…, key R) (#245, #246, #248).
+- Images in agent replies show large instead of as small thumbnails (#246).
+- Markdown links from the chat aside open in a reader centred on the screen (#250); relative .md paths are also found in the project and among files the agent named (#249).
+
 ## 2026-10-16 (Faster tab switches and Inbox; account menu Settings opens the popup)
 
 - dt tab switches (Shift+[ / ], tab clicks) no longer revalidate every script and stylesheet: versioned /static files (`?v=` equal to the file's current hash) are cached as immutable; a page switch makes a few requests instead of ~100.

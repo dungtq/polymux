@@ -156,6 +156,7 @@ def _imenu(r: Mapping, ag: Mapping | None, others: bool) -> list[dict]:
                    post=f"{base}/{'reopen' if done else 'done'}", done=f"#{n} " + ("reopened" if done else "done"),
                    refresh="#bl-issues"),
         menus.item("select", "Select / unselect", "check", key="X", event="bl:select"),
+        menus.item("edit", "Edit…", "edit", key="R", event="bl:edit"),
         menus.SEP,
         menus.item("copy", "Copy pmctl command", "copy", note="issue show", copy=f"pmctl --project {p} issue show {n}"),
         menus.item("project", "Open project", "folder", href=f"{_p(p)}#issues"),
@@ -248,6 +249,8 @@ def _tmenu(name: str, it: Mapping, index: int | None) -> list[dict]:
         menus.item("dispatch", "Dispatch", "send", note="Launch with the task", event="bl:tdispatch")
         if index is not None else menus.item("dispatch", "Dispatch", "send", disabled=True, why="done"),
         menus.item("state", "Reopen" if done else "Tick (done)", "check", key="E", event="bl:tick"),
+        menus.item("edit", "Edit…", "edit", key="R", event="bl:tedit") if it.get("tracker") else
+        menus.item("edit", "Edit…", "edit", disabled=True, why="TODO.md project: edit the file"),
         menus.SEP,
         menus.item("copy", "Copy task text", "copy", copy=it["text"]),
         menus.item("project", "Open project", "folder", href=f"{_p(name)}#todo"))
@@ -388,8 +391,9 @@ def page(ctx: Mapping, now: float | None = None) -> View:
              "cur": st.tab == "issues", "count": oi},
             {"key": "todo", "label": "TODO", "href": st.url(tab="todo", status="open", limit=0),
              "cur": st.tab == "todo", "count": ot}]
-    hints = ([("J K", "move"), ("Enter", "open"), ("X", "select"), ("E", "done / reopen"), ("/", "filter")]
-             if st.tab == "issues" else [("J K", "move"), ("E", "tick / reopen"), ("/", "filter")])
+    hints = ([("J K", "move"), ("Enter", "open"), ("X", "select"), ("E", "done / reopen"), ("R", "edit"),
+              ("/", "filter")]
+             if st.tab == "issues" else [("J K", "move"), ("E", "tick / reopen"), ("R", "edit"), ("/", "filter")])
     return View(
         st=st, frag=is_frag(ctx), ok=(il if st.tab == "issues" else tl) is not None, error=str(ctx.get("error") or ""),
         title="Backlog", stats=[plural(oi, "open issue") + where, plural(ot, "open task") + where,
@@ -418,7 +422,7 @@ class Reader:
     pmctl: str
     send: list  # running agents of the project: [{id, label, state, href}]
     base: str  # /p/<n>/issues/<num>
-    title_raw: str = ""  # the stored title (with its date suffix): the Edit form's value
+    title_sfx: str = ""  # the stored title's " (YYYY-MM-DD)" suffix: hidden in the Edit form, sent back on save
     body: str = ""  # the raw Markdown body: the Edit form's value
 
 
@@ -439,7 +443,8 @@ def reader(ctx: Mapping, now: float | None = None) -> Reader:
                   title=it.title_short, meta=meta, body_html=d.get("body_html") or "" if it.body_md.strip() else "",
                   images=[{"url": i["url"], "label": i.get("label") or i["name"]} for i in d.get("images") or ()],
                   notes=notes, pmctl=f"pmctl --project {name} issue show {it.num}", send=list(ctx.get("send") or ()),
-                  base=f"{_p(name)}/issues/{int(it.num)}", title_raw=it.title, body=it.body_md)
+                  base=f"{_p(name)}/issues/{int(it.num)}", body=it.body_md,
+                  title_sfx=it.title[len(it.title_short):] if it.title != it.title_short else "")
 
 
 # ------------------------------------------------------------------ Jinja global

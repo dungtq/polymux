@@ -1,7 +1,8 @@
 /* dt chat aside parts (DESIGN.md §6.1, LAYOUT.md §2): head (dot, name, kind chip, Open as tab, Close), the resize
    edge and the chat iframe. The column itself, html.aside and the < 900px overlay are in shell.css; the width is
    --aside-w (tokens.css) from --aside-pct, set on <html> by head.js / aside.js. Behaviour: js/aside.js.
-   html.aside-drag: an edge drag is running (no text selection, the iframe does not take the pointer). Tokens only. */
+   html.aside-drag: an edge drag is running (no text selection, the iframe does not take the pointer). Also btw's panel
+   and the markdown reader dialog the aside chat's .md links open (at the end). Tokens only. */
 
 .x-aside{position:relative}
 .x-ah .x-an{flex:0 1 auto;min-width:0}
@@ -57,5 +58,33 @@ html.aside-drag .x-aframe{pointer-events:none}
   font-size:var(--fs-in);resize:vertical}
 .x-btwin:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
 
-/* the aside chat's .md link on a page that is not that agent's session: the file in a sheet (aside.js reader) */
-.x-mdsheet{padding:0 var(--s3) var(--s3);font-size:var(--fs-m);overflow-wrap:anywhere}
+/* ---------- markdown reader (dialog#x-md, shell/_mdview.html, js/mdview.js; DESIGN §6.19, user issue #250) ----------
+   the aside chat's .md links: a modal centred on the screen, --chat-cap wide (the reading measure of the session
+   column), as tall as the file up to the window less a margin; fixed head, the body scrolls; full screen on
+   phones. The body is the server's markdown (.mdv > .md, classic chat.css look); --md-size = the reader's A- / A+
+   (pm.v7.chat.md) */
+.x-dlg.x-md{width:min(var(--chat-cap),calc(100vw - var(--s6)));max-height:calc(100dvh - 2 * var(--s6));
+  margin:auto;padding:0;overflow:hidden}
+.x-dlg.x-md[open]{display:flex;flex-direction:column}
+.x-mdh{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;min-width:0;
+  padding:var(--s2) var(--s2) var(--s2) var(--s4);border-bottom:1px solid var(--line)}
+.x-mdh>svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.x-dlg .x-mdh h2{flex:0 1 auto;margin:0;font-family:var(--font-mono);font-size:var(--fs-ui);font-weight:500}
+.x-mdz{display:inline-flex;align-items:center;flex:0 0 auto}
+.x-mdz .x-ib{font-size:var(--fs-s);font-weight:600}
+.x-mdzv{min-width:calc(var(--s6) + var(--s2));color:var(--muted);font-size:var(--fs-s);text-align:center;
+  font-variant-numeric:tabular-nums}
+.x-mdb{flex:1 1 auto;min-height:0;padding:var(--s3) var(--s5) var(--s5);overflow:auto;overscroll-behavior:contain;
+  overflow-wrap:anywhere}
+.x-mdb:focus{outline:0}
+.x-mdb .md{font-size:var(--md-size,var(--fs-m))}
+.x-mdb .md img{max-width:100%;height:auto}
+.x-mdn{margin:0;color:var(--muted);font-size:var(--fs-m)}
+.x-mdn.err{color:var(--failed-fg)}
+@media (max-width:699px){
+  .x-dlg.x-md{width:100vw;height:100dvh;max-height:none;margin:0;padding:env(safe-area-inset-top) 0 0;border:0;
+    border-radius:0}
+  .x-mdh{padding:var(--s2) var(--s2) var(--s2) var(--s3)}
+  .x-mdzv{display:none}
+  .x-mdb{padding:var(--s3) var(--s3) calc(var(--s5) + env(safe-area-inset-bottom))}
+}

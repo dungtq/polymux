@@ -9,16 +9,20 @@
    - [data-bl-rda] done / reopen (POST .../done | .../reopen), dispatch (backlog.js confirm + POST), copy (pmctl),
      edit / cancel (show / hide the Edit form in the body's place), delete (typed confirm "#N", POST .../delete,
      then the reader closes and the lists refresh);
-   - form[data-bl-editform]: POST .../edit {title, body} (the stored title and raw Markdown are the form's values);
+   - form[data-bl-editform]: POST .../edit {title, body} (the title as the list shows it and the raw Markdown are the
+     form's values; the stored title's " (YYYY-MM-DD)" suffix, data-bl-sfx, is added back unless the title ends in
+     a date of its own, so a save never drops or doubles it);
    - form[data-bl-noteform]: POST .../note {body}.
    After a write the reader body reloads (GET again) and the lists refresh.
-   Globals: sets pm7.backlog.reader(project, num, opener). Runs once however many partials load it. */
+   Globals: sets pm7.backlog.reader(project, num, opener, {edit}) (edit: the Edit form shows once the body loaded:
+   the row's ⋯ Edit and R). Runs once however many partials load it. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;
   if (!pm7 || !pm7.backlog || !pm7.backlog.lib || pm7.backlog.reader) return;
   const B = pm7.backlog.lib, el = pm7.el;
   let rd = null;  // the issue in the reader: {p, n}
+  const DATED = /\s\(\d{4}-\d\d-\d\d\)$/;  // a title's date suffix (the tracker's short_title)
 
   const dlg = () => d.getElementById('bl-rd');
   const of = (art) => ({ p: art.getAttribute('data-bl-p'), n: art.getAttribute('data-bl-n') });
@@ -50,16 +54,19 @@
       if (x) x.focus({ preventScroll: true });
     }
   }
-  function reader(p, n, opener) {
+  function reader(p, n, opener, opts) {  // opts.edit: open with the Edit form shown (⋯ Edit, R)
     const dl = dlg();
     if (!dl) return;
-    rd = { p: p, n: n };
+    const cur = rd = { p: p, n: n };
     const no = dl.querySelector('[data-bl-rdno]'), pj = dl.querySelector('[data-bl-rdp]');
     if (no) no.textContent = '#' + n;
     if (pj) { pj.textContent = p || ''; pj.title = p || ''; pj.parentNode.hidden = !p; }
     dl.querySelector('[data-bl-rdbody]').replaceChildren(line('muted', 'Loading…'));
     pm7.dialog(dl, { opener: opener || d.activeElement, focus: closeBtn(dl) });
-    load();
+    load().then(() => {
+      const art = dl.querySelector('[data-bl-rd]');
+      if (opts && opts.edit && rd === cur && dl.open && art) editing(art, true);
+    });
   }
   function after() { load(); B.refreshAll(); }
 
@@ -79,8 +86,9 @@
   async function save(f) {
     const art = f.closest('[data-bl-rd]'), err = f.querySelector('[data-bl-ferr]');
     if (!art) return;
-    const i = of(art), title = f.elements.title.value.trim();
-    if (!title) { say(err, 'The title is required.'); f.elements.title.focus(); return; }
+    const i = of(art), typed = f.elements.title.value.trim(), sfx = f.getAttribute('data-bl-sfx') || '';
+    if (!typed) { say(err, 'The title is required.'); f.elements.title.focus(); return; }
+    const title = typed + (sfx && !DATED.test(typed) ? sfx : '');
     say(err, '');
     const btn = f.querySelector('[type=submit]');
     btn.disabled = true;

@@ -224,6 +224,8 @@ Message frame 6 px; your bubble right, max 85 % (phone 92 %), outbox dot; agent 
 (Settings), optional 3 px kind edge; Working notes with tool chips (`tool-*`); live strip; recap fold; turn
 divider. **Needs you** card: 2 px `--waiting` frame, `--waiting-soft` band with label, question 1rem/600, answer
 rows 36 px (phone 44 px). It never looks like a normal message.
+Images in an agent's reply show large: the message column's width, at most 70 % of the window's height (user issue
+#246, 2026-10-16); your own attachments stay thumbnails. A click opens the image viewer.
 
 ### 6.18 Composer (`k-`)
 One component everywhere a message is sent (tab, aside, Builder, Quick chat, btw). 8 px box (phone 20 px),
@@ -235,6 +237,13 @@ the box (300 px, keyboard driven); drop cover over the chat column.
 Reader, canvas, sub-agent mini chat. Docked beside the chat with a 1 px divider (accent on hover/drag) when the
 container is ≥ 1000 px; otherwise a floating panel or popup with `--shadow-side`; phone full screen. 40 px head.
 This is a v7 rule change: side panels may float (the current pm forbids it).
+**Markdown reader dialog** (`x-md`, user issue #250, 2026-10-16): a `.md` link in the chat aside opens the file in
+a modal centred on the screen (§7), never docked at the page's bottom or in the session page's own reader:
+`--chat-cap` wide (less a margin on narrow windows), as tall as the file up to the window less 32 px top and
+bottom, full screen on phones. Head: file icon, the file's real path (mono, cut from the left), A- / A+ (the same
+size as the session reader's), Copy path, Close; the body (the server's markdown) scrolls. A relative `.md` link
+inside opens in the same dialog, `#heading` links scroll. A link in the session tab's own chat keeps the docked
+reader above.
 
 ### 6.20 Builder preview (`b-`), terminal (`x-term`, `g-`)
 Builder: bar with 28 px controls, scaled sandboxed iframe, Fit %. Terminal: dark `--pane-bg` box, head with window
@@ -255,7 +264,7 @@ One layer system for the whole app (v7 `layers.js`; in the current app this is `
 
 | Layer | Opened by | Closes on |
 |---|---|---|
-| Modal dialog (top layer) | confirm, forms, search, keys sheet, Settings popup, Launch | Esc, backdrop, Cancel |
+| Modal dialog (top layer) | confirm, forms, search, keys sheet, Settings popup, Launch, markdown reader (centred; user issue #250) | Esc, backdrop, Cancel |
 | Menu / popover | ⋯, bell, model picker, `/` `@` pickers | Esc, outside click, choosing |
 | Phone sheet | ⋯ on phone, tabs sheet | Esc, scrim, swipe down |
 | Panel (Quick chat) | Q, its icon | Esc, icon |
@@ -281,6 +290,7 @@ bracket keys match `KeyboardEvent.code` (layout independent); `?`, `/`, `>` and 
 | Move tab into the aside | ⌘⇧L | yes | |
 | Project sidebar collapse / show | ⌘⇧B | yes | Projects page only |
 | Search everything | ⌘⇧P, ⌘K | yes | Firefox keeps ⌘⇧P, so ⌘K stays |
+| In search: open the selected row as a page (session: a tab, project: its page, Settings: the page) instead of the aside / quick look / popup | ⌘↵ (also ⌘/⇧ click) | — | no browser binding in a text field (issue #244) |
 | Commands only | `>` in search | — | |
 | Go to session | ⌘P | yes | takes over Print |
 | Previous / next tab | ⇧[ ⇧] | ⌘⌥[ ⌘⌥] | not ⌘⇧[ ]: browser tab switch |
@@ -290,6 +300,7 @@ bracket keys match `KeyboardEvent.code` (layout independent); `?`, `/`, `>` and 
 | Quick chat · Launch | Q · N | no | |
 | Filter this list · shortcuts | / · ? | no | |
 | List keys (Inbox, Notifications) | J K move, ↵ aside, O tab, X / → details, E read, P pin | no | |
+| Edit the focused row (Backlog issues and TODO) | R | no | plain R has no browser binding (issue #248) |
 | Close top layer / leave composer | Esc | yes | §7 order |
 
 Reserved for the browser, never bound: ⌘1–9, ⌘T, ⌘N, ⌘W, ⌘⇧T, ⌘⇧[ ]. A new key needs the browser-conflict check

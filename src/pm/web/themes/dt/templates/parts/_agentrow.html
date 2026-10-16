@@ -4,7 +4,8 @@
     {% import "parts/_agentrow.html" as ar %}
 
     ar.agent_row(r, table="inbox", project=true, cur=false, sel=false)
-      r = pm.web.dt.inbox.Row. Cells in grid order: dot · Agent (unread count, pin, ctx chip) · Project (hide-n;
+      r = pm.web.dt.inbox.Row; the row's link (data-href, and the name as its row link: a new tab / window on a
+      modified or middle click) is /a/<id>. Cells in grid order: dot · Agent (unread count, pin, ctx chip) · Project (hide-n;
       project=false leaves it out: the project view) · tmux (hide-n i-w: link to the read-only terminal tab) · Last
       message (source you / ntfy; pending question yellow, error red) · Age (ticks: data-since) · CPU · RAM (hide-n i-w)
       · phone line 2 · actions (details chevron, ⋯ = r.menu). Then the row details: answer buttons for a pending
@@ -14,10 +15,12 @@
       [data-i-run=<menu item id>] (runs that ⋯ item of the row), [data-i-recap=<url>] (recap box).
     ar.ended_row(e, table="inbox-ended", project=true, cur=false, live_cols=false)
       e = pm.web.dt.inbox.Ended: hollow dot · Agent · Project · Last message · Ran for (hide-n) · Ended · Resume
-      (or a dash when the session cannot be resumed) + ⋯. The row's link is the transcript page /a/<id>.
+      (or a dash when the session cannot be resumed) + ⋯. The row's link is the transcript page /a/<id>; click / ↵
+      open it in the chat aside like a live row (data-key-enter = event:i:open, js/inbox.js: pm7.aside.open with
+      state "ended"), double-click / O in a tab (data-key-o = event:i:tab); [data-i-ended] marks the row.
       live_cols: the row sits in an agent_row table (an "Ended" band, LAYOUT §4 step 5): the live columns' order,
       dot · Agent · [Project] · tmux (–) · Last message · Ended (the Age column) · CPU, RAM (empty; "ran N" is in the
-      row's title), and ↵ / O open the transcript (data-key-enter / -o = href) instead of the list's chat-aside keys.
+      row's title).
     ar.icon(name)  a sprite icon. -#}
 {%- import "parts/_table.html" as tb -%}
 {%- import "parts/_menu.html" as pm -%}
@@ -78,9 +81,10 @@
 {%- endmacro -%}
 
 {%- macro agent_row(r, table="inbox", project=true, cur=false, sel=false) -%}
-{%- call tb.row(r.id, kind=r.kind, cls="i-row" ~ (" un" if r.unread or r.unread_n else ""), cur=cur, sel=sel, title=r.q_text) -%}
+{%- set href = "/a/" ~ (r.id | urlencode) -%}
+{%- call tb.row(r.id, href=href, kind=r.kind, cls="i-row" ~ (" un" if r.unread or r.unread_n else ""), cur=cur, sel=sel, title=r.q_text) -%}
   {{ tb.dot(r.state, r.word) }}
-  {% call tb.name(r.id, sfx=true) %}{{ _chips(r) }}{% endcall %}
+  {% call tb.name(r.id, href=href, sfx=true, row_link=true) %}{{ _chips(r) }}{% endcall %}
   {% if project %}{% call tb.cell("muted hide-n") %}{{ r.project }}{% endcall %}{% endif %}
   {% call tb.cell("hide-n i-w") %}{% if r.term %}<a class="mono i-tm" href="{{ r.term }}" data-i-term="{{ r.sid }}" title="Open the tmux window read-only in a tab">{{ r.tmux }}</a>{% else %}<span class="mono muted">{{ r.tmux }}</span>{% endif %}{% endcall %}
   {% call tb.cell("i-msg") %}{{ _msg(r) }}{% endcall %}
@@ -95,10 +99,11 @@
 {%- endmacro -%}
 
 {%- macro ended_row(e, table="inbox-ended", project=true, cur=false, live_cols=false) -%}
-{%- set keys = {"data-key-enter": "href", "data-key-o": "href"} if live_cols else none -%}
-{%- call tb.row(e.id, href="/a/" ~ e.id, kind=e.kind, cls="i-erow", cur=cur, title=e.id ~ " · " ~ e.project ~ (" · ran " ~ e.ran if live_cols and e.ran else ""), attrs=keys) -%}
+{%- set href = "/a/" ~ (e.id | urlencode) -%}
+{%- set keys = {"data-i-ended": "", "data-key-enter": "event:i:open", "data-key-o": "event:i:tab"} -%}
+{%- call tb.row(e.id, href=href, kind=e.kind, cls="i-erow", cur=cur, title=e.id ~ " · " ~ e.project ~ (" · ran " ~ e.ran if live_cols and e.ran else ""), attrs=keys) -%}
   {{ tb.dot("ended", "Ended") }}
-  {% call tb.name(e.id, sfx=true) %}{% endcall %}
+  {% call tb.name(e.id, href=href, sfx=true, row_link=true) %}{% endcall %}
   {% if project %}{% call tb.cell("muted hide-n") %}{{ e.project }}{% endcall %}{% endif %}
   {%- if live_cols %}{% call tb.cell("hide-n i-w muted") %}–{% endcall %}{% endif %}
   {% call tb.cell("i-msg") %}{% if e.last %}{{ e.last }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}

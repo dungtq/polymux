@@ -23,7 +23,7 @@
 /* ---------- controls row: the two selects stay together at the right ---------- */
 .bl-sels{display:flex;gap:var(--s2);min-width:0}
 .bl-sels select.sel{max-width:var(--field-w)}
-.bl-alert{margin:var(--s2) 0 0;color:var(--failed);font-size:var(--fs-ui)}
+.bl-alert{margin:var(--s2) 0 0;color:var(--failed);font-size:var(--fs-ui);overflow-wrap:anywhere}
 .bl-c>.bl-alert{margin:0 0 var(--s3)}
 .bl-load{margin:0;color:var(--muted);font-size:var(--fs-ui)}
 
@@ -85,6 +85,10 @@
 .bl-chips{display:flex;flex-wrap:wrap;gap:var(--s1)}
 .bl-note{margin:0;color:var(--muted);font-size:var(--fs-ui)}
 .bl-tfall{margin-top:var(--s3)}
+.bl-f.drop{outline:2px dashed var(--accent);outline-offset:var(--s1)}  /* Add issue: images dragged over the form */
+.bl-fchk{margin-top:var(--s2)}
+.bl-dlg .ft>.bl-more{margin-right:auto}  /* "Add another" left, the buttons right */
+.bl-edp{min-width:0}
 
 /* reader: a fixed head (#N, project, Close) over the body, which scrolls on its own (edge to edge, so focus rings
    near its sides are not clipped) */

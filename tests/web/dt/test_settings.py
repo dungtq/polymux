@@ -164,6 +164,18 @@ def test_dt_prefs_routes(senv):
     assert 'data-s-a="col_k_claude" aria-label="Claude colour" value="#aa0000" data-s-set' in page
 
 
+def test_display_quick_look_pref_row(senv):
+    seg = re.compile(r'<span class="p-seg" role="group" aria-label="Quick look opens files in" data-s-a="peek_open">'
+                     r'(.*?)</span>')
+    on = re.compile(r'value="(\w+)" aria-pressed="true"')
+    m = seg.search(senv.c.get("/settings?s=display").text)
+    assert m and on.findall(m.group(1)) == ["new"]
+    assert senv.post("/dt/prefs", headers=HDR, peek_open="same").json()["prefs"] == {"peek_open": "same"}
+    m = seg.search(senv.c.get("/settings?s=display").text)
+    assert m and on.findall(m.group(1)) == ["same"]
+    assert senv.post("/dt/prefs", headers=HDR, peek_open="popup").status_code == 400
+
+
 def test_close_all_tabs_route(senv):
     for i in ("claude-aaa111", "codex-bbb222"):
         senv.post("/dt/tabs/open", kind="agent", id=i)
@@ -215,7 +227,7 @@ def test_popup_dialog_on_other_pages_not_on_settings(senv):
         acct = re.search(r'<a href="/settings" role="menuitem"[^>]*>', t).group(0)
         assert "data-sp-open" in acct and 'aria-controls="sp-dlg"' in acct  # so does the account menu's Settings
     t = senv.c.get("/settings").text
-    assert "sp-dlg" not in t  # no popup on the page itself: its ids would exist twice
+    assert 'id="sp-dlg"' not in t  # no popup on the page itself: its ids would exist twice (x-peek reuses the frame)
     side = re.search(r'<a href="/settings" data-nav="settings"[^>]*>', t).group(0)
     assert "data-sp-open" not in side
     assert "data-sp-open" not in re.search(r'<a href="/settings" role="menuitem"[^>]*>', t).group(0)

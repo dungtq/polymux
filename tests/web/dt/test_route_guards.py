@@ -118,9 +118,11 @@ def test_denied_attempts_are_audited(env, path):
 
 def test_gets_need_a_session_and_never_write(anon, env):
     gets = [r.full for r in _dt_routes(env.app) if "GET" in r.methods]
-    assert sorted(gets) == ["/dt/prefs", "/dt/side", "/dt/tabs", "/dt/tabs.json"]
+    assert sorted(gets) == ["/dt/peek/{project}", "/dt/prefs", "/dt/side", "/dt/tabs", "/dt/tabs.json"]
     for p in gets:
-        assert anon.c.get(p, headers={"HX-Request": "true"}).status_code == 401
-        assert anon.c.get(p).status_code == 303  # browser navigation: to the login page
-        assert env.c.get(p, headers={"Origin": ORIGIN}).status_code == 200
+        u = p.replace("{project}", "alpha")
+        assert anon.c.get(u, headers={"HX-Request": "true"}).status_code == 401
+        assert anon.c.get(u).status_code == 303  # browser navigation: to the login page
+        # the peek of a fixture project whose folder does not exist: 404 after the session check
+        assert env.c.get(u, headers={"Origin": ORIGIN}).status_code == (404 if u != p else 200)
     assert _untouched(env.s)

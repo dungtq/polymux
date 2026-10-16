@@ -268,6 +268,19 @@ def test_row_defaults_and_lazy_details():
     assert "hidden" in det.attrs and det.attrs["data-p-det-src"] == "/tmux/s3/windows" and det.kids[0].kids == []
 
 
+def test_name_as_the_rows_own_link():
+    t = dom('{% call table.row("claude-1", href="/a/claude-1") %}'
+            '{% call table.name("claude-1", href="/a/claude-1", sfx=true, row_link=true) %}{% endcall %}{% endcall %}'
+            '{% call table.row("x", href="/x") %}{% call table.name("x", href="/x") %}{% endcall %}{% endcall %}')
+    a, b = [n.kids[0].kids[0] for n in t.by_cls("p-gr")]
+    assert a.tag == "a" and a.attrs["href"] == "/a/claude-1" and "data-row-link" in a.attrs  # #247: a real link
+    assert a.attrs["tabindex"] == "-1" and {"nm", "sfx"} <= a.cls  # never a Tab stop: the row is the list's one
+    assert b.tag == "a" and "data-row-link" not in b.attrs and "tabindex" not in b.attrs  # a plain link stays one
+    css = (THEME / "static" / "css" / "table.css").read_text(encoding="utf-8")
+    assert ".p-gr .gc-nm>a.nm[data-row-link]{color:inherit;text-decoration:none}" in css
+    assert ".gc-nm>a.nm:focus-visible{outline-offset:-2px}" in css  # SV: the ring inside the clipped name cell
+
+
 def test_table_empty_foot_hints():
     t = _table()
     e = t.one("p-empty")
@@ -363,6 +376,70 @@ def test_listkeys_has_no_keydown_listener_of_its_own():
     assert "keydown" not in code and "keys.register" in code
     for f in ("table.js", "filter.js"):
         assert "'keydown'" not in (JS / f).read_text(encoding="utf-8"), f  # Esc / is layers.js / keys.js
+
+
+# ---------------------------------------------------------------- listkeys.js clicks (node, a stub DOM)
+# A list with one row whose name is its row link (a[data-row-link]) and a plain link (a.x) in another cell. The stub's
+# closest() matches the few selectors listkeys.js uses; the long control selector matches a row link only when it does
+# not exclude [data-row-link].
+LISTKEYS_HARNESS = r"""
+const L = [], fired = [], went = [];
+function match(n, s) {
+  if (s === '[data-row-id]') return n.kind === 'row';
+  if (s === '[data-list]') return n.kind === 'list';
+  if (s === 'a[data-row-link]') return n.kind === 'rowlink';
+  if (s === '.p-det') return n.kind === 'det';
+  if (s.indexOf('button') >= 0) return n.kind === 'a' || (n.kind === 'rowlink' && s.indexOf(':not([data-row-link])') < 0);
+  return false;
+}
+const mk = (kind, parent, attrs) => ({ kind: kind, parent: parent, attrs: attrs || {}, tabIndex: -1,
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, hasAttribute(k) { return k in this.attrs; },
+  closest(s) { let n = this; while (n) { if (match(n, s)) return n; n = n.parent; } return null; },
+  contains(c) { let n = c; while (n) { if (n === this) return true; n = n.parent; } return false; },
+  focus() { document.activeElement = this; }, scrollIntoView() {}, getClientRects() { return [1]; },
+  querySelector() { return null; },
+  dispatchEvent(ev) { fired.push(ev.type + ':' + ev.detail.id + ':' + ev.detail.key); return true; } });
+const list = mk('list', null, { 'data-list': 'inbox', 'data-key-enter': 'event:i:open', 'data-key-o': 'event:i:tab' });
+const row = mk('row', list, { 'data-row-id': 'claude-1', 'data-href': '/a/claude-1' });
+const link = mk('rowlink', row, { href: '/a/claude-1', 'data-row-link': '' });
+const other = mk('a', row, { href: '/term/s1' });
+const plist = mk('list', null, { 'data-list': 'projects' });
+const prow = mk('row', plist, { 'data-row-id': 'alpha', 'data-href': '/p/alpha' });
+const plink = mk('rowlink', prow, { href: '/p/alpha', 'data-row-link': '' });
+globalThis.CustomEvent = function (t, o) { this.type = t; this.detail = o.detail; };
+globalThis.CSS = { escape: (x) => x };
+globalThis.window = { pm7: { $$: (s, l) => (l === list ? [row] : l === plist ? [prow] : []), ready() {} },
+  location: { assign: (h) => went.push(h) } };
+globalThis.document = { addEventListener: (t, f) => L.push([t, f]), activeElement: null, body: {} };
+eval(require('fs').readFileSync(process.argv[1], 'utf8'));
+function fire(type, target, o) {
+  const e = Object.assign({ type: type, target: target, button: 0, detail: 1, metaKey: false, ctrlKey: false,
+    shiftKey: false, altKey: false, defaultPrevented: false }, o || {});
+  e.preventDefault = () => { e.defaultPrevented = true; };
+  L.filter((x) => x[0] === type).forEach((x) => x[1](e));
+  return e.defaultPrevented;
+}
+const r = {
+  plain: fire('click', link), focus: document.activeElement === row,
+  ctrl: fire('click', link, { ctrlKey: true }), meta: fire('click', link, { metaKey: true }),
+  shift: fire('click', link, { shiftKey: true }), second: fire('click', link, { detail: 2 }),
+  other: fire('click', other), dbl: fire('dblclick', link), href: fire('click', plink) };
+console.log(JSON.stringify({ r: r, fired: fired, went: went }));
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_listkeys_row_link_plain_click_is_the_row_modified_clicks_are_the_browsers():
+    out = subprocess.run(["node", "-e", LISTKEYS_HARNESS, str(JS / "listkeys.js")], capture_output=True, text=True,
+                         check=True)
+    got = json.loads(out.stdout)
+    r = got["r"]
+    assert r["plain"] is True and r["focus"] is True  # ↵ action ran (an event), the link not followed, row focused
+    assert r["ctrl"] is r["meta"] is r["shift"] is False  # #247: left to the browser (a new tab / window)
+    assert r["second"] is True  # a double-click's second click never follows the link
+    assert r["other"] is False  # any other link in the row does its own thing
+    assert r["href"] is True and got["went"] == ["/p/alpha"]  # enter = href: the row's own navigation
+    assert got["fired"] == ["i:open:claude-1:enter", "i:tab:claude-1:o"]  # click = enter once, dblclick = o
 
 
 # ---------------------------------------------------------------- keys.js register() and filter.js match (node)

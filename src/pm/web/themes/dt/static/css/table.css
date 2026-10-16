@@ -56,6 +56,10 @@
 .gc-dot{display:flex;align-items:center}
 .gc-nm{display:flex;align-items:center;gap:var(--s2);font-weight:500}
 .gc-nm>.nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* the name as the row's own link (tb.name row_link): looks like the name, the row is the link (no underline) */
+.p-gr .gc-nm>a.nm[data-row-link]{color:inherit;text-decoration:none}
+/* a name link fills its clipped cell (.nm overflow:hidden): ring inside, else top and bottom are cut (DESIGN §9) */
+.gc-nm>a.nm:focus-visible{outline-offset:-2px}
 .gc-nm>.chip{flex:0 0 auto}
 .p-gr.un .gc-nm{font-weight:600}
 .gc-end{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}

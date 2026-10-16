@@ -20,12 +20,16 @@
       at the band's right end (also while folded) holding button.x-btn.sm per item (attrs = data-* / hx-*).
     {% call tb.row(id, href=none, cls="", kind=none, cur=false, open=false, sel=false, q=none, title=none,
                    attrs=none) %} cells {% endcall %}
-      div.p-gr[role=row][data-row-id=<id>][tabindex]: href -> data-href (↵ / click in a list), kind -> data-kind (kind
+      div.p-gr[role=row][data-row-id=<id>][tabindex]: href -> data-href (↵ / click in a list; give tb.name the same
+      href with row_link=true so the row opens in a new tab / window too), kind -> data-kind (kind
       edge), cur = the list's Tab stop (tabindex 0, else -1), open = details shown (.open), sel = shown in the aside
       (.sel), q = filter text for the client filter box (data-p-q, lower-cased), attrs = extra data-* attributes
       (xmlattr; e.g. what a page's JS reads from the row). Every direct child is a cell:
       role="cell" (the macros below add it).
-    cells: tb.dot(state, title=none) · {% call tb.name(text, href=none, sfx=false) %} chips {% endcall %} ·
+    cells: tb.dot(state, title=none) ·
+      {% call tb.name(text, href=none, sfx=false, row_link=false) %} chips {% endcall %} (row_link: the name is the
+      row's own link, a.nm[data-row-link][tabindex=-1], pass the row's href: a plain click runs the row's ↵ action,
+      ⌘ / Ctrl / Shift / middle click open the href natively, js/listkeys.js) ·
       {% call tb.cell(cls="", num=false) %} ... {% endcall %} · tb.end(text, since=none) ·
       {% call tb.meta() %} phone line 2 {% endcall %} · {% call tb.acts() %} buttons, ⋯ {% endcall %} ·
       tb.det_btn(table, id, open=false, label=none)
@@ -104,9 +108,9 @@
 <span class="gc-dot" role="cell"><i class="dot {{ state or 'unknown' }}" title="{{ title or state }}" aria-hidden="true"></i><span class="vh">{{ title or state }}</span></span>
 {%- endmacro -%}
 
-{%- macro name(text, href=none, sfx=false) -%}
+{%- macro name(text, href=none, sfx=false, row_link=false) -%}
 <span class="gc-nm" role="cell">
-  {%- if href %}<a class="nm{{ ' sfx' if sfx }}" href="{{ href }}">{% else %}<span class="nm{{ ' sfx' if sfx }}">{% endif -%}
+  {%- if href %}<a class="nm{{ ' sfx' if sfx }}" href="{{ href }}"{% if row_link %} tabindex="-1" data-row-link{% endif %}>{% else %}<span class="nm{{ ' sfx' if sfx }}">{% endif -%}
   {%- if sfx %}<bdi>{{ text }}</bdi>{% else %}{{ text }}{% endif -%}
   {%- if href %}</a>{% else %}</span>{% endif -%}
   {%- if caller is defined %}{{ caller() }}{% endif -%}

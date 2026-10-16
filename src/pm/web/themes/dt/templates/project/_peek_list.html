@@ -1,0 +1,37 @@
+{#- The project quick look's body (GET /dt/peek/<project>?path=, pm.web.dt.routes.peek), loaded into dialog#x-peek's
+    [data-pk-body] by js/peek.js. Context: fv (pm.web.dt.files.Listing of one folder, no git column), name, meta
+    (branch · changes, "" = not a git repo), new_tab (Settings › Display › Project quick look: true = links open a new
+    browser tab). Breadcrumb nav.pk-cr, then the folder as one grid table (parts/_table.html: Name · Size · Modified;
+    ".." first below the root). Every link is the Files tab's own URL (/p/<name>/files?path=<rel>, the core redirects a
+    navigation to the project page at that path); a[data-pk-dir=<rel>] = a folder: a plain click opens it inside the
+    popup, a modified click follows the link. data-pk-meta / data-pk-new are read by js/peek.js for the head. -#}
+{%- import "parts/_table.html" as tb -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set parts = fv.path.split("/") if fv.path else [] -%}
+{%- set tgt = ' target="_blank" rel="noopener"' if new_tab else '' -%}
+<div class="pk-in" data-pk-path="{{ fv.path }}" data-pk-meta="{{ meta }}" data-pk-new="{{ '1' if new_tab else '0' }}">
+<nav class="pk-cr" aria-label="Path">
+  {%- for c in fv.crumbs %}{% if not loop.first %}<span class="sep" aria-hidden="true">/</span>{% endif %}
+  {%- if loop.last %}<b aria-current="page">{{ c.label }}</b>
+  {%- else %}<a href="{{ c.href }}" data-pk-dir="{{ parts[:loop.index0] | join('/') }}">{{ c.label }}</a>{% endif %}
+  {%- endfor -%}
+</nav>
+{% call tb.table("peek", "Files in " ~ (fv.path or name), cls="pk-list") %}
+  {{ tb.gh([{"label": "Name"}, {"label": "Size", "num": true}, {"label": "Modified", "num": true}]) }}
+  {%- for r in fv.rows %}
+  {%- set dir = r.kind in ("dir", "up") %}
+  {%- set rel = parts[:-1] | join("/") if r.kind == "up" else r.id %}
+  {% call tb.row(r.id, cls="pk-r k-" ~ r.kind, title=r.title) %}
+    <span class="gc-nm" role="cell"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ r.icon }}"/></svg>
+    {%- if r.href and dir %}<a class="nm" href="{{ r.href }}" data-pk-dir="{{ rel }}">{{ r.name }}</a>
+    {%- elif r.href %}<a class="nm" href="{{ r.href }}"{{ tgt | safe }}>{{ r.name }}</a>
+    {%- else %}<span class="nm muted">{{ r.name }}</span>{% endif %}</span>
+    {% call tb.cell("muted", num=true) %}{{ r.size }}{% endcall %}
+    {{ tb.end(r.modified, since=r.mtime) }}
+    {% call tb.meta() %}{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {% if not fv.rows %}{{ tb.empty("This folder is empty.") }}{% endif %}
+{% endcall %}
+{%- if fv.more %}<p class="p-foot">{{ fv.more }} more not listed. <a href="{{ fv.crumbs[-1].href }}"{{ tgt | safe }}>Open in the Files tab</a></p>{% endif %}
+</div>

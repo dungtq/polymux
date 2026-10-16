@@ -11,7 +11,11 @@
                                           Classes: .up while uploading (muted, "…", no ×), .bad for a failed file.
      done(chip, path)                     the upload finished: drops .up, sets data-path and the title.
      paths(root) -> [path]                the data-path of every finished chip under root.
-     uploading(root) -> bool              a chip under root is still .up. }
+     uploading(root) -> bool              a chip under root is still .up.
+     wire(zone, onFiles)                  paste and drop of files on zone: a paste inside zone (any field in it) or a
+                                          drop on it that carries files calls onFiles([File]) and is not inserted as
+                                          text; zone gets .drop while files are dragged over it. A paste without
+                                          files (text) is left alone. Listeners sit on zone, never on the document. }
    Look: .chip.att in css/parts.css. */
 (function () {
   'use strict';
@@ -48,6 +52,23 @@
     return pm7.$$('[data-att][data-path]', root).map((c) => c.getAttribute('data-path'));
   }
   function uploading(root) { return !!root.querySelector('[data-att].up'); }
+  function wire(zone, onFiles) {
+    const hasFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0);
+    zone.addEventListener('paste', (e) => {
+      const fl = e.clipboardData && e.clipboardData.files;
+      if (!fl || !fl.length) return;
+      e.preventDefault();
+      onFiles(Array.from(fl));
+    });
+    zone.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); zone.classList.add('drop'); } });
+    zone.addEventListener('dragleave', (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('drop'); });
+    zone.addEventListener('drop', (e) => {
+      zone.classList.remove('drop');
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      onFiles(Array.from(e.dataTransfer.files || []));
+    });
+  }
 
-  pm7.attach = { upload: upload, chip: chip, done: done, paths: paths, uploading: uploading };
+  pm7.attach = { upload: upload, chip: chip, done: done, paths: paths, uploading: uploading, wire: wire };
 })();

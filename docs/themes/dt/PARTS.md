@@ -189,7 +189,9 @@ cells {% endcall %}`
 
 - `div.p-gr[role=row][data-row-id=<id>][tabindex]`; `id` = the real id (agent id, project name, tmux `$id`, issue
   number; never an index).
-- `href` → `data-href` (the row's link: ↵ / click in a list). `kind` → `data-kind` (3px kind edge; `html.no-kedge`
+- `href` → `data-href` (the row's link: ↵ / click in a list). Give `tb.name` the same `href` with `row_link=true`
+  so the name is a real link and the row opens in a new tab / window on ⌘ / Ctrl / Shift click or a middle click
+  (`div` rows cannot; see `tb.name` below and §7 "Mouse"). `kind` → `data-kind` (3px kind edge; `html.no-kedge`
   turns it off). `cur` → `tabindex="0"` (the list's Tab stop; others `-1`). `open` → `.open` (details shown;
   render the `tb.det` open too). `sel` → `.sel` (the row shown in the aside). `q` → `data-p-q` (lower-cased text for
   the client filter). `cls`: `un` = unread (name 600), page classes. `attrs` = extra `data-*` attributes (`xmlattr`;
@@ -201,7 +203,7 @@ cells {% endcall %}`
 | Macro | Markup | Role in the layout |
 |---|---|---|
 | `tb.dot(state, title=none)` | `span.gc-dot > i.dot.<state>[title][aria-hidden] + span.vh` | state dot; the word is in `.vh` (never colour alone) |
-| `{% call tb.name(text, href=none, sfx=false) %} chips {% endcall %}` | `span.gc-nm > (a|span).nm` + caller | the name (500; `.un` row 600); `sfx` truncates from the left (`…1c70ee`, L-4); chips after it |
+| `{% call tb.name(text, href=none, sfx=false, row_link=false) %} chips {% endcall %}` | `span.gc-nm > (a|span).nm` + caller | the name (500; `.un` row 600); `sfx` truncates from the left (`…1c70ee`, L-4); chips after it. `row_link=true` (with the row's `href`): `a.nm[data-row-link][tabindex=-1]`, looks like the name (no link colour or underline), not a Tab stop (the row is) |
 | `{% call tb.cell(cls="", num=false) %}...{% endcall %}` | `span[role=cell]` | any column; `cls` may hold `hide-n hide-s muted mono warn bad ok` |
 | `tb.end(text, since=none)` | `span.gc-end` (+ `data-since` for `ticker.js`) | the end value (age), right-aligned |
 | `{% call tb.meta() %}...{% endcall %}` | `span.gc-m` | phone line 2 only (project · message); hidden on desktop |
@@ -267,7 +269,12 @@ show in the `?` sheet under "This list":
 | P | `p` action (pin) | declared |
 
 Mouse: a click on a row (not on a link, button, input, switch or ⋯ inside it, not in its details) runs `enter`; a
-double-click runs `o` when declared.
+double-click runs `o` when declared. The row's own link (`a[data-row-link]`, `tb.name(..., row_link=true)`) counts as
+the row: a plain click on it runs `enter` (an event such as `event:i:open` too, not only `href`; the link is not
+followed when the action ran, nor on a double-click's second click) and moves focus to the row. ⌘ / Ctrl / Shift
+click and a middle click (`auxclick`) on it are left to the browser: the row's `href` opens in a new tab or window.
+Tables with row hrefs use it: the agent rows (live `/a/<id>`, Ended), Projects, Agents › Installed, Agents › Usage
+top sessions.
 
 **Actions.** For key `k` in `enter o x e p` the first that exists wins:
 
@@ -370,7 +377,10 @@ double separator). `item` refuses an item without exactly one action (a disabled
 | `pm7.keys` | `keys.js` | `register(scope, rows) -> off()`, `label(spec)`, `fill(root)` (+ the shell's `table`, `commands`, `sheet`) |
 | `pm7.el`, `pm7.add` | `core.js` | the one DOM builder: `el(spec, attrs \| cls, ...kids) -> element` (spec `"tag.cls.cls"`; attrs object: `null`/`false` skipped, `true` = `""`, `cls` adds classes, `on` = `{event: fn}`; a string = the class; kids: nodes, text as text nodes, arrays), `add(node, kids)`. No HTML strings and no page-local `el` / `h` copies (`pm7.pjops.h` is this one) |
 | `pm7.confirm` | `layers.js` | `confirm({title, body, ok, cancel, danger, typed, undo, opener}) -> Promise<bool>`: plain (reversible) or typed (`typed` = the exact name; OK stays disabled until it matches). The typed hint reads "Type <name> to confirm. This cannot be undone."; `undo` replaces the last sentence when something is kept (Agents › Remove: "The files are backed up to ~/… first."). Toasts: `pm7.toast(text, key, {error, ms})`; a `key` (the shortcut's label) makes it a shortcut toast, shaped by `html[data-ktoast]` (`SHELL.md` §4) |
-| `pm7.attach` | `attach.js` | `upload(base, file) -> Promise<path>`, `chip(box, name, onRemove) -> chip`, `done(chip, path)`, `paths(root)`, `uploading(root)` (§15 "Attachments") |
+| `pm7.attach` | `attach.js` | `upload(base, file) -> Promise<path>`, `chip(box, name, onRemove) -> chip`, `done(chip, path)`, `paths(root)`, `uploading(root)`, `wire(zone, onFiles)` (paste + drop of files into a box) (§15 "Attachments") |
+| `pm7.backlog` | `backlog.js`, `backlog-add.js`, `backlog-reader.js` | `add.open(...)`, `add.task(...)` (Add issue / Add task dialogs: one per line, Add another, pasted images), `reader(p, n, opener, {edit})` (`edit: true` opens the issue's Edit form), events `bl:edit` / `bl:tedit` (row ⋯ Edit…, key R) |
+| `pm7.peek` | `peek.js` | `open(project, {opener})`, `close()`, `isOpen()`, `name()`: the project quick look, `dialog#x-peek` (`shell/_peek.html`, `css/peek.css`) filled from `GET /dt/peek/{project}?path=` (`project/_peek_list.html`); `[data-peek="<project>"]` opens it; file links follow the `peek_open` pref (new browser tab / this tab) |
+| `pm7.md` | `mdview.js` | `open(agentId, path)`, `current()`: the markdown reader dialog `dialog#x-md` (`shell/_mdview.html`) over the shell, from the aside's `.md` links (`GET /a/{id}/md`) |
 
 Events (all bubble): `pm7:det` `{id, open}` on a row · `pm7:fold` `{key, open}` on a group · `pm7:tab` `{key}` on
 a tablist · `pm7:filter` `{name, q, shown, total}` on a client filter input · `change` from a switch's hidden input ·
@@ -399,7 +409,7 @@ menu / key `event:` names as declared by the page · `pm7:refresh` (htmx trigger
     {% for a in g.rows %}
       {% call tb.row(a.id, href="/a/" ~ a.id, kind=a.kind, cls="un" if a.unread else "", sel=a.id == aside_id) %}
         {{ tb.dot(a.state) }}
-        {% call tb.name(a.id, sfx=true) %}{% if a.unread %}<span class="chip">{{ a.unread }}</span>{% endif %}{% endcall %}
+        {% call tb.name(a.id, href="/a/" ~ a.id, sfx=true, row_link=true) %}{% if a.unread %}<span class="chip">{{ a.unread }}</span>{% endif %}{% endcall %}
         {% call tb.cell("muted") %}{{ a.project }}{% endcall %}
         {{ tb.end(a.age, since=a.since) }}
         {% call tb.meta() %}{{ a.project }} · {{ a.last }}{% endcall %}
@@ -541,7 +551,8 @@ prompt box (upload at once, the chip is `.up` until the server answers) and the 
 file, uploaded on Add). `pm7.attach.upload(base, file)` POSTs `<base>/image` (field `image`, CSRF by `pm7.fetch`) and
 resolves to the `data-image-path` of the answer (parsed, never inserted), or rejects with `Error("<name>: <reason>")`.
 `pm7.attach.chip(box, name, onRemove)` appends `span.chip.att[data-att]` (name + × "Remove <name>"; `.up` uploading,
-`.bad` failed) and `done(chip, path)` stores the path on it; `paths(root)` / `uploading(root)` read the chips. A new
+`.bad` failed) and `done(chip, path)` stores the path on it; `paths(root)` / `uploading(root)` read the chips. `pm7.attach.wire(zone, onFiles)`
+hands files pasted or dropped into `zone` to `onFiles` (the Launch prompt box, the Add issue dialog). A new
 upload or file chip anywhere uses these; no second copy, no second chip look.
 
 **Quick chat panel** (`shell/_qchat.html`, `css/qchat.css`, `js/qchat.js`, `js/qchat-menus.js`, `js/qstream.js`).
@@ -563,7 +574,8 @@ returns the component alone. The project tabs render a lazy placeholder (`[data-
 frame holds #N, the project and Close, focused on open, above the body that scrolls, loads or fails, which has no Close
 of its own). Reader actions: Mark done / Reopen,
 Dispatch, Copy pmctl command, Open project, Edit (form `#bl-ed[data-bl-editform]` in the body's place, values = the
-stored title and the raw Markdown from the view model's `title_raw` / `body`; `POST .../edit {title, body}`), Delete
+title as the list shows it and the raw Markdown from the view model's `title` / `body`; the stored ` (YYYY-MM-DD)` suffix
+rides in `data-bl-sfx` (`title_sfx`) and is added back on save; `POST .../edit {title, body}`), Delete
 (typed confirm `#N`; `POST .../delete`, then the reader closes); a refusal stays in the form's or the reader's alert
 line (`[data-bl-rderr]`), toasts only after the server's OK. API `pm7.backlog = {refresh(id?), reader(project, num,
 opener)}` (`reader` is set by `backlog-reader.js`); `pm7.backlog.lib` (`post`, `json`, `copy`, `dispatch`, `issueUrl`,

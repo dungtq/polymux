@@ -301,3 +301,22 @@ def test_inbox_js_rules():
     assert "keydown" not in js and "fetch(" not in js.replace("pm7.fetch(", "")
     assert "setInterval" not in js and "MutationObserver" not in js
     assert "pm7.menus.run" in js and "nodiff:swapped" in js and "pm7.table.restore" in js
+
+
+def test_rows_names_are_row_links_and_ended_opens_the_aside(env):
+    html = render(env)  # #247: the name is the row's real link, so a modified / middle click opens a new tab
+    assert f'data-href="/a/{RUN.id}"' in html
+    assert f'<a class="nm sfx" href="/a/{RUN.id}" tabindex="-1" data-row-link>' in html
+    html = render(env, sort_url="/?view=ended&sort=newest", ended=[_rec(1)], ended_total=1)
+    rid = _rec(1).id  # #243: an ended session opens in the chat aside (state ended), O in a tab, like a live row
+    assert 'data-list="ended" data-key-enter="event:i:open" data-key-o="event:i:tab"' in html
+    assert re.search(r'<div class="p-gr i-erow"[^>]*data-href="/a/' + re.escape(rid) + '"[^>]*'
+                     r'data-i-ended="" data-key-enter="event:i:open" data-key-o="event:i:tab"', html)
+    assert f'<a class="nm sfx" href="/a/{rid}" tabindex="-1" data-row-link>' in html
+    assert '<kbd data-k="Enter"></kbd> aside' in html
+
+
+def test_inbox_js_opens_ended_rows_with_state_ended():
+    js = (THEME / "static" / "js" / "inbox.js").read_text()
+    assert "r.hasAttribute('data-i-ended')) o.state = 'ended'" in js and "pm7.aside.open(id, o)" in js
+    assert "a[href]:not([data-row-link])" in js  # a double-click on the name link is still the row's tab

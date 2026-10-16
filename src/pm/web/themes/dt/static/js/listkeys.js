@@ -2,7 +2,10 @@
    tab, X / → row details, ← close them, E read / unread, P pin, on the page's keyboard list. The keys live in the one
    key table (pm7.keys.register, scope "list"): they dispatch there and show in the ? sheet while a list is on the
    page. This file adds NO keydown listener. It also runs a row's ↵ action on a click and its O action on a
-   double-click, and keeps the focused row and the list's Tab stop across htmx swaps.
+   double-click, and keeps the focused row and the list's Tab stop across htmx swaps. A row's name may be its real
+   link (a[data-row-link], tb.name row_link, tabindex -1): a plain click on it is a row click (the ↵ action, which may
+   be an event, not a navigation; the link is not followed when that action ran); ⌘ / Ctrl / Shift click and a middle
+   click (auxclick) are left to the browser, so the row opens in a new tab or window.
    Globals: pm7.list = {on(name, handlers) -> off(), act(row, key, e) -> bool, row() -> focused row | null}.
      handlers: {enter, o, x, e, p: (row, id, event) -> false when nothing was done}; they win over data attributes.
    Hooks: [data-list=<name>] the list; rows [data-row-id] inside it (data-href = the row's link); per key k in
@@ -14,7 +17,9 @@
   'use strict';
   const pm7 = window.pm7, d = document;
   const LIST = '[data-list]', ROW = '[data-row-id]';
-  const ACTIVE = 'a[href], button, input, select, textarea, label, summary, [role=switch], [data-menu], [tabindex="0"]';
+  const LINK = 'a[data-row-link]';  // the row's own link (its name): a plain click on it is a row click
+  const ACTIVE = 'a[href]:not([data-row-link]), button, input, select, textarea, label, summary, [role=switch], ' +
+    '[data-menu], [tabindex="0"]';
   const handlers = new Map(), curIds = new Map();
   const LABEL = { enter: 'Open', o: 'Open in a tab', x: 'Row details: show / hide', e: 'Mark read / unread',
     p: 'Pin / unpin' };
@@ -116,7 +121,7 @@
     return act(r, 'x', e);
   }
 
-  /* ---------- clicks: the row is the link (↵); a double-click is O ---------- */
+  /* ---------- clicks: the row is the link (↵); a double-click is O; modified clicks are the browser's ---------- */
   function rowClick(e) {
     if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
     const r = e.target && e.target.closest ? e.target.closest(ROW) : null;
@@ -129,8 +134,10 @@
   d.addEventListener('click', (e) => {
     const r = rowClick(e);
     if (!r) return;
+    const link = e.target.closest(LINK);
     rove(r.closest(LIST), r);
-    if (e.detail > 1) return;
+    if (link && d.activeElement !== r) r.focus({ preventScroll: true });  // the row keeps focus, not its name
+    if (e.detail > 1) { if (link) e.preventDefault(); return; }        // a double-click never follows the link
     if (act(r, 'enter', e)) e.preventDefault();
   });
   d.addEventListener('dblclick', (e) => {

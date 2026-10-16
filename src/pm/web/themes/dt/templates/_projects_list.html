@@ -4,6 +4,7 @@
     All · Dirty · Has agents · Has TODO · Pinned with counts) · one table pin · Project · Agents · TODO · Issues · ntfy ·
     Active · Git · Stack · ⋯ (sortable by the core's keys; TODO, Issues, ntfy, Active, Stack drop at pg <= 760px, Git at
     <= 520px) · foot · key hints. Every request swaps #pj outerHTML; filter.js keeps the typed text, caret and scroll.
+    The name is the row's link (row_link: ⌘ / Ctrl / Shift / middle click open the project in a new tab / window).
     Phone: two-line rows (dot = the agents' state · name · Active · ⋯ / branch · agents · TODO); Pin is in ⋯.
     Hooks for js/projects.js: button[data-pj-pin] (runs the row's ⋯ item "pin"), [data-pj-new] (opens the dialog). -#}
 {%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
@@ -24,7 +25,7 @@
   {% call tb.row(r.name, href=r.href, cls="pj-row" ~ (" pinned" if r.pinned else ""), cur=loop.first, title=r.path) %}
     {% call tb.cell("pj-pinc") %}<button class="x-ib sm pj-pin" type="button" data-pj-pin aria-pressed="{{ 'true' if r.pinned else 'false' }}" aria-label="{{ 'Unpin ' if r.pinned else 'Pin ' }}{{ r.name }}" title="{{ 'Unpin' if r.pinned else 'Pin to the top' }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}pin"/></svg></button>{% endcall %}
     {{ tb.dot(r.state or "none", r.word or "no agents") }}
-    {% call tb.name(r.name) %}{% if r.pinned %}<span class="pj-pinned" title="Pinned"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}pin"/></svg><span class="vh">pinned</span></span>{% endif %}{% endcall %}
+    {% call tb.name(r.name, href=r.href, row_link=true) %}{% if r.pinned %}<span class="pj-pinned" title="Pinned"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}pin"/></svg><span class="vh">pinned</span></span>{% endif %}{% endcall %}
     {% call tb.cell(num=true) %}{% if r.agents %}{% if r.state in ("running", "waiting") %}<i class="dot {{ r.state }}" title="{{ r.word }}" aria-hidden="true"></i><span class="vh">{{ r.word }}, </span>{% endif %}{{ r.agents }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
     {% call tb.cell("hide-n", num=true) %}{% if r.todo_total %}{{ r.todo_done }}<span class="muted">/{{ r.todo_total }}</span>{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
     {% call tb.cell("hide-n", num=true) %}{% if r.issues %}{{ r.issues }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}

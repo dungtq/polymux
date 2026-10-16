@@ -302,19 +302,27 @@ def test_mod_l_on_a_session_tab_focuses_its_own_composer():
 
 
 @needs_node
-def test_md_links_from_the_aside_chat_open_a_reader():
+def test_md_links_from_the_aside_chat_open_the_reader_dialog():
+    # user issue #250: always the centred reader (js/mdview.js), also on that agent's own session page
     code = ("A.open('claude-1c70ee', {focus: false}); const w = abody.frame.contentWindow = {};"
-            "window.pm7.fetch = (u) => { log.push(['fetch', u]); return new Promise(() => {}); };"
+            "window.pm7.md = {open: (i, p) => log.push(['md', i, p])};"
+            "doc.getElementById = (id) => (id === 'x-aside' ? aside : id === 'chatsplit' ? el('div',"
+            " {'data-agent': 'claude-1c70ee'}) : null);"
             "msg({pm: 'drawer', act: 'md', id: 'claude-1c70ee', path: 'docs/A B.md'}, 'https://pm.test', w);"
-            "msg({pm: 'drawer', act: 'md', id: 'bad id', path: 'x.md'}, 'https://pm.test', w);"
             "msg({pm: 'drawer', act: 'md', id: 'claude-1c70ee', path: 'x.md'}, 'https://evil.test', w);"
-            "out.push(log.filter((x) => x[0] === 'fetch'), state().html);")
+            "msg({pm: 'drawer', act: 'md', id: 'claude-1c70ee', path: 'y.md'}, 'https://pm.test', {});"
+            "out.push(log.filter((x) => x[0] === 'md'), state().html);")
     got = run(code)
-    assert got[0] == [["fetch", "/a/claude-1c70ee/md?path=docs%2FA%20B.md"]] and got[1] == ["aside"]
-    # the page is that agent's session: classic chat-md.js gets a click on a[data-md] in #chatsplit
-    same = run("const clicked = []; const split = el('div', {'data-agent': 'claude-1c70ee'});"
-               "split.appendChild = (a) => { a.click = () => clicked.push(a.getAttribute('data-md'));"
-               " a.remove = () => {}; };"
-               "doc.getElementById = (id) => (id === 'x-aside' ? aside : id === 'chatsplit' ? split : null);"
-               + code.replace("out.push(", "out.push(clicked, "))
-    assert same[0] == ["docs/A B.md"] and same[1] == []
+    assert got[0] == [["md", "claude-1c70ee", "docs/A B.md"]] and got[1] == ["aside"]
+
+
+@needs_node
+def test_head_state_from_the_open_option_or_a_list_row():
+    code = ("const dot = parts['[data-aside-dot]'];"
+            "A.open('claude-1c70ee', {focus: false, state: 'ended'}); out.push(dot.classList.list());"
+            "A.open('codex-44aa01', {focus: false, state: 'bogus'}); out.push(dot.classList.list());"
+            "const rd = el('i'); rd.classList.add('dot'); rd.classList.add('waiting');"
+            "const row = el('div'); row.querySelector = (s) => (s === '.dot' ? rd : null);"
+            "doc.querySelector = (s) => (s === '.p-gr[data-row-id=\"devin-1\"]' ? row : null);"
+            "A.open('devin-1', {focus: false}); out.push(dot.classList.list());")
+    assert run(code) == [["ended"], ["unknown"], ["waiting"]]

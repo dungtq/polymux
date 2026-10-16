@@ -52,10 +52,11 @@ SCHEMA: dict[str, object] = {
     "msg_bg": ("default", "page", "tint", "custom"),  # Chat colours › agent message background
     "kind_edge": BOOL, "kind_pill": BOOL,  # Chat colours › left edge / model pill in the agent colour
     "tool_pill": ("border", "fill", "both"),  # Chat colours › tool call pill style
+    "peek_open": ("new", "same"),  # Display › Project quick look: links open in a new browser tab or this one
     **{k: COLOUR for k in COLOURS},
 }
 DEFAULTS = {"run_status": "playful", "src_you": "soft", "src_ntfy": "soft", "model_pill": True, "msg_bg": "default",
-            "kind_edge": True, "kind_pill": True, "tool_pill": "border"}
+            "kind_edge": True, "kind_pill": True, "tool_pill": "border", "peek_open": "new"}
 MAX_KEYS = len(SCHEMA)
 
 

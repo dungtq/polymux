@@ -37,7 +37,8 @@ log = logging.getLogger(__name__)
 SECTIONS = (
     ("appearance", "Appearance", "moon", "You", "How pm looks in this browser. Each device keeps its own."),
     ("display", "Display", "panel", "You",
-     "What pm shows around your agents: the running status, state dots and counts, source pills, the model id."),
+     "What pm shows around your agents: the running status, state dots and counts, source pills, the model id, "
+     "where the project quick look opens files."),
     ("colors", "Chat colours", "sliders", "You",
      "Colours of agent messages, agent kinds and tool calls in every chat. Default keeps the light and dark theme "
      "colours; a picked colour is used in both themes."),

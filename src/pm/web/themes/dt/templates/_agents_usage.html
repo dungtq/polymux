@@ -47,7 +47,7 @@
     {{ tb.gh([{"label": "Session"}, {"label": "Share", "num": true}, {"label": "Replies", "num": true, "cls": "hide-s"}, {"label": "Span", "num": true}]) }}
     {%- for t in u.top %}
     {% call tb.row(t.id, href=t.href, cur=loop.first, title=t.cwd) %}
-      {% call tb.name(t.label, href=t.href) %}{% if t.sid %}<span class="mono muted">{{ t.sid }}</span>{% endif %}{% endcall %}
+      {% call tb.name(t.label, href=t.href, row_link=true) %}{% if t.sid %}<span class="mono muted">{{ t.sid }}</span>{% endif %}{% endcall %}
       {% call tb.cell(num=true) %}{{ t.share }}{% endcall %}
       {% call tb.cell("hide-s", num=true) %}{{ t.replies }}{% endcall %}
       {% call tb.cell("gc-end", num=true) %}{{ t.span }}{% endcall %}

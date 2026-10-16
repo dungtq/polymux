@@ -1,12 +1,14 @@
 {#- dt Backlog page frame (included by backlog.html; `bl` = dt_backlog()). The whole page body is the component
     (#bl-issues or #bl-todo: head, tabs, controls row, bulk bar, table, foot, hints), so a swap keeps the counts in the
     head, tabs and segments true; the dialogs (Add issue, issue reader, Add task) sit outside it, so a live refresh
-    never closes one. Page CSS / JS: css/backlog.css, js/backlog.js. -#}
+    never closes one. Page CSS / JS: css/backlog.css, js/backlog.js, js/backlog-add.js (the Add issue, Add task and Edit task
+    dialogs), js/backlog-reader.js. -#}
 {% extends "base.html" %}
 {% block title %}Backlog{% endblock %}
 {% block mainclass %}{% endblock %}
 {% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/backlog.css">
 <script src="/static/t/dt/js/backlog.js" defer></script>
+<script src="/static/t/dt/js/backlog-add.js" defer></script>
 <script src="/static/t/dt/js/backlog-reader.js" defer></script>
 {% endblock %}
 {% block content %}

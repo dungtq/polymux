@@ -248,7 +248,9 @@ def ended_row(r, nt, now: float, refresh: str = "#inbox") -> Ended:
     end = r.ended_at or r.last_seen
     resume = bool(r.resume_id)
     menu = menus.menu(
-        menus.item("open", "Open transcript", "chat", href=f"/a/{r.id}"),
+        menus.item("open", "Open chat", "side-r", key="Enter", event="i:open"),
+        menus.item("tab", "Open in a tab", "tabs", key="O", event="i:tab"),
+        menus.item("page", "Open transcript", "chat", href=f"/a/{r.id}"),
         menus.item("resume", "Resume", "play", post=f"/a/{r.id}/resume", confirm=f"Resume {r.id} in a new tmux window?",
                    ok="Resume", done=f"Resuming {r.id}", refresh=refresh) if resume else None,
         menus.copy_id(r.id))

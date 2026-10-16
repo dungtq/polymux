@@ -1,1 +1,19 @@
-{#- dialog#x-peek: the project quick look (js/peek.js). Filled by WP4. -#}
+{#- dialog#x-peek: the project quick look (js/peek.js; issue #244), included by shell/_layers.html (not in embed).
+    pm7.peek.open(name) (search, any [data-peek=<project>]) shows one project's folders over the current page:
+    head = project name, meta (branch · changes, from the body's data-pk-meta), Open project (/p/<name>), Close;
+    body [data-pk-body] = GET /dt/peek/<name>?path=<rel> (project/_peek_list.html). It reuses the Settings popup's
+    frame (sp-dlg / sp-hd / sp-bd, css/settings.css; width --pal-w in css/peek.css): modal through pm7.dialog (Esc,
+    backdrop, focus trap and return), full screen on phones. Links open a new browser tab unless Settings › Display ›
+    Project quick look says this tab (the body's data-pk-new). -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<dialog id="x-peek" class="sp-dlg pk-dlg" aria-labelledby="x-peek-t">
+  <div class="sp-hd pk-hd">
+    <svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}folder"/></svg>
+    <h2 id="x-peek-t" data-pk-name>Project</h2>
+    <span class="sp-note pk-meta" data-pk-meta></span>
+    <span class="sp"></span>
+    <a class="x-btn sm pk-open" href="/projects" target="_blank" rel="noopener" data-pk-open><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}expand"/></svg><span class="lb">Open project</span></a>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  <div class="sp-bd pk-bd" data-pk-body><p class="sp-wait">Loading…</p></div>
+</dialog>

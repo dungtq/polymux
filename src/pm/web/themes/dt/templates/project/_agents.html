@@ -5,7 +5,8 @@
     project column left out) with its details (answers, recap, facts) and ⋯ (refreshing #pj-agents). js/inbox.js runs
     the row hooks here too (#pj-agents is [data-i-rows]): click / ↵ = chat aside, double-click / O = tab, X details,
     E read, P pin. Ended: a band of the same table (LAYOUT §4 step 5; folded unless nothing runs), its rows in the live
-    columns (ar.ended_row live_cols), Resume on the row, ↵ / O = the transcript. -#}
+    columns (ar.ended_row live_cols), Resume on the row, click / ↵ = the transcript in the chat aside, double-click / O
+    = in a tab (the row's own keys). Every row's name is its link: ⌘ / Ctrl / Shift / middle click = a new tab. -#}
 {%- import "parts/_table.html" as tb -%}{%- import "parts/_agentrow.html" as ar -%}
 {% call tb.table("pj-agents", "Agents of " ~ v.name, cls="pj-ags", list="pj-agents",
                  keys={"enter": "event:i:open", "o": "menu:tab", "e": "menu:read", "p": "menu:pin"},
