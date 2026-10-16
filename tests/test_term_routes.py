@@ -561,9 +561,11 @@ def test_history_other_login_session_has_no_view(env):
 
 def test_history_tail_ansi_clamp_and_no_leaks(tmp_path, private_tmux):
     e = make_env(tmp_path, private_tmux)
+    # history-limit applies when a pane is created (older tmux never grows an existing pane's limit):
+    # set it globally on the private socket before the pane exists, independent of tmux version/defaults
+    tmux(e.st, "set-option", "-g", "history-limit", "20000")
     tmux(e.st, "new-session", "-d", "-s", "big", "-x", "100", "-y", "30",
          "sh -c 'i=0; while [ $i -lt 2600 ]; do printf \"\\033[31mline-$i\\033[0m\\n\"; i=$((i+1)); done; echo TAILMARK; cat'")
-    tmux(e.st, "set-option", "-t", "big", "history-limit", "20000")
     sid = sid_of(e.st, "big")
     time.sleep(1.0)
     with connect(e, mint(e, sid)) as ws:

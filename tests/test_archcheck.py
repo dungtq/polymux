@@ -36,7 +36,9 @@ def _check(root: Path, bl: Path, *extra: str) -> subprocess.CompletedProcess:
 
 
 def test_repo_passes_against_baseline():
-    r = subprocess.run([sys.executable, "tools/archcheck.py"], cwd=ROOT, capture_output=True,
+    # the same call as tools/check.sh: src/pm plus the dt theme's static tree
+    r = subprocess.run([sys.executable, "tools/archcheck.py", "--root", ".",
+                        "--static-dir", "src/pm/web/themes/dt/static"], cwd=ROOT, capture_output=True,
                        text=True, timeout=60, check=False)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "archcheck: OK" in r.stdout
