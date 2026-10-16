@@ -8,6 +8,9 @@ import pytest
 from git.gitrepo import commit_file, diverge, g, head, remote_commit
 from pm.core.errors import Conflict, Denied, Invalid, NotFound
 from pm.git import ctl, ops
+from pm.git import remote as gitremote
+
+R = "gitdev"  # the fixture's remote (pm.toml push_remote in the app)
 
 
 def by_path(st):
@@ -25,7 +28,7 @@ def test_status_detail_codes_and_counts(repo):
     (repo / "u").write_text("u")  # ??
     (repo / "d").mkdir()
     (repo / "d" / "deep").write_text("x")  # untracked-files=all lists the file
-    st = ops.status_detail(repo)
+    st = ops.status_detail(repo, remote=R)
     f = by_path(st)
     assert {k: v.xy for k, v in f.items()} == {"a": "MM", "b": ".D", "n": "A.", "u": "??", "d/deep": "??"}
     assert f["a"].staged and f["a"].unstaged and not f["b"].staged and f["b"].unstaged and f["u"].untracked
@@ -36,17 +39,25 @@ def test_status_detail_codes_and_counts(repo):
     assert v["counts"]["untracked"] == 2 and v["files"][0]["path"]
 
 
-def test_status_rename_detached_ahead_and_gitdev_fallback(repo):
+def test_status_rename_detached_ahead_and_remote_fallback(repo):
     g(repo, "mv", "b", "b2")
-    f = by_path(ops.status_detail(repo))
+    f = by_path(ops.status_detail(repo, remote=R))
     assert f["b2"].xy == "R." and f["b2"].orig == "b" and f["b2"].staged
     g(repo, "commit", "-q", "-m", "mv")
-    assert ops.status_detail(repo).ahead == 1
+    assert ops.status_detail(repo, remote=R).ahead == 1
     g(repo, "branch", "--unset-upstream")
-    st = ops.status_detail(repo)  # no upstream: gitdev/<branch> is used
+    st = ops.status_detail(repo, remote=R)  # no upstream: <remote>/<branch> is used
     assert st.upstream == "gitdev/main" and st.ahead == 1
+    st = ops.status_detail(repo, remote="origin")  # another push remote: the repo has none, so no fallback
+    assert st.upstream == "" and st.ahead == 0
+    g(repo, "remote", "add", "origin", str(repo.parent / "bare.git"))
+    g(repo, "fetch", "-q", "origin")
+    st = ops.status_detail(repo, remote="origin")
+    assert st.upstream == "origin/main" and st.ahead == 1
+    with pytest.raises(ctl.GitDenied):
+        ops.status_detail(repo, remote="-x")
     g(repo, "checkout", "-q", "--detach")
-    st = ops.status_detail(repo)
+    st = ops.status_detail(repo, remote=R)
     assert st.detached and st.branch is None
 
 
@@ -54,17 +65,17 @@ def test_status_unborn_and_not_a_repo(tmp_path):
     r = tmp_path / "x"
     r.mkdir()
     with pytest.raises(NotFound):
-        ops.status_detail(r)
+        ops.status_detail(r, remote=R)
     g(r, "init", "-q", "-b", "main")
     (r / "f").write_text("f")
-    st = ops.status_detail(r)
+    st = ops.status_detail(r, remote=R)
     assert st.head == "" and st.branch == "main" and by_path(st)["f"].untracked
 
 
 def test_subdir_project_uses_repo_root(repo):
     (repo / "sub").mkdir()
     (repo / "sub" / "x").write_text("x")
-    assert "sub/x" in by_path(ops.status_detail(repo / "sub"))
+    assert "sub/x" in by_path(ops.status_detail(repo / "sub", remote=R))
 
 
 # ------------------------------------------------------------------ stage / unstage / paths
@@ -73,10 +84,10 @@ def test_stage_unstage_and_deleted(repo):
     (repo / "b").unlink()
     (repo / "u").write_text("u")
     ops.stage(repo, ["a", "b", "u"])
-    f = by_path(ops.status_detail(repo))
+    f = by_path(ops.status_detail(repo, remote=R))
     assert (f["a"].xy, f["b"].xy, f["u"].xy) == ("M.", "D.", "A.")
     ops.unstage(repo, ["a", "u"])
-    f = by_path(ops.status_detail(repo))
+    f = by_path(ops.status_detail(repo, remote=R))
     assert (f["a"].xy, f["u"].xy) == (".M", "??")
     with pytest.raises(Invalid, match="nothing staged"):
         ops.unstage(repo, ["a"])
@@ -90,7 +101,7 @@ def test_unstage_on_unborn_branch(tmp_path):
     g(r, "add", "f")
     (r / "f").write_text("12")  # AM: `rm --cached` would refuse this
     ops.unstage(r, ["f"])
-    assert by_path(ops.status_detail(r))["f"].untracked
+    assert by_path(ops.status_detail(r, remote=R))["f"].untracked
 
 
 @pytest.mark.parametrize("bad", ["../etc/passwd", "/etc/passwd", "", "a/../a", "x\0y", "./", ".."])
@@ -114,7 +125,7 @@ def test_paths_must_be_changed_and_are_literal(repo, tmp_path):
         ops.stage(repo, "a")  # a str is not a list of paths
     ops.stage(repo, ["*"])
     ops.stage(repo, [":(top)a"])
-    f = by_path(ops.status_detail(repo))
+    f = by_path(ops.status_detail(repo, remote=R))
     assert f["*"].xy == "A." and f[":(top)a"].xy == "A." and f["a"].xy == ".M"  # no glob, no pathspec magic
 
 
@@ -127,7 +138,7 @@ def test_symlinked_dir_escape_is_denied(repo, tmp_path):
         ops.check_path(repo, "link/x")
     (repo / "leaf").symlink_to(tmp_path / "outside" / "x")  # a symlink leaf is fine: git tracks the link
     ops.stage(repo, ["leaf"])
-    assert by_path(ops.status_detail(repo))["leaf"].xy == "A."
+    assert by_path(ops.status_detail(repo, remote=R))["leaf"].xy == "A."
 
 
 # ------------------------------------------------------------------ discard
@@ -136,7 +147,7 @@ def test_discard_tracked_staged_and_unstaged(repo):
     g(repo, "add", "a")
     (repo / "a").write_text("staged+more")
     ops.discard(repo, "a")
-    assert (repo / "a").read_text() == "1\n2\n3\n" and "a" not in by_path(ops.status_detail(repo))
+    assert (repo / "a").read_text() == "1\n2\n3\n" and "a" not in by_path(ops.status_detail(repo, remote=R))
     (repo / "b").unlink()
     ops.discard(repo, "b")
     assert (repo / "b").read_text() == "b\n"
@@ -153,7 +164,7 @@ def test_discard_new_files_need_untracked(repo):
     g(repo, "add", "n")
     (repo / "n").write_text("n2")
     ops.discard(repo, "n", untracked=True)
-    assert not (repo / "n").exists() and ops.status_detail(repo).total == 0
+    assert not (repo / "n").exists() and ops.status_detail(repo, remote=R).total == 0
     with pytest.raises(NotFound):
         ops.discard(repo, "u", untracked=True)
 
@@ -161,7 +172,7 @@ def test_discard_new_files_need_untracked(repo):
 def test_discard_rename_restores_source(repo):
     g(repo, "mv", "b", "b2")
     ops.discard(repo, "b2", untracked=True)
-    assert (repo / "b").read_text() == "b\n" and not (repo / "b2").exists() and ops.status_detail(repo).total == 0
+    assert (repo / "b").read_text() == "b\n" and not (repo / "b2").exists() and ops.status_detail(repo, remote=R).total == 0
 
 
 # ------------------------------------------------------------------ commit
@@ -180,7 +191,7 @@ def test_commit_rules_and_author(repo):
     log = g(repo, "log", "-1", "--format=%an <%ae>|%s").stdout.strip()
     assert log == "Ann <ann@example.test>|--amend fix things"  # a message is a value, never a flag
     assert g(repo, "rev-list", "--count", "HEAD").stdout.strip() == "3"
-    assert by_path(ops.status_detail(repo))["u"].untracked  # untracked files are not committed
+    assert by_path(ops.status_detail(repo, remote=R))["u"].untracked  # untracked files are not committed
 
 
 def test_commit_without_author(repo):
@@ -203,7 +214,7 @@ def test_stash_push_list_pop_drop(repo):
     ops.stash_push(repo)
     s = ops.stash_list(repo)
     assert [x.ref for x in s] == ["stash@{0}", "stash@{1}"] and s[1].subject.endswith("my work line")
-    assert ops.status_detail(repo).total == 0 and ops.status_detail(repo).stashes == 2
+    assert ops.status_detail(repo, remote=R).total == 0 and ops.status_detail(repo, remote=R).stashes == 2
     ops.stash_pop(repo, 1)
     assert (repo / "a").read_text() == "work" and len(ops.stash_list(repo)) == 1
     ops.stash_drop(repo, 0)
@@ -232,7 +243,7 @@ def test_branches(repo):
     commit_file(repo, "f", "f", "feat work")
     g(repo, "checkout", "-q", "main")
     commit_file(repo, "m", "m", "main work")
-    b = {x.name: x for x in ops.branches(repo)}
+    b = {x.name: x for x in ops.branches(repo, remote=R)}
     assert b["main"].current and b["main"].upstream == "gitdev/main" and (b["main"].ahead, b["main"].behind) == (1, 0)
     assert not b["feat"].current and b["feat"].upstream == "" and b["feat"].subject == "feat work"
     g(repo, "push", "-q", "gitdev", "feat")
@@ -240,8 +251,10 @@ def test_branches(repo):
     g(repo, "checkout", "-q", "feat")
     commit_file(repo, "f2", "f", "feat 2")
     g(repo, "checkout", "-q", "main")
-    feat = {x.name: x for x in ops.branches(repo)}["feat"]
+    feat = {x.name: x for x in ops.branches(repo, remote=R)}["feat"]
     assert feat.upstream == "gitdev/feat" and (feat.ahead, feat.behind) == (1, 0) and feat.ts > 0
+    feat = {x.name: x for x in ops.branches(repo, remote="origin")}["feat"]  # another name: no such remote ref
+    assert feat.upstream == "" and (feat.ahead, feat.behind) == (0, 0)
 
 
 def test_checkout_guards_and_stash(repo):
@@ -256,7 +269,7 @@ def test_checkout_guards_and_stash(repo):
     with pytest.raises(Conflict, match="stash"):
         ops.checkout(repo, "feat")
     out = ops.checkout(repo, "feat", stash=True)
-    assert "carried" in out.text and ops.status_detail(repo).branch == "feat"
+    assert "carried" in out.text and ops.status_detail(repo, remote=R).branch == "feat"
     assert (repo / "a").read_text() == "dirty" and ops.stash_list(repo) == []
     g(repo, "checkout", "--", "a")
     (repo / "u").write_text("untracked only")
@@ -269,7 +282,7 @@ def test_checkout_stash_pop_clash(repo):
     g(repo, "checkout", "-q", "main")
     (repo / "a").write_text("local\n")
     out = ops.checkout(repo, "feat", stash=True)
-    assert out.clash == ("a",) and ops.status_detail(repo).branch == "feat" and len(ops.stash_list(repo)) == 1
+    assert out.clash == ("a",) and ops.status_detail(repo, remote=R).branch == "feat" and len(ops.stash_list(repo)) == 1
 
 
 # ------------------------------------------------------------------ merge / delete
@@ -304,7 +317,7 @@ def test_merge_conflict_aborts_cleanly(repo):
     with pytest.raises(ops.MergeConflict) as e:
         ops.merge(repo, "feat", ff_only=False)
     assert e.value.files == ("a",) and e.value.status == 409
-    st = ops.status_detail(repo)
+    st = ops.status_detail(repo, remote=R)
     assert head(repo) == before and st.total == 0 and not st.merging
 
 
@@ -325,18 +338,18 @@ def test_delete_branch(repo):
 # ------------------------------------------------------------------ pull with stash
 def test_pull_stash(repo, tmp_path):
     remote_commit(tmp_path, "a", "1\n2\n3\nremote\n")
-    ctl.fetch(repo)
+    gitremote.fetch(repo, remote=R)
     (repo / "a").write_text("local\n1\n2\n3\n")
-    out = ops.pull_stash(repo)
+    out = ops.pull_stash(repo, remote=R)
     assert out.clash == () and (repo / "a").read_text() == "local\n1\n2\n3\nremote\n" and ops.stash_list(repo) == []
-    assert ops.status_detail(repo).behind == 0
+    assert ops.status_detail(repo, remote=R).behind == 0
 
 
 def test_pull_stash_pop_clash(repo, tmp_path):
     remote_commit(tmp_path, "a", "remote\n")
-    ctl.fetch(repo)
+    gitremote.fetch(repo, remote=R)
     (repo / "a").write_text("local\n")
-    out = ops.pull_stash(repo)
+    out = ops.pull_stash(repo, remote=R)
     assert out.clash == ("a",) and len(ops.stash_list(repo)) == 1
 
 
@@ -353,11 +366,11 @@ def test_no_force_anywhere(repo, tmp_path, monkeypatch):
     diverge(repo)
     ops.merge(repo, "feat", ff_only=False)
     commit_file(repo, "z", "z", "z")
-    ctl.push_gitdev(repo)
+    gitremote.push(repo, remote=R)
     (repo / "a").write_text("w")
     ops.checkout(repo, "feat", stash=True)
     ops.checkout(repo, "main", stash=True)
-    ops.pull_stash(repo)
+    ops.pull_stash(repo, remote=R)
     pushes = [a for a in seen if "push" in a and "stash" not in a]
     assert pushes and all(a[a.index("push") + 1:] == ["gitdev", "main"] for a in pushes)
     for a in seen:
@@ -385,4 +398,13 @@ def test_forbidden_repo(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     (tmp_path / ".cfg").mkdir()
     with pytest.raises(ctl.GitDenied):
-        ops.status_detail(tmp_path / ".cfg")
+        ops.status_detail(tmp_path / ".cfg", remote=R)
+
+
+def test_view_names_the_given_remote(repo):
+    v = ops.view(repo, remote=R)
+    assert v["remote"] == R and v["has_remote"] and v["status"]["upstream"] == "gitdev/main"
+    w = ops.view(repo, remote="origin")
+    assert w["remote"] == "origin" and not w["has_remote"]
+    with pytest.raises(ctl.GitDenied):
+        ops.view(repo, remote="a b")

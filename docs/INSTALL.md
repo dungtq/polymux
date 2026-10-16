@@ -83,15 +83,22 @@ tmux display-message -p '#{version}'   # running server
 Then pin the absolute path in `pm.toml`:
 
 ```toml
-tmux_bin = "/home/you/.local/share/mise/installs/tmux/3.5a/tmux"
+tmux_bin = "/home/<user>/.local/share/mise/installs/tmux/3.5a/tmux"
 ```
 
 Update it and restart pm after every tmux upgrade.
 
 ### git remote name
 
-pm's git panel fetches, pulls and pushes the remote named `gitdev`. In each
-project, add your push remote under that name:
+pm's git panel fetches, pulls and pushes one remote per project: the one named
+by `push_remote` in pm.toml (default `origin`). Use another name when your
+projects keep their push remote under it:
+
+```toml
+push_remote = "gitdev"
+```
+
+and add that remote in each project:
 
 ```sh
 git remote add gitdev git@git.example.lan:you/project.git

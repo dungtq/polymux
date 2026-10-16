@@ -7,7 +7,7 @@
   if (!window.EventSource) return;
   var URL_ = '/events';
   var HIDDEN_MS = 30000;          // release the stream after the tab was hidden this long
-  var TYPES = ['agent_state', 'agent_added', 'agent_removed', 'inbox', 'chat_items', 'chat_outbox'];
+  var TYPES = ['agent_state', 'agent_added', 'agent_removed', 'inbox', 'chat_items', 'chat_outbox', 'pm_code'];
   var es = null, retryTimer = null, hideTimer = null, fails = 0, opened = 0, gone = false;
 
   function wanted() { return !gone && !document.hidden && !!document.querySelector('[data-live]'); }

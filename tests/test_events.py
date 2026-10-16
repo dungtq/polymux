@@ -39,6 +39,13 @@ def test_ui_event_type_is_known_and_published():
     assert routes_events._frame(ev) == 'id: 1\nevent: ui\ndata: {"area":"tabs","rev":3}\n\n'  # SSE as is
 
 
+def test_pm_code_event_type_is_known():
+    assert events.PM_CODE == "pm_code" and events.PM_CODE in events.EVENT_TYPES
+    assert events.EVENT_TYPES == {"agent_state", "agent_added", "agent_removed", "inbox", "ui", "pm_code"}
+    ev = Hub().publish(events.PM_CODE, {"need": "restart", "msg": "m", "head": "h"})
+    assert routes_events._frame(ev) == 'id: 1\nevent: pm_code\ndata: {"need":"restart","msg":"m","head":"h"}\n\n'
+
+
 def test_hub_max_subscribers_and_drop_slow():
     h = Hub(queue_size=2, max_subscribers=2)
     s1, _ = h.subscribe()

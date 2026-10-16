@@ -181,6 +181,12 @@ def _issue_where(projects: list[str], project: str | None, q: str) -> tuple[str,
     return where, args
 
 
+def issue_projects(settings: Settings) -> list[str]:
+    """The main (not worktree) registered projects whose BACKLOG is in the tracker, sorted: where issues live."""
+    tracked = {p for p, f in _tracked(settings) if f == "backlog"}
+    return sorted(n for n in backlog.registry(settings, main_only=True) if n in tracked)
+
+
 def issue_rows(settings: Settings, *, status: str = "open", project: str | None = None, q: str = "",
                limit: int = LIST_LIMIT, offset: int = 0) -> dict:
     """Issues of every main tracker project as flat rows (newest first; done ones by close time), one page of
@@ -189,8 +195,7 @@ def issue_rows(settings: Settings, *, status: str = "open", project: str | None 
     status = status if status in STATUSES else "open"
     limit, offset = max(1, min(int(limit), LIST_MAX)), max(0, min(int(offset), 10**9))
     q = _fold(q)
-    names = sorted(n for n in backlog.registry(settings, main_only=True)
-                   if n in {p for p, f in _tracked(settings) if f == "backlog"})
+    names = issue_projects(settings)
     out = {"rows": [], "total": 0, "counts": {"open": 0, "done": 0, "all": 0}, "status": status,
            "project": project or "", "q": q, "limit": limit, "offset": offset, "projects": names}
     if not names or (project and project not in names):

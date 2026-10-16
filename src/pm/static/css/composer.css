@@ -141,7 +141,7 @@ html[data-compose-size] .cbox textarea{font-size:var(--compose-size)}
 .pmreload .pmr-t{flex:1 1 14em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pmreload button,.pmreload form{flex:none;margin:0}
 .pmreload form{display:flex}
-.pmreload[data-lock] .pmr-refresh,.pmreload[data-lock] .pmr-restart{display:none}
+.pmreload[data-lock] .pmr-refresh{display:none}
 @media (max-width:520px){.pmreload .pmr-t{white-space:normal}}
 
 /* ---- token status + Builder / New Chat / Fork, right above the box ---- */

@@ -68,9 +68,9 @@ def default_base(settings: Settings, project: str, top: Path) -> str:
 
 def _dirty(top: Path) -> set[str]:
     """Uncommitted paths of the work tree ``top`` (staged, unstaged, untracked; both names of a rename)."""
-    st = ops.status_at(top)
+    st = ops.status_at(top, remote=None)
     if st.total > len(st.files):
-        st = ops.status_at(top, limit=st.total)
+        st = ops.status_at(top, limit=st.total, remote=None)
     return {p for f in st.files for p in (f.path, f.orig) if p}
 
 

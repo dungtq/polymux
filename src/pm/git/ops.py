@@ -4,8 +4,9 @@ branch delete. ``pm.git.plans`` says what each of them will do before it runs.
 Every call goes through ``run`` = ``ctl.run_git`` with ``ctl.OPS_ALLOWED`` (``ctl.check_listed``: ``reset`` only
 as ``reset -q -- <paths>``, no force / amend / hard / no-verify flags before ``--``), user values after ``--``
 and read as literal paths (``GIT_LITERAL_PATHSPECS``). Paths must be changed files that ``status_detail`` reports
-and stay inside the repo. Pushing stays ``ctl.push_gitdev`` (gitdev only, never forced); nothing here pushes,
-amends, rebases or resets a branch.
+and stay inside the repo. Pushing stays ``pm.git.remote.push`` (the configured push remote only, never forced);
+nothing here pushes, amends, rebases or resets a branch. ``remote`` (pm.toml ``push_remote``) is passed by the
+caller: a branch without an upstream is compared with ``<remote>/<branch>``.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 from pm.core.errors import Conflict, Denied, Invalid, NotFound
 from pm.core.fsutil import safe_join
 from pm.git import ctl
+from pm.git import remote as gitremote
 from pm.git.ctl import GitError
 
 MAX_PATHS = 500
@@ -49,7 +51,7 @@ class StatusDetail:
     branch: str | None  # None when detached
     detached: bool
     head: str  # short sha; "" on an unborn branch
-    upstream: str  # "" when none (gitdev/<branch> is used when it exists)
+    upstream: str  # "" when none (<remote>/<branch> is used when it exists)
     ahead: int
     behind: int
     merging: bool
@@ -197,7 +199,11 @@ def files_since(top: Path, base: str) -> list[str]:
     return [p for p in out.split("\0") if p][:LIST_CAP]
 
 
-def status_at(top: Path, limit: int = LIST_CAP) -> StatusDetail:
+def status_at(top: Path, limit: int = LIST_CAP, *, remote: str | None) -> StatusDetail:
+    """``remote``: compare a branch without an upstream with ``<remote>/<branch>``; None = no such fallback (callers
+    that only read the files, branch or merge state)."""
+    if remote is not None:
+        ctl.check_remote_name(remote)
     out = run(top, ["status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all"]).stdout
     hdr, files = parse_status(out)
     head = hdr.get("branch.head", "")
@@ -209,8 +215,8 @@ def status_at(top: Path, limit: int = LIST_CAP) -> StatusDetail:
     m = re.fullmatch(r"\+(\d+) -(\d+)", hdr.get("branch.ab", ""))
     if m:
         ahead, behind = int(m.group(1)), int(m.group(2))
-    elif branch and not upstream and oid != "(initial)" and has_ref(top, f"refs/remotes/{ctl.REMOTE}/{branch}"):
-        upstream = f"{ctl.REMOTE}/{branch}"
+    elif remote and branch and not upstream and oid != "(initial)" and has_ref(top, f"refs/remotes/{remote}/{branch}"):
+        upstream = f"{remote}/{branch}"
         ahead, behind = ahead_behind(top, f"refs/remotes/{upstream}")
     return StatusDetail(
         branch=branch, detached=detached, head="" if oid in ("", "(initial)") else oid[:12], upstream=upstream,
@@ -218,9 +224,9 @@ def status_at(top: Path, limit: int = LIST_CAP) -> StatusDetail:
         files=tuple(files[:limit]), total=len(files))
 
 
-def status_detail(path: str | Path, limit: int = LIST_CAP) -> StatusDetail:
+def status_detail(path: str | Path, limit: int = LIST_CAP, *, remote: str) -> StatusDetail:
     """Branch, upstream ahead/behind and every changed file (staged / unstaged / untracked / conflict)."""
-    return status_at(top_of(path), limit)
+    return status_at(top_of(path), limit, remote=remote)
 
 
 # ------------------------------------------------------------------ paths
@@ -244,7 +250,7 @@ def changed(top: Path, st: StatusDetail, paths: list[str] | tuple[str, ...]) -> 
     if len(paths) > MAX_PATHS:
         raise Invalid(f"more than {MAX_PATHS} paths")
     if st.total > len(st.files):
-        st = status_at(top, limit=st.total)
+        st = status_at(top, limit=st.total, remote=None)
     known = {f.path: f for f in st.files}
     out: dict[str, FileChange] = {}
     for p in paths:
@@ -266,7 +272,7 @@ def _names(changes: list[FileChange]) -> list[str]:
 def stage(path: str | Path, paths: list[str]) -> Outcome:
     """``git add -- <paths>``: changed files only (a deletion is staged as one)."""
     top = top_of(path)
-    changes = changed(top, status_at(top), paths)
+    changes = changed(top, status_at(top, remote=None), paths)
     run(top, ["add", "--", *_names(changes)])
     return Outcome(f"Staged {len(changes)} file{'s' if len(changes) != 1 else ''}.")
 
@@ -274,7 +280,7 @@ def stage(path: str | Path, paths: list[str]) -> Outcome:
 def unstage(path: str | Path, paths: list[str]) -> Outcome:
     """``git reset -q -- <paths>`` (works on an unborn branch too): the files keep their worktree content."""
     top = top_of(path)
-    changes = [f for f in changed(top, status_at(top), paths) if f.staged or f.conflict]
+    changes = [f for f in changed(top, status_at(top, remote=None), paths) if f.staged or f.conflict]
     if not changes:
         raise Invalid("nothing staged in these paths")
     run(top, ["reset", "-q", "--", *_names(changes)])
@@ -290,7 +296,7 @@ def discard(path: str | Path, rel: str, *, untracked: bool = False) -> Outcome:
     """Throw away all changes to ``rel`` (staged and unstaged): restore it from HEAD. A file that is not in HEAD
     (untracked or newly added) is deleted, and only when ``untracked`` is set."""
     top = top_of(path)
-    f = changed(top, status_at(top), [rel])[0]
+    f = changed(top, status_at(top, remote=None), [rel])[0]
     if f.conflict:
         raise Conflict("the file has merge conflicts: resolve or abort the merge first")
     if not is_new(f):
@@ -334,7 +340,7 @@ def commit(path: str | Path, message: str, *, amend: bool = False) -> Outcome:
         raise Denied("amend is not supported")
     msg = check_message(message)
     top = top_of(path)
-    st = status_at(top)
+    st = status_at(top, remote=None)
     if st.counts()["conflicts"]:
         raise Conflict("resolve the merge conflicts first")
     if not st.counts()["staged"] and not st.merging:
@@ -375,7 +381,7 @@ def stash_push(path: str | Path, message: str = "", *, untracked: bool = False) 
     """Stash the tracked changes (``untracked``: the untracked files too) with an optional one-line message."""
     msg = " ".join((message or "").split())[:200]
     top = top_of(path)
-    st = status_at(top)
+    st = status_at(top, remote=None)
     if st.counts()["conflicts"] or st.merging:
         raise Conflict("a merge is in progress")
     if not st.dirty and not (untracked and st.counts()["untracked"]):
@@ -390,7 +396,7 @@ def _pop(top: Path, index: int) -> tuple[str, ...]:
     cp = run(top, ["stash", "pop", "--quiet", f"stash@{{{index}}}"], check=False)
     if cp.returncode == 0:
         return ()
-    files = tuple(f.path for f in status_at(top).files if f.conflict)
+    files = tuple(f.path for f in status_at(top, remote=None).files if f.conflict)
     if files:
         return files
     raise Conflict(short(cp.stderr) or "stash pop failed; the stash is kept")
@@ -421,16 +427,17 @@ def _track(text: str) -> tuple[int, int, bool]:
     return int(a.group(1)) if a else 0, int(b.group(1)) if b else 0, False
 
 
-def branches(path: str | Path) -> list[Branch]:
-    """Local branches: upstream (or gitdev/<name> when there is none), ahead/behind, last commit."""
-    return branches_at(top_of(path))
+def branches(path: str | Path, *, remote: str) -> list[Branch]:
+    """Local branches: upstream (or <remote>/<name> when there is none), ahead/behind, last commit."""
+    return branches_at(top_of(path), remote=remote)
 
 
-def branches_at(top: Path) -> list[Branch]:
+def branches_at(top: Path, *, remote: str) -> list[Branch]:
+    ctl.check_remote_name(remote)
     fmt = "%(refname:short)%1f%(HEAD)%1f%(upstream:short)%1f%(upstream:track,nobracket)%1f%(objectname:short)" \
           "%1f%(committerdate:unix)%1f%(subject)"
     cp = run(top, ["branch", "--list", f"--format={fmt}"], check=False)
-    remote = set(run(top, ["branch", "-r", "--format=%(refname:short)"], check=False).stdout.split())
+    remote_refs = set(run(top, ["branch", "-r", "--format=%(refname:short)"], check=False).stdout.split())
     out: list[Branch] = []
     for ln in cp.stdout.splitlines()[:LIST_CAP]:
         p = ln.split("\x1f", 6)
@@ -438,8 +445,8 @@ def branches_at(top: Path) -> list[Branch]:
             continue
         name, cur, up, track, sha, ts, subject = p
         ahead, behind, gone = _track(track)
-        if not up and f"{ctl.REMOTE}/{name}" in remote:
-            up = f"{ctl.REMOTE}/{name}"
+        if not up and f"{remote}/{name}" in remote_refs:
+            up = f"{remote}/{name}"
             cnt = run(top, ["rev-list", "--left-right", "--count", f"refs/heads/{name}...refs/remotes/{up}"],
                        check=False).stdout.split()
             ahead, behind = (int(cnt[0]), int(cnt[1])) if len(cnt) == 2 else (0, 0)
@@ -459,7 +466,7 @@ def checkout(path: str | Path, branch: str, *, stash: bool = False) -> Outcome:
     that clashes leaves the conflicts in place and keeps the stash (``Outcome.clash``)."""
     top = top_of(path)
     local_branch(top, branch)
-    st = status_at(top)
+    st = status_at(top, remote=None)
     if st.branch == branch:
         raise Invalid(f"already on {branch}")
     if st.merging or st.counts()["conflicts"]:
@@ -490,7 +497,7 @@ def merge(path: str | Path, branch: str, *, ff_only: bool = True) -> Outcome:
     needs a merge commit; a merge that conflicts is aborted (nothing changes) and raises MergeConflict."""
     top = top_of(path)
     local_branch(top, branch)
-    st = status_at(top)
+    st = status_at(top, remote=None)
     if st.detached or not st.branch:
         raise Conflict("detached HEAD: check out a branch first")
     if branch == st.branch:
@@ -508,7 +515,7 @@ def merge(path: str | Path, branch: str, *, ff_only: bool = True) -> Outcome:
     author(top)
     cp = run(top, ["merge", "--no-edit", "--quiet", "--", branch], check=False, timeout=ctl.NET_TIMEOUT_S)
     if cp.returncode != 0:
-        files = tuple(f.path for f in status_at(top).files if f.conflict)
+        files = tuple(f.path for f in status_at(top, remote=None).files if f.conflict)
         run(top, ["merge", "--abort"], check=False)
         if files:
             raise MergeConflict(f"merge conflicts in {len(files)} files; merge aborted, nothing changed", files)
@@ -520,7 +527,7 @@ def delete_branch(path: str | Path, name: str, *, unmerged_ok: bool = False) -> 
     """Delete a local branch (never the current one). Unmerged commits refuse it unless ``unmerged_ok``."""
     top = top_of(path)
     local_branch(top, name)
-    if status_at(top).branch == name:
+    if status_at(top, remote=None).branch == name:
         raise Denied("cannot delete the current branch")
     cp = run(top, ["branch", "-D" if unmerged_ok else "-d", "--", name], check=False)
     if cp.returncode != 0:
@@ -530,16 +537,16 @@ def delete_branch(path: str | Path, name: str, *, unmerged_ok: bool = False) -> 
     return Outcome(f"Deleted branch {name}.")
 
 
-def pull_stash(path: str | Path) -> Outcome:
-    """Stash the tracked changes, pull --ff-only from gitdev, pop them back (a clash keeps the stash)."""
+def pull_stash(path: str | Path, *, remote: str) -> Outcome:
+    """Stash the tracked changes, pull --ff-only from ``remote``, pop them back (a clash keeps the stash)."""
     top = top_of(path)
-    st = status_at(top)
+    st = status_at(top, remote=remote)
     if st.merging or st.counts()["conflicts"]:
         raise Conflict("a merge is in progress")
     if st.dirty:
         run(top, ["stash", "push", "--quiet", "--message=pm: pull"])
     try:
-        ctl.pull_ff_only(top)
+        gitremote.pull_ff_only(top, remote=remote)
     except GitError:
         if st.dirty:
             _pop(top, 0)
@@ -550,9 +557,11 @@ def pull_stash(path: str | Path) -> Outcome:
     return Outcome("Pulled" + (" and popped the stashed changes." if st.dirty else "."))
 
 
-def view(path: str | Path, commits: int = 20) -> dict:
-    """The Git tab view model: status (files + counts), branches, stashes, recent commits, gitdev present."""
+def view(path: str | Path, commits: int = 20, *, remote: str) -> dict:
+    """The Git tab view model: status (files + counts), branches, stashes, recent commits, ``remote`` and whether
+    the repo has it."""
     top = top_of(path)
-    return {"status": status_at(top).view(), "branches": [asdict(b) for b in branches_at(top)],
+    return {"status": status_at(top, remote=remote).view(),
+            "branches": [asdict(b) for b in branches_at(top, remote=remote)],
             "stashes": [asdict(s) for s in stashes_at(top)], "commits": ctl.commit_log(top, commits),
-            "remote": ctl.REMOTE, "has_remote": ctl.REMOTE in {r.name for r in ctl.remotes(top)}}
+            "remote": remote, "has_remote": gitremote.has_remote(top, remote)}

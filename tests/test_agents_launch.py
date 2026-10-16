@@ -147,6 +147,17 @@ def test_form_spec_covers_cli_modes(settings):
     assert all(m["help"] for v in spec.values() for m in v["modes"])
 
 
+def test_redirect_hint_only_names_another_known_project(settings):
+    known = ("app", "app-core", "site")
+    assert L.redirect_hint(settings, "app", known) == ""  # empty map (the default): no hint
+    s = dataclasses.replace(settings, launch_redirects={"app": "app-core", "site": "gone", "app-core": "app-core"})
+    assert L.redirect_hint(s, "app", known) == "app-core"
+    assert L.redirect_hint(s, "site", known) == ""  # target is not a known project
+    assert L.redirect_hint(s, "app-core", known) == ""  # same project
+    assert L.redirect_hint(s, "other", known) == ""  # no entry
+    assert L.redirect_hint(dataclasses.replace(settings, launch_redirects={"app": 3}), "app", known) == ""
+
+
 def test_extra_models_extend_and_are_accepted(settings):
     s = dataclasses.replace(settings, agent_models={"claude": ["Weird_Id"]})
     assert L.build_command(Launch("p", AgentKind.CLAUDE, model="Weird_Id"), s)[-1] == "Weird_Id"

@@ -31,8 +31,13 @@ def _snap():
     return make_snap([agent(AID, "alpha", state=AgentState.WAITING), agent("codex-bbb222", "beta")])
 
 
-def test_page_shows_the_inbox_stats():
-    assert _mtitle(shell.build(_snap(), TabState(), "/")) == "Inbox 2 agents · 1 running · 1 needs you"
+def test_inbox_shows_only_its_title():
+    # #207: the Inbox's own stats line (README A7) carries the totals; the top bar does not repeat them
+    assert _mtitle(shell.build(_snap(), TabState(), "/")) == "Inbox"
+
+
+def test_other_page_shows_the_agent_totals():
+    assert _mtitle(shell.build(_snap(), TabState(), "/tmux")) == "tmux 2 agents · 1 running · 1 needs you"
 
 
 def test_agent_page_not_in_a_tab_shows_its_state_and_project():

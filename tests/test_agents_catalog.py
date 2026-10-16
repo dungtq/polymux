@@ -1,7 +1,10 @@
 import dataclasses
 import json
+import threading
+import time
 
 from pm.agents import catalog
+from pm.core import executors
 from pm.core.models import AgentKind
 
 CLAUDE_HELP = """  --model <model>                       Model for the current session. Provide
@@ -74,8 +77,23 @@ def test_parse_devin_families_and_aliases():
                    ("claude-opus-5-5-high", "Claude Opus 5.5 High", "Claude Opus 5.5")]
 
 
+def _sync_submit(monkeypatch):
+    """executors.fanout.submit runs the job at once; returns the list of submitted jobs."""
+    jobs = []
+    monkeypatch.setattr(executors.fanout, "submit", lambda fn, *a: jobs.append(fn) or fn(*a))
+    return jobs
+
+
+def _held_submit(monkeypatch):
+    """executors.fanout.submit only records the job; call the returned items to run them."""
+    jobs = []
+    monkeypatch.setattr(executors.fanout, "submit", lambda fn, *a: jobs.append(lambda: fn(*a)))
+    return jobs
+
+
 def test_models_cached_and_failure_empty(tmp_path, monkeypatch, settings):
     s = dataclasses.replace(settings, state_dir=tmp_path)
+    jobs = _sync_submit(monkeypatch)
     calls = []
     monkeypatch.setattr(catalog, "fetch", lambda st, k: calls.append(k) or [("a", "A", "", "")])
     assert catalog.models_for(s, AgentKind.CODEX, now=1000) == [("a", "A", "", "")]
@@ -85,8 +103,82 @@ def test_models_cached_and_failure_empty(tmp_path, monkeypatch, settings):
         raise OSError("no cli")
     monkeypatch.setattr(catalog, "fetch", boom)
     assert catalog.models_for(s, AgentKind.DEVIN, now=1000) == []
-    # stale cache survives a failing CLI
+    # expired: the stale rows at once, one background refresh; a failing CLI keeps them
     assert catalog.models_for(s, AgentKind.CODEX, now=10**9) == [("a", "A", "", "")]
+    assert len(jobs) == 1
+    hit = json.loads((tmp_path / "agent-models.json").read_text())["codex"]
+    assert hit["err"] == 1 and hit["models"] == [["a", "A", "", ""]]
+
+
+def test_expired_serves_stale_and_refreshes_once(tmp_path, monkeypatch, settings):
+    s = dataclasses.replace(settings, state_dir=tmp_path)
+    monkeypatch.setattr(catalog, "fetch", lambda st, k: [("old", "O", "", "")])
+    catalog.models_for(s, AgentKind.CODEX, now=1000)
+    jobs = _held_submit(monkeypatch)
+    calls = []
+    monkeypatch.setattr(catalog, "fetch", lambda st, k: calls.append(k) or [("new", "N", "", "")])
+    late = 1000 + catalog.CACHE_TTL
+    assert catalog.models_for(s, AgentKind.CODEX, now=late) == [("old", "O", "", "")]
+    assert catalog.models_for(s, AgentKind.CODEX, now=late) == [("old", "O", "", "")]
+    assert len(jobs) == 1 and calls == []  # second call while in flight: no new refresh
+    jobs[0]()
+    assert calls == [AgentKind.CODEX]
+    assert catalog.models_for(s, AgentKind.CODEX) == [("new", "N", "", "")]
+    catalog.models_for(s, AgentKind.CODEX, now=time.time() + catalog.CACHE_TTL)
+    assert len(jobs) == 2  # in-flight mark cleared after the refresh
+
+
+def test_failure_cached_for_fail_ttl(tmp_path, monkeypatch, settings):
+    s = dataclasses.replace(settings, state_dir=tmp_path)
+    jobs = _sync_submit(monkeypatch)
+    calls = []
+
+    def boom(st, k):
+        calls.append(k)
+        raise catalog.ProcError("timeout")
+    monkeypatch.setattr(catalog, "fetch", boom)
+    assert catalog.models_for(s, AgentKind.DEVIN, now=1000) == [] and len(calls) == 1
+    assert catalog.models_for(s, AgentKind.DEVIN, now=1000 + catalog.FAIL_TTL - 1) == []
+    assert len(calls) == 1 and jobs == []
+    monkeypatch.setattr(catalog, "fetch", lambda st, k: calls.append(k) or [("d", "D", "", "")])
+    assert catalog.models_for(s, AgentKind.DEVIN, now=1000 + catalog.FAIL_TTL) == []
+    assert len(calls) == 2 and len(jobs) == 1
+    assert catalog.models_for(s, AgentKind.DEVIN) == [("d", "D", "", "")]
+
+
+def test_empty_listing_counts_as_failure(tmp_path, monkeypatch, settings):
+    s = dataclasses.replace(settings, state_dir=tmp_path)
+    monkeypatch.setattr(catalog, "fetch", lambda st, k: [])
+    assert catalog.models_for(s, AgentKind.CURSOR, now=1000) == []
+    assert json.loads((tmp_path / "agent-models.json").read_text())["cursor-agent"]["err"] == 1
+
+
+def test_all_models_cold_kinds_fetch_in_parallel(tmp_path, monkeypatch, settings):
+    s = dataclasses.replace(settings, state_dir=tmp_path)
+    kinds = ["claude", "codex", "cursor-agent", "devin"]
+    barrier = threading.Barrier(len(kinds), timeout=5)
+
+    def fetch(st, k):
+        barrier.wait()  # BrokenBarrierError (-> test failure) unless all four run at once
+        return [(k.value + "-m", "M", "", "")]
+    monkeypatch.setattr(catalog, "fetch", fetch)
+    got = catalog.all_models(s, kinds)
+    assert {k: [r[0] for r in rows] for k, rows in got.items()} == {k: [k + "-m"] for k in kinds}
+    saved = json.loads((tmp_path / "agent-models.json").read_text())
+    assert sorted(saved) == sorted(kinds)  # parallel writers did not lose each other's entries
+
+
+def test_parallel_saves_keep_every_kind(tmp_path, monkeypatch, settings):
+    s = dataclasses.replace(settings, state_dir=tmp_path)
+    monkeypatch.setattr(catalog, "fetch", lambda st, k: [(k.value, k.value, "", "")])
+    kinds = [AgentKind.CLAUDE, AgentKind.CODEX, AgentKind.CURSOR, AgentKind.DEVIN]
+    ts = [threading.Thread(target=catalog._refresh, args=(s, k)) for k in kinds for _ in range(5)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    saved = json.loads((tmp_path / "agent-models.json").read_text())
+    assert sorted(saved) == sorted(k.value for k in kinds)
 
 
 def test_real_clis_models_and_modes_accepted(tmp_path):

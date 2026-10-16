@@ -5,8 +5,10 @@ post-commit hook (stamps a branch's CHANGELOG / FEATURES drafts) and ``pmctl hoo
 Item files (BACKLOG.md, TODO.md) go through ``mdgen`` / ``mdimport`` / ``store``; the doc files (CHANGELOG.md,
 FEATURES.md) through ``changelog`` / ``featurelist``, whose render depends on the work tree (``drafts.View``).
 The hooks never block a commit when ``pmctl`` is not installed, but a failing ``pmctl render --stage`` does
-fail the commit (post-commit cannot). ``install_hooks`` refuses to replace a hook it did not write
-(``force`` keeps the old one as ``<hook>.pmctl-old``).
+fail the commit (post-commit cannot). After the render the pre-commit hook runs every executable file in
+``pre-commit.d/`` next to it (sorted, also without pmctl; the first failure stops the commit), so other
+checks chain behind it. ``install_hooks`` refuses to replace a hook it did not write (``force`` keeps the old
+one as ``<hook>.pmctl-old``); a plain pre-commit.d chain runner (``CHAIN_MARK``) is replaced without it.
 """
 
 from __future__ import annotations
@@ -23,12 +25,23 @@ from pm.projects import backlog, projects
 from pm.projects.tracker import changelog, drafts, featurelist, mdgen, mdimport, schema, store
 
 HOOK_MARK = "# pm tracker hook"
+# a pre-commit that only runs pre-commit.d (written by other tools when no pre-commit exists); pm's HOOK runs
+# pre-commit.d too, so install replaces it without --force and nothing is lost
+CHAIN_MARK = "# git hooks chain runner (pre-commit.d)"
+# sh builtins only after the render: pre-commit.d must run with no pmctl (and no PATH) at all
 HOOK = f"""#!/bin/sh
 {HOOK_MARK} (written by `pmctl hooks install`): re-render the tracker files (BACKLOG.md, TODO.md,
-# CHANGELOG.md, FEATURES.md) from pm.db and stage them.
-# Skipped when pmctl is not installed; a failing render stops the commit.
-command -v pmctl >/dev/null 2>&1 || exit 0
-exec pmctl render --stage
+# CHANGELOG.md, FEATURES.md) from pm.db and stage them, then run every executable file in pre-commit.d/
+# next to this hook in sorted order. The render is skipped when pmctl is not installed; a failing render
+# or pre-commit.d script stops the commit.
+if command -v pmctl >/dev/null 2>&1; then
+  pmctl render --stage || exit $?
+fi
+for f in "${{0%/*}}"/pre-commit.d/*; do
+  [ -f "$f" ] && [ -x "$f" ] || continue
+  "$f" "$@" || exit $?
+done
+exit 0
 """
 POST_COMMIT = f"""#!/bin/sh
 {HOOK_MARK} (written by `pmctl hooks install`): stamp this branch's CHANGELOG.md / FEATURES.md drafts with
@@ -245,6 +258,12 @@ def merge_plain(base: str | Path, result: str | Path, theirs: str | Path) -> boo
         return False
 
 
+def _ours(name: str, text: str) -> bool:
+    """A hook install may replace without --force: pm's own, or a plain pre-commit.d chain runner (HOOK runs
+    pre-commit.d too, so nothing is lost and no ``.pmctl-old`` copy is kept)."""
+    return HOOK_MARK in text or (name == "pre-commit" and CHAIN_MARK in text)
+
+
 def _install_hook(root: Path, name: str, script: str, force: bool) -> str:
     d = _hooks_dir(root)
     d.mkdir(parents=True, exist_ok=True)
@@ -257,7 +276,7 @@ def _install_hook(root: Path, name: str, script: str, force: bool) -> str:
         cur = None
     if cur == script:
         return f"{hook}: already installed"
-    if cur is not None and HOOK_MARK not in cur:
+    if cur is not None and not _ours(name, cur):
         if not force:
             raise Conflict(f"{hook} exists and is not pm's; refused (--force replaces it, keeping a copy)")
         atomic_write(d / f"{name}.pmctl-old", cur, mode=stat.S_IMODE(hook.stat().st_mode), fsync=False)
@@ -296,7 +315,7 @@ def install_hooks(root: str | Path, *, force: bool = False) -> list[str]:
         d = _hooks_dir(root)
         for name in HOOKS:
             hook = d / name
-            if hook.is_file() and not hook.is_symlink() and HOOK_MARK not in hook.read_text(errors="replace"):
+            if hook.is_file() and not hook.is_symlink() and not _ours(name, hook.read_text(errors="replace")):
                 raise Conflict(f"{hook} exists and is not pm's; refused (--force replaces it, keeping a copy)")
     msgs = [_install_hook(root, name, script, force) for name, script in HOOKS.items()] + [_install_attrs(root)]
     try:

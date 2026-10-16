@@ -440,17 +440,18 @@ def interrupt(settings: Settings, agent: Agent, *, proc_root: Path = PROC) -> Se
     return SendResult(True, agent.id, agent.pane_id, detail="C-c,Escape")
 
 
+# "{remote}" in a text = pm.toml push_remote (filled in by load_snippets)
 DEFAULT_SNIPPETS: list[tuple[str, str]] = [
     ("Continue", "continue"),
     ("Run tests and fix", "Run the tests and fix any failures."),
-    ("Commit and push", "Commit your changes and push the branch to gitdev."),
+    ("Commit and push", "Commit your changes and push the branch to {remote}."),
     ("Summarise status", "Summarise the current status and what remains."),
     ("Stop and handoff", "Stop now and write a handoff note for the next session."),
 ]
 
 
 def load_snippets(settings: Settings) -> list[tuple[str, str]]:
-    out = list(DEFAULT_SNIPPETS)
+    out = [(label, text.replace("{remote}", settings.push_remote)) for label, text in DEFAULT_SNIPPETS]
     extra = settings.snippets or []
     items = extra.items() if isinstance(extra, dict) else extra
     for it in items:

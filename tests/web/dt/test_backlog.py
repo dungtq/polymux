@@ -362,7 +362,7 @@ def test_issue_links_use_the_project_hash_form(benv):
     j = benv.post("/p/alpha/issues", headers={"X-Requested-With": "fetch"}, title="t", body="", images="").json()
     assert re.fullmatch(r"/p/alpha#issue=\d+", j["url"]) and j["url"].endswith(f"#issue={j['num']}")
     assert audit.target_link("issue_add", "issues", {"project": "a b", "num": 7}).href == "/p/a%20b#issue=7"
-    assert "'/p/pm#issue=' + j.num" in (THEME / "static" / "js" / "audit.js").read_text()
+    assert "'/p/' + encodeURIComponent(name) + '#issue=' + j.num" in (THEME / "static" / "js" / "audit.js").read_text()
 
 
 # ---------------------------------------------------------------- view model

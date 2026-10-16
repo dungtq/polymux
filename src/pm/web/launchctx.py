@@ -39,8 +39,9 @@ async def todo_rows(st, snap, project) -> list[tuple]:
     return rows
 
 
-async def launch_data(st, project, kind_list: list[str], remembered_: dict) -> dict:
-    """JSON for the launch form script: remembered choices, templates, worktree hints, slash, modes, models."""
+async def launch_data(st, project, kind_list: list[str], remembered_: dict, projects=()) -> dict:
+    """JSON for the launch form script: remembered choices, templates, worktree hints, slash, modes, models, and
+    ``hint``: the project ``launch_redirects`` suggests instead (one of ``projects``, the known names), else ""."""
     hints = await executors.run_collectors(launch_mod.worktree_hints, st, project)
     return {
         "remembered": remembered_,
@@ -50,6 +51,7 @@ async def launch_data(st, project, kind_list: list[str], remembered_: dict) -> d
         "modes": launch_mod.form_spec(st),
         "models": {k: catalog.families(rows) for k, rows in (await executors.run_collectors(
             catalog.all_models, st, kind_list)).items()},
+        "hint": launch_mod.redirect_hint(st, project.name, projects),
     }
 
 
@@ -59,9 +61,9 @@ async def form_model(st, snap, project, todo: int | None = None) -> dict:
     Keys: ``project`` (Project), ``base`` (``/p/<name>``; the form posts to ``base + "/launch"``, a TODO item to
     ``base + "/dispatch"``), ``projects`` (names, for the project picker), ``running`` (Agents already in the
     project), ``kinds``, ``launch_data`` (see ``launch_data``; ``modes[kind]`` has ``modes`` [{key, help, bypass}],
-    ``extra`` and ``efforts``), ``bypass_allowed``, ``todo`` [{index, text, prompt, busy}] (``busy`` = the agent id it
-    is dispatched to, else ""), ``todo_selected`` (the open, not busy item ``todo`` names, else None; its dispatch
-    prompt is the remembered prompt).
+    ``extra`` and ``efforts``; ``hint`` = the suggested other project or ""), ``bypass_allowed``, ``todo`` [{index,
+    text, prompt, busy}] (``busy`` = the agent id it is dispatched to, else ""), ``todo_selected`` (the open, not busy
+    item ``todo`` names, else None; its dispatch prompt is the remembered prompt).
     """
     kind_list = kinds()
     rem = remembered(st, project)
@@ -69,13 +71,14 @@ async def form_model(st, snap, project, todo: int | None = None) -> dict:
     selected = todo if todo is not None and 0 <= todo < len(rows) and not rows[todo][3] else None
     if selected is not None:
         rem["prompt"] = rows[selected][2]
+    names = sorted(p.name for p in snap.projects)
     return {
         "project": project,
         "base": "/p/" + quote(project.name),
-        "projects": sorted(p.name for p in snap.projects),
+        "projects": names,
         "running": [a for a in snap.agents if a.project == project.name],
         "kinds": kind_list,
-        "launch_data": await launch_data(st, project, kind_list, rem),
+        "launch_data": await launch_data(st, project, kind_list, rem, names),
         "bypass_allowed": launch_mod.bypass_enabled(st),
         "todo": [{"index": i, "text": item, "prompt": prompt, "busy": busy or ""} for i, item, prompt, busy in rows],
         "todo_selected": selected,

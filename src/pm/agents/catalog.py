@@ -5,7 +5,8 @@ A catalog row is ``(id, label, family, efforts)``: the launch form shows one ent
 reasoning efforts the CLI accepts for that model (claude --effort, codex model_reasoning_effort).
 An agent whose listing fails shows no presets (custom id only). claude's ``--help`` only gives
 aliases, so the full ids and the ``[1m]`` forms are added from CLAUDE_FULL_IDS below.
-Every call is an argv list with a timeout; results are cached on disk for CACHE_TTL.
+Every call is an argv list with a timeout; results are cached on disk for CACHE_TTL (a failure for
+FAIL_TTL). An expired entry is served at once and refreshed in the background (fanout pool).
 """
 
 from __future__ import annotations
@@ -13,15 +14,19 @@ from __future__ import annotations
 import json
 import re
 import tempfile
+import threading
 import time
 
 from pm.agents.launch import LaunchError, agent_binary, extra_models
+from pm.core import executors
 from pm.core.config import Settings
+from pm.core.fsutil import JsonStore
 from pm.core.models import AgentKind
 from pm.core.proc import ProcError, run_argv
 from pm.security.mask import strip_ansi
 
 CACHE_TTL = 6 * 3600
+FAIL_TTL = 600  # a failed listing (error, timeout, empty) is not asked again for 10 min
 CACHE_VERSION = 2
 # Full ids Claude Code accepts next to its aliases (the CLI does not list them).
 CLAUDE_FULL_IDS = {
@@ -34,6 +39,9 @@ _NO_1M = {"haiku"}
 _VARIANT_WORDS = {"low", "medium", "high", "xhigh", "max", "fast", "thinking", "none", "extra"}
 TIMEOUT = 20
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+_STORE_LOCK = threading.Lock()  # one writer of agent-models.json at a time (kinds refresh in parallel)
+_INFLIGHT_LOCK = threading.Lock()
+_inflight: set[tuple[str, str]] = set()  # (state_dir, kind) refreshing in the background
 
 
 def _run(argv: list[str]) -> str:
@@ -146,28 +154,78 @@ def fetch(settings: Settings, kind: AgentKind) -> list[tuple]:
     return [_norm(m) for m in parse(_run([agent_binary(settings, kind), *args]))]
 
 
-def models_for(settings: Settings, kind: AgentKind, now: float | None = None) -> list[tuple]:
-    now = time.time() if now is None else now
-    path = settings.state_dir / "agent-models.json"
-    try:
-        cache = json.loads(path.read_text())
-    except (OSError, ValueError):
-        cache = {}
-    hit = cache.get(kind.value)
-    if isinstance(hit, dict) and hit.get("v") == CACHE_VERSION and now - hit.get("at", 0) < CACHE_TTL:
-        return [_norm(x) for x in hit["models"]]
-    try:
-        models = fetch(settings, kind)
-    except (OSError, ProcError, ValueError, LaunchError):
-        old = hit.get("models") if isinstance(hit, dict) else None
-        return [_norm(x) for x in old or []]
-    cache[kind.value] = {"at": now, "v": CACHE_VERSION, "models": models}
+def _store(settings: Settings) -> JsonStore:
+    return JsonStore(settings.state_dir / "agent-models.json", dict, lock=_STORE_LOCK,
+                     validate=lambda o: isinstance(o, dict))
+
+
+def _load(settings: Settings, kind: AgentKind) -> dict | None:
+    hit = _store(settings).load().get(kind.value)
+    return hit if isinstance(hit, dict) else None
+
+
+def _rows(hit: dict | None) -> list[tuple]:
+    return [_norm(x) for x in (hit or {}).get("models") or []]
+
+
+def _save(settings: Settings, kind: AgentKind, entry: dict) -> None:
     try:
         settings.state_dir.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(cache))
+        _store(settings).update(lambda c: {**c, kind.value: entry})
     except OSError:
         pass
-    return models
+
+
+def _refresh(settings: Settings, kind: AgentKind, now: float | None = None) -> list[tuple]:
+    """Ask the CLI and store its rows. A failure (error, timeout, nothing listed) keeps the previous
+    rows and is marked ``err``, so it is not retried before FAIL_TTL."""
+    now = time.time() if now is None else now
+    entry = {"at": now, "v": CACHE_VERSION, "models": []}
+    try:
+        entry["models"] = fetch(settings, kind)
+    except (OSError, ProcError, ValueError, LaunchError):
+        pass
+    if not entry["models"]:
+        entry.update(models=_rows(_load(settings, kind)), err=1)
+    _save(settings, kind, entry)
+    return _rows(entry)
+
+
+def _refresh_bg(settings: Settings, kind: AgentKind, key: tuple) -> None:
+    try:
+        _refresh(settings, kind)
+    finally:
+        with _INFLIGHT_LOCK:
+            _inflight.discard(key)
+
+
+def _schedule(settings: Settings, kind: AgentKind) -> None:
+    """Refresh ``kind`` on the fanout pool; at most one refresh per kind at a time."""
+    key = (str(settings.state_dir), kind.value)
+    with _INFLIGHT_LOCK:
+        if key in _inflight:
+            return
+        _inflight.add(key)
+    try:
+        executors.fanout.submit(_refresh_bg, settings, kind, key)
+    except RuntimeError:  # pool shut down (process exit)
+        with _INFLIGHT_LOCK:
+            _inflight.discard(key)
+
+
+def _cold(hit: dict | None) -> bool:
+    return hit is None or hit.get("v") != CACHE_VERSION
+
+
+def models_for(settings: Settings, kind: AgentKind, now: float | None = None) -> list[tuple]:
+    """Cached rows. Expired: the stale rows at once and a background refresh. No entry: asks the CLI."""
+    now = time.time() if now is None else now
+    hit = _load(settings, kind)
+    if _cold(hit):
+        return _refresh(settings, kind, now)
+    if now - hit.get("at", 0) >= (FAIL_TTL if hit.get("err") else CACHE_TTL):
+        _schedule(settings, kind)
+    return _rows(hit)
 
 
 def families(models: list[tuple]) -> list[dict]:
@@ -182,11 +240,18 @@ def families(models: list[tuple]) -> list[dict]:
     return list(out.values())
 
 
-def kind_models(settings: Settings, kind: AgentKind) -> list[tuple]:
-    rows = models_for(settings, kind)
+def _with_extra(settings: Settings, kind: AgentKind, rows: list[tuple]) -> list[tuple]:
     have = {r[0] for r in rows}
     return rows + [(m, m, "configured", "") for m in extra_models(settings, kind) if m not in have]
 
 
+def kind_models(settings: Settings, kind: AgentKind) -> list[tuple]:
+    return _with_extra(settings, kind, models_for(settings, kind))
+
+
 def all_models(settings: Settings, kinds: list[str]) -> dict[str, list[tuple]]:
-    return {k: kind_models(settings, AgentKind(k)) for k in kinds if AgentKind(k) in _SOURCES}
+    """Kinds with no cache entry ask their CLIs in parallel (fanout pool), the rest come from the cache."""
+    want = [AgentKind(k) for k in kinds if AgentKind(k) in _SOURCES]
+    cold = [k for k in want if _cold(_load(settings, k))]
+    got = dict(zip(cold, executors.fanout.map(lambda k: _refresh(settings, k), cold), strict=True))
+    return {k.value: _with_extra(settings, k, got[k]) if k in got else kind_models(settings, k) for k in want}

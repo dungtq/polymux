@@ -91,6 +91,17 @@ def test_devntfy_items_parse():
     assert any(len(i.title) > 100 for i in got)
 
 
+def test_fixture_skills_are_neutral():
+    """The seeded skills show up in README/site screenshots: no personal setup in names or descriptions."""
+    assert len(devpm.FIXTURE_SKILLS) == 4
+    assert [s for s, _, _ in devpm.FIXTURE_SKILLS].count("agents") == 2
+    assert any(n == "short" and d == "Tiny." for _, n, d in devpm.FIXTURE_SKILLS)
+    assert max(len(d) for _, _, d in devpm.FIXTURE_SKILLS) >= 180  # one long row so the skills table wraps
+    text = " ".join(f"{n} {d}" for _, n, d in devpm.FIXTURE_SKILLS).lower()
+    for bad in ("ntfy", "dev-stacks", "macos-config", ".stignore", "macos-config-sync.sh", "cursor agent", "lab/agent"):
+        assert bad not in text
+
+
 def test_running_dev_instance_older_than_the_code_is_stale():
     """Regression: a long-lived dev instance kept serving, 404 on routes added after it started."""
     stamp = devpm.code_stamp()

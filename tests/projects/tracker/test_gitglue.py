@@ -4,6 +4,7 @@ import os
 import shutil
 import stat
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -78,6 +79,101 @@ def test_hook_exits_0_without_pmctl(tmp_path):
     cp = subprocess.run(["/bin/sh", str(hook)], env={"PATH": str(empty)}, capture_output=True, text=True,
                         timeout=20)
     assert cp.returncode == 0 and cp.stderr == ""
+
+
+def _hook_env(tmp_path, pmctl_status=None):
+    """The pre-commit hook in ``tmp_path/hooks`` with a ``pre-commit.d`` dir, and an env whose PATH has only a
+    fake ``pmctl`` (logs its argv to ``log``, exits ``pmctl_status``) or nothing at all (``None``)."""
+    hooks, binp, log = tmp_path / "hooks", tmp_path / "bin", tmp_path / "log"
+    (hooks / "pre-commit.d").mkdir(parents=True)
+    binp.mkdir()
+    (hooks / "pre-commit").write_text(gitglue.HOOK)
+    if pmctl_status is not None:
+        fake = binp / "pmctl"
+        fake.write_text(f'#!/bin/sh\necho "pmctl $*" >> {log}\nexit {pmctl_status}\n')
+        fake.chmod(0o755)
+    return hooks, {"PATH": str(binp)}, log
+
+
+def _chain(hooks, name, status, log, mode=0o755):
+    s = hooks / "pre-commit.d" / name
+    s.write_text(f"#!/bin/sh\necho {name} >> {log}\nexit {status}\n")
+    s.chmod(mode)
+
+
+def _run_hook(hooks, env):
+    return subprocess.run(["/bin/sh", str(hooks / "pre-commit")], env=env, capture_output=True, text=True,
+                          timeout=20)
+
+
+def _log(log):
+    return log.read_text().splitlines() if log.exists() else []
+
+
+def test_hook_runs_pre_commit_d_without_pmctl(tmp_path):
+    """pre-commit.d scripts run in sorted order even when pmctl is not on PATH; non-executables are skipped."""
+    hooks, env, log = _hook_env(tmp_path)
+    _chain(hooks, "20-b", 0, log)
+    _chain(hooks, "10-a", 0, log)
+    _chain(hooks, "15-off", 0, log, mode=0o644)
+    (hooks / "pre-commit.d" / "05-dir").mkdir()
+    cp = _run_hook(hooks, env)
+    assert cp.returncode == 0 and cp.stderr == ""
+    assert _log(log) == ["10-a", "20-b"]
+
+
+def test_hook_renders_then_runs_pre_commit_d(tmp_path):
+    hooks, env, log = _hook_env(tmp_path, pmctl_status=0)
+    _chain(hooks, "10-a", 0, log)
+    cp = _run_hook(hooks, env)
+    assert cp.returncode == 0
+    assert _log(log) == ["pmctl render --stage", "10-a"]
+
+
+def test_hook_failing_render_stops_before_pre_commit_d(tmp_path):
+    hooks, env, log = _hook_env(tmp_path, pmctl_status=3)
+    _chain(hooks, "10-a", 0, log)
+    assert _run_hook(hooks, env).returncode == 3
+    assert _log(log) == ["pmctl render --stage"]
+
+
+def test_hook_failing_pre_commit_d_stops_the_chain(tmp_path):
+    hooks, env, log = _hook_env(tmp_path, pmctl_status=0)
+    _chain(hooks, "10-a", 0, log)
+    _chain(hooks, "20-fail", 7, log)
+    _chain(hooks, "30-never", 0, log)
+    assert _run_hook(hooks, env).returncode == 7
+    assert _log(log) == ["pmctl render --stage", "10-a", "20-fail"]
+
+
+def test_chain_runner_pre_commit_replaced_without_force(repo):
+    """A plain pre-commit.d chain runner (CHAIN_MARK) is replaced without --force and without a copy: pm's
+    hook runs pre-commit.d too. Re-install is idempotent."""
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(f'#!/bin/sh\n{gitglue.CHAIN_MARK}\nfor f in "${{0%/*}}"/pre-commit.d/*; do "$f"; done\n')
+    msgs = gitglue.install_hooks(repo)
+    assert hook.read_text() == gitglue.HOOK and msgs[0].endswith(": installed")
+    assert not hook.with_name("pre-commit.pmctl-old").exists()
+    assert all("already" in m for m in gitglue.install_hooks(repo)[:3])
+
+
+def test_chain_mark_only_trusted_for_pre_commit(repo):
+    """CHAIN_MARK in another hook (post-commit) does not make it pm's."""
+    hook = repo / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(f"#!/bin/sh\n{gitglue.CHAIN_MARK}\necho mine\n")
+    with pytest.raises(Conflict):
+        gitglue.install_hooks(repo)
+    assert not (repo / ".git" / "hooks" / "pre-commit").exists()
+
+
+def test_leakcheck_writes_the_same_chain_mark():
+    """tools/leakcheck.sh writes a chain-runner pre-commit with the same marker line, so install replaces it."""
+    script = Path(__file__).resolve().parents[3] / "tools" / "leakcheck.sh"
+    if not script.is_file():
+        pytest.skip("tools/leakcheck.sh not present")
+    assert gitglue.CHAIN_MARK in script.read_text()
 
 
 def test_foreign_hook_refused_unless_force(repo):

@@ -81,12 +81,15 @@
   });
 })();
 
-// 3b. inbox popup: the project picker reloads the framed form for the chosen project
+// 3b. inbox popup: the project picker reloads the framed form for the chosen project; the hint's
+// "Launch in <project>" button (launch_redirects) switches the picker to that project
 (function () {
   var pick = document.querySelector('[data-project-pick]');
-  if (pick) pick.addEventListener('change', function () {
-    location.href = '/p/' + encodeURIComponent(pick.value) + '/launch?embed=1&from=inbox';
-  });
+  if (!pick) return;
+  function reload() { location.href = '/p/' + encodeURIComponent(pick.value) + '/launch?embed=1&from=inbox'; }
+  pick.addEventListener('change', reload);
+  var sw = document.querySelector('[data-project-switch]');
+  if (sw) sw.addEventListener('click', function () { pick.value = sw.getAttribute('data-project-switch'); reload(); });
 })();
 
 // 4. popup mode (?embed=1, framed by launchpop.js): Cancel closes it, a launch hands off to the parent page.

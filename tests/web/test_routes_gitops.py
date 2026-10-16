@@ -59,8 +59,25 @@ def test_status_view_model(repo):
     assert st["branch"] == "main" and st["counts"] == {"staged": 0, "unstaged": 1, "untracked": 1, "conflicts": 0}
     assert {f["path"]: f["xy"] for f in st["files"]} == {"a": ".M", "u": "??"}
     assert [b["name"] for b in d["branches"]] == ["feat", "main"] and d["commits"][0]["subject"] == "first"
-    assert d["remote"] == "gitdev" and d["has_remote"] is False and d["stashes"] == []
+    assert d["remote"] == "origin" and d["has_remote"] is False and d["stashes"] == []  # push_remote's default
     assert c.get("/p/nope/git/status").status_code == 404
+
+
+def test_status_and_plan_use_the_configured_push_remote(repo, tmp_path):
+    s, c, p, _ = repo
+    c.app.state.settings = replace(s, push_remote="gitdev")
+    bare = tmp_path / "bare.git"
+    g(tmp_path, "init", "-q", "--bare", "-b", "main", str(bare))
+    g(p, "remote", "add", "gitdev", str(bare))
+    g(p, "push", "-q", "gitdev", "main")
+    (p / "a").write_text("2\n")
+    g(p, "commit", "-q", "-am", "second")
+    d = c.get("/p/alpha/git/status").json()
+    assert d["remote"] == "gitdev" and d["has_remote"] is True and d["status"]["upstream"] == "gitdev/main"
+    pl = c.get("/p/alpha/git/plan", params={"action": "push"}).json()
+    assert pl["text"] == "Push 1 commit on main to gitdev/main. Never forced." and not pl["blocked"]
+    c.app.state.settings = s  # origin: the repo has no such remote
+    assert c.get("/p/alpha/git/plan", params={"action": "push"}).json()["blocked"] == "no origin remote"
 
 
 def test_status_not_a_repo(env):
