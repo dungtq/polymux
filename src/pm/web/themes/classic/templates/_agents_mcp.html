@@ -1,0 +1,25 @@
+{% from "_agents_macros.html" import hc, dash %}{% from "_macros.html" import dot %}
+<section class="ag-sec" aria-label="MCP servers">
+{% if no_mcp %}<div class="set-notice ag-warnbox" role="note"><strong>{{ no_mcp | length }} of {{ installed_count }} installed agents have no MCP servers configured:</strong> {{ no_mcp | map(attribute="label") | join(", ") }}.</div>{% endif %}
+<div class="list ag-table" role="list">
+<div class="hrow arow-m ag-head" role="presentation">{{ hc(cols["c-nm"], "c-nm") }}{{ hc(cols["c-tr"], "c-tr") }}{{ hc(cols["c-cm"], "c-cm") }}{{ hc(cols["c-ev"], "c-ev") }}{{ hc(cols["c-ci"], "c-ci") }}</div>
+{% for m in servers %}
+<div class="lrow arow-m" role="listitem">
+<span class="c-nm" title="{{ m.name }}"><strong>{{ m.name }}</strong></span>
+<span class="c-tr muted">{{ m.transport }}</span>
+<span class="c-cm mono" title="{{ m.command or m.host }}">{{ dash(m.command or m.host) }}</span>
+<span class="c-ev muted" title="{{ m.env_names | join(', ') }}">{{ m.env_names | join(", ") if m.env_names else "–" }}</span>
+<span class="c-ci muted" title="{{ m.config_path }}">{{ labels.get(m.agent, m.agent) }}</span>
+</div>
+{% else %}<p class="muted ag-empty">No MCP servers configured for any agent.</p>{% endfor %}
+</div>
+{% if cov_rows %}
+<section class="ag-sub" aria-labelledby="ag-ch"><h2 id="ag-ch">Coverage <span class="muted">servers x installed agents</span></h2>
+<div class="ag-cov" role="table" aria-label="MCP coverage">
+<div class="ag-cr ag-ch" role="row"><span class="ag-cn" role="columnheader">Server</span>{% for a in cov_agents %}<span class="ag-cc" role="columnheader"><span title="{{ a.label or a.name }}">{{ a.label or a.name }}</span></span>{% endfor %}</div>
+{% for r in cov_rows %}
+<div class="ag-cr" role="row"><span class="ag-cn" role="rowheader" title="{{ r.name }}">{{ r.name }}</span>{% for has in r.has %}<span class="ag-cc" role="cell">{% if has %}{{ dot("running", "configured") }}{% else %}<span class="muted" aria-hidden="true">–</span><span class="sr-only">not configured</span>{% endif %}</span>{% endfor %}</div>
+{% endfor %}
+</div></section>
+{% endif %}
+</section>

@@ -1,0 +1,17 @@
+{% from "_agents_macros.html" import hc, dash %}{% from "_macros.html" import dot %}
+<section class="ag-view" aria-label="MCP servers">
+<p class="ag-hint muted">{% if agent.mcp_config %}Written to <span class="mono">{{ agent.mcp_config }}</span>{% else %}No MCP config found for this agent.{% endif %}</p>
+<p class="ag-hint muted">Per-agent MCP on/off is not supported yet: the off switches differ per agent and several are unverified (docs/MCP-SHARING-RESEARCH.md).</p>
+<div class="list ag-table" role="list">
+<div class="hrow arow-mc ag-head" role="presentation"><span class="c-dot"></span>{{ hc(cols["c-nm"], "c-nm") }}{{ hc(cols["c-tr"], "c-tr") }}{{ hc(cols["c-cm"], "c-cm") }}{{ hc(cols["c-ev"], "c-ev") }}</div>
+{% for m in rows %}
+<div class="lrow arow-mc{{ '' if m.enabled else ' ag-off' }}" role="listitem">
+<span class="c-dot">{% if m.enabled %}{{ dot("running", "enabled") }}{% elif m.enabled is none %}{{ dot("unknown", "unknown") }}{% else %}{{ dot("idle", "disabled") }}{% endif %}</span>
+<span class="c-nm" title="{{ m.name }}"><strong>{{ m.name }}</strong></span>
+<span class="c-tr muted">{{ m.transport }}</span>
+<span class="c-cm mono" title="{{ m.command or m.host }}">{{ dash(m.command or m.host) }}</span>
+<span class="c-ev muted" title="{{ m.env_names | join(', ') }}">{{ m.env_names | join(", ") if m.env_names else "–" }}</span>
+</div>
+{% else %}<p class="muted ag-empty">No MCP servers configured for this agent.</p>{% endfor %}
+</div>
+</section>

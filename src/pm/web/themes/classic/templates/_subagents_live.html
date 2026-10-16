@@ -1,0 +1,5 @@
+{# Running sub-agents only, one single-line row each, above the composer form (#sa-live). Not expandable; the Sub-agents tab has the detail. #}
+{% from "_sa_macros.html" import sa_line %}
+<ul class="sa-live-list" role="list">
+{% for s in subs %}<li class="sa-line sa-live-row">{{ sa_line(s, now) }}</li>{% endfor %}
+</ul>

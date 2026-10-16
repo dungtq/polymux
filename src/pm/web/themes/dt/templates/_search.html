@@ -1,0 +1,16 @@
+{#- dt override of the core's GET /search fragment (routes/search.py: groups = [(key, title, hits)], q). Not shown as
+    is: js/search.js reads it (DOMParser, nothing runs) and adds the rows to the search dialog #x-pal with its own row
+    look, so the hits sort, mark and move like the local rows. One ul[data-sg=<key>][data-title] per group; one
+    li[data-href] per hit with the sprite icon (no inline SVG), .l = name (an agent hit: its id), .d = sub (a
+    content hit: the masked excerpt), .r = agent kind and model. Hits are links of the core: /p/<n>, /tmux/<id>,
+    /a/<id>, /?qchat=<id>, /p/<n>/files?path=<rel>. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set icons = {"project": "folder", "tmux": "tmux", "agent": "bot", "ended": "clock", "chat": "chat",
+                 "qchat": "sparkle", "file": "file"} -%}
+{% for key, title, hits in groups %}<ul data-sg="{{ key }}" data-title="{{ title }}">
+{% for h in hits %}<li data-href="{{ h.href }}"{% if h.snippet %} data-snip{% endif %}>
+  {#- -#}<svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ icons.get(key, 'search') }}"/></svg>
+  {#- -#}<span class="l">{{ h.name }}</span><span class="d">{{ h.sub }}</span>
+  {#- -#}<span class="r">{{ h.kind }}{% if h.model %} · {{ h.model }}{% endif %}</span></li>
+{% endfor %}</ul>
+{% endfor %}

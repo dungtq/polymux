@@ -1,0 +1,54 @@
+{#- dt Agents › agent: the core's form-flow pages in the detail's body (agentsedit: mode = edit | review | result |
+    notice; ctx back = this agent's tab). edit: the editor (description for a skill, body), "Review and save" runs
+    js/agents.js (review → the file operations → apply → back to the tab); without JS the form posts the classic way and
+    the core answers with mode review (its Apply form) and then result. Remove… (typed name, backed up) when the core
+    allows it. notice: the core's refusal (400, or 409 when the files changed since the review). -#}
+{%- import "parts/_table.html" as tb -%}
+{%- if dv.mode == "edit" %}
+<form class="a-form" method="post" action="/agents/review" data-a-plan data-a-after="{{ dv.back }}" data-a-title="Save {{ kind }} {{ obj }}" data-a-ok="Save" data-a-done="Saved {{ obj }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="{{ kind }}_edit"><input type="hidden" name="ctx_agent" value="{{ dv.name }}"><input type="hidden" name="ctx_tab" value="{{ dv.tab }}"><input type="hidden" name="name" value="{{ obj }}">
+  <h3 class="a-h3">Edit {{ kind }} <span class="mono">{{ obj }}</span></h3>
+  {%- if kind == "skill" %}
+  <label class="a-fl"><span>Description</span><input class="x-in" type="text" name="description" required maxlength="300" value="{{ desc }}" autocomplete="off"></label>
+  {%- endif %}
+  <label class="a-fl"><span>Body</span><textarea class="a-ta mono" name="body" rows="18" maxlength="262144" spellcheck="false">{{ body }}</textarea></label>
+  <div class="a-fbtn">
+    {%- if dv.rm %}<button class="x-btn danger" type="button" data-a-run="{{ dv.rm }}">Remove…</button>{% endif %}
+    <span class="sp"></span>
+    <a class="x-btn" href="{{ dv.back }}">Cancel</a><button class="x-btn pri" type="submit">Review and save</button>
+  </div>
+</form>
+{%- elif dv.mode == "review" %}
+<section class="a-mode" aria-labelledby="a-mode-t">
+  <h3 class="a-h3" id="a-mode-t">Review changes</h3>
+  <p class="muted">{{ plan.ops | length }} file operation{{ "" if plan.ops | length == 1 else "s" }}. Nothing has been changed yet; Apply keeps a backup of every file it changes.</p>
+  {% call tb.table("agents-ops", "File operations", cls="a-opst") %}
+    {{ tb.gh([{"label": "Operation"}, {"label": "Path"}, {"label": "Detail", "cls": "hide-s"}]) }}
+    {%- for o in plan.ops %}
+    {% call tb.row(o.path ~ ":" ~ loop.index) %}
+      {% call tb.cell("muted") %}{{ o.kind }}{% endcall %}
+      {% call tb.name(o.path) %}{% endcall %}
+      {% call tb.cell("hide-s muted") %}<span title="{{ o.detail }}">{{ o.detail or "–" }}</span>{% endcall %}
+      {% call tb.meta() %}{{ o.kind }}{% if o.detail %} · {{ o.detail }}{% endif %}{% endcall %}
+    {% endcall %}
+    {%- endfor %}
+  {% endcall %}
+  <form class="a-fbtn" method="post" action="/agents/apply">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="token" value="{{ plan.token }}"><input type="hidden" name="ctx_agent" value="{{ ctx_agent }}"><input type="hidden" name="ctx_tab" value="{{ ctx_tab }}">
+    {%- for k, v in hidden %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <span class="sp"></span><a class="x-btn" href="{{ dv.back }}">Cancel</a><button class="x-btn {{ 'red' if destructive else 'pri' }}" type="submit">Apply</button>
+  </form>
+</section>
+{%- elif dv.mode == "result" %}
+<section class="a-mode" aria-labelledby="a-mode-t" role="status">
+  <h3 class="a-h3" id="a-mode-t">Applied</h3>
+  <ul class="a-lines">{% for l in lines %}<li class="mono">{{ l }}</li>{% endfor %}</ul>
+  <p><a class="x-btn" href="{{ dv.back }}">Back to {{ dv.tab }}</a></p>
+</section>
+{%- else %}
+<section class="a-mode" aria-labelledby="a-mode-t">
+  <h3 class="a-h3" id="a-mode-t">Could not continue</h3>
+  <p class="a-alert" role="alert">{{ notice }}</p>
+  <p><a class="x-btn" href="{{ dv.back }}">Back to {{ dv.tab }}</a></p>
+</section>
+{%- endif %}

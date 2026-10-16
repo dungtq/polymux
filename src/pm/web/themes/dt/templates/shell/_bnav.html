@@ -1,0 +1,15 @@
+{#- Phone bottom nav (LAYOUT.md §2, < 700px; hidden on a session tab via body.x-sessview): Inbox, Projects, tmux,
+    Alerts, More (= the sidebar drawer). Context: shell.
+    Badges only for "needs you" (Inbox, .hot = --badge-need) and unread alerts (DESIGN.md §4, §6.14); plain
+    counts (projects, tmux sessions) are not shown here. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<nav class="x-bnav" aria-label="Pages">
+  {%- for key in ["inbox", "projects", "tmux", "notifications"] %}
+  {%- set _l = shell.nav | selectattr("key", "equalto", key) | list -%}{%- set r = _l[0] if _l else none -%}
+  {%- if r %}
+  <a href="{{ r.href }}" data-nav="{{ r.key }}"{% if r.cur %} class="cur" aria-current="page"{% endif %}><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ r.icon }}"/></svg><span>{{ "Alerts" if key == "notifications" else r.label }}</span>
+    {%- if r.count and (r.hot or key == "notifications") %}<span class="b{{ ' hot' if r.hot }}" aria-label="{{ r.count }}{{ ' need you' if r.hot else ' unread' }}">{{ r.count }}</span>{% endif %}</a>
+  {%- endif %}
+  {%- endfor %}
+  <button type="button" data-act="side" aria-controls="x-side" aria-label="More: all pages and sessions"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}menu"/></svg><span>More</span></button>
+</nav>

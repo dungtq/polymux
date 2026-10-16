@@ -1,0 +1,30 @@
+{#- dt project view, Agents tab (PRD §6.4 "Agents (Inbox rows + Ended with Resume)"): the content of #pj-agents, also
+    the live fragment GET /p/<name>/live renders (dt _project_live.html), so it uses only the rows context the core
+    hands both (agents, idle_agents, pinned_agents, inbox_meta, ended, ...). View model: v = dt_project().
+    Live rows: one table with bands Pinned · Needs you · Running · Idle; each row is the Inbox's (parts/_agentrow.html,
+    project column left out) with its details (answers, recap, facts) and ⋯ (refreshing #pj-agents). js/inbox.js runs
+    the row hooks here too (#pj-agents is [data-i-rows]): click / ↵ = chat aside, double-click / O = tab, X details,
+    E read, P pin. Ended: a band of the same table (LAYOUT §4 step 5; folded unless nothing runs), its rows in the live
+    columns (ar.ended_row live_cols), Resume on the row, ↵ / O = the transcript. -#}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_agentrow.html" as ar -%}
+{% call tb.table("pj-agents", "Agents of " ~ v.name, cls="pj-ags", list="pj-agents",
+                 keys={"enter": "event:i:open", "o": "menu:tab", "e": "menu:read", "p": "menu:pin"},
+                 labels={"enter": "Open in the chat aside", "o": "Open in a tab", "e": "Mark read / unread", "p": "Pin / unpin"}) %}
+  {{ tb.gh([{"sr": "State"}, {"label": "Agent"}, {"label": "tmux", "cls": "hide-n i-w"}, {"label": "Last message"},
+            {"label": "Age", "num": true}, {"label": "CPU", "num": true, "cls": "hide-n i-w"},
+            {"label": "RAM", "num": true, "cls": "hide-n i-w"}, {"sr": "Actions"}]) }}
+  {%- set first = namespace(on=true) %}
+  {% for g in v.groups %}{% call tb.group(g.key, g.label, count=g.rows | length, icon=g.icon or none, cls=g.cls) %}
+    {%- for r in g.rows %}{{ ar.agent_row(r, table="pj-agents", project=false, cur=first.on) }}{% set first.on = false %}{% endfor %}
+  {%- endcall %}{% endfor %}
+  {% if not v.groups %}{% call tb.empty() %}No agent runs in {{ v.name }}. <a href="{{ v.base }}/launch" data-pj-launch="{{ v.name }}">Launch an agent</a>{% endcall %}{% endif %}
+  {%- if v.ended %}
+  {% call tb.group("ended", "Ended", count=v.ended_total, open=not v.groups, icon="clock", note="resume a session in a new tmux window") %}
+    {%- for e in v.ended %}{{ ar.ended_row(e, table="pj-agents", project=false, cur=first.on and loop.first, live_cols=true) }}{% endfor %}
+  {%- endcall %}
+  {%- endif %}
+{% endcall %}
+{{ tb.hints([("J K", "move"), ("Enter", "aside"), ("O", "tab"), ("X", "details"), ("E", "read / unread"), ("P", "pin")]) }}
+{%- if v.ended %}
+{{ tb.foot(v.ended | length, v.ended_total, more_href="/?view=ended&q=" ~ (v.name | urlencode), noun="ended sessions") }}
+{%- endif %}

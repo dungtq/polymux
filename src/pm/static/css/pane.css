@@ -1,0 +1,27 @@
+/* Agent page, Pane tab: pane box states + Keys keypad. */
+.pane-wrap { position: relative; }
+.pane-wrap .pane {
+  min-height: 9rem; height: clamp(9rem, 48dvh, 34rem); max-height: none;
+  overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+@supports not (height: 1dvh) { .pane-wrap .pane { height: clamp(9rem, 48vh, 34rem); } }
+.pane-note, .pane-lost { display: none; margin: 0; pointer-events: none; }
+.pane-note { position: absolute; inset: 0; align-items: center; justify-content: center; text-align: center; color: var(--pane-fg); opacity: .75; font-size: var(--fs-s); padding: 10px; }
+.pane-wrap[data-state="loading"] .pane-note-loading,
+.pane-wrap[data-state="empty"] .pane-note-empty { display: flex; }
+.pane-lost { position: absolute; left: var(--s2); right: var(--s2); top: var(--s2); padding: 6px 10px; color: #ff9b94; font-size: var(--fs-s); text-align: center; }
+.pane-wrap[data-conn="lost"] .pane-lost { display: block; }
+.pane-wrap[data-conn="lost"] .pane { opacity: .6; }
+.pane-jump { position: absolute; right: 12px; bottom: 12px; z-index: 1; background: var(--bg); }
+.pane-jump[hidden] { display: none; }
+/* Keys: wrapped grid, tap targets >= 40px */
+.keypad-wrap { margin: 6px 0; }
+.keypad-wrap > summary { min-height: 40px; display: flex; align-items: center; color: var(--accent); }
+.keypad { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.keygroup { display: flex; flex-wrap: wrap; gap: var(--s1); align-items: center; }
+.keygroup-h { flex: 0 0 4.6rem; font-size: var(--fs-s); color: var(--muted); line-height: 1.1; }
+.keyform { margin: 0; }
+.keybtn { min-height: 40px; min-width: 40px; padding: 0 var(--s2); }
+@media (max-width: 699px) { .keygroup-h { flex-basis: 100%; } }
+.tabpanel-pane .tools { flex-wrap: wrap; overflow-x: visible; }
+.tabpanel-pane .tools button, .tabpanel-pane .tools select { min-height: 40px; }

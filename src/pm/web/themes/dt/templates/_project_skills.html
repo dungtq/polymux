@@ -1,0 +1,33 @@
+{#- dt override of the core's Skills fragment (GET /p/<name>/view/skills, pm.web.routes.projectdocs; a direct visit
+    lands on /p/<name>#view=skills). The project view's Docs › Skills: a Local | Global view toggle (.p-seg buttons,
+    aria-pressed; js/project.js [data-pjk-scope]) over one grid table per scope (Skill · Source · Description). A row
+    (click, ↵: event pj:skill) opens that SKILL.md in the reader aside (GET /p/<name>/skill/<scope>/<src>/<skill>,
+    dt _project_doc.html); its href is the same URL (a direct visit lands on /p/<name>#skill=...). Context: skills
+    {local, global: [{name, src, desc}]}, base. -#}
+{%- import "parts/_table.html" as tb -%}
+{%- set scopes = (("local", "Local", "This project"), ("global", "Global", "Home (every project)")) -%}
+<div class="pjk" data-pjk>
+<div class="p-tools">
+  <span class="p-seg" role="group" aria-label="Skill scope">
+    {%- for key, label, title in scopes %}<button type="button" data-pjk-scope="{{ key }}" aria-pressed="{{ 'true' if loop.first else 'false' }}" title="{{ title }}">{{ label }} <span class="c">{{ skills[key] | length }}</span></button>{% endfor -%}
+  </span>
+</div>
+{%- for key, label, title in scopes %}
+<div data-pjk-grp="{{ key }}"{% if not loop.first %} hidden{% endif %}>
+{% call tb.table("pj-sk-" ~ key, label ~ " skills", cls="pjk-list", list="pj-sk-" ~ key, keys={"enter": "event:pj:skill", "o": "href"},
+                 labels={"enter": "Read in the reader aside", "o": "Open the SKILL.md"}) %}
+  {{ tb.gh([{"label": "Skill"}, {"label": "Source", "cls": "hide-s"}, {"label": "Description", "cls": "hide-n"}]) }}
+  {%- for k in skills[key] %}
+  {%- set url = base ~ "/skill/" ~ key ~ "/" ~ (k.src | urlencode) ~ "/" ~ (k.name | urlencode) %}
+  {% call tb.row(key ~ ":" ~ k.src ~ ":" ~ k.name, href=url, cur=loop.first, title=k.desc or k.name, attrs={"data-pj-skill": url, "data-pj-skill-t": k.name}) %}
+    {% call tb.name(k.name) %}{% endcall %}
+    {% call tb.cell("muted hide-s") %}{{ k.src }}{% endcall %}
+    {% call tb.cell("muted hide-n pjk-d") %}{{ k.desc }}{% endcall %}
+    {% call tb.meta() %}{{ k.src }}{% if k.desc %} · {{ k.desc }}{% endif %}{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {%- if not skills[key] %}{{ tb.empty("No " ~ label | lower ~ " skills.") }}{% endif %}
+{% endcall %}
+</div>
+{%- endfor %}
+</div>

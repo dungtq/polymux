@@ -1,0 +1,17 @@
+{#- Sessions list: the inside of #x-sess, rendered in the sidebar and as the /dt/side fragment (innerHTML swap).
+    Context: shell. One <details> per project, one row per live agent: open-in-tab dot, state dot (+ title and a
+    .vh word), agent id truncated from the left (L-4; the window name only in title / data-title), age. The age is
+    server text at render time (SessRow.age, shell.py); ticker.js keeps it current from data-since (epoch seconds). -#}
+{%- for g in shell.groups %}
+<details class="x-sg" data-project="{{ g.project }}" open>
+  <summary title="{{ g.project }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#down"/></svg><span class="ell">{{ g.project }}</span><span class="x-sgn" aria-label="{{ g.rows | length }} sessions">{{ g.rows | length }}</span></summary>
+  {%- for r in g.rows %}
+  <a class="x-sr{{ ' cur' if r.cur }}" href="{{ r.href }}" data-sess-id="{{ r.id }}" data-sess-kind="{{ r.kind }}" data-label="{{ r.label }}"{% if r.title %} data-title="{{ r.title }}"{% endif %} data-since="{{ r.since or '' }}"{% if r.cur %} aria-current="page"{% endif %} title="{% if r.title %}{{ r.title }} · {% endif %}{{ r.id }} · {{ r.state }}">
+    {%- if r.open %}<i class="x-open" aria-hidden="true"></i>{% endif -%}
+    <i class="dot {{ r.state }}" aria-hidden="true"></i><span class="nm sfx"><bdi>{{ r.label }}</bdi></span>
+    <span class="vh">, {{ r.state }}{{ ", open in a tab" if r.open }}</span><span class="a" data-age>{{ r.age }}</span></a>
+  {%- endfor %}
+</details>
+{%- else %}
+<p class="x-snone">No agents running. <a href="/launch">Launch one</a></p>
+{%- endfor %}

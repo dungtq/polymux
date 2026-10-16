@@ -1,0 +1,37 @@
+/* Needs-you inbox: one line per agent, dot + age + project + name/question + state. */
+.nlist { border-top: 1px solid var(--line); }
+.nrow, .nhead { display: grid; gap: 0 var(--s2); align-items: center; min-height: var(--row-h); padding: 3px 2px; border-bottom: 1px solid var(--line); color: inherit; white-space: nowrap; font-size: var(--fs-s); }
+.nhead { min-height: 24px; padding-top: 2px; padding-bottom: 2px; color: var(--muted); border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); margin-top: var(--s1); }
+.nrow:hover { background: var(--hover); text-decoration: none; }
+.nrow > span, .nhead > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nrow .n-dot { overflow: visible; display: flex; }
+.nrow .n-age, .nrow .n-state, .nrow .n-res { font-variant-numeric: tabular-nums; }
+.nrow .n-state, .nhead .n-state { text-align: right; }
+.nrow .n-main strong { font-size: var(--fs-m); font-weight: 400; }
+.n-q { color: var(--muted); }
+.row-waiting .n-q { color: var(--waiting); }  /* pending question: Inbox and project page rows */
+.row-idle, .row-unknown { color: inherit; }
+.nrow.row-idle .n-main, .nrow.row-unknown .n-main { color: var(--muted); }
+/* launch entry: header button on desktop, plain floating "+" on phones */
+.fab { display: none; }
+@media (max-width: 699px), (pointer: coarse) {
+  .fab { display: flex; position: fixed; right: var(--s3); z-index: 6; width: 44px; height: 44px; align-items: center; justify-content: center;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--ctl-line); border-radius: 50%; font-size: 1.5rem; line-height: 1;
+    bottom: calc(var(--tab-h) + var(--s3) + env(safe-area-inset-bottom)); }
+  .fab:hover { text-decoration: none; background: var(--hover); }
+  .launch-btn { display: none; }
+}
+
+.inbox-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--s3); }
+/* row actions (idle: exit; ended: resume) live in the expanded detail panel under the row (.n-detail, see rowx.js); no trailing column */
+.nwrap { display: flex; flex-wrap: wrap; align-items: stretch; border-bottom: 1px solid var(--line); }
+.nwrap > a { border-bottom: 0; }
+.nwrap > a { flex: 1 1 auto; min-width: 0; }
+.n-detail .n-exit { flex: none; margin: 0; display: flex; align-items: center; background: none; }
+.nwrap:hover:not(:has(> a.v5-active)), .nwrap:focus-within:not(:has(> a.v5-active)) { background: var(--hover); }
+.nwrap:has(> a.v5-active) { background: var(--accent-soft); }
+.nwrap:hover > a { text-decoration: none; }
+.n-exit .linkbtn { min-height: 28px; padding: 0 var(--s1); }
+@media (hover: none), (pointer: coarse) { .n-exit .linkbtn { min-height: 36px; padding: 0 var(--s2); } }
+.nrow.row-ended .n-main { color: var(--muted); }
+.nrow .n-res, .nhead .n-res { text-align: right; }

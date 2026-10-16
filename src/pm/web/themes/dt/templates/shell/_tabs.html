@@ -1,0 +1,22 @@
+{#- Tab strip (SHELL.md §4, DESIGN.md §6.1, LAYOUT.md §2): the whole nav#x-tabs, rendered in the top bar and as the
+    /dt/tabs fragment (swap it whole, outerHTML). Context: shell. The home tab (current page, never closes) is first;
+    its title on a /dt/tabs fragment is the page that asked (shell.home). Session tabs: state dot (terminal: icon),
+    name truncated from the left (L-5), close button (keyboard: Alt+W, so it is not a Tab stop).
+    Each tab is a div.x-tab[role=presentation] (kind / id hooks) holding the a[role=tab] link and, beside it (never
+    inside: no button in a link), the close button. Roving tabindex: only the current tab's link is a Tab stop;
+    tabs.js moves focus with the arrow keys, Home and End. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set h = shell.home -%}
+<nav id="x-tabs" class="x-tabs" role="tablist" aria-label="Open tabs" data-rev="{{ shell.rev }}">
+  <div class="x-tab home{{ ' on' if h.cur }}" role="presentation" data-tab-kind="home" data-tab-id=""><a role="tab" href="{{ h.href }}" aria-selected="{{ 'true' if h.cur else 'false' }}" tabindex="{{ '0' if h.cur else '-1' }}"{% if h.cur %} aria-current="page"{% endif %} title="{{ h.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ h.icon or 'inbox' }}"/></svg><span class="nm ell">{{ h.title }}</span></a></div>
+  {%- for t in shell.tabs %}
+  {%- set st = "read-only terminal" if t.kind == "term" and t.state != "ended" else (t.state or "unknown") %}
+  <div class="x-tab{{ ' term' if t.kind == 'term' }}{{ ' ended' if t.state == 'ended' }}{{ ' on' if t.cur }}" role="presentation" data-tab-kind="{{ t.kind }}" data-tab-id="{{ t.id }}"{% if t.agent_kind %} data-kind="{{ t.agent_kind }}"{% endif %}>
+    <a role="tab" href="{{ t.href }}" aria-selected="{{ 'true' if t.cur else 'false' }}" tabindex="{{ '0' if t.cur else '-1' }}"{% if t.cur %} aria-current="page"{% endif %} title="{{ t.title }} · {{ st }}">
+      {%- if t.kind == "term" %}<svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}tmux"/></svg>{% else %}<i class="dot {{ t.state or 'unknown' }}" aria-hidden="true"></i>{% endif -%}
+      <span class="nm sfx"><bdi>{{ t.title }}</bdi></span><span class="vh">, {{ st }}</span></a>
+    <button class="cl" type="button" data-act="tabclose" tabindex="-1" aria-label="Close {{ t.title }}" title="Close tab" data-k-title="alt+W"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  {%- endfor %}
+  <button class="x-ib x-newtab" type="button" data-act="tabnew" aria-label="Open a session in a new tab" title="Open a session" data-k-title="mod+P"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg></button>
+</nav>

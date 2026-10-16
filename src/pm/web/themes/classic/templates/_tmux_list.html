@@ -1,0 +1,36 @@
+{% from "_macros.html" import prot_lock with context %}
+{% from "_agentname.html" import agent_name as agent_name_x %}
+{% from "_sortbar.html" import hc %}
+{% from "_limitbar.html" import limitbar %}
+{# kill control: a real form whose confirm field is filled by the dialog (typed confirm in dialog.js) #}
+{% macro kill_form(csrf, url, label, expect, attached) %}
+<form class="inline kill" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#flash" hx-swap="innerHTML">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="confirm" value="">
+  {% if attached %}<input type="hidden" name="force_attached" value="1" disabled>{% endif %}
+  <button type="button" class="danger small" data-dlg-open="kill-dialog" data-kill-open data-label="{{ label }}" data-expect="{{ expect }}"{% if attached %} data-attached="1"{% endif %}>Kill</button>
+</form>
+{% endmacro %}
+<div class="list" role="list">
+<div class="hrow srowhead" role="presentation">{{ hc(cols.main, "c-main", true) }}{{ hc(cols.age, "c-age", true) }}{{ hc(cols.agents, "c-agents", true) }}{{ hc(cols.act, "c-act", true) }}</div>
+{% for s in sessions %}
+{% set killable = (not s.protected) and s.id != own_sid %}
+{% set info = sess_info[s.id] %}
+<div class="srowwrap" data-session="{{ s.id }}" id="sess-s{{ s.id[1:] }}" data-key="t-{{ s.id }}" data-q="{{ s | session_q(info.agents) }}"{% if s.id != open_sid %} data-frow{% endif %}>
+<details class="sessrow"{% if s.id == open_sid %} open data-focus{% endif %}>
+  <summary class="lrow srow">
+    <span class="c-main"><strong>{{ prot_lock(s) }}<a class="sess-link" href="/tmux/{{ s.id | urlid }}" title="Open session {{ s.name }}">{{ s.name }}</a></strong>
+      {% if s.id == own_sid %}<span class="badge">pm</span>{% endif %}</span>
+    <span class="c-age muted">{{ info.windows }}w &middot; {{ info.panes }}p &middot; {{ s.attached }} attached</span>
+    <span class="c-agents">{% if info.agents %}{{ agent_name_x(info.agents[0], dot=True) }}{% if info.agents | length > 1 %}<span class="gplus muted" title="{% for a in info.agents[1:] %}{{ a.id }}{{ ', ' if not loop.last }}{% endfor %}">+{{ info.agents | length - 1 }}</span>{% endif %}{% endif %}</span>
+    <span class="c-act muted">{% if info.last %}{{ info.last | ago }}<span class="stamp">{{ info.last | ts }}</span>{% endif %}</span>
+  </summary>
+  <div class="sess-body">
+  {% if killable %}<div class="sess-actions">{{ kill_form(csrf, "/tmux/session/" ~ (s.id | urlid) ~ "/kill", "session " ~ s.name, s.name, s.attached) }}</div>{% endif %}
+  {% set session = s %}{% set rows = sess_rows[s.id] %}{% set sid_url = s.id | urlid %}{% include "_tmux_session_rows.html" %}
+  </div>
+</details>
+</div>
+{% else %}<p class="muted">No tmux sessions.</p>{% endfor %}
+</div>
+{{ limitbar(limit_links, limit_shown, limit_total, limit_path, keep_all) }}

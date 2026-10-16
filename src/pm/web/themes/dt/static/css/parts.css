@@ -1,0 +1,258 @@
+/* dt shared page parts (DESIGN.md §6.2-6.6, §6.10; LAYOUT.md §4): page head (.p-head), flat tabs (.p-tabs), controls
+   row (.p-tools), segments (.p-seg), filter box (.p-fbox), switch (.sw in .p-swl), select (select.sel), ⋯ trigger
+   (.p-mbtn = .x-ib.sm), attachment chip (.chip.att, js/attach.js), section heading (h2.p-h2), check row (.p-chk),
+   meters (.p-sum/.p-m/progress.bar), status line (.p-status/.p-attn). Markup: templates/parts/_*.html, contract
+   docs/themes/dt/PARTS.md. Grid table: table.css.
+   Tokens only. Selectors carry an element or a second class where classic globals (button, select, input, a:hover,
+   loaded by shell/_classic.html) would otherwise win; phone weights: classic-fix.css. */
+
+/* ---------- page head: h1 + stats line left, actions right (at most one .pri) ---------- */
+.p-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s3);min-height:var(--ib);
+  margin:0 0 var(--s3)}
+.p-head h1{display:block;width:auto;margin:0;padding:0;border:0;font-size:var(--fs-h1);font-weight:600;line-height:1.3;
+  white-space:nowrap}
+.p-stats{flex:0 1 auto;min-width:0;margin:0;overflow:hidden;color:var(--muted);font-size:var(--fs-ui);
+  text-overflow:ellipsis;white-space:nowrap}
+.p-acts{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;margin-left:auto}
+/* state words in a stats line, a count (.c) or a cell: colour + the word itself, never colour alone */
+:is(.p-stats,.p-gr,.p-grp) .warn,.c.warn{color:var(--waiting)}
+:is(.p-stats,.p-gr,.p-grp) .bad,.c.bad{color:var(--failed)}
+:is(.p-stats,.p-gr,.p-grp) .ok{color:var(--ok-fg)}
+.c.warn,.c.bad{font-weight:600}
+
+/* ---------- flat tabs: 36px (touch 44px), selected = fg 600 + 2px accent underline inset ---------- */
+.p-tabs{display:flex;gap:2px;margin:0 0 var(--s3);overflow-x:auto;overflow-y:hidden;border-bottom:1px solid var(--line);
+  scrollbar-width:none;overscroll-behavior-x:contain}
+.p-tabs::-webkit-scrollbar{display:none}
+.p-tabs [role=tab]{position:relative;display:inline-flex;align-items:center;gap:var(--s2);flex:0 0 auto;
+  height:calc(var(--ib) + var(--s1));min-width:0;min-height:0;margin:0;padding:0 var(--s3);border:0;border-radius:0;
+  background:none;color:var(--muted);font:inherit;font-size:var(--fs-m);font-weight:400;white-space:nowrap;
+  text-decoration:none;cursor:pointer}
+.p-tabs [role=tab]:hover{background:none;color:var(--fg);text-decoration:none}
+.p-tabs [role=tab]:focus-visible{outline-offset:-2px}
+.p-tabs [role=tab][aria-selected=true]{color:var(--fg);font-weight:600}
+.p-tabs [role=tab][aria-selected=true]::after{content:"";position:absolute;left:var(--s2);right:var(--s2);bottom:0;
+  height:2px;border-radius:2px;background:var(--accent)}
+/* the label keeps the width of its 600 copy (hidden, data-t), so labels never move when the selection changes */
+.p-tabs .t{display:inline-flex;flex-direction:column;align-items:center}
+.p-tabs .t::after{content:attr(data-t);height:0;overflow:hidden;visibility:hidden;font-weight:600;
+  pointer-events:none;user-select:none}
+.p-tabs svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.p-tabs .c{color:var(--muted);font-size:var(--fs-s);font-weight:400;font-variant-numeric:tabular-nums}
+.p-tabs .c.bad{color:var(--failed);font-weight:600}
+/* a sliver of an item cut at a scrolled strip's start edge (js/parts.js): transparent, still focusable and read */
+:is(.p-tabs,.p-seg)>.p-cut{opacity:0}
+
+/* ---------- controls row: filter box first (flexible), then segments, switches, selects at the far right ---------- */
+.p-tools{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);margin:0 0 var(--s3)}
+.p-tools .note{color:var(--muted);font-size:var(--fs-ui)}
+/* what follows the spacer stays at the right also when it wraps onto a line of its own (never a lone control at
+   the left); a narrow page column gives the filter box the whole first line */
+.p-tools>.sp+*{margin-left:auto}
+@container pg (max-width:760px){
+  .p-tools>.p-fbox{flex-basis:100%}
+}
+
+/* ---------- filter box: icon, input (30px; touch 40px, 16px text), in-field clear only with text ---------- */
+.p-fbox{position:relative;display:flex;align-items:center;flex:1 1 var(--acct-w);min-width:var(--tab-min)}
+.p-fbox>svg.i{position:absolute;left:var(--s2);width:var(--icon-sm);height:var(--icon-sm);color:var(--muted);
+  pointer-events:none}
+.p-fbox input[type=search]{flex:1 1 auto;width:100%;min-width:0;max-width:none;height:var(--ctl-h);min-height:0;
+  margin:0;padding:0 calc(var(--ib-sm) + var(--s1)) 0 calc(var(--s2) * 2 + var(--icon-sm));
+  border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);font:inherit;
+  font-size:var(--fs-in);box-shadow:none;-webkit-appearance:none;appearance:none}
+.p-fbox input[type=search]:focus{border-color:var(--accent);outline:0}
+.p-fbox input[type=search]:focus-visible{outline:2px solid var(--accent);outline-offset:0}
+.p-fbox input[type=search]::-webkit-search-cancel-button{display:none;-webkit-appearance:none}
+.p-fbox input::placeholder{color:var(--muted);opacity:1}
+.p-fbox .p-fclr{position:absolute;right:var(--s1);display:inline-flex;align-items:center;justify-content:center;
+  width:var(--ib-sm);height:calc(var(--ctl-h) - var(--s2));min-width:0;min-height:0;padding:0;border:0;
+  border-radius:var(--r-xs);background:none;color:var(--muted);cursor:pointer}
+.p-fbox .p-fclr:hover{background:var(--hover);color:var(--fg)}
+.p-fbox .p-fclr svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+.p-fbox input:placeholder-shown~.p-fclr{display:none}
+
+/* ---------- segments: narrowing choices with counts; they filter, never sort ---------- */
+.p-seg{display:inline-flex;flex:0 1 auto;max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--ctl-line);
+  border-radius:var(--r);scrollbar-width:none;overscroll-behavior-x:contain}
+.p-seg::-webkit-scrollbar{display:none}
+/* links (a filter choice: aria-current) or toggle buttons (a view choice: button[aria-pressed]: Detail | Compact) */
+.p-seg>:is(a,button){display:inline-flex;align-items:center;gap:var(--s1);flex:0 0 auto;height:var(--seg-h);
+  min-width:0;min-height:0;margin:0;padding:0 var(--s3);border:0;border-right:1px solid var(--ctl-line);
+  border-radius:0;background:var(--subtle);color:var(--fg);font:inherit;font-size:var(--fs-ui);font-weight:400;
+  line-height:1;white-space:nowrap;text-decoration:none}
+.p-seg>button{cursor:pointer}
+.p-seg>:is(a,button):last-child{border-right:0}
+.p-seg>:is(a,button):hover{background:var(--hover);text-decoration:none}
+.p-seg>:is(a[aria-current],button[aria-pressed=true]){background:var(--accent-soft);font-weight:600}
+.p-seg>:is(a,button):focus-visible{outline-offset:-2px}
+.p-seg .c{color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+
+/* ---------- switch: 34x20 (touch 44x26), on = green; label text beside it ---------- */
+.p-swl{display:inline-flex;align-items:center;gap:var(--s2);flex:0 0 auto;margin:0;color:var(--fg);
+  font-size:var(--fs-ui);white-space:nowrap;cursor:pointer}
+.p-swl .c{color:var(--muted);font-variant-numeric:tabular-nums}
+.p-swl:has(.sw:disabled){opacity:.55;cursor:not-allowed}
+button.sw{position:relative;flex:0 0 var(--sw-w);width:var(--sw-w);height:var(--sw-h);min-width:0;min-height:0;
+  margin:0;padding:0;border:1px solid var(--muted);border-radius:var(--r-pill);background:var(--subtle);cursor:pointer;
+  transition:background var(--t-fast),border-color var(--t-fast)}
+button.sw:hover{background:var(--hover)}
+button.sw::after{content:"";position:absolute;left:2px;top:2px;width:calc(var(--sw-h) - 6px);
+  height:calc(var(--sw-h) - 6px);border-radius:50%;background:var(--muted);transition:transform var(--t-fast)}
+button.sw[aria-checked=true]{border-color:var(--btn-green);background:var(--btn-green)}
+button.sw[aria-checked=true]::after{background:var(--on-accent);transform:translateX(calc(var(--sw-w) - var(--sw-h)))}
+button.sw:disabled{cursor:not-allowed}
+
+/* ---------- colour input (Settings colours): a small swatch box ---------- */
+input[type=color]:not(.x-cl *){width:calc(var(--ctl-h) + var(--s2));height:var(--ctl-h-sm);min-height:0;margin:0;
+  padding:0 2px;border:1px solid var(--ctl-line);border-radius:var(--r-xs);background:var(--page);cursor:pointer}
+
+/* ---------- touch hit area (README A20, LAYOUT §3): a control drawn smaller than --hit keeps its look and is a
+   --hit target on touch. button.sw and .p-hit (any small icon button, e.g. a tag's ×) get an invisible ::before of
+   at least --hit around their centre (.sw's knob is ::after); a colour input moves its border to the swatch and pads
+   to --hit; a plain link in running text (p, empty-list line) pads vertically (inline: the lines do not move).
+   Classic content (.x-cl) keeps the classic sizes (V7-ISO-10). ---------- */
+@media (pointer:coarse){
+  :is(button.sw,.p-hit){position:relative}
+  :is(button.sw,.p-hit)::before{content:"";position:absolute;left:50%;top:50%;width:max(100%,var(--hit));
+    height:max(100%,var(--hit));transform:translate(-50%,-50%)}
+  input[type=color]:not(.x-cl *){height:var(--hit);padding:calc((var(--hit) - var(--ctl-h-sm)) / 2) 0;
+    border-color:transparent;background:none}
+  input[type=color]:not(.x-cl *)::-webkit-color-swatch-wrapper{padding:0}
+  input[type=color]:not(.x-cl *)::-webkit-color-swatch{border:1px solid var(--ctl-line);border-radius:var(--r-xs)}
+  input[type=color]:not(.x-cl *)::-moz-color-swatch{border:1px solid var(--ctl-line);border-radius:var(--r-xs)}
+  :is(p,.p-empty):not(.x-cl *) a[href]:not([class]){padding:calc((var(--hit) - 1em) / 2) 0}
+}
+
+/* ---------- select: 30px (touch 40px), native arrow ---------- */
+select.sel{display:inline-block;flex:0 0 auto;width:auto;min-width:0;max-width:100%;height:var(--ctl-h);min-height:0;
+  margin:0;padding:0 var(--s2);border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);
+  color:var(--fg);font:inherit;font-size:var(--fs-in);cursor:pointer}
+select.sel:focus-visible{outline:2px solid var(--accent);outline-offset:0}
+select.sel:disabled{opacity:.55;cursor:not-allowed}
+
+/* ---------- ⋯ trigger (row actions, page head): the shell's small icon button; pm7.menu draws the menu ---------- */
+.p-mbtn[aria-expanded=true]{background:var(--hover);color:var(--fg)}
+
+/* ---------- phone (< 700px): h1 in the top bar; the head's actions become icon buttons at the top right of the
+   next block (the controls row or the tabs), which keeps room for them (--p-acts-w); any other next block gets
+   them on a row of their own ---------- */
+@media (max-width:699px){
+  .p-head{display:block;position:relative;min-height:0;margin:0}
+  .p-head h1{display:none}
+  .p-stats{display:block;padding-bottom:var(--s2);font-size:var(--fs-s);white-space:normal}
+  .p-acts{position:absolute;top:100%;right:0;gap:var(--s1)}
+  .p-head:not(:has(+:is(.p-tools,.p-tabs))) .p-acts{position:static;justify-content:flex-end;margin-bottom:var(--s2)}
+  .p-acts>.x-btn{width:var(--ib);height:var(--ib);padding:0}
+  .p-acts>.x-btn svg.i{width:var(--icon);height:var(--icon)}
+  .p-acts>.x-btn .lb{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  /* room for the shown actions only (a [hidden] one, e.g. Mark all read with nothing unread, takes none) */
+  .p-head:has(.p-acts>:nth-child(1 of :not([hidden])))+*{--p-acts-w:calc(var(--ib) + var(--s2))}
+  .p-head:has(.p-acts>:nth-child(2 of :not([hidden])))+*{--p-acts-w:calc(var(--ib) * 2 + var(--s1) + var(--s2))}
+  .p-head:has(.p-acts>:nth-child(3 of :not([hidden])))+*{--p-acts-w:calc(var(--ib) * 3 + var(--s1) * 2 + var(--s2))}
+  .p-head+.p-tools>.p-fbox:first-child{margin-right:var(--p-acts-w,0px)}
+  .p-tabs{margin-left:calc(-1 * var(--s4));margin-right:calc(-1 * var(--s4));padding:0 var(--s2)}
+  .p-head:has(.p-acts)+.p-tabs{margin-right:var(--p-acts-w)}
+  .p-fbox{flex:1 1 100%}
+  .p-seg{flex:0 1 auto}
+  /* the "more" fades only while the strip overflows, at an edge it is not scrolled to (.ovf / .beg / .end:
+     js/parts.js); --fade-s / --fade-e = 0 at the start / end */
+  :is(.p-tabs,.p-seg).ovf{--fade-s:var(--s5);--fade-e:var(--s5);
+    mask-image:linear-gradient(to right,transparent,var(--fg) var(--fade-s),var(--fg) calc(100% - var(--fade-e)),
+      transparent)}
+  :is(.p-tabs,.p-seg).ovf.beg{--fade-s:0px}
+  :is(.p-tabs,.p-seg).ovf.end{--fade-e:0px}
+}
+
+/* ---------- chips that label a fact (DESIGN §6.14): colour + the word itself, never the state dot's job ---------- */
+.chip.warn{border-color:var(--waiting);color:var(--waiting)}
+.chip.bad{border-color:var(--failed);color:var(--failed)}
+.chip.ok{border-color:var(--ok-fg);color:var(--ok-fg)}
+
+/* ---------- attachment chip (js/attach.js: Launch prompt, Add issue): name + ×; .up uploading, .bad ---------- */
+.chip.att{gap:2px;max-width:var(--field-w);height:var(--tag-h);padding:0 0 0 var(--s2);background:var(--subtle);
+  color:var(--fg);font-size:var(--fs-s)}
+.chip.att>button.x-ib.sm{min-width:var(--tag-h);height:100%;border-radius:var(--r-pill)}
+.chip.att.up{color:var(--muted)}
+.chip.att.up::after{content:"…";padding-right:var(--s2)}
+.chip.att.up>.x-ib{display:none}
+.chip.att.bad{border-color:var(--failed);color:var(--failed-fg)}
+@media (pointer:coarse){.chip.att>button.x-ib.sm{min-width:var(--ib);height:auto;align-self:stretch}}
+
+/* ---------- section heading (h2.p-h2): a block inside a page or tab; .c = muted count or note, .note = muted text
+   that ellipsizes, .sp = spacer before a control (a .p-seg: then the heading wraps and centres); the first one in
+   its box has no top margin ---------- */
+h2.p-h2{display:flex;align-items:baseline;gap:var(--s2);min-width:0;margin:var(--s5) 0 var(--s2);padding:0;border:0;
+  color:var(--fg);font-size:var(--fs-m);font-weight:600;line-height:1.3}
+h2.p-h2:first-child{margin-top:0}
+h2.p-h2:has(>.p-seg){flex-wrap:wrap;align-items:center}
+.p-h2>.c{color:var(--muted);font-size:var(--fs-ui);font-weight:400;font-variant-numeric:tabular-nums}
+.p-h2>.note{min-width:0;overflow:hidden;color:var(--muted);font-size:var(--fs-ui);font-weight:400;
+  text-overflow:ellipsis;white-space:nowrap}
+.p-h2>.sp{flex:1 1 auto}
+.p-h2>.p-seg{font-weight:400}
+
+/* ---------- check row (label.p-chk > input[type=checkbox] + text): an option in a dialog or form; the whole label is
+   the target (--hit on touch); .off = not available here ---------- */
+.p-chk{display:flex;align-items:center;gap:var(--s2);min-height:var(--row-side-h);margin:0;font-size:var(--fs-ui)}
+.p-chk>span{min-width:0;overflow-wrap:anywhere}
+.p-chk.off{opacity:.55}
+label.p-chk input[type=checkbox],label.p-chk input[type=checkbox]:focus{display:inline-block;flex:0 0 auto;
+  width:var(--icon-sm);height:var(--icon-sm);margin:0;padding:0;border:0;box-shadow:none;accent-color:var(--accent)}
+label.p-chk input[type=checkbox]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (pointer:coarse){.p-chk{min-height:var(--hit)}}
+
+/* ---------- meters (DESIGN §6.7, parts/_meter.html): auto-fill cells of --meter-w (two columns on phones); label,
+   value 1.125rem/600 (+ small), a 4px bar (<progress>: no inline style) in --lvl-*, sub line; a.p-m = a link */
+.p-sum{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--meter-w),1fr));margin:0 0 var(--s4);
+  overflow:hidden;border:1px solid var(--line);border-radius:var(--r)}
+.p-sum.one{grid-template-columns:minmax(0,1fr)}
+.p-m{display:block;min-width:0;margin:0 -1px -1px 0;padding:var(--s2) var(--s3) var(--s3);
+  border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);color:var(--fg)}
+a.p-m,a.p-m:hover{color:var(--fg);text-decoration:none}
+a.p-m:hover{background:var(--hover)}
+a.p-m:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.p-m>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p-m .l,.p-m .s{color:var(--muted);font-size:var(--fs-s)}
+.p-m .v{font-size:var(--fs-xl);font-weight:600;line-height:1.35;font-variant-numeric:tabular-nums}
+.p-m .v small{margin-left:var(--s1);color:var(--muted);font-size:var(--fs-s);font-weight:400}
+.p-m.na .v{color:var(--muted)}
+.p-m.warn .v{color:var(--waiting)}
+.p-m.red .v{color:var(--failed)}
+progress.bar{display:block;width:100%;height:var(--bar-h);margin:var(--s1) 0;padding:0;border:0;
+  border-radius:var(--bar-h);background:var(--line2);color:var(--lvl-ok);overflow:hidden;vertical-align:middle;
+  -webkit-appearance:none;appearance:none}
+progress.bar::-webkit-progress-bar{background:var(--line2);border-radius:var(--bar-h)}
+progress.bar::-webkit-progress-value{background:var(--lvl-ok);border-radius:var(--bar-h)}
+progress.bar::-moz-progress-bar{background:var(--lvl-ok);border-radius:var(--bar-h)}
+progress.bar.warn::-webkit-progress-value{background:var(--lvl-warn)}
+progress.bar.warn::-moz-progress-bar{background:var(--lvl-warn)}
+progress.bar.red::-webkit-progress-value{background:var(--lvl-red)}
+progress.bar.red::-moz-progress-bar{background:var(--lvl-red)}
+progress.bar.in{display:inline-block;width:var(--bar-in-w);margin:0 0 0 var(--s2)}
+progress.bar.in::-webkit-progress-value{background:var(--accent)}
+progress.bar.in::-moz-progress-bar{background:var(--accent)}
+@media (max-width:699px){.p-sum:not(.one){grid-template-columns:1fr 1fr}}
+
+/* ---------- status line + attention list (parts/_status.html): the verdict, then what is worth a look ---------- */
+.p-status{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);margin:0 0 var(--s3);
+  font-size:var(--fs-m)}
+.p-status .w{font-weight:600}
+.p-status .w.ok{color:var(--ok-fg)}.p-status .w.warn{color:var(--waiting)}.p-status .w.bad{color:var(--failed)}
+.p-status .n{min-width:0;color:var(--muted);font-size:var(--fs-ui)}
+.p-attn{margin:0 0 var(--s4);overflow:hidden;border:1px solid var(--line);border-radius:var(--r)}
+.p-attn>div+div{border-top:1px solid var(--line2)}
+.p-attn-i{display:flex;align-items:center;gap:var(--s2) var(--s3);min-height:var(--row-h);
+  padding:var(--s1) var(--s3);color:var(--fg);font-size:var(--fs-ui)}
+a.p-attn-i,a.p-attn-i:hover{color:var(--fg);text-decoration:none}
+a.p-attn-i:hover{background:var(--hover)}
+a.p-attn-i:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.p-attn-i>svg.i{flex:0 0 var(--icon-sm);width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.p-attn-i.warn>svg.i{color:var(--waiting)}
+.p-attn-i.bad>svg.i{color:var(--failed)}
+.p-attn-i .t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p-attn-i .go{flex:0 0 auto;color:var(--accent);white-space:nowrap}
+@media (max-width:699px){
+  .p-attn-i{min-height:var(--hit)}
+  .p-attn-i .t{white-space:normal}
+}

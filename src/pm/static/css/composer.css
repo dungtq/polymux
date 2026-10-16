@@ -1,0 +1,224 @@
+/* The one composer (templates/_composer_macros.html, static/js/composer*.js). Tokens only.
+   .composer          the root (data-composer = live | builder | ended | ...)
+   .composer--dock    a fixed bar at the bottom of the viewport (agent page, ended page); composer-dock.js hides it on phones
+                      (body.msgbar-hidden), follows the keyboard (body.kbd, --kb) and keeps --msgbar-h on <body>
+   .composer--flow    in the page flow: the Builder chat pane; quick chat, Launch and Continue sit in their own box (panel
+                      foot, the Launch form, the Continue popup) and drop the pane look ([data-composer=qchat|launch|continue])
+   .composer--ended   an ended session: Resume and send / Fork and send
+   Inside: .cbox (textarea + .cbar), .cicon (icon buttons), .csend (the green square Send; .is-stop = Stop / Interrupt),
+   .cattach chips, .cstat (token status + actions), .mrow (model pill + Exit), notices above (.pmreload, .send-hint). */
+
+/* ---- dock: fixed bar ---- */
+.composer--dock{position:fixed;left:0;right:0;bottom:calc(var(--tab-h) + env(safe-area-inset-bottom));z-index:4;box-sizing:border-box;
+  background:var(--bg);padding:var(--s2) max(var(--s3),calc((100% - 960px) / 2 + var(--s3))) calc(16px + env(safe-area-inset-bottom))}
+@media (min-width:700px){
+  .composer--dock{margin:0 auto;max-width:960px;padding-left:24px;padding-right:24px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+}
+@media (min-width:700px) and (pointer:fine){.composer--dock{bottom:0}}
+body.kbd .composer--dock{padding-bottom:10px}
+/* a menu or sheet open in the bar (model, snippets) must cover the page's floating bits (jump rail, notices) */
+.composer--dock:has(.pop:not([hidden])),.composer--dock:has(.slash-list:not([hidden])){z-index:var(--z-sheet)}
+/* the page keeps room under its content for the bar (no grey strip: the white column carries it) */
+body:has(.composer--dock){padding-bottom:0}
+body:has(.composer--dock) main{padding-bottom:calc(var(--msgbar-h,130px) + var(--s3) + env(safe-area-inset-bottom))}
+/* the page's own notices (#flash and its <p class="flash">, fixed on its own: base.css) sit just above the bar */
+body:has(.composer--dock) #flash,body:has(.composer--dock) #flash>.flash{bottom:calc(var(--msgbar-h,130px) + var(--s2))}
+@media (pointer:coarse),(max-width:699px){
+  body:has(.composer--dock){padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom))}
+  body:has(.composer--dock) main{padding-bottom:calc(var(--msgbar-h,130px) + var(--s3))}
+  body:has(.composer--dock) #flash,body:has(.composer--dock) #flash>.flash{bottom:calc(var(--msgbar-h,130px) + var(--tab-h) + var(--s2) + env(safe-area-inset-bottom))}
+  /* auto-hide (composer-dock.js); no transform while shown: a transformed bar would hold the fixed menus and sheets inside it */
+  .composer--dock{transition:transform .2s ease,visibility 0s}
+  body.msgbar-hidden .composer--dock{transform:translateY(calc(100% + var(--kb,0px) + var(--tab-h) + 24px));visibility:hidden;pointer-events:none;
+    transition:transform .2s ease,visibility 0s .2s}
+  body.msgbar-hidden:has(.composer--dock){padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom))}
+  body.msgbar-hidden:has(.composer--dock) main{padding-bottom:var(--s3)}
+  body.msgbar-hidden:has(.composer--dock) #flash,body.msgbar-hidden:has(.composer--dock) #flash>.flash{bottom:calc(var(--tab-h) + var(--s2) + env(safe-area-inset-bottom))}
+  body.kbd .composer--dock{bottom:var(--kb,0px)}
+  body.kbd .tabbar{display:none}
+  body.kbd .composer .cstat,body.kbd .composer .mrow{display:none}
+}
+@media (prefers-reduced-motion:reduce){.composer--dock,body.msgbar-hidden .composer--dock{transition:none}}
+/* the drawer iframe (?embed=1): no bottom nav, the bar is full width */
+.v5-embed .composer--dock{bottom:0;max-width:none;padding-left:12px;padding-right:12px;border-left:0;border-right:0}
+body.embed:has(.composer--dock),.v5-embed body:has(.composer--dock){padding-bottom:0}
+body.embed.msgbar-hidden:has(.composer--dock),.v5-embed body.msgbar-hidden:has(.composer--dock){padding-bottom:env(safe-area-inset-bottom)}
+body.embed:has(.composer--dock) #flash,body.embed:has(.composer--dock) #flash>.flash,.v5-embed body:has(.composer--dock) #flash,.v5-embed body:has(.composer--dock) #flash>.flash{bottom:calc(var(--msgbar-h,130px) + var(--s2))}
+/* inside the main column when the sidebar is open */
+@media (min-width:900px){
+  body:has(#v5side) .composer--dock{left:var(--side-w);max-width:none;border-left:0;border-right:0}
+  html.side-collapsed body:has(#v5side) .composer--dock{left:44px}
+  body:has(#v5side) .composer--dock>*{max-width:960px;margin-left:auto;margin-right:auto}
+}
+body:has(#tab-term:checked) .composer--dock{display:none}
+
+/* ---- flow: in the page (Builder chat pane) ---- */
+.composer--flow{flex:none;box-sizing:border-box;margin:0;padding:8px 12px;border-top:1px solid var(--line);background:var(--subtle);max-height:60%;overflow:auto}
+.composer--flow:has(.slash-list){overflow:visible}  /* the slash popup (absolute above the form) is never clipped */
+.cbox>.slash-list{left:-1px;right:-1px}  /* as wide as the box: .cbox's border is outside its padding box */
+.composer--flow .agent-actions{flex-wrap:wrap}
+/* quick chat, Launch, Continue: no pane look (their panel, form or popup is the box); the Launch / Continue key hint */
+.composer:is([data-composer=qchat],[data-composer=launch],[data-composer=continue]){padding:0;border:0;background:none;max-height:none;overflow:visible}
+.cmp-keyhint{padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:699px){
+  .composer--flow{max-height:none;overflow:visible}  /* natural height: Model / Snippets / Exit are never clipped */
+  .composer--flow .cbox textarea{max-height:min(14dvh,88px)}  /* the Send button stays inside the pane */
+}
+
+/* ---- the box: textarea on top, the icon bar under it ---- */
+.composer .cform{position:relative;display:block;margin:0}
+.cbox{position:relative;display:flex;flex-direction:column;box-sizing:border-box;background:var(--bg);border:1px solid var(--ctl-line);
+  border-radius:var(--ctl-radius);padding:8px 10px 6px 12px;transition:border-color .12s}
+.cbox:focus-within{border-color:var(--accent)}  /* one focus ring: the box, not the textarea */
+.composer.is-drop .cbox{border-color:var(--accent);background:var(--accent-soft)}
+.cbox textarea{flex:0 0 auto;display:block;width:100%;box-sizing:border-box;min-height:0;height:auto;max-height:40vh;margin:0;padding:2px 0;
+  border:0;border-radius:0;outline:0;box-shadow:none;background:transparent;color:var(--fg);font-family:var(--chat-font,inherit);
+  line-height:1.45;overflow-y:auto;resize:none}
+.cbox textarea:focus,.cbox textarea:focus-visible{border:0;outline:0;box-shadow:none}
+html[data-compose-size] .cbox textarea{font-size:var(--compose-size)}
+.cbar{display:flex;align-items:center;justify-content:space-between;gap:var(--gap);margin-top:2px}
+.cbar-l,.cbar-r{display:flex;align-items:center;gap:2px}
+.cicon,.csend{width:36px;height:36px;min-width:36px;min-height:36px;padding:0;border:0;border-radius:var(--ctl-radius)}
+.cicon{background:transparent;color:var(--muted)}
+.cicon:hover{background:var(--hover);color:var(--fg)}
+.cicon[aria-pressed=true]{color:var(--accent)}
+/* Send: the green square; one disabled look; Stop / Interrupt in the same slot while the agent runs and the box is empty */
+.csend{background:var(--btn-green);color:var(--on-accent)}
+.csend:hover{background:var(--btn-green);color:var(--on-accent);filter:brightness(1.08)}
+.csend:disabled{background:var(--btn-green);color:var(--on-accent);opacity:.4;cursor:not-allowed;filter:none}
+.csend .ci-stop,.csend.is-stop .ci-send{display:none}
+.csend.is-stop .ci-stop{display:block}
+.cicon:focus-visible,.csend:focus-visible,.csend-more:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (pointer:coarse){.cicon,.csend{width:40px;height:40px;min-width:40px;min-height:40px}}
+/* Send + snippets caret: one split button */
+.csplit{display:inline-flex;align-items:stretch;position:relative}
+.csplit .csend{border-radius:var(--ctl-radius) 0 0 var(--ctl-radius)}
+.csend-more{display:inline-grid;place-items:center;width:24px;min-width:24px;height:36px;min-height:36px;padding:0;border:0;
+  border-left:1px solid color-mix(in srgb,currentColor 40%,transparent);border-radius:0 var(--ctl-radius) var(--ctl-radius) 0;
+  background:var(--btn-green);color:var(--on-accent);cursor:pointer}
+.csend-more:hover{background:var(--btn-green);filter:brightness(1.08)}
+.csend:disabled+.csend-more{opacity:.4}
+.csend-more[aria-expanded=true]::after{opacity:0;visibility:hidden}
+@media (pointer:coarse){.csend-more{width:36px;min-width:36px;height:40px;min-height:40px}}
+/* the snippets menu (pm.popover places it; .pop gives the look) */
+/* fixed from the first paint: in the bar's flow it would move the caret before popup.js measures it */
+.snipmenu{position:fixed;min-width:14em;max-width:min(22em,86vw);flex-direction:column}
+.snipmenu:not([hidden]){display:flex}
+.snipmenu .snipitem{justify-content:flex-start}
+.snipitem:disabled{color:var(--muted);cursor:default;background:transparent}
+.snipsep{height:1px;margin:4px 6px;background:var(--line);flex:none}
+
+/* ---- attachments (preview chips) ---- */
+.cattach{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 6px}
+.cattach:empty{display:none}
+.catt{position:relative;display:flex;align-items:center;gap:8px;max-width:100%;padding:4px 28px 4px 4px;border:1px solid var(--line);border-radius:8px;background:var(--subtle)}
+.catt.is-uploading{opacity:.55}
+.catt-t{display:flex;align-items:center;justify-content:center;width:64px;height:48px;border-radius:6px;overflow:hidden;background:var(--bg);flex:none;font-size:1.25rem}
+.catt-t img{width:100%;height:100%;object-fit:cover;display:block}
+.catt-t svg{display:block;color:var(--muted)}
+.catt-n{min-width:0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-s);color:var(--muted)}
+.catt-n2{display:flex;flex-direction:column;white-space:normal;line-height:1.3}
+.catt-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.catt-ln{color:var(--muted);font-size:var(--fs-xs,.75rem)}
+.catt-x{position:absolute;top:2px;right:2px;width:22px;height:22px;min-width:22px;min-height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);line-height:1;cursor:pointer}
+.catt-x:hover{background:var(--hover);color:var(--fg)}
+
+/* ---- notices above the box: the inline notice line, the send hint ---- */
+.flash-inline .flash{position:static;padding:0;margin:0 0 var(--s1);pointer-events:auto}
+.flash-inline .flash>.flash-link{display:inline;padding:0;border:0;background:none}  /* a link in the line, not a box (issue-save.js) */
+.send-hint{display:flex;align-items:center;gap:10px;margin:2px 0;font-size:12px;color:var(--muted);line-height:1.4}
+.send-hint[hidden]{display:none}
+.send-hint .sh-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.send-hint .sh-off{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}
+.send-hint .sh-x{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 4px;cursor:pointer}
+.send-hint .sh-x:hover{color:var(--fg)}
+@media (max-width:480px){.send-hint .sh-off{display:none}}
+
+/* ---- pm reload notice (pm project only): needs restart / restarting / retry / refresh, one line ---- */
+.pmreload{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0;margin:0 0 4px;padding:4px 8px;color:var(--waiting);
+  border:1px solid var(--waiting);border-radius:var(--ctl-radius);background:var(--accent-soft)}
+.pmreload[hidden],.pmreload [hidden]{display:none}
+.pmreload .pmr-t{flex:1 1 14em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pmreload button,.pmreload form{flex:none;margin:0}
+.pmreload form{display:flex}
+.pmreload[data-lock] .pmr-refresh,.pmreload[data-lock] .pmr-restart{display:none}
+@media (max-width:520px){.pmreload .pmr-t{white-space:normal}}
+
+/* ---- token status + Builder / New Chat / Fork, right above the box ---- */
+.composer .cstat{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:0 0 4px}
+.composer .cstat .tokbar{flex:1 1 16em;min-width:0;margin:0}
+.cstat .agent-actions{flex:0 1 auto;margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.cstat .agent-actions form{margin:0;display:flex}
+.cstat .agent-actions .button,.cstat .agent-actions button{display:inline-flex;align-items:center;min-height:28px;height:28px;padding:0 10px;box-sizing:border-box;font-size:.75rem;white-space:nowrap}
+@media (pointer:coarse),(max-width:699px){.cstat .agent-actions .button,.cstat .agent-actions button{min-height:36px;height:36px}.cstat .agent-actions{margin-left:0;justify-content:flex-start;flex:1 0 100%}}
+
+/* ---- the row under the box: model pill left, Exit right (far from Send: no accidental hits) ---- */
+.composer .mrow{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;justify-content:space-between;padding-top:8px}
+.composer .mrow .modelbar{margin:0;min-width:0}
+.mrow .agent-actions{flex:0 1 auto;margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.mrow .agent-actions form{margin:0;display:flex}
+.mrow .agent-actions button{display:inline-flex;align-items:center;min-height:28px;height:28px;padding:0 10px;box-sizing:border-box;font-size:.75rem;white-space:nowrap}
+@media (pointer:coarse),(max-width:699px){.mrow .agent-actions button{min-height:36px;height:36px}}
+
+/* ---- token status: one line right above the box; its panel opens upwards ---- */
+.composer .tokbar{float:none;display:block;position:relative;margin:0 0 4px;font-size:.75rem}
+.composer .tokbar:empty,.composer .tokbar:not(:has(summary)){display:none}
+.composer .tokbar .stats-sum{display:flex;align-items:center;gap:6px;width:100%;min-width:0;min-height:24px;overflow:hidden;white-space:nowrap}
+.composer .tokbar .stats-sum>*{flex:none}
+.composer .tokbar .stats-sum:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.composer .tokbar .ts-i,.composer .tokbar .ts-lim{display:inline-flex;align-items:center;gap:6px}
+.composer .tokbar .ts-lsep{display:inline}
+.composer .tokbar .tl-x{display:none}
+.composer .tokbar .tl-l{margin-right:.3em}
+.composer .tokbar .stats-sum.lvl-ok .ts-ctx{color:var(--fg)}
+.composer .tokbar .stats-panel{top:auto;bottom:calc(100% + 4px);left:0;right:auto;max-height:min(70vh,560px);overflow-y:auto;font-size:var(--fs-s)}
+@media (max-width:899px){.composer .tokbar .ts-turns{display:none}}
+@media (max-width:699px){.composer .tokbar .ts-tok{display:none}.composer .tokbar .ts-lim{display:inline-flex}}
+@media (max-width:479px){.composer .tokbar .ts-abs{display:none}.composer .tokbar .ts-bar{width:40px}}
+/* Compact / Clear shown: drop tokens and turns (phones: also the dot, the count and the bar) so the 5h / W limits stay */
+.composer .tokbar .stats-sum:has(.ts-act) :is(.ts-tok,.ts-turns){display:none}
+@media (max-width:699px){.composer .tokbar .stats-sum:has(.ts-act) :is(.ts-dot,.ts-abs,.ts-bar){display:none}}
+@media (pointer:coarse),(max-width:699px){.composer .tokbar .ts-act button.small{min-height:36px}}
+
+/* ---- model / effort pill (modelpick.js; the menu is a .pop placed by pm.popover) ---- */
+.modelbar{display:flex;align-items:center;gap:var(--gap);min-width:0;max-width:100%;padding:2px 4px 0;font-size:var(--fs-s,12px)}
+.mpick{position:relative}
+.mp-pill{display:inline-flex;align-items:center;gap:4px;max-width:100%;min-height:28px;padding:0 8px;border:0;border-radius:var(--ctl-radius);background:transparent;color:var(--muted);font:inherit;cursor:pointer;white-space:nowrap}
+.mp-pill:hover,.mp-pill[aria-expanded="true"]{background:var(--hover)}
+.mp-pill .mp-m{color:var(--fg);font-weight:600;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mp-pill .mp-up{flex:none}
+.mp-menu{position:fixed;width:min(20em,92vw);font-size:var(--fs,14px)}
+.mp-menu[hidden],.mp-panel[hidden]{display:none}
+.mp-row{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:4px 10px;border:0;border-radius:var(--ctl-radius);background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.mp-row:hover,.mp-row:focus-visible{background:var(--hover)}
+.mp-row[aria-checked="true"]{background:var(--accent-soft)}
+.mp-t{display:flex;flex-direction:column;min-width:0;flex:1}
+.mp-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mp-t .mp-n{flex:none}
+.mp-cur .mp-n{font-weight:600}
+.mp-s,.mp-v{font-size:var(--fs-s,12px)}
+.mp-s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mp-ck{flex:none;visibility:hidden}
+.mp-cur .mp-ck,.mp-row[aria-checked="true"] .mp-ck{visibility:visible}
+.mp-ch{flex:none;color:var(--muted)}
+.mp-panel>.mp-row,.mp-panel form>.mp-row{margin:0}
+.mp-panel[data-mp-panel="main"]>.mp-row+.mp-row{border-top:1px solid var(--line);border-radius:0}
+.mp-back{color:var(--muted);font-size:var(--fs-s,12px)}
+.mp-back::before{content:"\2039";margin-right:2px;font-size:1.3em;line-height:1}
+.mp-list{max-height:min(50vh,320px);overflow-y:auto}
+
+/* ---- phones and touch: 36-44px targets, a shorter box ---- */
+@media (pointer:coarse),(max-width:699px){
+  .cbox textarea{max-height:min(30dvh,160px)}
+  body.kbd .cbox textarea{max-height:min(40dvh,96px)}
+  .composer .tokbar .stats-sum{min-height:36px}
+  .mp-pill{min-height:36px}
+  .mp-row{min-height:44px}
+}
+
+/* ---- ended session: Resume and send (green) / Fork and send ---- */
+.composer--ended .cmp-ended-acts{gap:8px}
+.composer--ended .cmp-ended-acts button{min-height:32px;white-space:nowrap}
+.composer--ended .cmp-state{padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (pointer:coarse){.composer--ended .cmp-ended-acts button{min-height:40px}}
+@media (max-width:479px){.composer--ended .cmp-state{display:none}.composer--ended .cbar{justify-content:flex-end}}

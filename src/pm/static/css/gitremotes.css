@@ -1,0 +1,32 @@
+/* Project page > Git remotes: one line per remote */
+.gr-row { display: grid; grid-template-columns: 8rem minmax(0, 1fr) auto; gap: var(--s2, 8px); align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.gr-head { color: var(--muted); font-size: var(--fs-sm, 0.85em); }
+.gr-name .badge { margin: 0 0 0 4px; }
+.gr-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-edit, .gr-rm, .gr-add { display: flex; gap: var(--s2, 8px); align-items: center; margin: 0; min-width: 0; }
+.gr-edit input { flex: 1 1 0; min-width: 0; width: 0; }
+.gr-add { padding: 8px 0; }
+.gr-add input[name=name] { flex: 0 0 8rem; width: 0; }
+.gr-add input[name=url] { flex: 1 1 0; min-width: 0; width: 0; }
+.gr-add button { white-space: nowrap; }
+.gr-key { display: flex; gap: var(--s2, 8px); align-items: center; }
+.gr-keygen { margin: 0; }
+.gr-fp { overflow: hidden; text-overflow: ellipsis; max-width: 14rem; }
+.gr-key input { flex: 1 1 0; width: 0; min-width: 0; text-overflow: ellipsis; }
+.gr-key span, .gr-key a { white-space: nowrap; }
+@media (max-width: 699px) {
+  .gr-row { grid-template-columns: 7rem minmax(0, 1fr) auto; }
+  .gr-key { flex-wrap: wrap; }
+  .gr-key input { flex-basis: 100%; order: 5; }
+}
+/* Git tab sub-tabs (Git status | History | Config) in the project docs panel; look: tabs.css */
+.pj-subtabs { margin: 0 0 8px; }
+.pj-subtabs .tab { min-height: var(--ctl-h); padding: 6px 12px; font-weight: 500; line-height: 1.2; }
+@media (max-width: 699px), (pointer: coarse) { .pj-subtabs .tab { min-height: 40px; } }
+.pj-subpanel[hidden] { display: none; }
+.pj-git .gr-key { flex-wrap: wrap; }
+.pj-git .gr-key input { flex-basis: 100%; order: 5; }
+/* Project files + pv, below the docs panel */
+.pj-after { border-top: 1px solid var(--line); padding: 8px 0 0; }
+.pj-af-row { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 3px 0; }
+.pj-af-row .badge { margin: 0; }

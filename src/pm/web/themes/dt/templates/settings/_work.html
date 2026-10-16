@@ -1,0 +1,49 @@
+{#- Settings › Work: Agents (launch defaults + the five ntfy switches: the core's POST /settings/prefs, sent as one
+    whole form; auto-exit: the core's fragment GET /settings/autoexit = _autoexit.html, loaded here), Composer (POST
+    /settings/composer) and Quick chat (the core's fragment GET /settings/qchat = _settings_qchat.html, loaded here).
+    Forms with data-s-form save on change (js/settings-forms.js: Accept JSON, toast after the server's ok). All
+    "all devices". Context: s (the section), sv (Page). -#}
+{%- import "settings/_ui.html" as su %}{% import "parts/_switch.html" as psw %}{% import "parts/_select.html" as psel %}
+{%- if s.id == "agents" %}
+<form class="s-form" method="post" action="/settings/prefs" data-s-form data-s-what="Agents">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% call su.grp("Launch defaults", "all", s.label, note="The launch form also remembers the last choice per project; these apply when there is none.") %}{% call su.box() %}
+  {% call su.row("Agent", "", "Launch defaults", s.label) %}{{ psel.select("launch_agent", sv.agent_opts, value=sv.launch.agent, label="Default agent") }}{% endcall %}
+  {% call su.row("Model", "Empty = the agent's default.", "Launch defaults", s.label) %}
+    <input class="x-in s-w" type="text" name="launch_model" value="{{ sv.launch.model }}" maxlength="80" list="s-models" autocomplete="off" spellcheck="false" placeholder="(agent default)" aria-label="Default model">
+    <datalist id="s-models">{% for m in sv.model_opts %}<option value="{{ m }}"></option>{% endfor %}</datalist>
+  {% endcall %}
+  {% call su.row("Permission mode", "Claude only.", "Launch defaults", s.label) %}{{ psel.select("launch_mode", sv.mode_opts, value=sv.launch.mode, label="Default permission mode") }}{% endcall %}
+{% endcall %}{% endcall %}
+{% call su.grp("Notifications (ntfy)", "all", s.label) %}{% call su.box() %}
+  {%- for key, label, help, on in sv.notify %}
+  {% call su.row(label, help, "Notifications ntfy", s.label) %}{{ psw.switch("notify_" ~ key, on=on, label=label, hide_label=true) }}{% endcall %}
+  {%- endfor %}
+{% endcall %}{% endcall %}
+</form>
+<div id="s-autoexit" class="s-lazy" hx-get="/settings/autoexit" hx-trigger="load" hx-swap="outerHTML"><p class="s-note">Loading auto-exit…</p></div>
+
+{%- elif s.id == "composer" %}
+{%- set c = sv.composer %}
+<form class="s-form" method="post" action="/settings/composer" data-s-form data-s-what="Composer">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% call su.grp("Paste and upload", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Paste as attachment above", "Long pastes become a file; 0 = off.", "Paste and upload", s.label) %}
+    <input class="x-in s-num" type="number" inputmode="numeric" name="paste_lines" min="0" max="500" value="{{ c.paste_lines }}" aria-label="Paste as attachment above N lines"><span class="s-unit">lines</span>
+  {% endcall %}
+  {% call su.row("Allowed upload types", "Executables and scripts (exe, sh, bat, ps1, py, js) are always refused.", "Paste and upload", s.label, wide=true) %}
+    <span class="s-tags" data-s-tags>
+      {%- for e in c.exts %}<span class="s-tag" data-s-ext="{{ e }}">{{ e }}<button class="p-hit" type="button" data-s-untag aria-label="Remove {{ e }}" title="Remove {{ e }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#x"/></svg></button></span>{% endfor -%}
+      <input class="x-in s-addtag" type="text" maxlength="8" data-s-addtag placeholder="add…" autocomplete="off" spellcheck="false" aria-label="Add a file type (Enter)">
+    </span>
+    <input type="hidden" name="exts" value="{{ c.exts | join(',') }}">
+  {% endcall %}
+  {% call su.row("Send with", "The other key makes a new line.", "Composer send key enter", s.label) %}
+    {{ psel.select("send_key", [("enter", "Enter"), ("mod-enter", "Ctrl+Enter (⌘+Enter on a Mac)")], value=c.send_key, label="Send with") }}
+  {% endcall %}
+{% endcall %}{% endcall %}
+</form>
+
+{%- elif s.id == "qchat" %}
+<div id="s-qchat" class="s-lazy" hx-get="/settings/qchat" hx-trigger="load, pm7:refresh" hx-swap="outerHTML"><p class="s-note">Loading Quick chat settings…</p></div>
+{%- endif %}

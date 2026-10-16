@@ -1,0 +1,18 @@
+/* "Continue in a new chat" popup (continuepop.js, inside the pmdlg dialog of dialog.js) */
+.cpop { display: flex; flex-direction: column; gap: var(--s3); margin: var(--s2) 0 var(--s3); min-width: 0; }
+.cpop-g { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+.cpop-lg { padding: 0; margin-bottom: 2px; }
+.cpop-opt { display: flex; align-items: center; gap: var(--s2); min-height: var(--row-h); padding: 4px 0; cursor: pointer; min-width: 0; }
+.cpop-opt:has(.cpop-h) { align-items: flex-start; }
+.cpop-opt input[type=radio] { flex: none; width: auto; min-height: 0; margin: 0; padding: 0; accent-color: var(--accent); }
+.cpop-opt:has(.cpop-h) input[type=radio] { margin-top: 3px; }
+.cpop-t { display: flex; flex-direction: column; min-width: 0; }
+.cpop-l { color: var(--fg); }
+.cpop-h { overflow-wrap: anywhere; }
+/* the new prompt: the shared composer (composer.css .cbox), a little taller; dimmed while "the default message" is chosen */
+.cpop .cbox textarea.cpop-ta { min-height: 4.5em; }
+.cpop .composer:has(.cpop-ta:disabled) .cbox { opacity: .5; }
+.cpop-chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.cpop-chip { border-radius: var(--r-pill); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpop-chip:disabled { opacity: .5; cursor: default; }
+@media (pointer: coarse) { .cpop-opt { min-height: var(--ctl-h); } }

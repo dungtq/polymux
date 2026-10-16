@@ -1,0 +1,137 @@
+/* Quick chat v2: history, tools profiles, MCP, skills; settings table rules (qcs-*) for _settings_qchat.html.
+   Tokens only (docs/UI-CONDUCT.md). Loaded after nav.css. */
+
+/* header: history toggle + conversation title */
+.qc-head{gap:6px}
+.qc-hbtn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;min-width:28px;padding:0 6px;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.qc-hbtn:hover,.qc-hbtn[aria-expanded="true"]{background:var(--hover);color:var(--fg)}
+.qc-hbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.qc-t{overflow:hidden;text-overflow:ellipsis;font-weight:600}
+
+/* history dropdown (small popup), the row menu and the MCP / Skills pickers: .pop layers placed by pm.popover (popup.js);
+   fixed from the first paint, so showing one never shifts the panel before popup.js measures it */
+.qc-hist,.qc-rmenu,.qc-mcppop{position:fixed}
+.qc-hist{width:min(360px,calc(100vw - 32px));max-height:min(420px,70vh);display:flex;flex-direction:column;padding:0}
+.qc-hist[hidden]{display:none}
+.qc-hsearch{margin:8px;min-height:30px}
+.qc-hlist{overflow:auto;min-height:0;padding:0 0 4px}
+.qc-hfoot{border-top:1px solid var(--line2);padding:6px 10px;font-size:var(--fs-s)}
+
+/* conversation rows (dropdown and side list share the markup) */
+.qc-grp{margin:0;padding:8px 12px 2px;font-size:.75rem;font-weight:600;color:var(--colh)}
+.qc-row{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 6px 0 12px;color:var(--fg);cursor:pointer;white-space:nowrap}
+.qc-row:hover{background:var(--hover);text-decoration:none}
+.qc-row[aria-current="true"]{background:var(--accent-soft)}
+.qc-rt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.qc-rm{flex:none;color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+.qc-tag{flex:none;height:18px;line-height:16px;padding:0 6px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:.6875rem;color:var(--muted)}
+.qc-tag.t-full{color:var(--failed);border-color:color-mix(in srgb,var(--failed) 45%,transparent)}
+.qc-tag.t-old{border-style:dashed}
+.qc-rx{flex:none;visibility:hidden;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.qc-row:hover .qc-rx,.qc-row:focus-within .qc-rx,.qc-rx[aria-expanded="true"]{visibility:visible}
+.qc-rx:hover{background:var(--line2);color:var(--fg)}
+@media (pointer:coarse){.qc-rx{visibility:visible}}
+.qc-rmenu{display:flex;flex-direction:column;min-width:140px}
+.qc-rmenu[hidden]{display:none}
+
+/* expanded: history list on the left inside the window */
+.qc-body{flex:1 1 auto;min-height:0;display:flex}
+.qc-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+.qc-side{display:none;flex:0 0 268px;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--subtle)}
+.qc-side .qc-row[aria-current="true"]{box-shadow:inset 2px 0 0 var(--accent)}
+.qc-side .qc-hlist{flex:1 1 auto}
+.qc-side .qc-hsearch{margin:8px 8px 4px}
+.qchat.qc-full .qc-side{display:flex}
+.qchat.qc-full [data-qc-hist]{display:none}
+@media (max-width:899px){.qchat.qc-full .qc-side{display:none}.qchat.qc-full [data-qc-hist]{display:inline-flex}}
+
+/* log extras */
+.qc-meta{align-self:flex-start;margin:-4px 0 0 2px;color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+.qc-a p{margin:0 0 6px}.qc-a p:last-child{margin:0}
+.qc-a ul{margin:0 0 6px;padding-left:1.2em}
+.qc-a code{font-size:.85em}
+.qc-a{white-space:normal}
+.qc-gone{margin:0;padding:6px 12px;border-top:1px solid var(--line);background:var(--subtle);font-size:var(--fs-s);color:var(--muted)}
+
+/* note line per tools profile */
+.qc-note.qc-warn{background:var(--waiting-soft);color:var(--fg);border-top-color:color-mix(in srgb,var(--waiting) 45%,var(--line))}
+.qc-note.qc-warn b{color:var(--waiting)}
+
+/* footer row: Model, Tools, Folder, MCP */
+.qc-mrow{flex-wrap:wrap;gap:2px 6px}
+.qc-mrow .qc-sep{color:var(--line);user-select:none}
+.qc-mrow select.qc-tools-full{color:var(--failed)}
+.qc-mcp{position:relative;display:inline-flex}
+.qc-mcpbtn{min-height:28px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-s);border-radius:6px;padding:0 6px;cursor:pointer}
+.qc-mcpbtn:hover,.qc-mcpbtn[aria-expanded="true"]{color:var(--fg);background:var(--hover)}
+.qc-mcpbtn[disabled]{opacity:.5;cursor:not-allowed}
+.qc-mcppop{width:280px;padding:6px 0}
+.qc-mcppop[hidden]{display:none}
+.qc-mcppop label{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 12px;font-size:var(--fs-s);cursor:pointer;white-space:nowrap}
+.qc-mcppop label:hover{background:var(--hover)}
+.qc-mcppop .qc-mn{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.qc-mcppop .qc-ms{flex:none;color:var(--muted);font-size:.6875rem}
+.qc-mcppop p{margin:4px 12px 2px;font-size:.75rem;color:var(--muted)}
+
+/* settings: Quick chat section */
+.qcs-tbl{display:flex;flex-direction:column}
+.qcs-row{display:grid;grid-template-columns:28px minmax(7em,11em) 9em 4.5em minmax(0,1fr) auto;gap:10px;align-items:center;min-height:36px;padding:2px 8px;border-top:1px solid var(--line2);white-space:nowrap}
+.qcs-row>*{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.qcs-row:hover{background:var(--hover)}
+.qcs-hd{min-height:30px;background:var(--subtle);border-top:0;font-size:var(--fs-s);font-weight:600;color:var(--colh)}
+.qcs-hd:hover{background:var(--subtle)}
+.qcs-src{color:var(--muted);font-size:.75rem}
+.qcs-acts{display:flex;gap:6px;justify-content:flex-end;overflow:visible}
+.qcs-add{display:grid;grid-template-columns:minmax(7em,10em) 7em minmax(0,1fr);gap:8px;margin-top:10px}
+.qcs-add .qcs-wide{grid-column:1/-1}
+.qcs-add textarea{min-height:4.5em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--fs-s)}
+.qcs-prof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.qcs-prof label.qcs-card{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.qcs-prof label.qcs-card:hover{background:var(--hover)}
+.qcs-prof .qcs-ct{display:flex;align-items:center;gap:8px;font-weight:600}
+.qcs-prof .qcs-cd{color:var(--muted);font-size:var(--fs-s)}
+.qcs-prof .qcs-full .qcs-ct{color:var(--failed)}
+@media (max-width:699px){
+  .qcs-prof{grid-template-columns:1fr}
+  .qcs-row{grid-template-columns:28px minmax(0,1fr) auto}
+  .qcs-row .qcs-type,.qcs-row .qcs-tgt,.qcs-row .qcs-src{display:none}
+  .qcs-add{grid-template-columns:1fr}
+}
+
+.qcs-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0}
+.qcs-line .set-main{flex:1 1 20em;min-width:0}
+.qc-mcpn{margin-left:4px;font-variant-numeric:tabular-nums}
+@media (pointer:coarse),(max-width:699px){
+  .qc-hbtn{height:36px;min-width:40px}
+  .qc-mrow select,.qc-mcpbtn{min-height:36px}
+  .qc-mrow .qc-sep{display:none}
+  .qc-mrow{gap:2px 10px}
+}
+.qcs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 16px;margin:12px 0}
+.qcs-grid label{display:flex;flex-direction:column;gap:4px}
+@media (max-width:699px){.qcs-add label{display:flex;flex-direction:column;gap:4px}}
+@media (max-width:899px){.qc-hfoot{display:none}}
+
+/* skills picker (the / menu is slash.js on the composer: data-slash, data-slash-at=word) */
+.qc-sksearch{display:block;width:calc(100% - 16px);margin:4px 8px;min-height:28px}
+.qc-skl .qc-mcppop{width:min(320px,calc(100vw - 32px))}
+.qc-skl .qc-mcppop p code{font-size:.85em}
+
+/* app additions */
+.qc-pop-empty{margin:4px 12px;font-size:.75rem;color:var(--muted)}
+.qc-hlist .qc-row{text-decoration:none}
+.qc-hbtn svg,.qc-rx svg{pointer-events:none}
+.qc-sel{max-width:9em;width:auto;min-width:0;padding:0 6px}
+
+/* btw (qchat-aside.js): header chip bound to an agent, "Use in composer" under each answer */
+.qc-aside{display:inline-flex;align-items:center;flex:0 0 auto;min-width:0;max-width:50%;min-height:28px;color:var(--muted);text-decoration:none;border-radius:var(--r-pill)}
+.qc-aside[hidden]{display:none}
+.qc-aside:hover{color:var(--fg);text-decoration:none}
+.qc-aside:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.qc-asl{min-width:0;height:22px;line-height:20px;padding:0 8px;border:1px solid var(--line);border-radius:var(--r-pill);color:var(--muted);font-size:var(--fs-s);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qc-use{margin-left:8px;min-height:24px;padding:0 6px;border:0;border-radius:6px;background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-s);cursor:pointer}
+.qc-use:hover{background:var(--hover);color:var(--fg)}
+.qc-use:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (pointer:coarse){.qc-aside,.qc-use{min-height:36px}}
+@media (max-width:559px){.qc-asid{display:none}.qc-head .qc-new,.qc-head .qc-max,.qc-head .qc-x{flex-shrink:0}}  /* phone header: arrow-only chip */
+.qchat.qc-btw .qc-mrow > :not(label[for="qc-model"]):not(#qc-model){display:none}  /* btw: the server forces no tools */

@@ -1,0 +1,13 @@
+{#- dt override of the core's auto-exit dry run (GET /settings/autoexit/preview): what would be exited now, nothing is
+    changed. Context: cands (agent, idle_s, window), idle_all, secs, human (+ page_ctx). -#}
+{%- if secs == 0 %}<p class="s-note">Auto-exit is off; nothing would be exited.</p>
+{%- else %}
+<p class="s-note">{{ cands | length }} of {{ idle_all }} idle agent{{ '' if idle_all == 1 else 's' }} would be exited now (limit {{ human(secs) }}). Nothing was changed.</p>
+{%- if cands %}
+<ul class="s-list">
+  {%- for c in cands %}
+  <li><a class="mono" href="/a/{{ c.agent.id }}">{{ c.agent.id }}</a> <span class="muted">{{ c.agent.project or '' }}{% if c.window %} · {{ c.window }}{% endif %} · idle {{ human(c.idle_s) }}</span></li>
+  {%- endfor %}
+</ul>
+{%- endif %}
+{%- endif %}

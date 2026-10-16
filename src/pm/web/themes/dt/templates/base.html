@@ -1,0 +1,119 @@
+{#- dt theme (pm v7) page frame: the shell around every page (docs/themes/dt/SHELL.md §4, LAYOUT.md §2).
+    Classic page templates extend this file unchanged until they are ported (V7-ISO-10); it keeps classic's blocks
+    title, bodyclass, flash, content and the csrf-token / htmx-config metas. Block mainclass (default "x-cl") marks
+    main as un-ported classic content (classic sizes, classic hx-confirm); a ported dt page overrides it empty:
+    {% block mainclass %}{% endblock %} (docs/themes/dt/PARTS.md §1). The server renders the final state
+    (L-1): current page, sessions, tabs and current tab come from dt_shell() (called once, here); only the sidebar
+    rail flag and light/dark are read before paint by js/head.js.
+    embed=true: the page content alone (no top bar, sidebar, aside or bottom nav), like classic's embed.
+    Asset order (CSS): classic CSS (shell/_classic.html), then the dt shell: tokens, base, shell, aside, layers, keys,
+    then the shared page parts: parts, table (PARTS.md), then notifs (the top-bar bell on every page and the
+    Notifications page; after the parts, like any page CSS, so its --g-cols win over table.css's defaults), then the
+    Launch dialog and the Quick chat panel (launch, qchat: shell layers built from the parts), then settings (the
+    Settings page and popup body, css/settings.css with the sp- popup frame).
+    Asset order (JS): head.js blocking; then deferred, in document order: htmx, the classic content scripts
+    (shell/_classic.html: core.js -> window.pm first), then the dt shell: core (window.pm7), reload (wraps pm7.fetch: must
+    follow core before any file keeps a reference to it; restart bar), layers, keys, live, aside,
+    qstream (the /qchat/send reader), btw (the aside's side-question panel), tabs, sidebar, search, ticker, notifs,
+    launch-prompt + launch (the Launch dialog, shell/_launch.html), qchat + qchat-menus (the Quick chat panel,
+    shell/_qchat.html), settings + settings-forms + settings-servers + settings-popup (the Settings body, page and
+    popup: loaded here once, never by settings.html; shell/_settings.html), then the page parts: table, filter,
+    parts, listkeys.
+    Block settings_popup: the Settings popup dialog (shell/_settings.html); settings.html empties it.
+    embed (the chat aside's iframe, content only): no keys, qstream, btw, tabs, sidebar, search, ticker, notifs,
+    launch, qchat, settings, listkeys and no notifs / launch / qchat / settings CSS (no top bar, no bell, no aside of
+    its own, no key table, no Launch dialog, Quick chat panel or Settings popup); aside.js stays (its Esc / key
+    bridge to the parent shell).
+    Page scripts inside {% block content %} come after all of them. A ported page adds its own CSS/JS in
+    {% block page_head %} (deferred scripts, after the shell's). -#}
+{%- set shell = dt_shell() -%}
+{%- set _l = shell.tabs | selectattr("cur") | list -%}{%- set cur_tab = _l[0] if _l else none -%}
+{%- set dev = dev_banner is defined and dev_banner -%}
+<!doctype html>
+<html lang="en" class="x-doc">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f8fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151b23" media="(prefers-color-scheme: dark)">
+<meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "[45]..", "swap": true, "error": true}]}'>
+<meta name="csrf-token" content="{{ csrf }}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="pm">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>{% if dev %}[DEV] {% endif %}{% block title %}pm{% endblock %} - pm</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<script src="/static/t/dt/js/head.js"></script>
+<script src="/static/vendor/htmx.min.js" defer></script>
+{% include "shell/_classic.html" %}
+<link rel="stylesheet" href="/static/t/dt/css/tokens.css">
+<link rel="stylesheet" href="/static/t/dt/css/base.css">
+<link rel="stylesheet" href="/static/t/dt/css/shell.css">
+<link rel="stylesheet" href="/static/t/dt/css/aside.css">
+<link rel="stylesheet" href="/static/t/dt/css/layers.css">
+<link rel="stylesheet" href="/static/t/dt/css/keys.css">
+<link rel="stylesheet" href="/static/t/dt/css/parts.css">
+<link rel="stylesheet" href="/static/t/dt/css/table.css">
+{% if not embed %}<link rel="stylesheet" href="/static/t/dt/css/notifs.css">
+<link rel="stylesheet" href="/static/t/dt/css/launch.css">
+<link rel="stylesheet" href="/static/t/dt/css/qchat.css">
+<link rel="stylesheet" href="/static/t/dt/css/settings.css">
+{% endif %}<script src="/static/t/dt/js/core.js" defer></script>
+<script src="/static/t/dt/js/reload.js" defer></script>
+<script src="/static/t/dt/js/layers.js" defer></script>
+{% if not embed %}<script src="/static/t/dt/js/keys.js" defer></script>
+{% endif %}<script src="/static/t/dt/js/live.js" defer></script>
+<script src="/static/t/dt/js/aside.js" defer></script>
+{% if not embed %}<script src="/static/t/dt/js/qstream.js" defer></script>
+<script src="/static/t/dt/js/btw.js" defer></script>
+<script src="/static/t/dt/js/tabs.js" defer></script>
+<script src="/static/t/dt/js/sidebar.js" defer></script>
+<script src="/static/t/dt/js/search.js" defer></script>
+<script src="/static/t/dt/js/ticker.js" defer></script>
+<script src="/static/t/dt/js/notifs.js" defer></script>
+<script src="/static/t/dt/js/attach.js" defer></script>
+<script src="/static/t/dt/js/launch-prompt.js" defer></script>
+<script src="/static/t/dt/js/launch.js" defer></script>
+<script src="/static/t/dt/js/qchat.js" defer></script>
+<script src="/static/t/dt/js/qchat-menus.js" defer></script>
+<script src="/static/t/dt/js/settings.js" defer></script>
+<script src="/static/t/dt/js/settings-forms.js" defer></script>
+<script src="/static/t/dt/js/settings-servers.js" defer></script>
+<script src="/static/t/dt/js/settings-popup.js" defer></script>
+{% endif %}<script src="/static/t/dt/js/table.js" defer></script>
+<script src="/static/t/dt/js/filter.js" defer></script>
+<script src="/static/t/dt/js/parts.js" defer></script>
+{% if not embed %}<script src="/static/t/dt/js/listkeys.js" defer></script>
+{% endif %}{% block page_head %}{% endblock %}</head>
+<body class="x{% if embed %} x-embed{% elif cur_tab %} x-sessview{% endif %} {% block bodyclass %}{% endblock %}" data-live>
+{% if not embed %}{% include "shell/_top.html" %}
+{% include "shell/_sidebar.html" %}
+{% endif %}<main id="main" class="x-main {% block mainclass %}x-cl{% endblock %}">
+{% if require_unlock is defined and require_unlock and locked %}<div class="x-lock" role="region" aria-label="Locked">
+  <svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#lock"/></svg>
+  <b>Locked.</b><span class="x-lock-t">Actions need unlock.</span>
+  {% if provisioned %}<form class="x-lock-f" method="post" action="/unlock" hx-post="/unlock" hx-target="#x-lock-msg" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input class="x-in" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="TOTP code" aria-label="TOTP code" required>
+    <button class="x-btn" type="submit">Unlock</button>
+  </form>{% else %}<a href="/settings">Set up TOTP</a>{% endif %}
+  <button class="x-btn" type="button" data-passkey="auth" data-target="x-lock-msg">Use passkey</button>
+  <span id="x-lock-msg" class="x-lock-msg" role="status" aria-live="polite"></span>
+</div>
+{% endif %}<div class="x-page">
+{% block flash %}<div id="flash" class="x-flash" role="status" aria-live="polite"></div>{% endblock %}
+{% block content %}{% endblock %}
+</div>
+</main>
+{% if not embed %}{% include "shell/_aside.html" %}
+{% include "shell/_bnav.html" %}
+{% include "shell/_qchat.html" %}
+{% include "shell/_launch.html" %}
+{% block settings_popup %}{% include "shell/_settings.html" %}{% endblock %}
+{% endif %}{% include "shell/_layers.html" %}
+</body>
+</html>

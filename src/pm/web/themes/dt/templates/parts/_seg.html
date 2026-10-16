@@ -1,0 +1,22 @@
+{#- Segments with counts (DESIGN.md §6.4): narrowing choices (All · Running · …). They filter, never sort.
+    Contract: docs/themes/dt/PARTS.md §4.
+    {% import "parts/_seg.html" as ps %}
+
+    ps.seg(items, label="Show", target=none, swap="outerHTML", push=true, cls="")
+      items   list of {"key", "label", "href", "cur", "count", "warn", "bad", "title"}: links; the current one has
+              aria-current="true"; count after the label (.c; warn = yellow, bad = red, both 600)
+      target  optional CSS selector: the links also load with htmx (hx-get = href into target, swap, hx-push-url when
+              push) and js/parts.js moves aria-current to the clicked link at once; js/filter.js adds the filter box's
+              current q to the request. Without target they are plain links (full page).
+      Phones: the strip scrolls sideways, the current segment is centred (js/parts.js). -#}
+
+{%- macro seg(items, label="Show", target=none, swap="outerHTML", push=true, cls="") -%}
+<nav class="p-seg{{ ' ' ~ cls if cls }}" aria-label="{{ label }}">
+  {%- for it in items %}
+  <a href="{{ it.href }}" data-p-seg="{{ it.key }}"{% if it.get("cur") %} aria-current="true"{% endif %}{% if it.get("title") %} title="{{ it.title }}"{% endif %}{% if target %} hx-get="{{ it.href }}" hx-target="{{ target }}" hx-swap="{{ swap }}"{% if push %} hx-push-url="true"{% endif %}{% endif %}>
+    {{- it.label -}}
+    {%- if it.get("count") is not none %}<span class="c{{ ' warn' if it.get('warn') }}{{ ' bad' if it.get('bad') }}">{{ it.count }}</span>{% endif -%}
+  </a>
+  {%- endfor %}
+</nav>
+{%- endmacro -%}

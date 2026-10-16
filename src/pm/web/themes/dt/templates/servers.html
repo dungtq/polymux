@@ -1,0 +1,41 @@
+{#- dt Servers page (PRD.md §6.9, LAYOUT.md §5 Servers). Overrides the core's servers.html for the dt theme
+    (route GET /servers?t=overview|services|resources|vms; ctx p, summary, stamp, tab, can_ct, ct_protected, vm, res,
+    rtiles, can_proc, pdesc, request). View model: dt_servers() (pm.web.dt.servers, servers_res).
+    Frame: head (stats line #sv-head-stats, Refresh) · flat tabs (links) · controls row (outside the swapped boxes, so
+    the filter text survives a refresh) · #sv-panel = _servers.html, refreshed every 10 s while the page is visible
+    (README A21, PARTS §13: js/servers.js) and on pm7:refresh / res-changed / vms-changed; on the VMs tab #sv-vms =
+    _vms.html (GET /servers/vms), refreshed on pm7:refresh / vms-changed only. Page CSS / JS: css/servers.css,
+    js/servers.js. -#}
+{% extends "base.html" %}
+{% import "parts/_head.html" as ph %}{% import "parts/_tabs.html" as pt %}{% import "parts/_seg.html" as ps %}
+{% import "parts/_filter.html" as pf %}
+{% block title %}Servers{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/servers.css">
+<script src="/static/t/dt/js/servers.js" defer></script>
+{% endblock %}
+{% block content %}
+{%- set v = dt_servers() %}
+<div class="sv" data-sv-tab="{{ v.tab }}">
+{{ ph.head("Servers", stats=v.stats, id="sv-head",
+           actions=[{"label": "Refresh", "icon": "refresh", "title": "Refresh now (also every 10 s)",
+                     "attrs": {"data-sv-refresh": ""}}]) }}
+{{ pt.tabs(v.tabs, "Servers sections") }}
+{%- if v.tools %}
+{% call ph.tools() %}
+  {{ pf.fbox(v.tools.name, value=v.q, placeholder=v.tools.ph, label=v.tools.ph, rows=v.tools.rows,
+             get=v.tools.get("url"), target="#sv-panel", swap="innerHTML", push=false) }}
+  {%- if v.tools.segs %}{{ ps.seg(v.tools.segs, label=v.tools.seg_label) }}{% endif %}
+  {%- if v.tools.toggle %}<span class="sp"></span>{{ ps.seg(v.tools.toggle, label="Layout") }}{% endif %}
+{% endcall %}
+{%- endif %}
+<div id="sv-panel" class="sv-panel" hx-get="{{ v.panel_url }}" hx-trigger="every 10s, pm7:refresh, res-changed from:body delay:1s, vms-changed from:body delay:1s" hx-swap="innerHTML" data-sv-poll>
+{% include "_servers.html" %}
+</div>
+{%- if v.tab == "vms" %}
+<div id="sv-vms" class="sv-panel" hx-get="{{ v.vms_url }}" hx-trigger="pm7:refresh, vms-changed from:body delay:1s" hx-swap="innerHTML">
+{% include "_vms.html" %}
+</div>
+{%- endif %}
+</div>
+{% endblock %}

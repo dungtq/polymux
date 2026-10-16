@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Audit{% endblock %}
+{% block content %}
+{% from "_filterbox.html" import filterbox %}
+<link rel="stylesheet" href="/static/css/audit.css">
+{% set aq %}{% if f_q %}&amp;q={{ f_q | urlencode }}{% endif %}{% if f_attempts %}&amp;attempts=1{% endif %}{% endset %}
+<h1>Audit</h1>
+<form class="aud-filter" method="get" action="/audit" role="search" data-filter-live data-filter-target="#aud-list">
+  {{ filterbox(f_q) }}
+  <div class="aud-seg" role="group" aria-label="Result">
+  {% for r in ['all', 'ok', 'denied', 'attempt'] %}
+    <a class="aud-chip{% if f_result == r %} on{% endif %}" href="/audit?result={{ r }}{{ aq }}" data-qlink{% if f_result == r %} aria-current="true"{% endif %}>{{ r }}</a>
+  {% endfor %}
+  </div>
+  <input type="hidden" name="result" value="{{ f_result }}">
+  {% if f_attempts %}<input type="hidden" name="attempts" value="1">{% endif %}
+</form>
+<div id="aud-list" hx-get="/audit?result={{ f_result }}{{ aq }}" hx-trigger="pm:refresh" hx-swap="innerHTML" data-nodiff>
+{% include "_audit_list.html" %}
+</div>
+<h2 id="client-errors">Client errors</h2>
+<p class="small muted">Browser-side JS errors and failed requests (paths only, last 500).</p>
+<div hx-get="/audit/client-errors{% if f_q %}?q={{ f_q | urlencode }}{% endif %}" hx-trigger="load" hx-swap="outerHTML"><p class="small muted">Loading...</p></div>
+{% endblock %}

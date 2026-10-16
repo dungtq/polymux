@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% from "_macros.html" import term_link, agent_text, agent_label with context %}
+{% from "_agentname.html" import agent_head %}
+{% from "_chatchrome.html" import jump_rail, jumpzoom %}
+{% from "_composer_macros.html" import composer, composer_scripts, continue_template with context %}
+{% block title %}{{ head.text }}{% endblock %}
+{% block bodyclass %}{% if embed %}embed{% endif %}{% endblock %}
+{% block content %}
+{% set base = "/a/" ~ agent.id %}{# canonical header (_agentname.html agent_head): id + short model pill, the same model as the composer #}
+<div class="ssewrap" data-live>
+<input type="radio" name="agent-tab" id="tab-chat" class="tab-radio" checked>
+<input type="radio" name="agent-tab" id="tab-pane" class="tab-radio">
+{% if term_embed %}<input type="radio" name="agent-tab" id="tab-term" class="tab-radio">{% endif %}
+{% if agent.kind.value == 'claude' %}<input type="radio" name="agent-tab" id="tab-sub" class="tab-radio">{% endif %}
+<div class="agent-head" data-kind="{{ agent.kind.value }}" data-mode="live" data-agent="{{ agent.id }}" data-pane="{{ agent.pane_id }}">
+  {{ agent_head(agent, "live", head_pill) }}
+  <span id="agent-state" class="sr-only"><span class="badge st-{{ agent.state.value }}">{{ agent.state.value }}</span></span>
+  <div class="tabs" role="tablist">
+    <label for="tab-chat" class="tab tab-l-chat" role="tab" aria-selected="true">Chat</label>
+    {% if agent.kind.value == 'claude' %}<label for="tab-sub" class="tab tab-l-sub" role="tab" aria-selected="false" title="Work done by this session's sub-agents">Sub-agents</label>{% endif %}
+    <label for="tab-pane" class="tab tab-l-pane" role="tab" aria-selected="false">Pane</label>
+    {% if term_embed %}<label for="tab-term" class="tab tab-l-term" role="tab" aria-selected="false">Terminal</label>{% endif %}
+  </div>
+  <span class="ah-tools">{{ jumpzoom() }}</span>
+</div>
+{{ jump_rail() }}
+<p class="small muted agent-meta am-row2" title="confidence {{ '%.1f' | format(agent.confidence) }}">
+  <span class="am-main ico-dir">{% if cwd_url %}<a class="mono" href="{{ cwd_url }}" rel="noopener" title="Open {{ agent.cwd }}">{{ agent.cwd }}</a>{% else %}<span class="mono">{{ agent.cwd }}</span>{% endif %}</span>{% if origin %}<span class="am-origin">{{ origin.label }}: <a class="mono" href="/a/{{ origin.agent_id }}" target="_blank" rel="noopener" title="Open the source chat in a new tab">{{ origin.agent_id }}</a></span>{% endif %}<span class="am-host">tmux pane <span class="mono">{{ agent.pane_id }}</span> &middot; {{ '%.0f' | format(agent.cpu_pct) }}% &middot; {{ '%.0f' | format(agent.rss_mb) }} MB &middot; since <span class="stamp">{{ agent.state_since | ts }}</span></span>
+</p>
+<div class="tabpanel tabpanel-chat">
+ <div class="chatsplit" id="chatsplit" data-agent="{{ agent.id }}">
+  <div class="chatmain">
+  <div class="recap-w" hx-get="/a/{{ agent.id }}/recap" hx-trigger="load" hx-swap="innerHTML"></div>
+  <section id="ci" class="ci" aria-label="Conversation" data-agent="{{ agent.id }}"><p class="muted">Loading&hellip;</p></section>
+  <div id="chat" class="chat" hx-get="/a/{{ agent.id }}/chat" hx-trigger="load, every 2s, pm:agent_state from:document, pm:inbox from:document, pm:refresh" hx-swap="outerHTML swap:0ms settle:0ms" hx-sync="this:replace"></div>
+  {% if agent.kind.value == 'claude' %}<div id="sa-live" class="sa-live" hx-get="{{ base }}/subagents?running=1" hx-trigger="load, every 4s, pm:agent_state from:document" hx-swap="innerHTML" hx-sync="this:replace" data-nodiff></div>{% endif %}
+  <div id="ci-pending" class="ci-pending" aria-label="Your messages not in the transcript yet" aria-live="polite"></div>
+  </div>
+  {% include "_mdpane.html" %}
+ </div>
+</div>
+{% if term_embed %}<div class="tabpanel tabpanel-term"><iframe class="term-frame" title="Terminal (read-only)" loading="lazy" src="{{ term_embed }}"></iframe></div>{% endif %}
+{% if agent.kind.value == 'claude' %}<div class="tabpanel tabpanel-sub" aria-label="Sub-agents">
+  <div class="sa-bar"><button type="button" class="small" hx-get="{{ base }}/subagents" hx-target="#sa-body" hx-swap="innerHTML" title="Reload the list">Refresh</button></div>
+  <div id="sa-body" class="sa-body" hx-get="{{ base }}/subagents" hx-trigger="load" hx-swap="innerHTML" data-nodiff data-sa-poll="3000,15000"><p class="muted small">Loading&hellip;</p></div>
+</div>{% endif %}
+<div class="tabpanel tabpanel-pane">
+<link rel="stylesheet" href="/static/css/pane.css">
+{% include "_pane.html" %}
+<details id="keypad-wrap" class="keypad-wrap" open>
+  <summary>Keys</summary>
+  <div class="keypad" aria-label="Terminal keys">
+  {% for title, items in key_groups %}
+    <div class="keygroup" data-group="{{ title | lower }}">
+      <span class="keygroup-h">{{ title }}</span>
+      {% for k, label in items %}
+      <form class="keyform" method="post" action="/a/{{ agent.id }}/key" hx-post="/a/{{ agent.id }}/key" hx-target="#flash" hx-swap="innerHTML" hx-sync="closest .keypad:queue all">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="key" value="{{ k }}">
+        <button type="submit" class="keybtn" title="{{ k }}">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  {% endfor %}
+  </div>
+</details>
+<div class="tools">
+    {% if snippets %}
+    <form method="post" action="{{ base }}/snippet" hx-post="{{ base }}/snippet" hx-target="#flash" hx-swap="innerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <select name="index" aria-label="Snippet">{% for label in snippets %}<option value="{{ loop.index0 }}">{{ label }}</option>{% endfor %}</select>
+      <button type="submit">Send snippet</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ base }}/interrupt" hx-post="{{ base }}/interrupt" hx-target="#flash" hx-swap="innerHTML" hx-confirm="Interrupt {{ agent_text(agent) }}? This sends Ctrl-C/Esc to the running agent." data-confirm="Interrupt {{ agent_text(agent) }}? This sends Ctrl-C/Esc to the running agent.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="Interrupt agent (sends Ctrl-C, then Esc)" aria-label="Interrupt agent (sends Ctrl-C, then Esc)">Interrupt</button>
+    </form>
+  </div>
+</div>
+</div>
+{{ composer("live") }}
+{{ composer_scripts("live") }}
+{{ continue_template() }}
+<script src="/static/js/continuepop.js" defer></script>
+<script src="/static/js/jumprail.js" defer></script>
+<script src="/static/js/chat.js" defer></script>
+<script src="/static/js/chat-md.js" defer></script>
+<script src="/static/js/chatlog.js" defer></script>
+<script src="/static/js/chat-items.js" defer></script>
+{% if agent.kind.value == 'claude' %}<script src="/static/js/subagents.js" defer></script>
+{% endif %}<script src="/static/js/pane.js" defer></script>
+<link rel="stylesheet" href="/static/css/canvas.css">
+<script src="/static/js/canvas.js" defer></script>
+{% endblock %}

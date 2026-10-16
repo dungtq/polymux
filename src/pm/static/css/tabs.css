@@ -1,0 +1,35 @@
+/* Tab bars: one rule file, three looks (#163, docs/UI-CONDUCT.md "Tab bar"). Markup: .tabs > .tab, where a .tab is
+   - a button or link with role=tab + aria-selected (role=tablist on .tabs; behaviour: static/js/tabs.js, pm.tabs),
+   - a link with aria-current="page" (server-selected sections: Agents, Servers; .tabs is a <nav>),
+   - a button built by drawer.js in the chat aside's .vc-tabs (role=tablist; layout in nav.css), or
+   - a <label for> of a hidden .tab-radio that switches panels in CSS alone (agent page, Builder Chat|Preview); the
+     current label follows :checked below, never its aria-selected (scripts check the radios without a change event).
+   Looks: plain .tabs = flat text tabs (agent head, chat aside, Builder); .tabs-seg = boxed button group (Servers, Agents,
+   ntfy); .tabs-line = in-page doc tabs with a border underline (project docs, tmux|Stack|VM, Git, Skills).
+   Underline colour: --tab-line, default --accent; the agent kind colour --k (else --tab-on) in the agent head and aside.
+   Page sheets keep layout-only overrides (spacing, wrap, scroll, phone height). */
+.tab-radio{position:absolute;opacity:0;pointer-events:none}
+.tabs{display:flex;align-items:stretch;gap:2px;min-width:0;max-width:100%;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;white-space:nowrap}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:var(--ctl-h);padding:0 12px;border:0;border-radius:var(--ctl-radius);background:none;color:var(--muted);font:inherit;font-size:var(--fs-s);font-weight:400;text-decoration:none;white-space:nowrap;cursor:pointer}
+.tab:hover{background:var(--hover);color:var(--fg);text-decoration:none}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tab[hidden]{display:none}
+.tab:not([for])[aria-selected=true],.tab[aria-current=page],
+#tab-chat:checked~* .tab-l-chat,#tab-pane:checked~* .tab-l-pane,#tab-sub:checked~* .tab-l-sub,#tab-term:checked~* .tab-l-term,
+#bt-chat:checked~* [for=bt-chat],#bt-prev:checked~* [for=bt-prev]{color:var(--fg);font-weight:600;border-radius:0;box-shadow:inset 0 -2px 0 var(--tab-line,var(--accent))}
+#tab-chat:focus-visible~* .tab-l-chat,#tab-pane:focus-visible~* .tab-l-pane,#tab-sub:focus-visible~* .tab-l-sub,#tab-term:focus-visible~* .tab-l-term,
+#bt-chat:focus-visible~* [for=bt-chat],#bt-prev:focus-visible~* [for=bt-prev]{outline:2px solid var(--accent);outline-offset:-2px}
+.agent-head[data-kind] .tabs,.vc-head[data-kind] .vc-tabs{--tab-line:var(--k,var(--tab-on))}
+
+/* boxed button group (Servers, Agents, ntfy): grey band, hairline between tabs, the current one white + underline */
+.tabs.tabs-seg{display:inline-flex;gap:0;margin:8px 0 12px;border:1px solid var(--line);background:var(--subtle);border-radius:var(--ctl-radius);overflow:hidden}
+.tabs-seg .tab{flex:0 1 auto;min-width:0;padding:0 14px;border-right:1px solid var(--line);border-radius:0;color:var(--fg);font-weight:500;font-size:var(--ctl-font)}
+.tabs-seg .tab:last-of-type{border-right:0}
+.tabs-seg .tab[aria-current=page],.tabs-seg .tab[aria-selected=true]{background:var(--bg);font-weight:600}
+
+/* in-page doc tabs: 2px border underline over the bar's hairline, current weight 500 */
+.tabs.tabs-line{flex-wrap:wrap;overflow:visible}
+:where(.tabs-line) .tab:where(a){display:block}   /* links; buttons stay flex. Low specificity: rows.css may still hide .pj-tab-agents */
+.tabs-line .tab{flex:0 1 auto;gap:0;min-width:0;max-width:100%;min-height:0;padding:8px 12px;margin-bottom:-1px;border-bottom:2px solid transparent;border-radius:0;overflow:hidden;text-overflow:ellipsis}
+.tabs-line .tab[aria-selected=true]{font-weight:500;box-shadow:none;border-bottom-color:var(--tab-line,var(--accent))}

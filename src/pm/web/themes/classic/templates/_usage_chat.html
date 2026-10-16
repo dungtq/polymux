@@ -1,0 +1,15 @@
+<link rel="stylesheet" href="/static/css/usage.css">
+{% if u %}
+<section class="usg" aria-label="Usage of this agent">
+  <h3 class="usg-h">Usage <span class="muted">main chat{% if u.model %} &middot; <span class="mono">{{ u.model }}</span>{% endif %}</span></h3>
+  <dl class="usg-grid">
+    <dt>Turns</dt><dd>{{ u.turns }}</dd>
+    {% if u.replies is not none %}<dt>Replies</dt><dd>{{ u.replies }}</dd>{% endif %}
+    {% if u.tools is not none %}<dt>Tool calls</dt><dd>{{ u.tools }}</dd>{% endif %}
+    <dt>Duration</dt><dd>{{ u.duration }}</dd>
+    <dt>In / out</dt><dd title="input {{ u.input }}, output {{ u.output }}">{{ human(u.input) }} / {{ human(u.output) }}</dd>
+    <dt>Cache w / r</dt><dd title="cache written {{ u.cache_write }}, read {{ u.cache_read }}">{{ human(u.cache_write) }} / {{ human(u.cache_read) }}{% if u.hit is not none %} <span class="muted">({{ u.hit }}% hit)</span>{% endif %}</dd>
+  </dl>
+  <p class="usg-foot muted"><a href="/agents?t=usage">All usage</a></p>
+</section>
+{% else %}<p class="usg-foot muted">No usage data for this agent.</p>{% endif %}

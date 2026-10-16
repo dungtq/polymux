@@ -1,0 +1,174 @@
+{#- The ONE include that loads classic CSS/JS for page content not ported yet (docs/themes/dt/CONDUCT.md V7-ISO-10,
+    SHELL.md §5). It shrinks as pages are ported and is deleted at cutover, together with css/classic-fix.css.
+    Included in base.html <head> after htmx and before the dt CSS/JS, so dt CSS wins ties and window.pm (classic
+    core.js) exists before window.pm7 (dt core.js).
+
+    CSS kept (page content uses these classes):
+      base chrome (global controls, rows, flash, dialog base, v4 look), chat* + subagents (agent, Builder, recaps),
+      lists rows ntfy backlog inbox data doctabs filespane agent composer tablesize (pages),
+      tabs (content tab bars .tabs/.tab), popup (.pop / dialog.pmdlg of popup.js and dialog.js),
+      nav (agent head, jump rail, md pane, project list grid), shell (tmux .tx-* table, .vc-jump/.vc-zb on the
+      agent page, .v5-md reader, project row grids).
+    CSS skipped: servers (the Servers page is the dt servers.html, css/servers.css; no other classic content
+      rendered in dt uses its srv- sum- vm- ct- classes), tokens (dt tokens.css is a superset), icons (classic top
+      tab bar / sidebar icons only), qchat (its only dt user was Settings › Quick chat, now the dt
+      _settings_qchat.html), palette (classic palette dialog only).
+    Conflicts with the dt shell are neutralised in css/classic-fix.css (the last classic-CSS link here; a page flag's
+      CSS, e.g. "agents", comes before it so its fixes win).
+
+    JS kept: core, tabs (pm.tabs for content tab bars), dialog (pmConfirm, hx-confirm, data-confirm), popup,
+      chat-compact, composer, composer-attach, slash, imgview, tablesize, pm.js, passkey, nodiff, filter, ended,
+      rowx, ntfy, inbox, client-errors. htmx is loaded by base.html (dt needs it too).
+    Shell dependency: passkey.js also drives the dt lock bar's "Use passkey" button (base.html,
+      data-passkey="auth"); keep it here until dt has its own.
+    Loaded by the page itself, not here: composer-dock.js (agent / ended page, composer_scripts(); the phone dock
+      starts hidden and a tap on the chat shows it, as in classic).
+    JS never loaded here (classic shell): theme, fonts (pm-* storage keys, V7-ISO-6), side-init, side, drawer*,
+      jumprail, palette, search, acct, qchat*, more, reload, launchpop, keyfwd,
+      and classic live.js (dt live.js is the one stream and re-dispatches pm:<type> events).
+    Page flag `classic_page` (set at the top of a dt page template, README A5): the classic page CSS/JS that the
+      session tab's classic content needs, in classic agent.html / agent_ended.html / builder.html order (after the
+      shared scripts above, before the dt shell scripts; all deferred, so they run in document order):
+      "session" (live agent page), "ended" (ended record), "builder" (Builder; `live` from the route). Not loaded:
+      composer-dock.js (the dt frame pins the composer in the page flow, composer(..., flow=true)) and jumprail.js
+      (dt session.js scrolls its own chat column).
+      "project" (dt project view, project.html): nothing extra; the Files listing and Docs frame are dt overrides
+      (_project_files.html, _project_doc.html), but a file's own view and the rendered documents inside them are still
+      classic markup in .x-cl and use filespane.css, doctabs.css, chat.css (.md) and tablesize.js / imgview.js above;
+      classic projview.js is not needed (dt js/project.js loads them in place).
+      "agents" (dt Agents › one agent, agents_detail.html): agents-page.css for the classic login fragment
+      _agents_auth.html, kept in its own .x-cl.pg-agents box (README A22).
+
+    Removal debt: every place a dt file still depends on classic JS, classes or markup (V7-ISO-10 "dt's own files
+    never depend on classic classes"). Each goes when its classic part is ported; this include goes with the last.
+      js/btw.js -> window.pm.composer.insert (classic composer.js) and the classic composer markup [data-composer]
+        [data-cmp-form] textarea[data-cmp-input]
+      js/session.js -> window.pm.chatScroll.bottom() (classic chatlog.js, jump to bottom)
+      js/session.js -> radios #tab-chat/#tab-pane/#tab-sub/#tab-term (name agent-tab) that classic chat.js, chatlog.js,
+        composer.js read; #agent-state .badge.st-<state> (classic chat.js, slash.js, composer.js)
+      js/session.js -> #ci form.cm-cont (classic Continue…, c:continue), #chat-stats details (c:usage),
+        [data-composer] [data-aside] (classic btw icon), [data-md-zoom] (classic _mdpane.html), .bld-tabs label[for]
+        + radios #bt-chat/#bt-prev (classic builder.css/builder.js)
+      js/aside.js -> classic chat-md.js postMessage {pm: 'drawer', act: 'md'} and #chatsplit a[data-md];
+        textarea[data-cmp-input] (classic composer) for the composer focus
+      js/inbox.js, templates/inbox.html -> classic nodiff.js: #inbox[data-nodiff] morph, event nodiff:swapped
+      templates/agent.html, builder.html -> #sa-live / #sa-body [data-nodiff], #sa-body[data-sa-poll] (classic nodiff.js
+        sub-agent timer), #chat and #sa-live hx-trigger "every 2s" / "every 4s" (classic live-strip contract, PARTS.md
+        §13)
+      templates/agent.html, builder.html, agent_ended.html -> composer(), continue_template, RESUMABLE (classic
+        _composer_macros.html), _mdpane.html, _pane.html, classic classes keypad-wrap keyform keybtn tabpanel-pane
+        g-tools recap-w ended-meta em-row (styled by classic CSS)
+      templates/session/_frame.html -> span.agent-head[data-mode][data-agent] (classic agentmode.js), #agent-pill
+        (classic chat.js), button[data-chat-view] Detail | Compact (classic chat-compact.js)
+      js/tabs.js, js/parts.js -> keydown stopImmediatePropagation in the capture phase, because classic tabs.js binds
+        every [role=tablist] (dt tab strip, .p-tabs, .c-tabs)
+      js/live.js -> re-dispatches stream events as pm:<type> and sends pm:refresh to #inbox #chat #pane #proj-live
+        (classic content's live contract)
+      js/layers.js -> [hx-confirm] inside main.x-cl is left to classic dialog.js (pmConfirm)
+      css/session.css part 2 -> .composer--flow .composer .agent-actions .mb-act [data-keys] .chatsplit .has-md .mdpane
+        .mdpane-b .is-full .cs-div .tabpanel-pane .g-tools .bld-split (--bld-left of classic builder.css) .bld-tabs
+        .ended-meta
+      css/notifs.css, css/inbox.css -> .rx-k .rx-m (the core's /a/<id>/recap-row fragment, classic rows.css markup)
+      css/tokens.css part 4 -> .x-cl / dialog.pmdlg compat sizes; css/classic-fix.css -> the whole file
+      templates/_project_files.html, _project_doc.html, js/project.js -> classic file view / rendered doc markup
+        (a[data-pj-in] links, .pj-doc: is there a document) and the plan page (embed=1) in the reader frame
+      templates/base.html -> classic passkey.js drives the lock bar's "Use passkey" (data-passkey="auth")
+      templates/settings/_security.html -> classic passkey.js drives "Register passkey" (data-passkey="register",
+        input#passkey-name, event passkey-registered on <body>, its message in [data-target])
+      js/head.js -> classic composer.css's --compose-size / html[data-compose-size] and chat.css's --chat-font
+        (Settings › Fonts for the classic chat items and composer)
+      templates/agents_detail.html -> the classic login fragment _agents_auth.html (#ag-auth, .ag-auth-*, its every-2s
+        output poll while a login runs) in a .x-cl.pg-agents box styled by classic agents-page.css (README A22)
+      templates/base.html (Installable app: the manifest) -> classic /static/pm.js registers the service worker
+        /sw.js (scope /); dt registers none, so deleting this include drops it (dt must register it once, not twice)
+      Unread badges (the app-icon badge) -> classic js/inbox.js calls navigator.setAppBadge / clearAppBadge from the
+        Inbox count; dt sets no app badge, so deleting this include drops it
+      js/reload.js -> pm-project sessions: the classic composer's reload notice row ([data-cmp-reload], classic
+        pmreload.js from composer_scripts(), GET /pm/reload-need) and its "Restart pm" htmx form; dt js/reload.js
+        only waits after that POST -#}
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/chat.css">
+<link rel="stylesheet" href="/static/css/chat-items.css">
+<link rel="stylesheet" href="/static/css/chat-continue.css">
+<link rel="stylesheet" href="/static/css/chat-compact.css">
+<link rel="stylesheet" href="/static/css/subagents.css">
+<link rel="stylesheet" href="/static/css/lists.css">
+<link rel="stylesheet" href="/static/css/ntfy.css">
+<link rel="stylesheet" href="/static/css/backlog.css">
+<link rel="stylesheet" href="/static/css/inbox.css">
+<link rel="stylesheet" href="/static/css/chrome.css">
+<link rel="stylesheet" href="/static/css/tabs.css">
+<link rel="stylesheet" href="/static/css/rows.css">
+<link rel="stylesheet" href="/static/css/doctabs.css">
+<link rel="stylesheet" href="/static/css/data.css">
+<link rel="stylesheet" href="/static/css/agent.css">
+<link rel="stylesheet" href="/static/css/composer.css">
+<link rel="stylesheet" href="/static/css/shell.css">
+<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/popup.css">
+<link rel="stylesheet" href="/static/css/filespane.css">
+<link rel="stylesheet" href="/static/css/tablesize.css">
+{%- set _cp = classic_page if classic_page is defined else "" -%}
+{%- if _cp == "agents" %}
+<link rel="stylesheet" href="/static/css/agents-page.css">
+{%- endif %}
+<link rel="stylesheet" href="/static/t/dt/css/classic-fix.css">
+<script src="/static/js/core.js" defer></script>
+<script src="/static/js/tabs.js" defer></script>
+<script src="/static/js/dialog.js" defer></script>
+<script src="/static/js/chat-compact.js" defer></script>
+<script src="/static/js/popup.js" defer></script>
+<script src="/static/js/composer.js" defer></script>
+<script src="/static/js/composer-attach.js" defer></script>
+<script src="/static/js/slash.js" defer></script>
+<script src="/static/js/imgview.js" defer></script>
+<script src="/static/js/tablesize.js" defer></script>
+<script src="/static/pm.js" defer></script>
+<script src="/static/js/passkey.js" defer></script>
+<script src="/static/js/nodiff.js" defer></script>
+<script src="/static/js/filter.js" defer></script>
+<script src="/static/js/ended.js" defer></script>
+<script src="/static/js/rowx.js" defer></script>
+<script src="/static/js/ntfy.js" defer></script>
+<script src="/static/js/inbox.js" defer></script>
+<script src="/static/js/client-errors.js" defer></script>
+{%- if _cp in ("session", "ended", "builder") %}
+{%- from "_composer_macros.html" import composer_scripts with context %}
+{%- set _live = _cp == "session" or (_cp == "builder" and live) %}
+{%- if _cp == "session" %}
+<link rel="stylesheet" href="/static/css/pane.css">
+{%- elif _cp == "builder" %}
+<link rel="stylesheet" href="/static/css/builder.css">
+{%- endif %}
+<link rel="stylesheet" href="/static/css/canvas.css">
+{%- if _cp == "builder" %}
+<script src="/static/js/builder.js" defer></script>
+<script src="/static/js/builder-screen.js" defer></script>
+<script src="/static/js/builder-api.js" defer></script>
+{%- endif %}
+{{ composer_scripts(("live" if _cp == "session" else "builder") if _live else "ended", dock=false) }}
+{%- if _cp == "builder" %}
+<script src="/static/js/chatlog.js" defer></script>
+<script src="/static/js/chat-items.js" defer></script>
+{%- endif %}
+{%- if _live %}
+<script src="/static/js/continuepop.js" defer></script>
+{%- endif %}
+{%- if _cp != "builder" or _live %}
+<script src="/static/js/chat.js" defer></script>
+<script src="/static/js/chat-md.js" defer></script>
+{%- endif %}
+{%- if _cp != "builder" %}
+<script src="/static/js/chatlog.js" defer></script>
+<script src="/static/js/chat-items.js" defer></script>
+{%- endif %}
+{%- if _cp == "session" and agent.kind.value == "claude" %}
+<script src="/static/js/subagents.js" defer></script>
+{%- endif %}
+{%- if _cp == "session" %}
+<script src="/static/js/pane.js" defer></script>
+{%- endif %}
+{%- if _cp != "builder" %}
+<script src="/static/js/canvas.js" defer></script>
+{%- endif %}
+{%- endif %}

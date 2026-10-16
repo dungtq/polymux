@@ -1,0 +1,55 @@
+ ▐▛███▛█   Claude Code v2.1.296
+▝▜██████▀  Sonnet 5.5 · Claude Max
+ ▝▝   ▝▝   /tmp/claude-1000/-home-me-dev-pm/7fae8c6a-254c-4b4e-a4ec-b17b2dcd6f77/scratchpad/capdir
+
+
+❯ Test fixture only: call the AskUserQuestion tool exactly once with TWO questions. Q1 header "Layout", question "Which layout for the demo page?", options: "Grid"
+  (description "Cards in a 3-column grid", preview a 4-line ASCII box drawing of a grid) and "List" (description "One row per item", preview a 4-line ASCII list). Q2
+  header "Theme", question "Which theme should the demo use?", options "Light" (description "White background") and "Dark" (description "Near-black background"), no
+  previews. Do nothing else.
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+←  ☒ Layout  ☐ Theme  ✔ Submit  →
+
+Which theme should the demo use?
+
+❯ 1. Light
+     White background
+  2. Dark
+     Near-black background
+  3. Type something.
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
+
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,121 @@
+{# "Needs you" Q&A in the live strip (_chat.html). Context: agent, view, csrf, quick_answers, copy_btn.
+   With an AskUserQuestion form matched to the pane (ask.questions): header chip, "1 of 2" + Back/Next, a tab per
+   question (ticked = answered) and Submit, numbered option rows (bold label, muted description, monospace preview,
+   Add note), the "Type something" answer field, "Chat about this". Without one: the pane's options as rows.
+   Keys go to POST /a/<id>/key; the free-text answer and notes to POST /a/<id>/ask (keys worked out server-side). #}
+{% from "_chatmsg.html" import copy_btn with context %}
+{% macro keyform(key, label, cls="small", title="", confirm="") -%}
+<form class="chat-opt" method="post" action="/a/{{ agent.id }}/key" hx-post="/a/{{ agent.id }}/key" hx-target="#flash" hx-swap="innerHTML"{% if confirm %} hx-confirm="{{ confirm }}"{% endif %}>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit" name="key" value="{{ key }}" class="{{ cls }}"{% if title %} title="{{ title }}"{% endif %}>{{ label }}</button>
+</form>
+{%- endmacro %}
+{% if view.asking %}
+{% set ask = view.asking %}
+{% set qs = ask.questions %}
+{% set nq = qs | length %}
+{% set cur = ask.current %}
+{% set q = qs[cur] if nq and cur < nq else none %}
+{% set ns = namespace(other="", chat="", back=false, next=false, pv=false, bk="Left", nk="Right") %}
+{% for o in ask.options %}
+  {% set l = o.label | lower %}
+  {% if o.key.isdigit() and "type something" in l %}{% set ns.other = o.key %}
+  {% elif o.key[:1].isdigit() and l.startswith("chat about this") %}{% set ns.chat = o.key %}
+  {% elif o.label == "← Back" %}{% set ns.back = true %}{% set ns.bk = o.key %}
+  {% elif o.label == "Next →" %}{% set ns.next = true %}{% set ns.nk = o.key %}{% endif %}
+{% endfor %}
+{% if q %}{% for o in q.options if o.preview %}{% set ns.pv = true %}{% endfor %}{% endif %}
+{% if nq %}{% set ns.back = cur > 0 %}{% set ns.next = cur < nq %}{% endif %}
+<section class="chat-ask" aria-label="Needs you">
+  <div class="ask-top">
+    <h2 class="chat-ask-h">Needs you{% if q and q.header %} &middot; <span class="ask-chip">{{ q.header }}</span>{% elif nq and not q %} &middot; <span class="ask-chip">Submit</span>{% elif not nq %} <span class="badge">{{ ask.kind }}</span>{% endif %}</h2>
+    {% if nq > 1 or ns.back or ns.next %}
+    <div class="ask-nav">
+      {% if nq > 1 %}<span class="muted ask-pos">{% if q %}{{ cur + 1 }} of {{ nq }}{% else %}Review{% endif %}</span>{% endif %}
+      {% if ns.back %}{{ keyform(ns.bk, "← Back", title="Previous question") }}{% endif %}
+      {% if ns.next %}{{ keyform(ns.nk, "Next →", title="Next question") }}{% endif %}
+    </div>
+    {% endif %}
+    {{ copy_btn(ask.text) }}
+  </div>
+  {% if nq > 1 %}
+  <nav class="ask-tabs" aria-label="Questions">
+    {% for t in qs %}
+    {% set d = loop.index0 - cur %}
+    {% set tl = ("☒ " if t.answered else "☐ ") ~ (t.header or "Question " ~ loop.index) %}
+    {% if d == 0 %}<span class="ask-tab" aria-current="step">{{ tl }}</span>
+    {% else %}{{ keyform((([ns.nk] * d) if d > 0 else ([ns.bk] * (0 - d))) | join(" "), tl, "small ask-tab", title=("Answered" if t.answered else "Not answered yet")) }}{% endif %}
+    {% endfor %}
+    {% if not q %}<span class="ask-tab" aria-current="step">✔ Submit</span>
+    {% else %}{{ keyform(([ns.nk] * (nq - cur)) | join(" "), "✔ Submit", "small ask-tab", title="Review the answers, then submit") }}{% endif %}
+  </nav>
+  {% endif %}
+  {% if nq and not q %}
+  {# Submit step: the pane's review ("● question" / "→ answer" lines) as a list of the chosen answers #}
+  {% set rv = ask.text.splitlines() %}
+  <p class="chat-ask-text">{{ rv[0] }}</p>
+  <dl class="ask-review">
+    {% for ln in rv[1:] %}{% if ln.startswith("●") %}<dt>{{ ln[1:].strip() }}</dt>{% elif ln.startswith("→") %}<dd>{{ ln[1:].strip() }}</dd>{% elif ln.strip() %}<dd class="muted">{{ ln }}</dd>{% endif %}{% endfor %}
+  </dl>
+  {% else %}
+  <p class="chat-ask-text">{{ ask.text }}</p>
+  {% endif %}
+  {% set rows = q.options if q else ask.options %}
+  <ol class="ask-rows{% if ns.pv %} has-pv{% endif %}">
+    {% for o in rows if o.key and o.key not in (ns.bk, ns.nk) and o.key != ns.other and o.key != ns.chat %}
+    {% set po = ask.options | selectattr("key", "equalto", o.key) | first %}
+    {% set picked = po and po.label.endswith(" ✔") %}{# answered option, revisited: "2. List ✔" #}
+    {% set lbl = o.label[:-2] if o.label.endswith(" ✔") else o.label %}
+    {% set on = q and q.multi and po and po.label[:1] == "[" and po.label[:3] != "[ ]" %}
+    {% set num = o.key.split()[0] if o.key[:1].isdigit() else (o.key if o.key | length == 1 else loop.index) %}
+    <li class="ask-row">
+      <form class="chat-opt" method="post" action="/a/{{ agent.id }}/key" hx-post="/a/{{ agent.id }}/key" hx-target="#flash" hx-swap="innerHTML">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" name="key" value="{{ o.key }}" class="ask-opt"{% if picked %} aria-current="true"{% endif %}{% if q and q.multi %} aria-pressed="{{ 'true' if on else 'false' }}"{% endif %}><span class="ask-n">{{ num }}</span><span class="ask-l">{% if q and q.multi %}<span class="ask-ck" aria-hidden="true">{{ "☒" if on else "☐" }}</span> {% endif %}<strong>{{ lbl }}</strong>{% if picked %} <span class="ask-ck" aria-hidden="true">✔</span><span class="sr-only"> (chosen)</span>{% endif %}{% if o.description %}<span class="ask-d">{{ o.description }}</span>{% endif %}</span></button>
+      </form>
+      {% if o.preview %}<pre class="ask-pv" aria-label="Preview of option {{ num }}">{{ o.preview }}</pre>{% endif %}
+      {% if ns.pv and o.key[:1].isdigit() %}
+      <details class="ask-note">
+        <summary class="linkbtn">Add note</summary>
+        <form class="ask-noteform" method="post" action="/a/{{ agent.id }}/ask" hx-post="/a/{{ agent.id }}/ask" hx-target="#flash" hx-swap="innerHTML" data-clear>
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="note" value="{{ num }}">
+          <input type="text" name="text" maxlength="4000" placeholder="Note on option {{ num }}" aria-label="Note on option {{ num }}" autocomplete="off" required>
+          <button type="submit">Send</button>
+        </form>
+      </details>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% if q and q.multi %}<p class="muted ask-hint">Tap the rows to toggle them, then Next.</p>{% endif %}
+  {% if ask.kind != "permission" and not ask.options %}
+  <div class="chat-quick" aria-label="Quick answers (sends only after you tap)">
+    {% for a in quick_answers(ask) %}
+    <form class="chat-opt" method="post" action="/a/{{ agent.id }}/message" hx-post="/a/{{ agent.id }}/message" hx-target="#flash" hx-swap="innerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="text" value="{{ a }}">
+      <button type="submit">{{ a }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if ns.other %}
+  <form class="chat-answer" method="post" action="/a/{{ agent.id }}/ask" hx-post="/a/{{ agent.id }}/ask" hx-target="#flash" hx-swap="innerHTML" data-clear>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="text" name="text" maxlength="4000" placeholder="Type an answer&hellip;" aria-label="Answer" autocomplete="off" required>
+    <button type="submit">Answer</button>
+  </form>
+  {% elif ask.kind != "permission" and not nq %}
+  <form class="chat-answer" method="post" action="/a/{{ agent.id }}/message" hx-post="/a/{{ agent.id }}/message" hx-target="#flash" hx-swap="innerHTML" data-clear>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="text" name="text" maxlength="4000" placeholder="Type an answer" aria-label="Answer" autocomplete="off" required>
+    <button type="submit">Answer</button>
+  </form>
+  {% endif %}
+  {% if ns.chat or q %}
+  <div class="ask-foot">
+    {% if ns.chat %}{{ keyform(ns.chat, "Chat about this", "linkbtn", title="Leave the form and talk it over with the agent") }}{% endif %}
+    {% if q %}{{ keyform("Escape", "Cancel", "linkbtn", title="Cancel the question (Esc)", confirm="Cancel this question? The agent is told you declined to answer.") }}{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}

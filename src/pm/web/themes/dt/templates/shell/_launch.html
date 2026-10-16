@@ -1,0 +1,7 @@
+{#- The Launch dialog shell (PRD.md §6.12, LAYOUT.md §5, DESIGN.md §6.11, §7), included by base.html (not in
+    embed). js/launch.js opens it (pm7.launch.open({project, todo}): top-bar Launch, key N, the search command) and
+    loads GET /launch/form?project=&todo= (the dt _launch_form.html) into [data-l-body]. Modal (showModal, layers.js:
+    Esc, backdrop, focus trap and return); 760px, full screen on phones. -#}
+<dialog id="l-dlg" class="l-dlg" aria-labelledby="l-dlg-t">
+  <div class="l-body" data-l-body><h2 id="l-dlg-t" class="vh">Launch an agent</h2><p class="l-wait">Loading…</p></div>
+</dialog>

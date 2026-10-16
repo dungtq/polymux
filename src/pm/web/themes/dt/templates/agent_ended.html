@@ -1,0 +1,52 @@
+{#- dt session tab, ended record (PRD §6.3, LAYOUT.md §5): the same frame as the live page (session/_frame.html) with
+    the hollow dot and "Ended"; the classic record details, chat items and the ended composer (Resume and send / Fork
+    and send) keep their classic markup and JS (README A5; shell/_classic.html flag classic_page = "ended").
+    ⋯: Resume, Fork, Copy id. View model: core route pages.py _ended_agent_page; ⋯ from dt_session("ended"). -#}
+{% extends "base.html" %}
+{% set classic_page = "ended" %}
+{% from "_macros.html" import agent_text with context %}
+{% from "_agentname.html" import agent_name %}
+{% from "_composer_macros.html" import composer, RESUMABLE with context %}
+{% import "session/_frame.html" as sf with context %}
+{% block title %}{{ agent_text(agent) }} (ended){% endblock %}
+{% block bodyclass %}c-page{% if embed %} embed{% endif %}{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}{{ sf.assets() }}{% endblock %}
+{% block content %}
+{%- set s = dt_session("ended", RESUMABLE) -%}
+{%- if s %}
+{%- set pill = (rec.transcript | pill_model) if rec.transcript else '' -%}
+{%- set ended_ts = rec.ended_at or rec.last_seen -%}
+<section class="c-sess{% if embed %} embed{% endif %}" data-agent="{{ agent.id }}" data-kind="{{ s.kind }}" data-c-mode="ended" data-menu-scope aria-label="Session {{ agent.id }} (ended)">
+{{ sf.head("ended", agent, s.kind, s.state, pill, menu=s.menu, embed=embed, pane=rec.last_pane or '',
+           meta=sf.meta_line(rec, project.name if project else rec.project, none, "", none, origin)) }}
+<div class="c-body">
+  <div class="c-pn" id="c-pn-chat">
+    <div class="c-split chatsplit" id="chatsplit" data-agent="{{ agent.id }}">
+      <div class="c-col">
+        {% call sf.chat_col() %}
+        <div class="c-endinfo">
+          <p class="c-endnote">Not running: a read-only record, nothing here is sent to a pane.</p>
+          <div class="ended-meta">
+            <div class="em-row"><span class="em-k">Ended</span><span class="em-v"><span class="stamp">{{ ended_ts | dt }}</span> {{ tz_label() }} <span class="em-age">({{ ended_ts | ago }})</span></span></div>
+            <div class="em-row"><span class="em-k">First seen</span><span class="em-v"><span class="stamp">{{ rec.first_seen | dt }}</span> <span class="em-age">({{ rec.first_seen | ago }})</span></span></div>
+            <div id="autoexit-note" hx-get="/a/{{ agent.id }}/autoexit" hx-trigger="load" hx-swap="outerHTML"></div>
+          </div>
+          {%- if s.can_act and rec.kind == 'claude' and not rec.resume_id %}<p class="c-endnote">No session id recorded, cannot resume (Fork still works).</p>{% endif %}
+          {%- if now_in_pane %}<p class="c-endnote">Now in this pane ({{ rec.last_pane }}): <a href="/a/{{ now_in_pane.id }}" data-kind="{{ now_in_pane.kind.value }}">{{ agent_name(now_in_pane) }}</a></p>{% endif %}
+        </div>
+        <div class="recap-w" hx-get="/a/{{ agent.id }}/recap" hx-trigger="load" hx-swap="innerHTML"></div>
+        <section id="ci" class="ci" aria-label="Conversation" data-agent="{{ agent.id }}" data-ended><p class="muted">Loading&hellip;</p></section>
+        <div id="ci-pending" class="ci-pending" aria-label="Your messages not in the transcript yet"></div>
+        {% endcall %}
+        {% if s.can_act %}<div class="c-comp x-cl">{{ composer("ended", rec=rec, flow=true) }}</div>{% endif %}
+      </div>
+      {% include "_mdpane.html" %}
+    </div>
+  </div>
+</div>
+</section>
+{%- else %}
+<p class="p-empty">The session tab could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+{% endblock %}

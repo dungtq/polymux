@@ -1,0 +1,17 @@
+{
+  "_comment": "Existing offenders. This list may only shrink; never add entries or raise counts (docs/ARCHITECTURE.md).",
+  "entries": [],
+  "counts": {
+    "css-color:static/css/agent.css": 3,
+    "css-color:static/css/base.css": 2,
+    "css-color:static/css/chrome.css": 12,
+    "css-color:static/css/pane.css": 1,
+    "css-color:static/css/rows.css": 1,
+    "css-color:static/css/shell.css": 1,
+    "js-fetch:static/js/login-passkey.js": 1,
+    "subprocess:infra/servers_store.py": 1,
+    "subprocess:qchat/cfg.py": 1,
+    "subprocess:qchat/run.py": 1,
+    "subprocess:tmux/term.py": 1
+  }
+}

@@ -1,0 +1,46 @@
+{#- dt Projects list (PRD.md §6.4, LAYOUT.md §4-5, L-6): the whole #pj block, also the fragment the core route
+    (pages.projects_page) returns for every htmx request into it. View model: dt_projects() (pm.web.dt.projects).
+    Order (LAYOUT §4): head + stats (New project, the one green) · controls (filter: name, folder, branch; segments
+    All · Dirty · Has agents · Has TODO · Pinned with counts) · one table pin · Project · Agents · TODO · Issues · ntfy ·
+    Active · Git · Stack · ⋯ (sortable by the core's keys; TODO, Issues, ntfy, Active, Stack drop at pg <= 760px, Git at
+    <= 520px) · foot · key hints. Every request swaps #pj outerHTML; filter.js keeps the typed text, caret and scroll.
+    Phone: two-line rows (dot = the agents' state · name · Active · ⋯ / branch · agents · TODO); Pin is in ⋯.
+    Hooks for js/projects.js: button[data-pj-pin] (runs the row's ⋯ item "pin"), [data-pj-new] (opens the dialog). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set pg = dt_projects() -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<div id="pj" class="pj-page" hx-get="{{ pg.self_url if pg else '/p' }}" hx-trigger="pm:agent_state from:document delay:500ms, pm:agent_added from:document delay:500ms, pm:agent_removed from:document delay:500ms, pm:refresh from:document, pm7:resync from:document, pm7:refresh" hx-swap="outerHTML" hx-sync="this:queue last">
+{%- if pg %}
+{{ ph.head("Projects", stats=pg.stats, id="pj-head", actions=[{"label": "New project", "icon": "plus", "pri": true, "title": "Create a project: folder, template, git, first agent", "attrs": {"data-pj-new": ""}}]) }}
+{% call ph.tools() %}
+  {{ pf.fbox("projects", value=q, placeholder="Filter project, folder, branch", label="Filter projects", get="/p", target="#pj") }}
+  {{ ps.seg(pg.segs, label="Show", target="#pj") }}
+{% endcall %}
+{% call tb.table("projects", "Projects", cls="pj-list", list="projects", keys={"p": "menu:pin"},
+                 labels={"enter": "Open the project", "p": "Pin / unpin"}) %}
+  {{ tb.gh(pg.cols, sort=pg.sort, target="#pj") }}
+  {%- for r in pg.rows %}
+  {% call tb.row(r.name, href=r.href, cls="pj-row" ~ (" pinned" if r.pinned else ""), cur=loop.first, title=r.path) %}
+    {% call tb.cell("pj-pinc") %}<button class="x-ib sm pj-pin" type="button" data-pj-pin aria-pressed="{{ 'true' if r.pinned else 'false' }}" aria-label="{{ 'Unpin ' if r.pinned else 'Pin ' }}{{ r.name }}" title="{{ 'Unpin' if r.pinned else 'Pin to the top' }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}pin"/></svg></button>{% endcall %}
+    {{ tb.dot(r.state or "none", r.word or "no agents") }}
+    {% call tb.name(r.name) %}{% if r.pinned %}<span class="pj-pinned" title="Pinned"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}pin"/></svg><span class="vh">pinned</span></span>{% endif %}{% endcall %}
+    {% call tb.cell(num=true) %}{% if r.agents %}{% if r.state in ("running", "waiting") %}<i class="dot {{ r.state }}" title="{{ r.word }}" aria-hidden="true"></i><span class="vh">{{ r.word }}, </span>{% endif %}{{ r.agents }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{% if r.todo_total %}{{ r.todo_done }}<span class="muted">/{{ r.todo_total }}</span>{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{% if r.issues %}{{ r.issues }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{% if r.ntfy %}{{ r.ntfy }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+    {% call tb.cell("gc-end hide-n") %}{% if r.active %}<span title="{{ r.active_title }}">{{ r.active }}</span>{% else %}–{% endif %}{% endcall %}
+    {% call tb.cell("hide-s pj-git") %}{% if r.branch %}<span title="{{ r.git_title }}">{{ r.branch }}<span class="muted"> · </span>{% if r.dirty %}<span class="warn">{{ r.dirty }} dirty</span>{% else %}<span class="muted">clean</span>{% endif %}{% if r.ahead %}<span class="pj-ab" title="{{ r.ahead }} ahead of gitdev">↑{{ r.ahead }}</span>{% endif %}{% if r.behind %}<span class="pj-ab warn" title="{{ r.behind }} behind gitdev">↓{{ r.behind }}</span>{% endif %}</span>{% else %}<span class="muted" title="{{ r.git_title }}">no git</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n") %}{% if r.stack %}<span class="chip{{ '' if r.stack_ok else ' warn' }}" title="Compose services up / total{{ '' if r.stack_ok else ': not all up' }}">stack {{ r.stack }}</span>{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {% if pg.empty %}{% call tb.empty() %}{{ pg.empty }}{% if pg.empty_url %} <a href="{{ pg.empty_url }}" hx-get="{{ pg.empty_url }}" hx-target="#pj" hx-swap="outerHTML" hx-push-url="true">{{ pg.empty_link }}</a>{% endif %}{% endcall %}{% endif %}
+{% endcall %}
+{{ tb.foot(pg.shown, pg.total, more_href=pg.more_url, target="#pj", noun="projects") }}
+{{ tb.hints([("J K", "move"), ("Enter", "open"), ("P", "pin")]) }}
+{%- else %}
+<p class="p-empty">The Projects list could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+</div>

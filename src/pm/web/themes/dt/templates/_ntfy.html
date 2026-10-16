@@ -1,0 +1,73 @@
+{#- dt theme (pm v7) Notifications list (PRD.md §6.7, LAYOUT.md §4-5): the body of GET /ntfy/panel
+    (every scope) and of the /ntfy and /notifications pages (ntfy.html wraps it in #n-panel). Rendered by the core's
+    build_panel (rows, pins, scope, ok, total, unread); view model dt_ntfy("panel") (pm.web.dt.ntfy): the bands
+    (Pinned on scope all; a pinned message also stays in its day; Today, Yesterday, Earlier, each with its own
+    "Mark read") and the rows ready to render (classes, ⋯ items, detail facts, links). This file only loops.
+    Source / Unread / Period are page state (ntfy.html: data-n-src, data-n-un, data-n-per on .n-pg) applied by
+    css/notifs.css from the row classes (n-agent | n-system, un, n-pp + n-p-<period>) and counted by js/notifs.js with
+    the same rule. Row id = the inbox key (pins: "pin:<message id>"), never an index. Row attributes data-n-abs,
+    data-n-click, data-n-pri are read by the bell (js/notifs.js). The details buttons, E and P run the row's ⋯ items
+    (js/notifs.js, listkeys data-key-*). -#}
+{%- import "parts/_table.html" as tb -%}
+{%- import "parts/_menu.html" as pmenu -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- macro nrow(r) -%}
+{% call tb.row(r.key, cls=r.cls, kind=r.kind, q=r.q, attrs=r.attrs) %}
+  {{ tb.dot("un" if r.unread else "read", title="unread" if r.unread else "read") }}
+  {% call tb.name(r.title) %}
+    {%- if r.pri != 3 %}<span class="chip n-pri{{ ' ' ~ r.pri_cls if r.pri_cls }}" title="Priority {{ r.pri }}">P{{ r.pri }}</span>{% endif -%}
+    {%- if r.n > 1 %}<span class="n-rep" title="{{ r.n }} messages with this title, folded into one row">×{{ r.n }}</span>{% endif -%}
+    {%- if r.recovered %}<span class="n-rec ok">recovered after {{ r.recovered }}</span>{% endif -%}
+    {%- if r.pinned %}<svg class="i n-pin" role="img" aria-label="Pinned" focusable="false"><title>Pinned</title><use href="{{ ic }}pin"/></svg>{% endif -%}
+  {% endcall %}
+  {% call tb.cell("hide-s n-whoc") %}
+    {%- if r.aid %}<a class="n-who" href="/a/{{ r.aid | urlencode }}" data-n-agent="{{ r.aid }}" title="{{ r.who_title }}"><span class="sfx"><bdi>{{ r.aid }}</bdi></span></a>
+    {%- else %}<span class="muted" title="Sent by pm, not by an agent">{{ r.who }}</span>{% endif -%}
+  {% endcall %}
+  {% call tb.cell("hide-n muted") %}<span title="{{ r.tag_raw }}">{{ r.proj }}</span>{% endcall %}
+  {{ tb.end(r.age, since=r.since) }}
+  {% call tb.meta() %}{{ r.meta }}{% endcall %}
+  {% call tb.acts() %}{{ tb.det_btn("notifs", r.key, label=r.title) }}{{ pmenu.menu(r.menu, label=r.menu_label) }}{% endcall %}
+{% endcall %}
+{% call tb.det("notifs", r.key, label=r.title) %}
+  {%- if r.message %}<p class="n-body">{{ r.message }}</p>{% else %}<p class="n-body muted">No message text.</p>{% endif %}
+  {{ tb.kv(r.kv) }}
+  {%- if r.aid %}<div class="n-rx" data-n-rx="/a/{{ r.aid | urlencode }}/recap-row" aria-live="polite" hidden></div>{% endif %}
+  {% call tb.dacts() %}
+    {%- if r.aid %}<button class="x-btn sm" type="button" data-n-act="chat"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}side-r"/></svg>Open chat</button>
+    <button class="x-btn sm" type="button" data-n-act="recap" aria-expanded="false"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}list"/></svg><span>Recap</span></button>{% endif %}
+    {%- if r.review %}<a class="x-btn sm" href="{{ r.review }}" title="Start a new read-only reviewer agent for this agent's changes"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}check"/></svg>Review</a>{% endif %}
+    {%- if r.click %}<a class="x-btn sm" href="{{ r.click }}" rel="noopener noreferrer"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}open"/></svg>Open link</a>{% endif %}
+    <span class="sp"></span>
+    <button class="x-btn sm" type="button" data-n-act="pin"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}pin"/></svg>{{ "Unpin" if r.pinned else "Pin" }}</button>
+    {%- if not r.pin %}<button class="x-btn sm" type="button" data-n-act="read">{{ "Mark read" if r.unread else "Mark unread" }}</button>{% endif %}
+  {% endcall %}
+{% endcall %}
+{%- endmacro -%}
+
+{%- set nv = dt_ntfy("panel") -%}
+{%- if nv %}
+<div class="n-in" data-n-scope="{{ nv.scope }}" data-n-total="{{ nv.total }}" data-n-unread="{{ nv.unread }}">
+{%- if not nv.ok %}
+<p class="n-warn" role="status"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}warn"/></svg>ntfy is unreachable{{ ": showing the cached messages" if nv.groups else "" }}.</p>
+{%- endif %}
+{% call tb.table("notifs", "Notifications", cls="n-list", list="notifs", id="n-list",
+                 keys={"e": "menu:read", "p": "menu:pin"},
+                 labels={"enter": "Open the chat in the aside (details without an agent)", "o": "Open the chat in a tab",
+                         "e": "Mark read / unread", "p": "Pin / unpin"}) %}
+{{ tb.gh([{"sr": "Read"}, {"label": "Title"}, {"label": "Agent", "cls": "hide-s"}, {"label": "Project", "cls": "hide-n"},
+          {"label": "Age", "num": true}, {"sr": "Actions"}]) }}
+{%- for g in nv.groups %}
+{% call tb.group(g.key, g.label, count=g.rows | length, icon=g.icon or none, note=g.note, actions=g.actions) %}
+{% for r in g.rows %}{{ nrow(r) }}{% endfor %}
+{% endcall %}
+{%- endfor %}
+{%- if nv.empty %}
+{{ tb.empty(nv.empty) }}
+{%- else %}
+{% call tb.empty() %}<span data-n-none>Nothing in this view. <a href="?src=all&amp;per=all" data-n-reset>Show everything</a></span>{% endcall %}
+{%- endif %}
+{{ tb.empty("No notification matches the filter.", fnone=true) }}
+{% endcall %}
+</div>
+{%- endif %}

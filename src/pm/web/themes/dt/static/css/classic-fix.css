@@ -1,0 +1,77 @@
+/* Overrides needed ONLY while shell/_classic.html loads classic CSS for un-ported page content (V7-ISO-10).
+   Loaded by that include, after the classic files; deleted with it at cutover. Each rule names the classic rule
+   it neutralises. Nothing else may go here: dt's own look lives in base/shell/layers/keys.css. */
+
+/* shell.css: html{scrollbar-gutter:stable} + html{overflow-y:scroll}; the dt page never scrolls, main does */
+.x-doc{overflow:hidden;scrollbar-gutter:auto}
+/* base.css + shell.css: body::before header band (sticky, grid row 1); shell.css: body.side-open::after scrim */
+body.x::before,body.x::after{content:none}
+/* base.css + composer.css: body padding for the classic bottom tab bar / dock (incl. body.msgbar-hidden:has(...)) */
+html body.x.x{padding:0}
+/* base.css: a:hover{text-decoration:underline} */
+:is(.x-top,.x-side,.x-aside,.x-bnav,.x-pop,.x-menu,.x-sheet,.x-pal,.x-st) a:hover{text-decoration:none}
+:is(.p-tabs,.p-seg,.p-gh,.p-head,.p-dacts) a:hover{text-decoration:none}
+/* chrome.css phone: body,body *{font-weight:400!important}; keep the dt weights (DESIGN.md §5) */
+@media (max-width:699px){
+  .x-brand,.x-mtitle b,.x-dh h2,.x-dlg h2,.x-sheet-h b,.x-pi mark,.x-nav .n,.x-tab.on,
+  .x-tabcount .cnt,.x-scope{font-weight:600!important}
+  .x-nav a.cur,.x-sfoot a.cur,.x-sr.cur,.x-bnav a,.x-bnav button,.x-btn,.x-st .tx b{font-weight:500!important}
+  :is(.p-tabs [role=tab][aria-selected=true],.p-seg>:is(a[aria-current],button[aria-pressed=true]),.p-grp .p-fold,
+    .c.warn,.c.bad),
+  :is(.p-tabs [role=tab][aria-selected=true],.p-grp .p-fold)>span:not(.c,.note){font-weight:600!important}
+  .gc-nm,.gc-nm>.nm{font-weight:500!important}
+  .p-gr.un .gc-nm>.nm{font-weight:600!important}
+  /* Launch dialog (launch.css), Quick chat panel (qchat.css) */
+  :is(.l-hd h2,.l-hd select.l-proj,.l-lab,.l-run b,.l-model b,.q-title,.q-empty b,.q-pop button.q-it[aria-current=true],
+    .q-note .bad){font-weight:600!important}
+  :is(.l-ag b,.l-mopts b){font-weight:500!important}
+}
+/* agent.css: .stats-sum .ts-lim .tl-p, .lim-row .lim-p {700}; rows.css: .n-recap .rx-k, .rx-m strong {700};
+   chat.css: .tchip b {700} (DESIGN §5: 600 is the heaviest) */
+.stats-sum .ts-lim .tl-p,.lim-row .lim-p,.n-recap :is(.rx-k,.rx-m strong),.tchip b,.stats-line strong{font-weight:600}
+/* nav.css: body:not(.embed) .agent-head[data-agent]{top:var(--top-h)} sticks to the window; dt main is the
+   scroller, so it sticks at its top */
+@media (min-width:700px) and (pointer:fine){body.x .agent-head[data-agent]{top:0}}
+/* composer.css: the dock bar (agent page, ended "Type to resume") is fixed to the window and centred at 960px, or
+   spans sidebar-to-edge (#v5side). In dt it is the page column's box: from the sidebar, left-aligned, as wide as
+   main up to --cap, with the page column's side padding (LAYOUT §2, §7); no side borders (they doubled the
+   sidebar's border) */
+body.x .composer--dock{left:var(--side-now);right:var(--aside-now)}
+@media (min-width:700px){
+  body.x .composer--dock{right:auto;width:min(var(--cap),100vw - var(--side-now) - var(--aside-now));max-width:none;
+    margin:0;padding-left:var(--s5);padding-right:var(--s5);border-left:0;border-right:0}
+}
+/* composer.css: body:has(.composer--dock) main{padding-bottom}; dt main has no padding, the page column takes it */
+body.x:has(.composer--dock) .x-page{padding-bottom:calc(var(--msgbar-h,130px) + var(--s4))}
+
+/* doctabs.css >= 1000px: `.v5-shell>main:has(.pj-split)` (full height, no window scroll) never matches dt's main.
+   Same here, so .pj-main scrolls itself, its .pj-tabbar sticks and the reader #pj-right stays. The project view
+   is not held to the page cap (LAYOUT §5: main cap --pj-cap, reader a column from 1560px) */
+@media (min-width:1000px){
+  html body.x>.x-main:has(.pj-split:not(.pj-nodocs)){overflow:hidden}
+  .x-page:has(>.pg-project>.pj-split:not(.pj-nodocs)){display:flex;flex-direction:column;height:100%;max-width:none;
+    padding-bottom:0}
+  body.x .pj-split:not(.pj-nodocs) .pj-main{padding-bottom:var(--s5)}
+}
+@media (min-width:1560px){
+  body.x .pj-split:not(.pj-nodocs){grid-template-columns:minmax(0,1fr) minmax(var(--reader-min),var(--reader-w))}
+  body.x .pj-split:not(.pj-nodocs) .pj-main{max-width:var(--pj-cap);border-right:0}
+  body.x .pj-split:not(.pj-nodocs) .pj-right{border-left:1px solid var(--line)}
+}
+/* doctabs.css: the project tab bar wraps above 699px (one scrolling row only on phones); keep it one row that
+   scrolls (thin scrollbar only when it overflows) */
+@media (min-width:700px){
+  .pj-tabbar{flex-wrap:nowrap}
+  .pj-tabbar .pj-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+  .pj-tabbar .pj-tab{flex:none}
+}
+
+/* phone (DESIGN §6.2): the page title and stats are in the top bar; hide the classic page head's h1 + stats
+   (page_head macro / Inbox .inbox-title, bare h1 pages, Backlog list). Kept: the project h1 (the top bar says
+   "Projects"), the agent head (model pill), and every page action */
+@media (max-width:699px){
+  .x-page .inbox-head>.inbox-title,.x-page>h1,.x-page .bl-head:not(:has(>h1 a))>h1{display:none}
+  .x-page .inbox-head:has(>.inbox-title){justify-content:flex-end}
+  /* inbox.css: the Launch .fab is fixed above the bottom nav; leave room so it never covers the last row */
+  .x-page:has(.fab){padding-bottom:calc(var(--s5) + var(--s6) * 2)}
+}

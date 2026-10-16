@@ -1,0 +1,102 @@
+/* dt Projects list and New project dialog (docs/themes/dt/PRD.md §6.4, LAYOUT.md §5, L-6; prefix pj-, dialog pj-n*).
+   Markup: templates/_projects_list.html, projects/_new.html; parts: css/parts.css, css/table.css; dialog frame and
+   foot: .x-dlg (css/layers.css). Tokens only.
+   Columns (one track per cell, in cell order; the agents' dot and the phone line are not shown on desktop):
+     pin · Project · Agents · TODO · Issues · ntfy · Active · Git · Stack · ⋯
+   L-6: TODO, Issues, ntfy, Active and Stack drop when the page column is <= 760px (.hide-n), Git at <= 520px
+   (.hide-s); Project is the flexible column and keeps the room the rest leaves. */
+
+/* ---------- column templates ---------- */
+.pj-list{--g-cols:var(--ib-sm) minmax(10rem,1.4fr) auto auto auto auto auto minmax(8rem,1fr) auto var(--ib-sm);
+  --g-cols-n:var(--ib-sm) minmax(10rem,1fr) auto minmax(7rem,.8fr) var(--ib-sm);
+  --g-cols-s:var(--ib-sm) minmax(8rem,1fr) auto var(--ib-sm)}
+
+/* ---------- cells: pin toggle, agents dot, git, pinned mark (phone) ---------- */
+.pj-pin{color:var(--muted)}
+.pj-pin svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.pj-pin[aria-pressed=true]{color:var(--accent)}
+.pj-pin[aria-pressed=true] svg.i{fill:currentColor}
+.pj-list .p-gr .dot{margin-right:var(--s1);vertical-align:middle}
+.pj-list .p-gr .dot.none{visibility:hidden}
+.pj-ab{margin-left:var(--s1);font-variant-numeric:tabular-nums}
+.pj-pinned{display:inline-flex;flex:0 0 auto;color:var(--accent)}
+.pj-pinned>svg.i{width:var(--icon-xs);height:var(--icon-xs);fill:currentColor}
+/* desktop: the pin column says it; the agents' dot is the phone's line-1 dot (the Agents cell has its own) */
+@media (min-width:700px){
+  .pj-list .p-gr>.gc-dot,.pj-pinned{display:none}
+  .pj-list .p-gr>.pj-pinc{display:flex;align-items:center}
+}
+
+/* ---------- New project dialog: a form dialog (DESIGN §6.11: 680-760px; phone full screen) ---------- */
+.x-dlg.pj-ndlg{width:min(var(--pal-w),calc(100vw - var(--s6)));max-height:calc(100dvh - 2 * var(--pal-top));
+  margin:var(--pal-top) auto auto;padding:0;overflow:auto}
+.pj-nf{padding:var(--s4) var(--s4) 0}
+.pj-ndh{margin-bottom:var(--s3)}
+.x-dlg .pj-ndh h2{margin:0}
+.pj-ncols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:var(--s5)}
+.pj-nfld{display:block;margin:0 0 var(--s3);font-size:var(--fs-ui)}
+.pj-nfld>span{display:block;margin:0 0 var(--s1);font-weight:600}
+.pj-nfld>small,.pj-nhelp{display:block;margin-top:var(--s1);font-size:var(--fs-s);overflow-wrap:anywhere}
+.pj-ndlg code,.pj-ndlg .mono{font-family:var(--font-mono);font-size:var(--fs-s)}
+.pj-ndlg code{margin:0;padding:0 var(--s1);border:0;border-radius:var(--r-xs);background:var(--subtle)}
+.pj-nfs{min-width:0;margin:0 0 var(--s3);padding:0;border:0}
+.pj-nfs>legend{margin:0 0 var(--s1);padding:0;font-size:var(--fs-ui);font-weight:600}
+/* fields: the dialog frame's input rule is the typed confirm's (mono, block): text fields get the UI font back
+   (check rows: .p-chk, parts.css) */
+.pj-ndlg input.x-in,.pj-ndlg input.x-in:focus{width:100%;margin-top:0;font-family:var(--font-ui)}
+.pj-ndlg select.sel{width:100%}
+.pj-ndlg .p-chk small{margin-left:var(--s1)}
+.pj-nrow3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
+.pj-nrow3 .pj-nfld{min-width:0;margin-bottom:var(--s2)}
+.pj-nbypass{color:var(--failed)}
+.pj-nta{display:block;width:100%;min-height:calc(var(--ctl-h) * 2);padding:var(--s1) var(--s2);
+  border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);font:inherit;
+  font-size:var(--fs-in);resize:vertical}
+.pj-nta:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* "What will happen": the core's plan, its error, then the progress of a run */
+.pj-nplan{align-self:start;padding:var(--s3);border:1px solid var(--line);border-radius:var(--r);
+  background:var(--subtle);font-size:var(--fs-ui)}
+.pj-nplan h3{margin:0 0 var(--s2);font-size:var(--fs-ui);font-weight:600}
+.pj-npl{margin:0;padding-left:var(--s4)}
+.pj-npl li{margin:0 0 var(--s1);overflow-wrap:anywhere}
+.pj-npl li.skip{color:var(--muted)}
+/* a path in a step (js/newproject.js pathCode): code that wraps only after a "/" (each segment is nowrap) */
+.pj-nplan code.pj-path{padding:0;background:none;font-family:var(--font-mono);font-size:var(--fs-s)}
+.pj-path>span{white-space:nowrap}
+.pj-nerr{margin:var(--s2) 0 0;color:var(--failed);overflow-wrap:anywhere}
+.pj-nnote{margin:var(--s2) 0 0;font-size:var(--fs-s)}
+.pj-nsteps{margin:0;padding:0;list-style:none}
+.pj-nsteps li{display:flex;align-items:flex-start;gap:var(--s2);margin:0 0 var(--s2);color:var(--muted);
+  font-size:var(--fs-m)}
+.pj-nsteps li>span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.pj-nsteps li>small{flex:0 0 auto;font-size:var(--fs-s)}
+.pj-nsteps li>svg.i{width:var(--icon-sm);height:var(--icon-sm);margin-top:calc(var(--s1) / 2)}
+.pj-nsteps li>i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);margin-top:calc(var(--s1) / 2);
+  border:1px solid var(--ctl-line);border-radius:50%}
+.pj-nsteps li:is(.st-done,.st-now){color:var(--fg)}
+.pj-nsteps li.st-done>svg.i{color:var(--ok-fg)}
+.pj-nsteps li.st-failed{color:var(--failed)}
+.pj-nsteps li.st-now>i{border-color:var(--accent);border-top-color:transparent;animation:pj-spin .8s linear infinite}
+@keyframes pj-spin{to{transform:rotate(360deg)}}
+.pj-nsum{margin:var(--s3) 0 0;padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:var(--r);
+  font-size:var(--fs-m);overflow-wrap:anywhere}
+.pj-nsum.ok{border-color:var(--ok-fg)}
+.pj-nsum.bad{border-color:var(--failed);background:var(--failed-soft)}
+
+/* foot: sticky at the dialog's bottom, the run note at the left */
+.pj-nf .ft{position:sticky;bottom:0;align-items:center;margin:var(--s4) calc(-1 * var(--s4)) 0;
+  padding:var(--s3) var(--s4);border-top:1px solid var(--line);background:var(--page)}
+.pj-nft{margin-right:auto;font-size:var(--fs-s)}
+
+/* ---------- phone (< 700px): the dialog is full screen, one column ---------- */
+@media (max-width:699px){
+  .x-dlg.pj-ndlg{width:100vw;height:100dvh;max-height:none;margin:0;border:0;border-radius:0;
+    padding:env(safe-area-inset-top) 0 0}
+  .pj-ncols,.pj-nrow3{grid-template-columns:minmax(0,1fr);gap:var(--s3)}
+  .pj-nrow3{gap:0}
+  .pj-nf{display:flex;flex-direction:column;min-height:100%}
+  .pj-nf .ft{margin-top:auto;padding-bottom:calc(var(--s3) + env(safe-area-inset-bottom))}
+  .pj-nf .ft .x-btn{flex:1 1 0;height:var(--ib);font-size:var(--fs-m)}
+  .pj-nft{display:none}
+}

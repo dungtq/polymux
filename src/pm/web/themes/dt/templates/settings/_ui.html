@@ -1,0 +1,63 @@
+{#- Settings page building blocks (dt only; prefix s-). Used by settings/_you.html, _work.html, _security.html,
+    _system.html and the core fragment overrides (_settings_qchat.html, _autoexit.html).
+    {% import "settings/_ui.html" as su %}
+    su.grp(title, scope, sec="", acts=none, note="", q="")   {% call %}: a group: head (h3, the section name shown
+          in search results, the scope chip, buttons) + the caller's content + a note. scope: browser | all | file.
+          acts: menu items (pm.web.dt.menus) rendered as buttons (su.act). data-s-q = its text for the search.
+    su.box()                                {% call %}: the bordered box of rows
+    su.row(label, help="", g="", sec="", wide=false)   {% call %}: label + help left, the control right; data-p-q =
+          label, help, group and section text (the page's search box hides rows that do not match)
+    su.act(item, cls="")                    a button that runs a ⋯ menu item (data-s-do JSON: js/settings-forms.js →
+          pm7.menus.exec: confirm / typed confirm, POST, toast after the server's ok, refresh)
+    su.bseg(key, opts, label)               this-browser segments (button[aria-pressed], data-s-b=<pm.v7 storage name>)
+    su.aseg(key, opts, value, label)        all-devices segments (data-s-a=<prefs key>, /dt/prefs)
+    su.colour(key, value, label)            colour picker (data-s-a), the value or "default", a reset button
+    su.ro(text)                             a read-only value (mono) -#}
+{%- set SCOPE = {"browser": "this browser", "all": "all devices", "file": "pm.toml · read-only"} -%}
+
+{%- macro act(it, cls="") -%}
+<button class="x-btn sm{{ ' danger' if it.get('danger') }}{{ ' ' ~ cls if cls }}" type="button"
+  {%- if it.get("disabled") %} disabled title="{{ it.get('why') or '' }}"{% else %} data-s-do='{{ it | tojson }}'{% endif %}>
+  {%- if it.get("icon") %}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ it.icon }}"/></svg>{% endif -%}
+  <span>{{ it.label }}</span></button>
+{%- endmacro -%}
+
+{%- macro grp(title, scope, sec="", acts=none, note="", q="") -%}
+<div class="s-grp" data-s-q="{{ (title ~ ' ' ~ sec ~ ' ' ~ q) | lower }}">
+  <div class="s-gh"><h3>{{ title }}</h3><span class="s-hit">{{ sec }}</span><span class="chip s-scope">{{ SCOPE[scope] }}</span>
+    {%- if acts %}<span class="s-ga">{% for it in acts %}{{ act(it) }}{% endfor %}</span>{% endif %}</div>
+  {{ caller() }}
+  {%- if note %}<p class="s-note">{{ note }}</p>{% endif %}
+</div>
+{%- endmacro -%}
+
+{%- macro box() -%}<div class="s-box">{{ caller() }}</div>{%- endmacro -%}
+
+{%- macro row(label, help="", g="", sec="", wide=false, id=none) -%}
+<div class="s-row{{ ' wide' if wide }}" data-p-q="{{ (label ~ ' ' ~ help ~ ' ' ~ g ~ ' ' ~ sec) | lower }}"{% if id %} id="{{ id }}"{% endif %}>
+  <div class="s-lab"><b>{{ label }}</b>{% if help %}<small>{{ help }}</small>{% endif %}</div>
+  <div class="s-ctl">{{ caller() }}</div>
+</div>
+{%- endmacro -%}
+
+{%- macro bseg(key, opts, label) -%}
+<span class="p-seg" role="group" aria-label="{{ label }}" data-s-b="{{ key }}">
+  {%- for v, t in opts %}<button type="button" value="{{ v }}" aria-pressed="false">{{ t }}</button>{% endfor -%}
+</span>
+{%- endmacro -%}
+
+{%- macro aseg(key, opts, value, label) -%}
+<span class="p-seg" role="group" aria-label="{{ label }}" data-s-a="{{ key }}">
+  {%- for v, t in opts %}<button type="button" value="{{ v }}" aria-pressed="{{ 'true' if v == value else 'false' }}">{{ t }}</button>{% endfor -%}
+</span>
+{%- endmacro -%}
+
+{%- macro colour(key, value, label) -%}
+<span class="s-col" data-s-colbox="{{ key }}">
+  <input type="color" data-s-a="{{ key }}" aria-label="{{ label }} colour"{% if value %} value="{{ value }}" data-s-set{% endif %}>
+  <span class="s-cv mono">{{ value or "default" }}</span>
+  <button class="x-ib sm" type="button" data-s-colreset="{{ key }}" aria-label="{{ label }}: back to the default" title="Back to the default"{% if not value %} hidden{% endif %}><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#refresh"/></svg></button>
+</span>
+{%- endmacro -%}
+
+{%- macro ro(text) -%}<span class="s-ro mono">{{ text }}</span>{%- endmacro -%}

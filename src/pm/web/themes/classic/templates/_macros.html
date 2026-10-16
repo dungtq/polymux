@@ -1,0 +1,117 @@
+{% from "_agentname.html" import agent_name as agent_name_m %}
+{# Agent name = tmux label without the trailing "-<kind>" (dev-pm-7-claude -> dev-pm-7); program = bordered pill. #}
+{% macro aname(label, kind) %}{% set k = '-' ~ kind %}{% set p = (label or '').rsplit(k, 1) %}{% if p | length == 2 and (p[1] == '' or p[1][1:].isdigit()) and p[0] %}{{ p[0] }}{{ p[1] }}{% else %}{{ label }}{% endif %}{% endmacro %}
+{% macro kpill(kind) %}<span class="kpill kp-{{ kind }}" data-kind="{{ kind }}" title="program: {{ kind }}">{{ kind | replace("-agent", "") }}</span>{% endmacro %}
+{# Human-visible agent name: label, else the id. Ids stay in hrefs/forms. #}
+{# agent id (<kind>-<hash>) in kind colour: kind derived from the prefix; other text stays plain #}
+{% macro agid(id) %}{% set s = id | string %}{% set ns = namespace(k='') %}{% for k in ['cursor-agent', 'antigravity', 'claude', 'codex', 'devin'] %}{% if not ns.k and s.startswith(k ~ '-') %}{% set ns.k = k %}{% endif %}{% endfor %}{% if ns.k %}<span class="agid" data-kind="{{ ns.k }}">{{ s }}</span>{% else %}{{ s }}{% endif %}{% endmacro %}
+{# ntfy title "<agent id> - task": only the id part gets the kind colour #}
+{% macro agtitle(t) %}{% set p = (t or '').split(' - ', 1) %}{% if p | length == 2 and ' ' not in p[0] %}{{ agid(p[0]) }} - {{ p[1] }}{% else %}{{ t }}{% endif %}{% endmacro %}
+{# model pill (short model id); nothing when unknown #}
+{# Last-message cell: the newer of the user's last message (uts = its epoch s) and the latest ntfy item; ntfy when uts is unknown
+   (the rule lives in Python: agents.inbox.last_src, global last_src). #}
+{% macro msg_pick(nt, user, uts) %}{{ last_src(nt, user, uts) }}{% endmacro %}
+{% macro msg_title(nt, user, uts=0, a=none) %}{% set w = msg_pick(nt, user, uts) %}{% if w == 'user' %}{{ user }}{% elif w == 'ntfy' %}{{ nt.message or nt.title }}{% elif a %}{{ a | new_session }}{% endif %}{% endmacro %}
+{% macro msg_cell(nt, user, uts=0, a=none) %}{% set w = msg_pick(nt, user, uts) %}{% if w == 'user' %}<span class="kpill kp-src" title="Your last message">user</span> {{ user }}{% elif w == 'ntfy' %}<span class="kpill kp-src kp-ntfy" title="ntfy">ntfy</span> {{ nt.message or nt.title }}{% elif a %}{% set ns = a | new_session %}{% if ns %}<span class="muted" title="{{ ns }}">{{ ns }}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro mpill(model) %}{% if model %}<span class="kpill kp-model" title="model: {{ model }}">{{ model }}</span>{% endif %}{% endmacro %}
+{# tmux slot cell: "pm-1 >_ claude" (session-window index, glyph, window/agent name) #}
+{% macro tslot(label, kind, wn) %}{% set sl = label or '' %}{% if sl.endswith('-' ~ kind) %}{% set sl = sl[:-(kind | length) - 1] %}{% endif %}{% if sl.startswith('dev-') and sl | length > 4 %}{% set sl = sl[4:] %}{% endif %}{% set nm = wn or kind %}<span class="wname" title="tmux {{ label }}{% if wn %} &middot; window {{ wn }}{% endif %}">{% if sl %}<span class="wslot">{{ sl }}</span>{% else %}<span class="wtxt">{{ nm }}</span>{% endif %}</span>{% endmacro %}
+{% macro agent_text(a) %}{{ a.label or a.id }}{% endmacro %}
+
+{# Label + muted tmux window name (data, autoescaped). Use for visible text; agent_text for attributes. #}
+{% macro wico() %}<svg class="wico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>{% endmacro %}
+{% macro wname(name) %}<span class="wname" title="tmux window: {{ name }}">{{ wico() }}<span class="wtxt">{{ name }}</span></span>{% endmacro %}
+{% macro agent_label(a) %}{{ a.label or a.id }}{% if a.window_name %} {{ wname(a.window_name) }}{% endif %}{% endmacro %}
+
+{# Expand toggle before the agent id of a row; static/js/rowx.js toggles .nwrap[data-open] and loads the recap #}
+{% macro rx_tg() %}<span class="rx-tg" role="button" tabindex="0" aria-expanded="false" aria-label="Show recap, exit and resume" title="Show / hide the recap"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>{% endmacro %}
+{# "Show recap" / "Hide recap" for all rows of the table it heads (rowx.js) #}
+{% macro rx_all() %}<button type="button" class="small rx-all" data-rx-all title="Show or hide the recap of every row in this table">Show recap</button>{% endmacro %}
+{# Detail panel of an expanded row (child of .nwrap): the recap (fetched on first open) and the row actions (exit / resume) #}
+{% macro row_more(id) %}<div class="n-detail"><div class="n-recap" data-keep data-recap="/a/{{ id }}/recap-row"></div><div class="n-acts">{{ caller() }}</div></div>{% endmacro %}
+
+{# Status dot: the solid 8px dot + its word for screen readers (static/js/side.js setDot rewrites this exact pair).
+   kind: a state string or AgentState (running / waiting / failed / idle / unknown); label: the word (default: kind).
+   cls="sdot" gives the Servers dots (kinds run / attn / err / off). #}
+{% macro dot(kind, label=none, cls="dot") %}{% set k = kind.value if kind.value is defined else kind %}{% set w = label or k %}<span class="{{ cls }} {{ cls }}-{{ k }}" title="{{ w }}"></span><span class="sr-only">{{ w }}</span>{% endmacro %}
+{# Count pill (.cpill + a per-place class): over 99 shows "99+", hidden while 0 (pm.badges.set in core.js keeps the same
+   rule for live updates). hook = a data-* name the live refresh looks for (e.g. "ub" -> data-ub); suffix = text after it. #}
+{% macro count_pill(n, cls="", title="", hook="", suffix="") %}<span class="cpill{{ ' ' ~ cls if cls }}"{% if hook %} data-{{ hook }}{% endif %}{% if not n %} hidden{% endif %}{% if title %} title="{{ title }}"{% endif %}>{% if n %}{{ "99+" if n > 99 else n }}{{ suffix }}{% endif %}</span>{% endmacro %}
+{# Empty state: one muted line saying what is missing (cls adds the place's class, e.g. "small", "ag-empty"). #}
+{% macro empty(text, cls="") %}<p class="muted{{ ' ' ~ cls if cls }}">{{ text }}</p>{% endmacro %}
+{# Notice line: kind ok | warn | err (err is announced as an alert); cls = the place's look (e.g. "badge bad", "ntfy-warn small"). #}
+{% macro notice(kind, text, cls="") %}<p class="notice notice-{{ kind }}{{ ' ' ~ cls if cls }}" role="{{ 'alert' if kind == 'err' else 'status' }}">{{ text }}</p>{% endmacro %}
+{# Page title row (.phead): h1 + muted stats line; page actions go in the call body (right-aligned by the page CSS).
+   short=True drops the stats' leading "N <things> · " part (the title already says what is listed). #}
+{% macro page_head(title, stats="", short=false) %}<div class="phead inbox-head"><div class="inbox-title"><h1>{{ title }}</h1><p class="inbox-stats muted">{{ (stats.split(" · ", 1)[1] if " · " in stats else stats) if short else stats }}</p></div>{% if caller %}{{ caller() }}{% endif %}</div>{% endmacro %}
+{# One-button POST form (CSRF field, optional hidden fields, in-page confirm via data-confirm / dialog.js); the answer
+   lands in target (default #flash). fields = [(name, value)]; cls = the button's class; form_cls = the form's. #}
+{% macro post_btn(csrf, url, label, fields=[], confirm="", cls="small", target="#flash", form_cls="inline") %}<form class="{{ form_cls }}" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="{{ target }}" hx-swap="innerHTML"{% if confirm %} data-confirm="{{ confirm }}"{% endif %}><input type="hidden" name="csrf" value="{{ csrf }}">{% for k, v in fields %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}<button type="submit"{% if cls %} class="{{ cls }}"{% endif %}>{{ label }}</button></form>{% endmacro %}
+{# Servers summary tile (Overview and Resources): label, value, level bar, detail; look in servers.css (.sum-*). #}
+{% macro sum_tile(t, id) %}
+  <div class="sum-tile lvl-{{ t.status }}" id="{{ id }}"{% if t.detail %} title="{{ t.detail }}"{% endif %}>
+    <span class="sum-label">{{ t.label }}</span>
+    <span class="sum-value">{{ t.value }}</span>
+    {% if t.pct is not none %}<progress class="srv-bar lvl-{{ t.status }}" max="100" value="{{ '%.0f' | format(t.pct) }}" aria-label="{{ t.label }}"></progress>{% endif %}
+    {% if t.detail %}<span class="sum-detail">{{ t.detail }}</span>{% endif %}
+  </div>
+{% endmacro %}
+
+{# Terminal link. Import WITH CONTEXT (needs terminal_enabled):
+   {% from "_macros.html" import term_link with context %}
+   term_link(tmux_session_id, window_id=None, back=None, name=None)
+   tmux_session_id: "$12" or "s12"; window_id: "@34" or "w34" (opens on that window);
+   back: allow-listed path the Back button returns to (e.g. "/a/claude-140");
+   name: session name, only used to hide the link for pm* sessions.
+   Renders nothing when the terminal is disabled or the session is pm*. #}
+{% macro term_link(tmux_session_id, window_id=None, back=None, name=None) %}
+{%- if terminal_enabled and (name is none or name is term_ok) -%}
+{%- set q = [] -%}
+{%- if window_id is string and window_id[:1] in ('@', 'w') and window_id[1:].isdigit() -%}{%- set _ = q.append(('w', window_id if window_id[:1] == 'w' else window_id | urlid)) -%}{%- endif -%}
+{%- if back is string and back.startswith('/') -%}{%- set _ = q.append(('back', back)) -%}{%- endif -%}
+<a class="button small" href="/term/{{ tmux_session_id if tmux_session_id[:1] == 's' else tmux_session_id | urlid }}{% if q %}?{{ q | urlencode }}{% endif %}">Terminal</a>
+{%- endif -%}
+{% endmacro %}
+
+{% macro git_badge(g) %}
+{% if g %}
+<span class="badge gb-branch">{{ g.branch or 'detached' }}</span>
+{% if g.dirty %}<span class="badge gb-warn">{{ g.dirty }} dirty</span>{% else %}<span class="badge gb-ok">clean</span>{% endif %}
+{% if g.ahead %}<span class="badge gb-warn">+{{ g.ahead }}</span>{% endif %}
+{% if g.behind %}<span class="badge gb-warn">-{{ g.behind }}</span>{% endif %}
+{% else %}<span class="badge">no git</span>{% endif %}
+{% endmacro %}
+
+{# One-button POST form whose result lands in #flash (older name; post_btn with a plain button). #}
+{% macro action_form(csrf, url, label, confirm=None, cls="") %}{{ post_btn(csrf, url, label, confirm=confirm or "", cls="", form_cls=("inline " ~ cls) | trim) }}{% endmacro %}
+
+{# "Stop agents" (panic). stop_button goes in the action row; stop_panel right under it.
+   No JS: the button links to #stop-panel and the panel is shown by :target (css/backlog.css, ex-actions.css).
+   scope "all" or "project:<name>"; agents = the agents that scope covers (stop.select). #}
+{% macro stop_button(scope, agents) %}
+{%- set n = agents | length -%}
+<a class="button danger stop-btn" href="#stop-panel" role="button" title="Interrupt {{ 'every agent' if scope == 'all' else 'every agent in this project' }} ({{ n }}): sends Esc then Ctrl-C to each. Does not kill sessions.">{{ 'Stop ALL agents' if scope == 'all' else 'Stop agents' }}</a>
+{%- endmacro %}
+
+{% macro stop_panel(csrf, scope, agents, name=None) %}
+{%- set n = agents | length -%}
+<section id="stop-panel" class="stoppanel card" aria-label="Confirm stop agents">
+  <h3>{{ 'Stop ALL agents' if scope == 'all' else 'Stop agents in ' ~ name }}</h3>
+  <p>Interrupts every agent {% if scope == 'all' %}on this host{% else %}in {{ name }}{% endif %} ({{ n }} agent{{ '' if n == 1 else 's' }}): sends Esc then Ctrl-C to each. Stops current work; does not kill sessions or close tmux windows. Unsaved prompts may be lost.</p>
+  {% if agents %}<ul class="stop-targets small">{% for a in agents %}<li>{{ agent_name_m(a) }}</li>{% endfor %}</ul>{% else %}<p class="muted small">No agents in scope right now.</p>{% endif %}
+  <form method="post" action="/panic" hx-post="/panic" hx-target="#flash" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <label class="small">Type PANIC to confirm
+      <input name="confirm" autocomplete="off" autocapitalize="characters" pattern="PANIC" required></label>
+    <div class="actions">
+      <button class="danger" type="submit"{% if not agents %} disabled{% endif %}>Stop {{ n }} agent{{ '' if n == 1 else 's' }}</button>
+      <a class="button" href="#">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endmacro %}
+
+{# Session protection marker: lock (tooltip) when protected, explicit badge when not. #}
+{% macro prot_lock(s) %}{% if s.protected %}<span class="lock" title="protected" aria-label="protected">&#128274;</span> {% endif %}{% endmacro %}
+{% macro prot_badge(s) %}{% if not s.protected %}<span class="badge" title="not protected">unprotected</span>{% endif %}{% endmacro %}

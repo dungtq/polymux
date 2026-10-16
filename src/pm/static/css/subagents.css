@@ -1,0 +1,86 @@
+/* Sub-agents: live rows above the composer, the Sub-agents tab list and an opened sub-agent (mini chat). Tokens only. */
+
+/* ---- one sub-agent row (#sa-live and the tab): name + title left, a compact group hugging the right edge ---- */
+.sa-line{display:grid;grid-template-columns:10px auto minmax(0,1fr) auto;gap:10px;align-items:center;min-height:32px;padding:0 6px;white-space:nowrap;font-size:var(--fs-s)}
+.sa-line .sa-kind{font-weight:500;max-width:16em;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sa-line .sa-desc{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.sa-rt{display:flex;align-items:center;justify-content:flex-end;gap:14px;min-width:0;color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+.sa-rt > span{flex:none;text-align:right}
+.sa-rt > .sa-last{flex:0 1 auto;max-width:28ch;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.sa-last .mono{color:var(--fg)}
+.sa-calls{min-width:8ch}
+.sa-tok{min-width:11ch}
+.sa-age{min-width:13ch}
+.sa-age.is-run{color:var(--running)}
+.sa-age.is-wait{color:var(--waiting)}
+.sa-line .dot-running{animation:sa-pulse 1.4s ease-in-out infinite}
+.sa-tag{border:1px solid var(--line);border-radius:var(--r-pill);padding:0 6px;margin-left:4px}
+@keyframes sa-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* rows drop the last tool call first, then go two lines (name + status, then the title) */
+.sa-live,#sa-root{container-type:inline-size}
+@container (max-width:899px){.sa-rt > .sa-last{display:none}}
+@container (max-width:639px){
+  .sa-line{grid-template-columns:10px minmax(0,1fr) auto;row-gap:0;padding:4px 6px}
+  .sa-line > .dot{grid-column:1;grid-row:1}
+  .sa-line .sa-kind{grid-column:2;grid-row:1;max-width:none}
+  .sa-line .sa-rt{grid-column:3;grid-row:1}
+  .sa-line .sa-desc{grid-column:2/4;grid-row:2}
+  .sa-rt > .sa-calls,.sa-rt > .sa-tok{display:none}
+  .sa-age{min-width:0}
+}
+
+/* ---- running rows above the composer form (#sa-live), empty = hidden ---- */
+.sa-live{margin:2px 0}
+.sa-live:empty{display:none}
+.sa-live-list{list-style:none;margin:0;padding:0}
+.sa-live-row{min-height:28px}
+.sa-live-row:hover{background:var(--hover)}
+
+/* ---- Sub-agents tab: summary, workflow groups, rows ---- */
+.sa-bar{display:flex;justify-content:flex-end;margin:6px 0}
+.sa-sum{display:flex;flex-direction:column;gap:6px;padding:8px 0 4px}
+.sa-counts{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.sa-cnt{display:inline-flex;gap:6px;align-items:center}
+.sa-prog{display:flex;gap:10px;align-items:center;white-space:nowrap}
+.sa-prog-l{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sa-prog-b{appearance:none;-webkit-appearance:none;flex:none;width:200px;height:4px;border:0;border-radius:var(--r-pill);background:var(--line2);overflow:hidden}
+.sa-prog-b::-webkit-progress-bar{background:var(--line2);border-radius:var(--r-pill)}
+.sa-prog-b::-webkit-progress-value{background:var(--st-run);border-radius:var(--r-pill)}
+.sa-prog-b::-moz-progress-bar{background:var(--st-run);border-radius:var(--r-pill)}
+.sa-g{margin-top:8px}
+.sa-gh{display:flex;gap:10px;align-items:baseline;cursor:pointer;list-style:none;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sa-gh::-webkit-details-marker{display:none}
+.sa-gh::before{content:"";flex:none;align-self:center;width:6px;height:6px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);transition:transform .15s}
+.sa-g[open]>.sa-gh::before{transform:rotate(45deg)}
+.sa-gh:hover{background:var(--hover)}
+.sa-list{list-style:none;margin:0;padding:0}
+.sa-item{border-top:1px solid var(--line2)}
+.sa-row{cursor:pointer;list-style:none;min-height:36px}
+.sa-row::-webkit-details-marker{display:none}
+.sa-row::marker{content:""}
+.sa-row:hover{background:var(--hover)}
+.sa-d[open]>.sa-row{background:var(--accent-soft)}
+.sa-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* ---- opened sub-agent: a mini chat under its row (no inner scroll boxes) ---- */
+.sa-work{padding:6px 8px 14px 30px;border-top:1px solid var(--line2);min-width:0}
+.sa-meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 6px;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.sa-meta .mono{color:var(--fg)}
+.sa-meta .sa-m-run{color:var(--running)}
+.sa-work .chat-bubble.sa-ask{background:var(--subtle);border-color:var(--line);width:auto;margin-left:0;max-width:100%}
+.sa-work .chat-bubble.sa-ask .chat-meta strong{color:var(--fg)}
+.sa-ptxt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--fs-s);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.sa-ask[data-open] .sa-ptxt{display:block}
+.sa-more{margin-top:6px}
+.sa-more .sa-more-l,.sa-ask[data-open] .sa-more .sa-more-a{display:none}
+.sa-ask[data-open] .sa-more .sa-more-l{display:inline}
+.sa-work .chat-bubble.sa-reply{border-left:3px solid var(--tool-agent)}
+.sa-work .chat-bubble.sa-reply .chat-meta strong{color:var(--tool-agent)}
+.sa-work .chat-bubble .md > :last-child{margin-bottom:0}
+.sa-work .ci-tg{margin-left:6px}
+.sa-wait{display:flex;align-items:center;gap:6px;min-width:0;margin:4px 0;font-size:var(--fs-s);color:var(--waiting);white-space:nowrap;font-variant-numeric:tabular-nums}
+.sa-wait .sa-wt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+@media (max-width:699px){.sa-work{padding-left:8px}.sa-prog-b{width:80px}}
+@media (prefers-reduced-motion:reduce){.sa-line .dot-running{animation:none}.sa-gh::before{transition:none}}

@@ -1,0 +1,100 @@
+{% from "_agentname.html" import agent_name %}
+{% from "_macros.html" import msg_cell, msg_title, dot, rx_tg, rx_all, row_more, tslot %}
+{# The one agent row of the Inbox and the project page (live: agent_row, ended: ended_row). Both pages show the same
+   columns in the same order; a layout only names the row / header classes and the class of each cell:
+   INBOX_COLS = the inbox .nrow grid (n-* cells, with a Project column), PROJECT_COLS = the project page .arow grid
+   (c-* cells, no Project column: the page is the project). Cell ids: dot proj main msg tmux age start res. #}
+{% set INBOX_COLS = {"row": "nrow", "head": "nhead lhead", "hc": "hcell ", "cells": [("dot", "n-dot"), ("proj", "n-proj"), ("main", "n-main"), ("msg", "n-msg"), ("tmux", "n-tmux"), ("age", "n-age"), ("start", "n-start"), ("res", "n-res")]} %}
+{% set PROJECT_COLS = {"row": "lrow arow", "head": "lhead arow", "hc": "", "cells": [("dot", "c-dot"), ("main", "c-main"), ("msg", "c-msg"), ("tmux", "c-proj"), ("age", "c-age"), ("start", "c-start"), ("res", "c-res")]} %}
+
+{# Header band of a non-sortable agent table (project page, Ended): same grid and cells as its rows.
+   pin: keep the trailing room of the rows' pin slot (Ended rows keep it empty so all agent tables align). #}
+{% macro agent_cols_head(cols, ended=False, pin=False) %}{% set labels = {"proj": "Project", "main": "Agent", "msg": "Last message", "tmux": "tmux", "age": "Ended" if ended else "Active", "start": "Started", "res": "" if ended else "cpu / mem"} %}<div class="{{ cols.head }}{% if pin %} has-pin{% endif %}" aria-hidden="true">
+  {% for id, c in cols.cells %}<span class="{% if id != 'dot' %}{{ cols.hc }}{% endif %}{{ c }}">{{ labels.get(id, "") }}</span>{% endfor %}
+</div>{% endmacro %}
+
+{# Group label inside an agent list (Pinned, then Active). Visual only; filter.js hides it with its last row. #}
+{% macro group_label(key, title, agents) %}<div class="rgrp" data-key="g-{{ key }}" data-frow data-q="{% for a in agents %}{{ a | agent_q }} {% endfor %}" aria-hidden="true">{{ title }}</div>{% endmacro %}
+
+{# Hover action on an idle agent row (in the row's detail panel): review, exit; the session stays resumable. #}
+{% macro exit_form(a, csrf) %}
+{%- if a.project and a.cwd -%}<span class="inline row-act n-exit"><a class="linkbtn" href="/p/{{ a.project | urlencode }}/launch?review={{ a.id }}" title="Start a new read-only reviewer agent for this agent's changes">review</a></span>{%- endif -%}
+{%- if a.state.value == "idle" and csrf -%}
+<form class="inline row-act n-exit" method="post" action="/a/{{ a.id }}/exit" hx-post="/a/{{ a.id }}/exit" hx-target="#flash" hx-swap="innerHTML" hx-confirm="Exit {{ a.label or a.id }}? The session id is saved so you can resume it from Ended sessions.">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit" class="linkbtn danger" title="Exit this idle agent (sends /exit); the session can be resumed">exit</button>
+</form>
+{%- endif -%}
+{% endmacro %}
+
+{% macro pin_ico() %}<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M5 17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9a2 2 0 0 1-1.1-1.8V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2Z"/></svg>{% endmacro %}
+
+{# The row's one action: pin / unpin (POST /a/<id>/pin; the list refreshes on the pm:refresh it answers with).
+   Shown on hover / focus, always on touch and while pinned. #}
+{% macro pin_form(a, csrf, on) %}<form class="rowpin{% if on %} on{% endif %}" method="post" action="/a/{{ a.id }}/pin" hx-post="/a/{{ a.id }}/pin" hx-swap="none">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="pinned" value="{{ '0' if on else '1' }}">
+  <button type="submit" class="ibtn" aria-pressed="{{ 'true' if on else 'false' }}" aria-label="{{ 'Unpin ' if on else 'Pin ' }}{{ a.id }}" title="{{ 'Unpin this session' if on else 'Pin this session to the top' }}">{{ pin_ico() }}</button>
+</form>{% endmacro %}
+
+{# Live agent row. meta = row meta (web.ntfypanel.row_meta: key, unread, q = pending question, pinned);
+   nt = the agent's newest ntfy item; csrf empty = no pin and no exit. #}
+{% macro agent_row(a, cols, meta, nt=none, csrf="", now=0) %}{% set m = meta or {} %}{% set st = a.state.value %}{% set t = a.done_ts() if st == 'idle' else (a.last_active or a.state_since) %}
+<div class="nwrap" role="listitem" data-key="w-{{ a.id }}" data-q="{{ a | agent_q }}" data-frow>
+<a class="{{ cols.row }} row-{{ st }}{% if m.unread %} unread{% endif %}" href="/a/{{ a.id }}" data-key="{{ a.id }}" data-pane="{{ a.pane_id }}" data-kind="{{ a.kind.value }}"{% if m.unread %} data-read="{{ m.key }}"{% endif %}>
+  {%- for id, c in cols.cells %}
+  {%- if id == 'dot' %}<span class="{{ c }}">{{ dot(a.state) }}</span>
+  {%- elif id == 'proj' %}<span class="{{ c }} muted">{{ a.project or a.cwd }}</span>
+  {%- elif id == 'main' %}<span class="{{ c }}">{{ rx_tg() }}{{ agent_name(a, rx=True) }}</span>
+  {%- elif id == 'msg' %}{% set lu = a | last_user %}{% set lut = a | last_user_ts %}{% set lm = m.q or msg_title(nt, lu, lut, a) | trim %}<span class="{{ c }} muted"{% if lm %} title="{{ lm }}"{% endif %}>{% if m.q %}<span class="n-q" title="Pending question">{{ m.q }}</span>{% else %}{{ msg_cell(nt, lu, lut, a) }}{% endif %}</span>
+  {%- elif id == 'tmux' %}<span class="{{ c }} muted">{{ tslot(a.label, a.kind.value, a.window_name) }}</span>
+  {%- elif id == 'age' %}<span class="{{ c }} muted{% if st == 'running' %} working{% endif %}"{% if t %} data-age="{{ t | int }}"{% endif %}>{% if st == 'running' %}<span title="{{ t | ts }}">Working&hellip;</span>{% elif t %}<span{% if st == 'idle' %} title="Done at {{ t | dt }}"{% endif %}>{{ t | ago }}</span>{% endif %}</span>
+  {%- elif id == 'start' %}<span class="{{ c }} muted">{% if now and a.age_s %}{% set s0 = (now - a.age_s) | dt %}<span class="st-full" title="Started {{ s0 }}">{{ s0[:16] }}</span><span class="st-short" title="Started {{ s0 }}">{{ s0[5:16] }}</span>{% endif %}</span>
+  {%- elif id == 'res' %}<span class="{{ c }} muted">{{ '%.0f' | format(a.cpu_pct) }}% &middot; {{ '%.0f' | format(a.rss_mb) }} MB</span>
+  {%- endif %}
+  {%- endfor %}
+</a>
+{% if csrf %}{{ pin_form(a, csrf, m.pinned) }}{% endif %}
+{% call row_more(a.id) %}{{ exit_form(a, csrf) }}{% endcall %}
+</div>
+{% endmacro %}
+
+{# Ended session row (registry.Record): same cells; no state dot, no cpu/mem, no pin. Rows past the first 8 (more=True)
+   show on Expand (ended.js). Only rows with a resumable session id get a resume button. #}
+{% macro ended_row(r, cols, nt=none, csrf="", model=none, more=False) %}{% set t = r.ended_at or r.last_seen %}
+<div class="nwrap{% if more %} e-more{% endif %}" role="listitem" data-key="e-{{ r.id }}" data-q="{{ r | agent_q(model) }}" data-frow>
+<a class="{{ cols.row }} row-ended" href="/a/{{ r.id }}" data-kind="{{ r.kind }}">
+  {%- for id, c in cols.cells %}
+  {%- if id == 'dot' or id == 'res' %}<span class="{{ c }}{% if id == 'res' %} muted{% endif %}"></span>
+  {%- elif id == 'proj' %}<span class="{{ c }} muted">{{ r.project or r.cwd }}</span>
+  {%- elif id == 'main' %}<span class="{{ c }}">{{ rx_tg() }}{{ agent_name(r, model=model, rx=True) }}</span>
+  {%- elif id == 'msg' %}{% set mt = msg_title(nt, none) | trim %}<span class="{{ c }} muted"{% if mt %} title="{{ mt }}"{% endif %}>{{ msg_cell(nt, none) }}</span>
+  {%- elif id == 'tmux' %}<span class="{{ c }} muted">{{ tslot(r.label, r.kind, "") }}</span>
+  {%- elif id == 'age' %}<span class="{{ c }} muted" title="{{ t | ts }}">{{ t | ago }}</span>
+  {%- elif id == 'start' %}<span class="{{ c }} muted">{% if r.first_seen %}{% set s0 = r.first_seen | dt %}<span class="st-full" title="Started {{ s0 }}">{{ s0[:16] }}</span><span class="st-short" title="Started {{ s0 }}">{{ s0[5:16] }}</span>{% endif %}</span>
+  {%- endif %}
+  {%- endfor %}
+</a>
+{% call row_more(r.id) %}{% if csrf and r.resume_id %}<form class="inline row-act n-exit" method="post" action="/a/{{ r.id }}/resume" hx-post="/a/{{ r.id }}/resume" hx-target="#flash" hx-swap="innerHTML" hx-confirm="Resume {{ r.label or r.id }} in a new tmux window?">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit" class="linkbtn" title="Resume this session ({{ r.kind }})">resume</button>
+</form>{% endif %}{% endcall %}
+</div>
+{% endmacro %}
+
+{# Ended sessions of all kinds (rows: registry.Record) in the given layout; one header, one list. #}
+{% macro ended_list(rows, total, csrf, ntfy={}, cols=INBOX_COLS, models=None) %}
+{% if rows %}
+<section class="ended-fold" id="ended-sessions" data-key="ended-fold">
+  <div class="ended-head">
+    <h2>Ended ({% if rows | length < total %}{{ rows | length }} of {% endif %}{{ total }})</h2>{{ rx_all() }}
+    <span class="ended-tools" data-keep>
+      {% if rows | length > 8 %}<button type="button" class="small ended-toggle" aria-pressed="false">Expand</button>{% endif %}
+    </span>
+  </div>
+  <div class="{{ 'nlist' if cols.row == 'nrow' else 'list' }}" role="list" data-key="l-ended">
+  {{ agent_cols_head(cols, true, pin=True) }}
+  {% for r in rows %}{{ ended_row(r, cols, ntfy.get(r.id), csrf, (models or {}).get(r.id), loop.index > 8) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endmacro %}

@@ -1,0 +1,52 @@
+/* Terminal viewer. Uses tokens.css variables; no inline styles anywhere. */
+/* Symbols-only Nerd Font (MIT, see static/vendor/fonts/VERSIONS.txt). unicode-range keeps it a
+   pure fallback for private-use icons (Powerline, Seti, Font Awesome, Devicons, Material...). */
+@font-face {
+  font-family: "Symbols Nerd Font Mono";
+  src: url("/static/vendor/fonts/SymbolsNerdFontMono-Regular.woff2") format("woff2");
+  font-weight: normal; font-style: normal; font-display: swap;
+  unicode-range: U+E000-F8FF, U+F0000-FFFFD, U+23FB-23FE, U+2B58;
+}
+.termpage main { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+.term { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.term-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.term-name { margin: 0; font-size: var(--fs-m); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.term-badge { color: var(--waiting); font-size: var(--fs-s); }
+.term-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); flex-wrap: wrap; }
+.term-status { color: var(--muted); font-size: var(--fs-s); }
+.term-status[data-state="live"] { color: var(--running); }
+.term-status[data-state="closed"] { color: var(--failed); }
+.term-tools { display: flex; gap: var(--gap); }
+.term-scroll {
+  background: var(--pane-bg); color: var(--pane-fg);
+  height: calc(100dvh - 175px); min-height: 240px;
+  overflow-x: auto; overflow-y: hidden;          /* wide panes scroll, never reflow */
+  touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.term-screen { height: 100%; min-width: 100%; padding: 4px; box-sizing: border-box; }
+.term-screen .xterm { height: 100%; }
+.term-screen .xterm-viewport, .term-hist .xterm-viewport { touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; overflow-y: scroll; }
+.term-hist { overflow: hidden; touch-action: pan-y; }
+.term-hist .xterm { height: 100%; padding: 4px; box-sizing: border-box; }
+.term-hist[hidden], .term-scroll[hidden], .term-histbar[hidden], .term-nav [hidden] { display: none; }
+.term-histbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.term-histcount { color: var(--muted); font-size: .9rem; }
+.term-bottom { position: absolute; right: 12px; bottom: 12px; z-index: 5; background: var(--bg); }
+.term-bottom[hidden], .term-tools [hidden] { display: none; }
+
+.term-nav { display: flex; align-items: center; gap: var(--gap); }
+.term-navbtn { min-width: 40px; min-height: var(--ctl-h); padding: 0 10px; }
+.term-ico { vertical-align: -1px; }
+.term-histbtn { padding: 0 8px; font-size: .85rem; }
+.term-navbtn:disabled { opacity: .45; cursor: not-allowed; }
+.term-winlabel { flex: 1; min-width: 0; text-align: center; color: var(--muted); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) {
+  /* thumb zone: pinned to the bottom edge, above the home indicator / safe area */
+  .term-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--bg);
+    border-top: 1px solid var(--line); padding: 4px max(8px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+  .term-navbtn { flex: 0 0 auto; min-width: 64px; }
+  .term-histbtn { min-width: 56px; }
+  .term-scroll { height: calc(100dvh - 200px); margin-bottom: 52px; }
+  .term-bottom { bottom: 60px; }
+}

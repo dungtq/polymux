@@ -1,0 +1,16 @@
+/* dt keys sheet content (DESIGN.md §6.16, §8): dialog#x-keys > [data-keys-body], filled by keys.js from its one key
+   table as: p.x-knote, .cols > div (two) > h3 + dl > dt + dd > kbd. One column on phones (frame: layers.css). */
+.x-knote{margin:0 0 var(--s1);color:var(--muted);font-size:var(--fs-ui)}
+.x-kbody .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s1) var(--s6)}
+.x-kbody .cols>div{min-width:0}
+.x-kbody h3{margin:var(--s3) 0 var(--s1);color:var(--muted);font-size:var(--fs-s);font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase}
+.x-kbody dl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--s2) var(--s3);margin:0;
+  font-size:var(--fs-ui)}
+.x-kbody dt{min-width:0}
+.x-kbody dd{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:2px;margin:0;color:var(--muted);
+  font-size:var(--fs-s)}
+.x-kbody kbd{min-width:var(--badge-h);text-align:center}
+@media (max-width:699px){
+  .x-kbody .cols{grid-template-columns:minmax(0,1fr)}
+}

@@ -1,0 +1,20 @@
+{# Sub-agents of this Claude session (read-only). Summary strip, then rows grouped under workflows / Direct. Rows open the work inline (htmx GET). Polled by nodiff.js (data-sa-poll): ids keep open rows open; data-keep keeps a row's loaded detail, nodiff.js re-fetches it in place while the row runs. #}
+{% from "_sa_macros.html" import sa_line %}
+<div id="sa-root" data-run="{{ summ.running }}"{% if ended %} data-ended="1"{% endif %}>
+{% if subs %}
+<div class="sa-sum" id="sa-sum">
+  <div class="sa-counts small"><span class="sa-cnt"><span class="dot dot-running" aria-hidden="true"></span>Running <strong>{{ summ.running }}</strong></span><span class="sa-cnt"><span class="dot dot-idle" aria-hidden="true"></span>Finished <strong>{{ summ.finished }}</strong></span><span class="sa-cnt">Total <strong>{{ summ.total }}</strong></span></div>
+  {% for g in summ.groups if g.gid %}<div class="sa-prog small" title="{{ g.gid }}"><span class="sa-prog-l">{{ g.label }}</span><progress class="sa-prog-b" max="{{ g.total or 1 }}" value="{{ g.done }}"></progress><span class="sa-prog-n muted">{{ g.done }}/{{ g.total }} done</span></div>{% endfor %}
+</div>
+<p class="small muted sa-note">Open one to see its prompt, text and tool steps.</p>
+{% for g in summ.groups %}<details class="sa-g" id="sa-g-{{ g.gid or 'direct' }}"{% if not g.gid %} open{% endif %}>
+  <summary class="sa-gh"><strong>{{ g.label }}</strong><span class="muted small">{{ g.subs | length }} sub-agent{{ '' if g.subs | length == 1 else 's' }}{% if g.running %} &middot; {{ g.running }} running{% endif %}{% if g.gid %} &middot; {{ g.done }}/{{ g.total }} done{% endif %}</span></summary>
+<ul class="sa-list" role="list">
+{% for s in g.subs %}<li class="sa-item" id="sa-i-{{ s.group }}{{ s.sid }}"><details class="sa-d" id="sa-d-{{ s.group }}{{ s.sid }}" data-run="{{ 1 if s.running else 0 }}" data-sid="{{ s.group }}{{ '/' if s.group }}{{ s.sid }}">
+  <summary class="sa-line sa-row">{{ sa_line(s, now) }}</summary>
+  <div class="sa-work" hx-get="/a/{{ agent.id }}/subagents?id={{ s.sid | urlencode }}{% if s.group %}&amp;wf={{ s.group | urlencode }}{% endif %}" hx-trigger="toggle from:closest details once" hx-swap="innerHTML" data-nodiff data-keep><p class="muted small">Loading&hellip;</p></div>
+</details></li>{% endfor %}
+</ul>
+</details>{% endfor %}
+{% else %}<p class="muted small sa-note">No sub-agents in this session{% if agent.kind.value != 'claude' %} (only Claude sessions record them){% endif %}.</p>{% endif %}
+</div>

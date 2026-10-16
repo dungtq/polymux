@@ -1,0 +1,51 @@
+{#- dt Inbox list (docs/themes/dt/PRD.md §6.2, LAYOUT.md §4-5): the content of #inbox, also the fragment the core route
+    (pages.inbox_page) returns on a live refresh, a filter, a view or a sort request. View model: dt_inbox()
+    (pm.web.dt.inbox). Order (LAYOUT §4): head + stats · status line (errors) · controls (filter, views, Unread,
+    Group) · one table with bands (Pinned · Needs you · Running · Idle, or by project) or the Ended table · foot ·
+    key hints. The first child [data-poll] is this list's URL: classic nodiff.js polls it and js/inbox.js puts it in
+    the address bar. Top-level blocks are always rendered (the errors line hidden when empty): the morph matches
+    unkeyed nodes by position. Every request into #inbox swaps innerHTML (nodiff morphs it: open details, folds, focus, the
+    filter text and the recaps survive). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_switch.html" as psw -%}{%- import "parts/_select.html" as psel -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_agentrow.html" as ar -%}
+{%- set ib = dt_inbox() -%}
+{%- if ib -%}
+<i hidden data-poll="{{ ib.poll_url }}" data-key="i-poll"></i>
+{{ ph.head("Inbox", stats=ib.stats, id="i-head", actions=[{"label": "Mark all read", "icon": "check", "title": "Mark every agent and message read", "attrs": {"data-i-readall": ""}}] if ib.unread else none) }}
+<p class="i-errs" role="status"{% if not errors %} hidden{% endif %}>{% for e in errors %}<span>{{ e }}</span>{% endfor %}</p>
+{% call ph.tools() %}
+  {{ pf.fbox("inbox", value=q, placeholder="Filter agent, project, tmux", label="Filter agents", get="/", target="#inbox", swap="innerHTML", push=false) }}
+  {{ ps.seg(ib.views, label="Show", target="#inbox", swap="innerHTML", push=false, cls="i-views") }}
+  {%- if ib.view != "ended" %}
+  <span class="sp"></span>
+  <form class="i-ctl" action="/" method="get" hx-get="{{ ib.ctl_url }}" hx-trigger="change" hx-target="#inbox" hx-swap="innerHTML">
+    {{ psw.switch("un", on=ib.unread_only, label="Unread", count=ib.unread) }}
+    {{ psel.select("grp", [("state", "Group: state"), ("project", "Group: project")], value=ib.grp, label="Group by") }}
+  </form>
+  {%- endif %}
+{% endcall %}
+{%- if ib.view == "ended" %}
+{% call tb.table("inbox-ended", "Ended sessions", cls="i-end", list="ended", labels={"enter": "Open the transcript"}) %}
+  {{ tb.gh([{"sr": "State"}, {"label": "Agent"}, {"label": "Project", "cls": "hide-n"}, {"label": "Last message"},
+            {"label": "Ran for", "num": true, "cls": "hide-n"}, {"label": "Ended", "num": true}, {"sr": "Actions"}]) }}
+  {% for e in ib.ended %}{{ ar.ended_row(e, cur=loop.first) }}{% endfor %}
+  {% if ib.empty %}{% call tb.empty() %}{{ ib.empty }}{% if ib.empty_url %} <a href="{{ ib.empty_url }}" data-i-nav>{{ ib.empty_link }}</a>{% endif %}{% endcall %}{% endif %}
+{% endcall %}
+{%- else %}
+{% call tb.table("inbox", "Agents", cls="i-list", list="inbox",
+                 keys={"enter": "event:i:open", "o": "menu:tab", "e": "menu:read", "p": "menu:pin"},
+                 labels={"enter": "Open in the chat aside", "o": "Open in a tab", "e": "Mark read / unread", "p": "Pin / unpin"}) %}
+  {{ tb.gh(ib.cols, sort=ib.sort) }}
+  {%- set first = namespace(on=true) %}
+  {% for g in ib.groups %}{% call tb.group(g.key, g.label, count=g.rows | length, icon=g.icon or none, cls=g.cls) %}
+    {%- for r in g.rows %}{{ ar.agent_row(r, cur=first.on) }}{% set first.on = false %}{% endfor %}
+  {%- endcall %}{% endfor %}
+  {% if ib.empty %}{% call tb.empty() %}{{ ib.empty }}{% if ib.empty_url %} <a href="{{ ib.empty_url }}"{% if ib.empty_nav %} data-i-nav{% endif %}>{{ ib.empty_link }}</a>{% endif %}{% endcall %}{% endif %}
+{% endcall %}
+{%- endif %}
+{{ tb.foot(ib.shown, ib.total, more_href=ib.more_url, noun="sessions" if ib.view == "ended" else "agents") }}
+{{ tb.hints([("J K", "move"), ("Enter", "aside"), ("O", "tab"), ("X", "details"), ("E", "read / unread"), ("P", "pin")] if ib.view != "ended" else [("J K", "move"), ("Enter", "open")]) }}
+{%- else -%}
+<p class="p-empty">The Inbox could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif -%}

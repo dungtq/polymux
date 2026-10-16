@@ -1,0 +1,23 @@
+{% from "_agents_macros.html" import hc, dash %}{% from "_macros.html" import dot %}
+{% set cols = icols if icols is defined else cols %}{% set cur = agent.name if agent is defined and agent else "" %}<section class="ag-sec" aria-label="Installed agents">
+<div class="list ag-table" role="list">
+<div class="hrow arow-i ag-head" role="presentation"><span class="c-dot"></span>{{ hc(cols["c-ag"], "c-ag") }}{{ hc(cols["c-ver"], "c-ver") }}{{ hc(cols["c-bin"], "c-bin") }}{{ hc(cols["c-cfg"], "c-cfg") }}{{ hc(cols["c-rul"], "c-rul") }}{{ hc(cols["c-sk"], "c-sk") }}{{ hc(cols["c-mc"], "c-mc") }}</div>
+{% for a in agents %}
+{% set ak = {'claude': 'claude', 'codex': 'codex', 'devin': 'devin', 'cursor': 'cursor-agent', 'antigravity': 'antigravity', 'agy': 'antigravity'}.get(a.name) %}<a class="lrow arow-i{{ '' if a.installed else ' ag-off' }}{{ ' ag-sel' if a.name == cur }}" role="listitem" href="/agents/{{ a.name | urlencode }}"{% if a.name == cur %} aria-current="page"{% endif %} title="Open {{ a.label or a.name }}"{% if ak %} data-kind="{{ ak }}"{% endif %}>
+<span class="c-dot">{{ dot("running", "installed") if a.installed else dot("idle", "not installed") }}</span>
+<span class="c-ag"><strong>{{ a.label or a.name }}</strong></span>
+<span class="c-ver muted" title="{{ a.version or 'unknown' }}">{{ dash(a.version) }}</span>
+<span class="c-bin mono muted" title="{{ a.binary or 'not found' }}">{{ dash(a.binary) }}</span>
+<span class="c-cfg{{ ' ico-dir' if a.config_dir }}" title="{{ a.config_dir }}">{{ dash(a.config_dir) }}</span>
+<span class="c-rul mono muted" title="{{ a.rules_file }}">{{ dash(a.rules_file) }}</span>
+<span class="c-sk muted">{{ a.skills_enabled }}</span>
+<span class="c-mc muted">{{ a.mcp_count }}</span>
+</a>
+{% else %}<p class="muted ag-empty">No agents found.</p>{% endfor %}
+</div>
+<section class="ag-sub" aria-labelledby="ag-fh"><h2 id="ag-fh">Findings <span class="muted">{{ findings | length }}</span></h2>
+{% if findings %}<ul class="ag-finds">{% for f in findings %}
+<li class="ag-find{{ ' ag-warn' if f.severity == 'warn' }}" title="{{ f.text }}">{{ dot("waiting", "warning") if f.severity == "warn" else dot("idle", "info") }}<span class="ag-ft">{{ f.text }}</span></li>{% endfor %}</ul>
+{% else %}<p class="muted ag-empty">No findings.</p>{% endif %}
+</section>
+</section>

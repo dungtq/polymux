@@ -1,0 +1,5 @@
+{# One composer message (models.OutboxMsg) as a user bubble with its delivery state and actions.
+   Context: m, agent (may be None), optional uploads. Rendered by the message POST, the outbox action
+   routes and (inside _chatitems.html) GET /a/<id>/items. Behaviour: static/js/chat-items.js. #}
+{% from "_ci_macros.html" import ob_bubble with context %}
+{{ ob_bubble(m) }}

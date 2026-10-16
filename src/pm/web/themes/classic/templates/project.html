@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% from "_macros.html" import git_badge, stop_button, stop_panel %}
+{% from "_filterbox.html" import filterbox %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block flash %}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/projects.css">
+<link rel="stylesheet" href="/static/css/projsettings.css">
+<div class="pg-project">
+<div class="pj-split" data-proj="{{ project.name }}">
+<div class="pj-main">
+{% set base = "/p/" ~ (project.name | urlencode) %}
+{% set hid = ps.hidden if ps else [] %}
+<div class="pj-head"><div class="pj-title"><div class="pj-h1row"><a class="pj-gear" data-pj="settings" href="{{ base }}/settings/panel" title="Project settings" aria-label="Project settings"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.123.098l-.289 1.106c-.17.646-.633 1.1-1.18 1.37a4.27 4.27 0 0 0-.4.231c-.51.34-1.164.43-1.8.254l-1.102-.302c-.06-.017-.12.015-.141.045a6.5 6.5 0 0 0-.574.99.126.126 0 0 0 .026.12l.814.806c.466.46.7 1.07.66 1.66a4.7 4.7 0 0 0 0 .459c.04.59-.194 1.2-.66 1.66l-.814.806a.126.126 0 0 0-.026.12c.16.346.352.68.574.99.02.03.081.062.14.045l1.103-.302c.636-.176 1.29-.086 1.8.254.127.085.26.162.4.231.547.27 1.01.724 1.18 1.37l.289 1.106c.015.062.087.095.123.098a6.5 6.5 0 0 0 1.142 0c.036-.003.108-.036.123-.098l.289-1.106c.17-.646.633-1.1 1.18-1.37.14-.07.273-.146.4-.231.51-.34 1.164-.43 1.8-.254l1.102.302c.06.017.12-.015.141-.045.222-.31.414-.644.574-.99a.126.126 0 0 0-.026-.12l-.814-.806c-.466-.46-.7-1.07-.66-1.66a4.7 4.7 0 0 0 0-.459c-.04-.59.194-1.2.66-1.66l.814-.806a.126.126 0 0 0 .026-.12 6.5 6.5 0 0 0-.574-.99c-.02-.03-.081-.062-.14-.045l-1.103.302c-.636.176-1.29.086-1.8-.254a4.27 4.27 0 0 0-.4-.231c-.547-.27-1.01-.724-1.18-1.37l-.289-1.106c-.015-.062-.087-.095-.123-.098a6.5 6.5 0 0 0-1.142 0ZM8 5.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Zm0 1.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg></a><h1 title="{{ project.name }}">{{ project.name }}</h1>{{ git_badge(project.git) }}</div>
+<p class="small muted ico-dir pj-pathrow"><span class="mono">{{ project.path }}</span><button class="linkbtn pj-showdocs" type="button" data-pj-show hidden title="Show the documents panel">Show docs</button></p>
+{% if linked %}<div class="pj-links" aria-label="Linked projects">{% for n in linked %}<span class="pj-lk"><a data-pj href="/p/{{ n | urlencode }}/files" title="Browse {{ n }} (read-only)">{{ n }}</a><a href="/p/{{ n | urlencode }}" title="Open project {{ n }}" aria-label="Open project {{ n }}">&#8599;</a></span>{% endfor %}</div>{% endif %}
+</div>
+<span class="head-actions"><a class="button launch-btn" href="{{ base }}/launch">Launch</a> {{ stop_button("project:" ~ project.name, stop_agents) }}</span></div>
+<div class="pj-tabbar" id="pj-tabbar"><div class="tabs pj-tabs tabs-line" role="tablist" aria-label="Project documents">
+  <a class="tab pj-tab pj-tab-agents" role="tab" href="#" data-pj-agents aria-selected="false" title="Back to the agents and sessions">Agents</a>
+  {% if 'browse' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/files" data-pj="browse" aria-selected="false" title="Read-only project files">Browse</a>{% endif %}
+  {% if 'git' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/git/panel" data-pj="git" aria-selected="false" title="History and remotes">Git</a>{% endif %}
+  {% if 'skills' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/view/skills" data-pj="skills" aria-selected="false">Skills</a>{% endif %}
+  {% if 'plans' not in hid %}<a class="tab pj-tab" role="tab" href="#plans" data-pj-pane="pj-p-plans" aria-selected="false">Plans <span class="pj-n">{{ plans.total }}</span></a>{% endif %}
+  {% if 'todo' not in hid %}<a class="tab pj-tab" role="tab" href="#todo" data-pj-pane="pj-p-todo" aria-selected="false">TODO <span class="pj-n">{{ todo.open_n if not todo.blocked else 0 }}</span></a>{% endif %}
+  {% if 'backlog' not in hid and backlog.tracker %}<a class="tab pj-tab" role="tab" href="#issues" data-pj-pane="pj-p-issues" aria-selected="false">Issues <span class="pj-n">{{ backlog.open_n }}</span></a>
+  {% elif 'backlog' not in hid %}<a class="tab pj-tab" role="tab" href="#backlog" data-pj-pane="pj-p-backlog" aria-selected="false">Backlog <span class="pj-n">{{ backlog.open_n if backlog.exists and not backlog.blocked else 0 }}</span></a>{% endif %}
+  {% if 'readme' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/view/readme" data-pj="readme" aria-selected="{{ 'true' if first_key == 'readme' else 'false' }}">README</a>{% endif %}
+  {% if has_features and 'features' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/view/features" data-pj="features" aria-selected="false">FEATURES</a>{% endif %}
+  {% if 'changelog' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/view/changelog" data-pj="changelog" aria-selected="{{ 'true' if first_key == 'changelog' else 'false' }}">CHANGELOG</a>{% endif %}
+  {% if has_claude and 'claude' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/view/claude" data-pj="claude" aria-selected="false">CLAUDE</a>{% endif %}
+  {% if has_agents and 'agents' not in hid %}<a class="tab pj-tab" role="tab" href="{{ base }}/view/agents" data-pj="agents" aria-selected="false">AGENTS</a>{% endif %}
+  <a class="tab pj-tab" role="tab" href="#" data-pj-x aria-selected="false" hidden></a>
+</div>
+<button class="pj-close" type="button" data-pj-close title="Close documents panel" aria-label="Close documents panel">&times;</button></div>
+{{ stop_panel(csrf, "project:" ~ project.name, stop_agents, project.name) }}
+<div id="flash" class="flash-inline" role="status" aria-live="polite"></div>
+
+{% if 'live' not in hid %}<div class="filterbar" role="search">{{ filterbox() }}</div>
+<div class="ssewrap" data-live>
+<div id="proj-live" hx-get="{{ live_url }}" hx-trigger="pm:agent_state from:document, pm:agent_added from:document, pm:agent_removed from:document, pm:inbox from:document, pm:refresh, every 30s" hx-swap="innerHTML" hx-sync="this:replace" data-nodiff>
+{% include "_project_live.html" %}
+</div>
+</div>{% endif %}
+
+<link rel="stylesheet" href="/static/css/gitremotes.css">
+<script src="/static/js/copy.js" defer></script>
+<script src="/static/js/gitremotes.js" defer></script>
+
+
+
+</div>
+<aside class="pj-right" id="pj-right" aria-label="Project documents">
+<div id="pj-panes" hidden>
+<section class="pj-pane" id="pj-p-plans" hidden>
+<div class="pj-pane-head"><h2 id="plans">Plans</h2><button type="button" class="small" data-plans-pop="{{ base }}/plans?embed=1">{% if plans.total > plans.shown | length %}All {{ plans.total }} plans{% else %}Open plans{% endif %}</button><button type="button" class="small" data-plans-pop="{{ base }}/plans?embed=1#new">New plan</button></div>
+<link rel="stylesheet" href="/static/css/plans.css">
+<div class="card pg-plans">
+  {% if plans.shown %}
+  <ul class="commits" aria-label="Plans">
+  {% for p in plans.shown %}<li><span class="mono chash"><a href="{{ base }}/plans/{{ p.name | urlencode }}{% if p.src != 'project' %}?src={{ p.src }}{% endif %}">{{ p.name }}.md</a></span> <span class="small muted">{{ p.label }}</span> <span class="small muted cmeta" title="{{ p.mtime | ts }}">{{ p.mtime | ago }}</span></li>{% endfor %}
+  </ul>
+  {% else %}<span class="muted">No plans yet.</span>{% endif %}
+</div>
+<div class="pj-planview" hidden><button type="button" class="linkbtn small" data-planview-back>&larr; Plans</button><iframe title="Plan"></iframe></div>
+</section>
+<section class="pj-pane" id="pj-p-todo" hidden>
+<div class="pj-pane-head"><h2 id="todo-h">TODO</h2></div>
+{% import "_backlog.html" as bl %}
+<div class="card bl-card td-card" id="todo-card">
+  {% if todo.blocked %}
+  <span class="warn">TODO.md is a symlink or escapes the project; refused.</span>
+  {% elif todo.total %}
+  <div class="prog"><progress max="{{ todo.total }}" value="{{ todo.done_n }}"></progress><span class="prog-n small muted">{{ todo.done_n }}/{{ todo.total }}</span></div>
+  <div class="small muted">{{ todo.open_n }} open &middot; {{ todo.done_n }} done</div>
+  {% if todo.open_n %}
+  <div class="bl-list">{{ bl.todo_groups(todo.shown, csrf, todo.token, project.name) }}</div>
+  {% if todo.rest %}
+  <details class="td-more"><summary class="small">Show all ({{ todo.open_n }})</summary>
+    <div class="bl-list">{{ bl.todo_groups(todo.rest, csrf, todo.token, project.name) }}</div>
+  </details>
+  {% endif %}
+  {% else %}<span class="muted">All done.</span>{% endif %}
+  {% else %}<span class="muted">No TODO.md items.</span>{% endif %}
+</div>
+</section>
+{% if backlog.tracker %}
+<section class="pj-pane" id="pj-p-issues" hidden>
+<div id="issues-box" data-iss-view="open" data-src="{{ base }}/issues">{% with iss=backlog, pname=project.name %}{% include "_issues.html" %}{% endwith %}</div>
+<div class="iss-view" data-base="{{ base }}" aria-live="polite" hidden></div>
+</section>
+<script src="/static/js/issues.js" defer></script>
+{% else %}
+<section class="pj-pane" id="pj-p-backlog" hidden>
+<div class="pj-pane-head"><h2 id="backlog">Backlog <span id="bl-flash" class="bl-flash small" role="status" aria-live="polite" hidden>Added</span></h2>{% if backlog.exists and not backlog.blocked %}<div class="bl-seg" role="group" aria-label="Show backlog items"><button type="button" aria-pressed="true" data-bl-view="open">Open <span class="bl-seg-n">{{ backlog.open_n }}</span></button>{% if backlog.done_n %}<button type="button" aria-pressed="false" data-bl-view="done">Done <span class="bl-seg-n">{{ backlog.done_n }}</span></button>{% endif %}</div><button type="button" class="small" data-bl-file="/backlog?p={{ project.name|urlencode }}&amp;edit=1&amp;embed=1">Edit file</button>{% endif %}</div>
+{% import "_backlog.html" as bl %}
+<div class="card bl-card" id="backlog-card" data-bl-view="open">
+  {% if backlog.blocked %}
+  <span class="warn">BACKLOG.md is a symlink or escapes the project; refused.</span>
+  {% else %}
+  {% if backlog.exists %}
+  <div class="bl-list">{% for b in backlog["items"] %}{{ bl.item(b, csrf, backlog.token, project.name, 'project') }}{% endfor %}{% for b in backlog["done_items"] %}{{ bl.item(b, csrf, backlog.token, project.name, 'project') }}{% endfor %}</div>
+  {% if backlog.more %}<div class="small muted">+{{ backlog.more }} more</div>{% endif %}
+  {% if backlog.done_more %}<div class="small muted bl-done-more">+{{ backlog.done_more }} older done</div>{% endif %}
+  {% else %}<span class="muted">No backlog yet.</span>{% endif %}
+  <form class="bl-add" method="post" action="/backlog/add">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="project" value="{{ project.name }}">
+    <input type="hidden" name="back" value="project">
+    <input name="text" maxlength="{{ backlog.max_item }}" placeholder="Add to Inbox..." aria-label="New backlog item" required autocomplete="off">
+    <button type="submit">Add</button>
+  </form>
+  {% endif %}
+</div>
+<div class="pj-bledit" hidden><iframe title="Edit BACKLOG.md"></iframe></div>
+</section>
+{% endif %}
+<script src="/static/js/backlog.js" defer></script>
+</div>
+  <div class="pj-body" id="pj-body" role="tabpanel" aria-live="polite">{{ first_html | safe }}</div>
+  <div class="pj-after small">
+    {% for title, links in ext_groups or () %}<div class="pj-af-row ext-links"><b>{{ title }}</b>
+      {% for it in links %}<a class="badge" href="{{ it.url }}" target="_blank" rel="noopener noreferrer"{% if it.desc %} title="{{ it.desc }}"{% endif %}{% if it.icon %} data-icon="{{ it.icon }}"{% endif %}>{{ it.label }}</a>{% endfor %}</div>
+    {% endfor %}
+  </div>
+</aside>
+<dialog id="plans-dialog" class="pmdlg plans-dlg" aria-label="Plans"><button type="button" class="small plans-dlg-x" data-dlg-close aria-label="Close">Close</button><iframe title="Plans" loading="lazy"></iframe></dialog>
+<script src="/static/js/plans-pop.js" defer></script>
+</div>
+<script src="/static/js/projview.js" defer></script>
+<script src="/static/js/projsettings.js" defer></script>
+<script src="/static/js/srow.js" defer></script>
+<script src="/static/js/projtabs.js" defer></script>
+<a class="fab" href="{{ base }}/launch" aria-label="Launch an agent" title="Launch an agent">+</a>
+</div>
+{% endblock %}

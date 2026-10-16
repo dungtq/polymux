@@ -1,0 +1,45 @@
+{#- dt project view: the project sidebar (PRD §6.4, LAYOUT.md §5, README O3 default: kept, Projects pages only,
+    collapsible with ⌘⇧B, remembered). Every project of the core sidebar with its live agents; the current project is
+    .on (aria-current). A project row shows a pin-free name, the need-you badge (waiting + failed; yellow, the word in
+    .vh), a running dot and the agent count; its agents (open: the current project, or one of its agents is not idle)
+    are the shell's session rows (.x-sr: dot, id truncated from the left, age ticking from data-since). The filter box
+    is the parts' client filter (parts/_filter.html, js/filter.js): project rows carry their agents' ids, so an agent
+    match keeps its project. View model: v = dt_project() (SideProject, SideAgent).
+    Hooks for js/project.js: [data-pj-navc] collapse (>= 900px), [data-pj-navx] close (overlay), [data-pj-tc] fold a
+    project's agents (aria-controls), a.x-sr[data-pj-ag] opens that agent's chat in the aside (a modified click follows
+    the link). -#}
+{%- import "parts/_filter.html" as pf -%}
+{%- macro icon(name) -%}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ name }}"/></svg>{%- endmacro -%}
+<nav class="pj-nav" id="pj-nav" aria-label="Projects and agents">
+  <div class="pj-nh">
+    <a class="pj-nt" href="/p" title="All projects">{{ icon("folder") }}<span>Projects</span><span class="c">{{ v.side_total }}</span></a>
+    <span class="sp"></span>
+    <button class="x-ib sm pj-ncol" type="button" data-pj-navc aria-label="Collapse the project sidebar" title="Collapse the project sidebar" data-k-title="mod+shift+B" aria-controls="pj-nav" aria-expanded="true">{{ icon("side-l") }}</button>
+    <button class="x-ib sm pj-nx" type="button" data-pj-navx aria-label="Close the project sidebar" title="Close (Esc)">{{ icon("x") }}</button>
+  </div>
+  {{ pf.fbox("pj-nav", placeholder="Filter projects, agents", label="Filter projects and agents", rows="#pj-nl", cls="pj-nf") }}
+  <div class="pj-nl" id="pj-nl">
+    {%- for p in v.side %}
+    <div class="pj-np{{ ' on' if p.cur }}" data-p-q="{{ p.q }}">
+      {%- if p.n %}<button class="pj-tc" type="button" data-pj-tc aria-controls="pj-ng-{{ loop.index }}" aria-expanded="{{ 'true' if p.open else 'false' }}" aria-label="{{ 'Hide' if p.open else 'Show' }} the agents of {{ p.name }}">{{ icon("down") }}</button>
+      {%- else %}<span class="pj-tc" aria-hidden="true"></span>{% endif %}
+      <a class="pj-nn" href="{{ p.href }}"{% if p.cur %} aria-current="page"{% endif %} title="{{ p.name }}">
+        <span class="nm">{{ p.name }}</span>
+        {%- if p.need %}<span class="pj-need" title="{{ p.need }} need{{ 's' if p.need == 1 }} you">{{ p.need }}<span class="vh"> need you</span></span>{% endif %}
+        <span class="a">{% if p.running %}<i class="dot running" title="{{ p.running }} running" aria-hidden="true"></i><span class="vh">{{ p.running }} running, </span>{% endif %}{% if p.n %}{{ p.n }}<span class="vh"> agent{{ 's' if p.n != 1 }}</span>{% endif %}</span>
+      </a>
+    </div>
+    {%- if p.n %}
+    <div class="pj-ng" id="pj-ng-{{ loop.index }}"{% if not p.open %} hidden{% endif %}>
+      {%- for a in p.agents %}
+      <a class="x-sr pj-sa" href="{{ a.href }}" data-pj-ag="{{ a.id }}" data-p-q="{{ a.q }}" data-since="{{ a.since or '' }}" title="{{ a.id }} · {{ a.word }}">
+        <i class="dot {{ a.state }}" aria-hidden="true"></i><span class="nm sfx"><bdi>{{ a.id }}</bdi></span><span class="vh">, {{ a.word }}</span><span class="a" data-age>{{ a.age }}</span></a>
+      {%- endfor %}
+      {%- if p.more %}<a class="pj-nmore" href="{{ p.href }}">+{{ p.more }} more</a>{% endif %}
+    </div>
+    {%- endif %}
+    {%- endfor %}
+    <p class="pj-none" data-p-fnone hidden>No project or agent matches.</p>
+  </div>
+  <a class="pj-nall" href="/p">All {{ v.side_total }} projects</a>
+</nav>

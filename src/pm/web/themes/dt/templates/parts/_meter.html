@@ -1,0 +1,47 @@
+{#- Meters (DESIGN.md §6.7): a summary strip of meter cells and the bar alone. Contract: docs/themes/dt/PARTS.md §16.
+    {% import "parts/_meter.html" as pmt %}
+
+    pmt.meters(items, label="Summary", cls="")
+      items  list of meter dicts (below): an auto-fill grid of --meter-w cells, two columns on phones
+      label  aria-label of the strip (role=group)
+      cls    "one": a single full-width cell (the VMs pool meter); page classes
+    pmt.meter(m)   one cell, for a strip the page builds itself
+      m = {"key", "label", "value", "small", "pct", "level", "sub", "href", "title"}
+        label  the small muted line on top
+        value  the big value (1.125rem / 600); small = the muted unit or total after it ("/ 36", "of 1.7 TiB")
+        pct    0..100 (clamped) -> a 4px bar (<progress>, no inline style); none = no bar
+        level  "ok" | "warn" | "crit" (also "red", "bad") | "na": bar colour --lvl-ok / --lvl-warn / --lvl-red;
+               warn and crit add a screen-reader word and colour the value; na = muted value, no bar
+        sub    the muted line under the bar (what the value means)
+        href   the cell is a link (to the tab or page that shows the detail)
+        title  tooltip
+    pmt.bar(pct, level="", label="", inline=false)
+      the bar alone; inline = a short share bar inside a table cell (--bar-in-w, accent), e.g. RAM share of a row -#}
+
+{%- macro _lv(level) -%}
+{%- if level in ("crit", "red", "bad") %}red{% elif level == "warn" %}warn{% elif level == "na" %}na{% endif -%}
+{%- endmacro -%}
+
+{%- macro bar(pct, level="", label="", inline=false) -%}
+{%- set v = [[pct or 0, 0] | max, 100] | min -%}
+<progress class="bar{{ ' in' if inline }}{{ ' ' ~ _lv(level) if _lv(level) }}" max="100" value="{{ '%.0f' | format(v) }}"
+  {%- if label %} aria-label="{{ label }}"{% else %} aria-hidden="true"{% endif %}></progress>
+{%- endmacro -%}
+
+{%- macro meter(m) -%}
+{%- set lv = _lv(m.get("level") or "") -%}
+{%- set tag = "a" if m.get("href") else "div" -%}
+<{{ tag }} class="p-m{{ ' ' ~ lv if lv }}"{% if m.get("href") %} href="{{ m.href }}"{% endif %}{% if m.get("key") %} data-p-m="{{ m.key }}"{% endif %}{% if m.get("title") %} title="{{ m.title }}"{% endif %}>
+  <span class="l">{{ m.label }}</span>
+  <span class="v">{{ m.value }}{% if m.get("small") %}<small>{{ m.small }}</small>{% endif %}
+    {%- if lv == "warn" %}<span class="vh"> (warning)</span>{% elif lv == "red" %}<span class="vh"> (critical)</span>{% endif %}</span>
+  {%- if m.get("pct") is not none and lv != "na" %}{{ bar(m.pct, lv, m.label ~ " " ~ ('%.0f' | format(m.pct)) ~ "%") }}{% endif %}
+  {%- if m.get("sub") %}<span class="s">{{ m.sub }}</span>{% endif %}
+</{{ tag }}>
+{%- endmacro -%}
+
+{%- macro meters(items, label="Summary", cls="") -%}
+<div class="p-sum{{ ' ' ~ cls if cls }}" role="group" aria-label="{{ label }}">
+  {%- for m in items %}{{ meter(m) }}{% endfor %}
+</div>
+{%- endmacro -%}

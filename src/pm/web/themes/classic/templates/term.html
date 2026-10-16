@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Terminal {{ session_name }}{% endblock %}
+{% block bodyclass %}termpage{% if embed %} embed{% endif %}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/vendor/xterm/xterm.css">
+<link rel="stylesheet" href="/static/css/term.css">
+<section class="term" id="term-root"
+  data-sid="{{ sid }}" data-window="{{ window or '' }}" data-csrf="{{ csrf }}" data-session="{{ session_name }}"
+  data-ticket-path="{{ ticket_path }}" data-ws-path="{{ ws_path }}"
+  data-history-path="/term/history"
+  data-idle-s="{{ idle_s }}" data-max-s="{{ max_s }}">
+  <header class="term-head">
+    <a class="button term-back" id="term-back" href="{{ back_url or '/tmux' }}">{{ back_label or 'Back' }}</a>
+    <h1 class="term-name">{{ session_name }}</h1>
+    <span class="term-status" id="term-status" role="status" aria-live="polite" data-state="connecting">Connecting...</span>
+    <span class="term-badge" title="Keystrokes are never sent">READ-ONLY</span>
+  </header>
+  <nav class="term-nav" id="term-nav" aria-label="Switch tmux window (view only)">
+    <button type="button" class="term-navbtn" id="term-prev" disabled aria-label="Previous window" title="Previous window (Alt+Left)"><svg class="term-ico" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false"><path d="M7 1 3 5l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Prev</button>
+    <span class="term-winlabel" id="term-winlabel" role="status" aria-live="polite">window -</span>
+    <span class="term-tools">
+      <button type="button" class="small term-navbtn" id="term-font-dec" aria-label="Smaller text" title="Smaller text">A-</button>
+      <button type="button" class="small term-navbtn" id="term-font-inc" aria-label="Larger text" title="Larger text">A+</button>
+      <button type="button" class="small" id="term-reconnect" hidden>Reconnect</button>
+    </span>
+    <button type="button" class="term-navbtn term-histbtn" id="term-hist-btn" disabled aria-label="Show scrollback history" aria-pressed="false" title="History (Alt+H)">History</button>
+    <button type="button" class="term-navbtn term-histbtn" id="term-hist-refresh" hidden aria-label="Refresh history">Refresh</button>
+    <button type="button" class="term-navbtn" id="term-next" disabled aria-label="Next window" title="Next window (Alt+Right)">Next <svg class="term-ico" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false"><path d="m3 1 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </nav>
+  <div class="term-histbar" id="term-histbar" hidden>
+    <span class="term-histcount" id="term-hist-count" role="status" aria-live="polite">History</span>
+    <button type="button" class="small" id="term-live" aria-label="Back to live view" title="Live (Alt+H)">Live</button>
+  </div>
+  <div class="term-scroll term-hist" id="term-hist" hidden aria-label="Scrollback history of {{ session_name }} (read-only)"></div>
+  <div class="term-scroll" id="term-scroll">
+    <div class="term-screen" id="term-screen" aria-label="Terminal output for {{ session_name }}"></div>
+  </div>
+  <button type="button" class="term-bottom" id="term-bottom" hidden>Jump to bottom</button>
+</section>
+<script src="/static/vendor/xterm/xterm.js" defer></script>
+<script src="/static/vendor/xterm/addon-fit.js" defer></script>
+<script src="/static/js/term.js" defer></script>
+{% endblock %}

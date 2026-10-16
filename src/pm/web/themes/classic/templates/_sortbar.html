@@ -1,0 +1,9 @@
+{# Sortable header cell: a plain link (?sort=); click again to reverse. c = sorting.sort_cols()[id]. always=True also shows ⇅ on an inactive column (v4 Projects/tmux). #}
+{% macro hc(c, cls, always=False) %}<a class="hcell {{ cls }}{{ ' on' if c.active }}" href="{{ c.href }}" title="Sort by {{ c.label }}"{% if c.active %} aria-current="true"{% endif %}>{{ c.label }}{% if c.active or always %}<span class="arr" aria-hidden="true">{{ c.arrow if c.active else "⇅" }}</span>{% endif %}</a>{% endmacro %}
+
+{# Compact "Filter" dropdown; navigates on change (lists.js), the form's submit button is the no-JS fallback.
+   opts = [(value, label)], cur = selected value, name = the query parameter (default f; Agent skills: show). #}
+{% macro filtersel(opts, cur, name="f") %}
+<label class="sel"><span class="muted">Filter</span>
+  <select name="{{ name }}" data-nav aria-label="Filter">{% for v, label in opts %}<option value="{{ v }}"{% if v == cur %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+{% endmacro %}

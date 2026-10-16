@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_macros.html" import agent_text, agent_label with context %}
+{% from "_agentname.html" import agent_name, agent_head %}
+{% from "_chatchrome.html" import jump_rail, jumpzoom %}
+{% from "_composer_macros.html" import composer, composer_scripts, RESUMABLE with context %}
+{% block title %}{{ agent_text(agent) }} (ended){% endblock %}
+{% block bodyclass %}{% if embed %}embed{% endif %}{% endblock %}
+{% block flash %}{% endblock %}
+{% block content %}
+{% set can_act = csrf and rec.project and rec.kind in RESUMABLE %}
+{# Resume + Fork live once, in the sticky head (in the drawer aside drawer.js mirrors them into the aside header and clicks these) #}
+{% macro ended_actions(cls, target, why_id) %}
+  <div class="{{ cls }}">
+    {% if rec.kind == 'claude' and not rec.resume_id %}<button type="button" class="small" disabled title="No session id recorded, cannot resume">Resume</button> <span class="small muted resume-why"{% if why_id %} id="{{ why_id }}"{% endif %}>No session id recorded, cannot resume</span>
+    {% elif rec.resume_id %}    <form method="post" action="/a/{{ agent.id }}/resume" data-transition="Resuming&hellip;" hx-post="/a/{{ agent.id }}/resume" hx-target="{{ target }}" hx-swap="innerHTML" hx-confirm="Resume {{ agent.label or agent.id }} in a new tmux window?">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small" title="Opens a new tmux window ({{ rec.kind }} resume)">Resume</button>
+    </form>
+    {% endif %}
+    <form method="post" action="/a/{{ agent.id }}/fork" hx-post="/a/{{ agent.id }}/fork" hx-target="{{ target }}" hx-swap="innerHTML" hx-confirm="Fork {{ agent.label or agent.id }} into a new tmux window? The original is left untouched.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small" title="Fork this conversation into a new agent in a new tmux window (background, this chat stays open)">Fork</button>
+    </form>
+  </div>
+{% endmacro %}
+<div class="agent-head" data-kind="{{ rec.kind }}" data-mode="ended" data-agent="{{ agent.id }}" data-pane="{{ rec.last_pane or '' }}">
+  {{ agent_head(rec, "ended") }}
+  <span id="agent-state" class="sr-only"><span class="badge st-ended">ended</span></span>
+    {% if can_act %}{{ ended_actions("agent-actions", "#flash", "resume-why") }}{% endif %}
+  <span class="ah-tools">{{ jumpzoom() }}</span>
+</div>
+{{ jump_rail() }}
+<div id="flash" class="flash" role="status" aria-live="polite"></div>
+{% set ended_ts = rec.ended_at or rec.last_seen %}
+<div class="ended-meta small">
+  <div class="em-row"><span class="em-k">Project</span><span class="em-v">{% if project %}<a href="/p/{{ project.name | urlencode }}">{{ project.name }}</a>{% elif rec.project %}{{ rec.project }}{% else %}&ndash;{% endif %}</span></div>
+  <div class="em-row"><span class="em-k">Directory</span><span class="em-v mono em-ell" title="{{ rec.cwd }}">{{ rec.cwd }}</span></div>
+  {% if origin %}<div class="em-row"><span class="em-k">Origin</span><span class="em-v">{{ origin.label }}: <a class="mono" href="/a/{{ origin.agent_id }}" target="_blank" rel="noopener" title="Open the source chat in a new tab">{{ origin.agent_id }}</a></span></div>{% endif %}
+  <div class="em-row"><span class="em-k">Ended</span><span class="em-v"><span class="stamp">{{ ended_ts | dt }}</span> {{ tz_label() }} <span class="em-age">({{ ended_ts | ago }})</span></span></div>
+  <div class="em-row"><span class="em-k">First seen</span><span class="em-v"><span class="stamp">{{ rec.first_seen | dt }}</span> <span class="em-age">({{ rec.first_seen | ago }})</span></span></div>
+  <div id="autoexit-note" hx-get="/a/{{ agent.id }}/autoexit" hx-trigger="load" hx-swap="outerHTML"></div>
+</div>
+<p class="small muted em-note">Not running. Read-only record; nothing here is sent to a pane.</p>
+{% if now_in_pane %}<p class="em-now">Now in this pane ({{ rec.last_pane }}): <a href="/a/{{ now_in_pane.id }}" data-kind="{{ now_in_pane.kind.value }}">{{ agent_name(now_in_pane) }}</a></p>{% endif %}
+<div class="tabpanel tabpanel-chat">
+ <div class="chatsplit" id="chatsplit" data-agent="{{ agent.id }}">
+  <div class="chatmain">
+  <div class="recap-w" hx-get="/a/{{ agent.id }}/recap" hx-trigger="load" hx-swap="innerHTML"></div>
+  <section id="ci" class="ci" aria-label="Conversation" data-agent="{{ agent.id }}" data-ended><p class="muted">Loading&hellip;</p></section>
+  <div id="ci-pending" class="ci-pending" aria-label="Your messages not in the transcript yet"></div>
+  </div>
+  {% include "_mdpane.html" %}
+ </div>
+</div>
+{% if can_act %}{{ composer("ended", rec=rec) }}{% endif %}
+{{ composer_scripts("ended", dock=can_act) }}
+<script src="/static/js/jumprail.js" defer></script>
+<script src="/static/js/chat.js" defer></script>
+<script src="/static/js/chat-md.js" defer></script>
+<script src="/static/js/chatlog.js" defer></script>
+<script src="/static/js/chat-items.js" defer></script>
+<link rel="stylesheet" href="/static/css/canvas.css">
+<script src="/static/js/canvas.js" defer></script>
+{% endblock %}

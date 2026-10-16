@@ -1,0 +1,123 @@
+/* pm design tokens: the only place for :root custom properties (docs/ARCHITECTURE.md "Colour", docs/UI-RULES.md "Theme").
+   Loaded first in base.html. Light/dark come from light-dark() + color-scheme; data-theme forces one
+   (set by /static/js/theme.js), "auto" follows the OS. Component-local custom properties (--ico, --k, ...) stay with
+   their component rules. Values here are the effective values of the old per-file :root blocks (Phase 5). */
+:root{
+  color-scheme:light dark;
+
+  /* surfaces and text */
+  --page:light-dark(#ffffff,#0d1117);
+  --bg:light-dark(#ffffff,#0d1117);
+  --card:var(--bg); /* legacy alias: no fills */
+  --subtle:light-dark(#f6f8fa,#151b23);
+  --side:light-dark(#eef1f4,#090d13); /* grey gutters either side of the white content column */
+  --head:light-dark(#f6f8fa,#151b23);
+  --head-fg:light-dark(#1f2328,#f0f6fc);
+  --head-muted:light-dark(#3d444d,#c9d1d9);
+  --colh:light-dark(#59636e,#9198a1); /* column header text */
+  --fg:light-dark(#1f2328,#f0f6fc);
+  --muted:light-dark(#59636e,#9198a1);
+  --idle:var(--muted);
+  --line:light-dark(#d0d7de,#3d444d);
+  --line2:light-dark(#eaeef2,#21262d);
+  --ctl-line:light-dark(#d0d7de,#3d444d);
+  --hover:light-dark(#eaeef2,#21262d);
+  --accent:light-dark(#0969da,#4493f8);
+  --accent-soft:light-dark(#ddf4ff,#1a2c4a);
+  --pane-bg:light-dark(#0d1117,#010409); --pane-fg:#e6edf3;
+  --code-bg:light-dark(#818b981f,#656c7633); /* inline code */
+  --selection:light-dark(#b6e3ff,#1f6feb66);
+  --scrim:light-dark(rgb(31 35 40/.4),rgb(1 4 9/.7)); /* phone: page behind the open sidebar */
+
+  /* state */
+  --waiting:light-dark(#9a6700,#d29922); --waiting-soft:light-dark(#fff8c5,#272115);
+  --running:light-dark(#1a7f37,#3fb950);
+  --failed:light-dark(#d1242f,#f85149);
+  --ok:var(--running); --warn:var(--waiting);
+  --ok-fg:light-dark(#116329,#3fb950);
+  --st-run:light-dark(#1a7f37,#3fb950); --st-attn:light-dark(#bf8700,#d29922); --st-err:light-dark(#d1242f,#f85149);
+  --lvl-ok:light-dark(#1a7f37,#3fb950); --lvl-warn:light-dark(#9a6700,#d29922); --lvl-red:light-dark(#cf222e,#f85149);
+  /* status badges (.badge.st-*): tinted fill + text */
+  --running-soft:light-dark(#dafbe1,#12261e); --failed-soft:light-dark(#ffebe9,#2d1215);
+  --waiting-fg:light-dark(#7d4e00,#d29922); --failed-fg:light-dark(#b62324,#f85149);
+  /* chat stats context bar */
+  --lvl-warn-soft:light-dark(#fff8c5,#3a2f0b); --lvl-red-soft:light-dark(#ffebe9,#3d1418);
+  /* git badges (.badge.gb-*) */
+  --gb-branch-fg:light-dark(#0550ae,#79c0ff); --gb-branch-bg:light-dark(#ddf4ff,#12253f);
+  --gb-ok-fg:light-dark(#0f5323,#56d364); --gb-ok-bg:var(--running-soft);
+  --gb-warn-fg:light-dark(#6a3e00,#e3b341); --gb-warn-bg:light-dark(#fff1c2,#2d2410);
+  --btn-green:light-dark(#1a7f37,#238636); --on-accent:#fff; /* text/icons on --btn-green / --accent fills */
+
+  /* agent identity (WHO); state colours above stay WHAT. Set data-kind="<AgentKind>" on an element to get --k. */
+  --k-claude:light-dark(#c96442,#e0866a); --k-codex:light-dark(#7c5cdb,#a58af0); --k-devin:light-dark(#0e8f8f,#3cc0c0);
+  --k-cursor-agent:light-dark(#5f6b7a,#9aa7b8); --k-antigravity:light-dark(#d1388f,#f06ab2); --k-other:light-dark(#8a8f98,#6b7078);
+
+  /* chat: tool chips (light-dark(a, b) spacing kept from chat.css), one stable hue per family (web.routes.chat.tool_family); text >= 4.5:1 on the 8% tint */
+  --tool-shell:light-dark(#6639ba, #bc8cff);
+  --tool-read:light-dark(#136061, #39c5cf);
+  --tool-edit:light-dark(#953800, #f0883e);
+  --tool-web:light-dark(#0550ae, #58a6ff);
+  --tool-agent:light-dark(#99286e, #f778ba);
+  --tool-mcp:light-dark(#116329, #56d364);
+  --tool-other:var(--muted);
+  /* chat bubbles */
+  --bub-user-bg:light-dark(#ddf4ff,#12283f); --bub-user-bd:light-dark(#54aeff,#1f6feb);
+  --bub-asst-bg:light-dark(#f0f3f6,#1c2128); --bub-asst-bd:light-dark(#d0d7de,#3d444d);
+
+  /* files pane: icons, git status, diff, code highlight */
+  --ico-dir:light-dark(#54aeff,#4493f8); --ico-file:light-dark(#818b98,#9198a1);
+  --ico-dir-c:light-dark(#54aeff,#54aeff);
+  --ico-md-c:light-dark(#0969da,#4493f8);
+  --ico-code-c:light-dark(#59636e,#9198a1);
+  --ico-img-c:light-dark(#8250df,#ab7df8);
+  --ico-zip-c:light-dark(#9a6700,#d29922);
+  --gs-m:light-dark(#9a6700,#d29922); --gs-a:light-dark(#1a7f37,#3fb950); --gs-u:var(--muted); --gs-c:light-dark(#1a7f37,#3fb950);
+  --df-add-bg:light-dark(#dafbe1,#12261e); --df-add-fg:light-dark(#116329,#7ee787);
+  --df-del-bg:light-dark(#ffebe9,#2d1316); --df-del-fg:light-dark(#82071e,#ffa198);
+  --df-hunk-bg:light-dark(#ddf4ff,#121d2f); --df-hunk-fg:light-dark(#0550ae,#79c0ff);
+  --hl-k:light-dark(#cf222e,#ff7b72); --hl-s:light-dark(#0a3069,#a5d6ff); --hl-c:light-dark(#59636e,#8b949e);
+  --hl-m:light-dark(#0550ae,#79c0ff); --hl-f:light-dark(#8250df,#d2a8ff); --hl-n:light-dark(#953800,#ffa657);
+  --hl-t:light-dark(#116329,#7ee787); --hl-e:light-dark(#82071e,#f85149);
+
+  /* type scale */
+  --fs-s:.8125rem; --fs-m:.9375rem; --fs-l:1.125rem;
+  /* spacing */
+  --s1:4px; --s2:8px; --s3:16px; --gap:8px;
+  /* controls and radii (desktop / fine pointer; touch overrides below) */
+  --ctl-h:32px; --ctl-pad:12px; --ctl-font:.8125rem; --ctl-radius:6px; --box-r:6px;
+  --r-ctl:6px; --r-pill:999px; --pill-h:24px;
+  --row-h:32px; --chip-h:24px; --nav-h:32px;
+  /* layout */
+  --tab-h:44px;
+  --nav-clear:calc(var(--tab-h) + env(safe-area-inset-bottom));
+  --act-w:32px; /* inbox / project agent rows: the trailing slot of the row action (pin) */
+  /* v5 shell: --chat-f = drawer share of the space right of the sidebar (drawer.js sets it);
+     --side-now = the sidebar width actually shown (0 when hidden, 44px when collapsed) */
+  --side-w:248px; --side-now:var(--side-w); --chat-f:.5; --top-h:44px; --top-row:44px;
+  /* popups (menus, popovers, dialogs) and the current-tab underline */
+  --pop-r:8px; --pop-shadow:0 8px 24px light-dark(rgb(0 0 0 / .12), rgb(0 0 0 / .5));
+  --backdrop:rgb(0 0 0 / .45); --backdrop-strong:rgb(0 0 0 / .78); --dlg-w:420px;
+  --tab-on:#fd8c73;
+  /* stacking (modal <dialog>s are in the top layer and need no z) */
+  --z-sticky:10; --z-pop:60; --z-drawer:70; --z-panel:80; --z-sheet:90; --z-toast:100;
+}
+/* phones: header = 2 rows (brand + search, then the tb-* icons) */
+@media (max-width:699px){:root{--top-h:88px}}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+
+/* touch: bigger controls and rows */
+@media (pointer:coarse){
+  :root{--ctl-h:40px; --row-h:40px; --chip-h:34px; --nav-h:44px}
+}
+/* phone tab bar */
+@media (max-width:699px),(pointer:coarse){
+  :root{--tab-h:60px}
+}
+@media (pointer:coarse){
+  :root{--act-w:40px}
+}
+/* desktop sidebar width follows the resize handle (--side-user from side-init.js / side.js) */
+@media (min-width:900px){
+  :root{--side-w:var(--side-user,248px)}
+}

@@ -1,0 +1,37 @@
+{# Issues tab body of a tracker project (docs/TRACKER-PLAN.md section 6): head with Open/Done, add box, one line
+   per issue. Context: iss (tracker.views.issues_summary), pname, csrf. Served alone by GET /p/<name>/issues
+   so issues.js can swap it after a change; the Open/Done choice lives on the holder (#issues-box). The heading id
+   is not "issues": a #issues URL must not make the browser scroll the pane to it. #}
+{% set base = "/p/" ~ (pname | urlencode) %}
+<div class="pj-pane-head"><h2 id="iss-h">Issues <span id="iss-flash" class="bl-flash small" role="status" aria-live="polite" hidden></span></h2>
+<div class="bl-seg" role="group" aria-label="Show issues"><button type="button" aria-pressed="true" data-iss-view="open">Open <span class="bl-seg-n">{{ iss.open_n }}</span></button><button type="button" aria-pressed="false" data-iss-view="done">Done <span class="bl-seg-n">{{ iss.done_n }}</span></button></div></div>
+<form class="iss-add" method="post" action="{{ base }}/issues" data-img-url="{{ base }}/image">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="images" value="">
+  <div class="iss-addrow">
+    <input name="title" maxlength="{{ iss.max_item }}" placeholder="New issue..." aria-label="New issue title" required autocomplete="off">
+    <button type="button" data-iss-more aria-expanded="false" aria-controls="iss-more">More</button>
+    <button type="submit">Add</button>
+  </div>
+  <div class="iss-more" id="iss-more" hidden>
+    <textarea name="body" rows="4" placeholder="Details (Markdown). Paste or drop images here." aria-label="Issue details"></textarea>
+    <div class="iss-att"><label class="button small iss-pick">Attach image<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-iss-file hidden></label><span class="iss-chips"></span></div>
+  </div>
+  <p class="iss-err small" role="alert" hidden></p>
+</form>
+<div class="iss-list" role="list" aria-label="Issues">
+{% for b in iss["items"] + iss["done_items"] %}
+<div class="iss-row{{ ' done' if b.done }}" role="listitem" data-iss-row="{{ b.num }}">
+  <form class="iss-tick" method="post" action="{{ base }}/issues/{{ b.num }}/{{ 'reopen' if b.done else 'done' }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="bl-box" type="submit" role="checkbox" aria-checked="{{ 'true' if b.done else 'false' }}" aria-label="{{ 'Reopen' if b.done else 'Mark done' }} #{{ b.num }}">{{ '✓' if b.done }}</button></form>
+  <a class="iss-num" href="{{ base }}/issues/{{ b.num }}" data-iss-open="{{ b.num }}">#{{ b.num }}</a>
+  <span class="iss-t" title="{{ b.text }}">{{ b.html | safe }}</span>
+  <span class="iss-c">{% if b.n_img %}<span title="{{ b.n_img }} image{{ 's' if b.n_img != 1 }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>{{ b.n_img }}<span class="sr-only"> images</span></span>{% endif %}{% if b.n_notes %}<span title="{{ b.n_notes }} note{{ 's' if b.n_notes != 1 }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5h16v11H10l-6 4z"/></svg>{{ b.n_notes }}<span class="sr-only"> notes</span></span>{% endif %}</span>
+  <span class="iss-by"{% if b.created_by %} title="Added by {{ b.created_by }}"{% endif %}>{{ b.created_by }}</span>
+  <span class="iss-age">{% if b.age_at %}{{ b.age_at | ago }}{% endif %}</span>
+</div>
+{% endfor %}
+</div>
+<p class="muted small iss-empty iss-empty-open"{% if iss.open_n %} hidden{% endif %}>No open issues. Add one above, or with <span class="mono">pmctl issue add</span>.</p>
+<p class="muted small iss-empty iss-empty-done"{% if iss.done_n %} hidden{% endif %}>No closed issues yet.</p>
+{% if iss.more %}<div class="small muted iss-more-n iss-more-open">+{{ iss.more }} more open (<span class="mono">pmctl issue list</span>)</div>{% endif %}
+{% if iss.done_more %}<div class="small muted iss-more-n iss-more-done">+{{ iss.done_more }} older done</div>{% endif %}

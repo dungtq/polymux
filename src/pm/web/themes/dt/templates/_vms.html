@@ -1,0 +1,57 @@
+{#- dt Servers › VMs (PRD §6.9): the whole host's libvirt guests (sortable; one visible Start / Shut down + ⋯ Force off
+    and Undefine, both typed), the image pool meter, Images All / Unused (⋯ Delete, typed). The content of #sv-vms in
+    servers.html and the fragment of the core's GET /servers/vms (ctx vm, fb, request). Overrides the core's _vms.html
+    for the dt theme (dt _project_vms.html does not include it). View model: dt_servers().vms (servers_res.vms). -#}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}{%- import "parts/_meter.html" as pmt -%}
+{%- import "parts/_seg.html" as ps -%}
+{%- set m = dt_servers().vms %}
+{%- if not m or not m.ok %}
+{% call tb.table("sv-vm", "Virtual machines", cls="sv-vm") %}{{ tb.empty(m.text if m else "No VM listing.") }}{% endcall %}
+{%- else %}
+<p class="sv-note">{{ m.note }}</p>
+{% call tb.table("sv-vm", "Virtual machines", cls="sv-vm", list="sv-vm" if m.rows else none,
+                 keys={"enter": "det"}, labels={"enter": "Details"}) %}
+  {%- if m.rows %}{{ tb.gh(m.cols, sort=m.sort) }}{% endif %}
+  {%- for r in m.rows %}
+  {% call tb.row(r.name, cur=loop.first, q=r.q, title=r.name ~ ": " ~ r.state) %}
+    {{ tb.dot(r.dot, r.state) }}
+    {% call tb.name(r.name) %}{% if r.protected %}<span class="chip" title="Protected: pm never changes it">protected</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{{ r.vcpu }}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{{ r.ram }}{% endcall %}
+    {% call tb.cell("hide-s", num=true) %}{{ r.disk }}{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.state }}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}
+      {%- if r.vis %}<button class="x-btn sm" type="button" data-sv-run="{{ r.vis.id }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ r.vis.icon }}"/></svg><span class="lb">{{ r.vis.label }}</span></button>{% endif -%}
+      {{ tb.det_btn("sv-vm", r.name, label=r.name) }}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}
+    {% endcall %}
+  {% endcall %}
+  {% call tb.det("sv-vm", r.name, label=r.name) %}{{ tb.kv(r.kv) }}{% endcall %}
+  {%- else %}
+  {{ tb.empty("No libvirt domains on this host.") }}
+  {%- endfor %}
+  {{ tb.empty("No VM matches the filter.", fnone=true) }}
+{% endcall %}
+<h2 class="p-h2">Images{% if m.pool_name %} <span class="c">pool {{ m.pool_name }}</span>{% endif %}<span class="sp"></span>{{ ps.seg(m.img_segs, label="Images") }}</h2>
+{%- if m.pool %}{{ pmt.meters([m.pool], label="Image pool", cls="one") }}{% endif %}
+{% call tb.table("sv-img", "Images", cls="sv-img", list="sv-img" if m.images else none) %}
+  {%- if m.images %}{{ tb.gh([{"sr": "State"}, {"label": "Image"}, {"label": "Size", "num": true, "cls": "hide-s"},
+                             {"label": "On disk", "num": true}, {"label": "Used by", "cls": "hide-n"},
+                             {"sr": "Actions"}]) }}{% endif %}
+  {%- for i in m.images %}
+  {% call tb.row(i.name, cur=loop.first, q=i.q, title=i.name ~ ": " ~ i.word) %}
+    {{ tb.dot(i.dot, i.word) }}
+    {% call tb.name(i.name) %}{% endcall %}
+    {% call tb.cell("hide-s", num=true) %}{{ i.size }}{% endcall %}
+    {{ tb.end(i.disk) }}
+    {% call tb.cell("hide-n muted") %}{{ i.used }}{% endcall %}
+    {% call tb.meta() %}{{ i.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(i.menu, label="Actions for " ~ i.name) }}{% endcall %}
+  {% endcall %}
+  {%- else %}
+  {{ tb.empty(m.img_text) }}
+  {%- endfor %}
+  {{ tb.empty("No image matches the filter.", fnone=true) }}
+{% endcall %}
+<p class="p-foot">libvirt qemu:///system · an image can be deleted only when no domain uses it (also not as a backing file).</p>
+{%- endif %}

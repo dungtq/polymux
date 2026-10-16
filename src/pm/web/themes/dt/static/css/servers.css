@@ -1,0 +1,50 @@
+/* dt Servers page (docs/themes/dt/PRD.md §6.9, LAYOUT.md §5 Servers). Markup: templates/servers.html, _servers.html,
+   servers/_overview.html, servers/_services.html, _resources.html, _vms.html (grid tables of parts/_table.html,
+   meters of parts/_meter.html, status line of parts/_status.html). This file sets only the tables' column templates
+   (--g-cols*), the Overview's two columns (Hosts | This host when the page column is >= 1100px), section headings,
+   the This host box, the process list in a program's row details and notes. Tokens only (V7-UI-2). */
+
+/* ---------- tables: one track per cell, in cell order (gc-m is phone line 2, not a track) ---------- */
+/* containers: dot · name · stack · image · health · uptime · ports · actions */
+.sv-ct{--g-cols:var(--dot) minmax(9rem,1.3fr) fit-content(9rem) minmax(0,1.6fr) fit-content(8rem) auto auto auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,1.4fr) fit-content(7rem) auto auto;
+  --g-cols-s:var(--dot) minmax(8rem,1fr) auto auto}
+/* hosts: dot · host · address · latency · role · actions */
+.sv-hosts{--g-cols:var(--dot) minmax(6rem,1fr) fit-content(12rem) auto minmax(0,1.4fr) auto;
+  --g-cols-n:var(--dot) minmax(6rem,1fr) fit-content(12rem) auto auto;
+  --g-cols-s:var(--dot) minmax(6rem,1fr) auto auto}
+/* resources: name · procs · CPU · RAM (+ share bar) · actions */
+.sv-res{--g-cols:minmax(9rem,1fr) auto auto auto auto;--g-cols-s:minmax(8rem,1fr) auto auto}
+/* VMs: dot · name · vCPU · RAM · disk · state · actions */
+.sv-vm{--g-cols:var(--dot) minmax(9rem,1fr) auto auto auto fit-content(8rem) auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) auto auto;
+  --g-cols-s:var(--dot) minmax(8rem,1fr) auto}
+/* images: dot · image · size · on disk · used by · actions */
+.sv-img{--g-cols:var(--dot) minmax(10rem,1.6fr) auto auto minmax(0,1fr) auto;
+  --g-cols-n:var(--dot) minmax(10rem,1fr) auto auto auto;
+  --g-cols-s:var(--dot) minmax(8rem,1fr) auto auto}
+.sv-img .nm{font-family:var(--font-mono);font-size:var(--fs-ui)}
+.sv .gc-end progress.bar.in{vertical-align:middle}
+
+/* ---------- Overview: Hosts and This host side by side when the page column has room ---------- */
+.sv-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s4) var(--s5)}
+@container pg (min-width:1100px){.sv-cols{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}}
+.sv-sec{min-width:0}
+.sv-host{padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:var(--r);font-size:var(--fs-ui)}
+.sv-host .p-kv{margin:0}
+
+/* ---------- notes and a program's processes (row details) ---------- */
+.sv-note{margin:0 0 var(--s2);color:var(--muted);font-size:var(--fs-ui)}
+.p-det .sv-note{margin:var(--s2) 0 0}
+.sv ul.sv-procs{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;margin:0;padding:0;
+  list-style:none;font-size:var(--fs-ui)}
+.sv-procs>li{display:grid;grid-template-columns:subgrid;grid-column:1/-1;align-items:center;gap:0 var(--s3);
+  min-height:var(--row-side-h);margin:0;padding:0;border-top:1px solid var(--line2)}
+.sv-procs>li:first-child{border-top:0}
+.sv-procs .d{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-procs .num{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:699px){
+  .sv-res progress.bar.in{display:none}
+  .sv ul.sv-procs{grid-template-columns:auto minmax(0,1fr) auto auto}
+  .sv-procs .num.muted{display:none}
+}

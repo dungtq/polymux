@@ -1,0 +1,62 @@
+/* One popup family (docs/UI-RULES.md "Controls"). Tokens only (tokens.css: --pop-r --pop-shadow --backdrop --dlg-w --z-*).
+   .pop       anchored popover / menu card (static/js/popup.js pm.popover places it; <details> popovers keep their own CSS place)
+   .pop-item  one menu row: 32px, 44px on touch
+   .pop.is-sheet  the phone bottom sheet (<700px, set by popup.js for data-sheet popovers), above the bottom nav
+   dialog.pmdlg   every modal (static/js/dialog.js pmDialog / pmConfirm, templates/_popup.html dialog()), with
+                  .pmdlg-head (title + optional close x), .pmdlg-body, .pmdlg-foot ([Cancel][Primary], right) and the sizes
+                  .pmdlg-sm, .pmdlg-wide, .pmdlg-full, .pmdlg-frame (an iframe page: launch popup); a bottom-aligned sheet <700px */
+
+/* ---- popovers and menus ---- */
+.pop{z-index:var(--z-pop);box-sizing:border-box;padding:4px;max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;
+  background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:var(--pop-r);box-shadow:var(--pop-shadow)}
+.pop[hidden]{display:none}
+.pop-item{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;box-sizing:border-box;min-height:32px;padding:4px 10px;margin:0;border:0;
+  border-radius:var(--ctl-radius);background:none;color:var(--fg);font:inherit;font-size:var(--fs-s);text-align:left;text-decoration:none;
+  white-space:nowrap;cursor:pointer}
+.pop-item:hover{background:var(--hover);text-decoration:none}
+.pop-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pop-item.danger,.pop-item.danger:hover{color:var(--failed);background:none;border:0}
+.pop-item.danger:hover{background:var(--hover)}
+@media (pointer:coarse){.pop-item{min-height:44px}}
+
+/* ---- phone bottom sheet: full width, rounded top, scrolls; sits on the bottom nav (or the screen edge without one) ---- */
+.pop.is-sheet{position:fixed;top:auto;left:0;right:0;bottom:var(--nav-clear);z-index:var(--z-sheet);width:auto;min-width:0;max-width:none;
+  max-height:70vh;margin:0;padding:6px 8px 8px;border-width:1px 0;border-radius:var(--pop-r) var(--pop-r) 0 0;transform:none}
+.v5-embed .pop.is-sheet{bottom:0;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+
+/* ---- modal dialogs ---- */
+dialog.pmdlg{box-sizing:border-box;width:min(var(--dlg-w),calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 24px);padding:14px 16px;
+  border:1px solid var(--line);border-radius:var(--pop-r);background:var(--page);color:inherit;box-shadow:var(--pop-shadow);overscroll-behavior:contain}
+dialog.pmdlg::backdrop{background:var(--backdrop)}
+dialog.imgview::backdrop{background:var(--backdrop-strong)}  /* image viewer: darker, the picture is the content */
+dialog.pmdlg [hidden]{display:none}  /* e.g. the typed-confirm force row: phone label rules must not show it */
+.pmdlg-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 6px}
+.pmdlg-head .pmdlg-title{margin:0}
+.pmdlg-title{margin:0 0 6px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.pmdlg-x{flex:none;align-self:center;display:inline-flex;align-items:center;justify-content:center;width:32px;min-width:32px;height:32px;min-height:32px;
+  margin:-6px -8px -6px auto;padding:0;border:0;border-radius:var(--ctl-radius);background:none;color:var(--muted);cursor:pointer}
+.pmdlg-x:hover{background:var(--hover);color:var(--fg)}
+@media (pointer:coarse){.pmdlg-x{width:44px;min-width:44px;height:44px;min-height:44px}}
+.pmdlg-body{min-height:0;overflow:auto;margin-bottom:10px}
+.pmdlg-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px}
+.pmdlg-opts{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.pmdlg-opts form{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0}
+.pmdlg-opts form button{min-width:9.5rem}
+.pmdlg-choice{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.pmdlg-in{display:flex;flex-direction:column;gap:4px;margin:8px 0}
+.pmdlg-in input{width:100%;box-sizing:border-box}
+dialog.pmdlg.pmdlg-sm{width:min(340px,calc(100vw - 24px))}
+dialog.pmdlg.pmdlg-wide{width:min(860px,calc(100vw - 24px));max-height:calc(100dvh - 48px)}
+dialog.pmdlg.pmdlg-full{width:calc(100vw - 24px);height:calc(100dvh - 24px)}
+dialog.pmdlg.pmdlg-wide[open],dialog.pmdlg.pmdlg-full[open],dialog.pmdlg.pmdlg-frame[open]{display:flex;flex-direction:column}
+dialog.pmdlg.pmdlg-wide .pmdlg-body,dialog.pmdlg.pmdlg-full .pmdlg-body{flex:1 1 auto}
+/* a framed page (?embed=1): no padding, the head is a bar, the iframe fills the rest */
+dialog.pmdlg.pmdlg-frame{padding:0;overflow:hidden}
+.pmdlg-frame .pmdlg-head{margin:0;padding:6px 12px;border-bottom:1px solid var(--line);align-items:center}
+.pmdlg-frame .pmdlg-x{margin:0 -6px 0 auto}  /* inside the head's padding: the focus ring is not cut by the frame */
+.pmdlg-if{flex:1 1 auto;width:100%;min-height:0;border:0;background:var(--page);color-scheme:light dark}
+
+/* phone: a dialog is a bottom-aligned sheet with 12px margins (full-size ones stay full) */
+@media (max-width:699px){
+  dialog.pmdlg:not(.pmdlg-full):not(.pmdlg-frame){width:calc(100vw - 24px);margin:auto 12px calc(12px + env(safe-area-inset-bottom))}
+}

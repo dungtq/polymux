@@ -1,0 +1,5 @@
+{# Detail | Compact toggle for the main chat (agent, ended, Builder, drawer header). static/js/chat-compact.js
+   keeps aria-pressed in step with localStorage 'pm.chatView' and lays out #ci (docs/HANDOFF-chat-compact.md). #}
+{% macro chatview() -%}
+<span class="cv-seg ci-view" role="group" aria-label="Chat view"><button type="button" data-chat-view="detail" aria-pressed="false" title="Every reply and tool group as its own item">Detail</button><button type="button" data-chat-view="compact" aria-pressed="true" title="Working notes in one block, the final reply on its own">Compact</button></span>
+{%- endmacro %}

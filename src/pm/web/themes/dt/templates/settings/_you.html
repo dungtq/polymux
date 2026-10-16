@@ -1,0 +1,144 @@
+{#- Settings › You: Appearance (this browser; the UI theme picker is a GET ?ui=, never written from JS), Display and
+    Chat colours (all devices: /dt/prefs, pm.web.dt.prefs; a few panel / keyboard rows are this browser).
+    Context: s (the section, pm.web.dt.settings.Sec), sv (Page). this-browser controls (data-s-b) get their state
+    from the pm.v7.* storage in js/settings.js; js/head.js applies them before the first paint on every page. -#}
+{%- import "settings/_ui.html" as su %}{% import "parts/_switch.html" as psw %}{% import "parts/_select.html" as psel %}
+{%- set p = sv.prefs %}
+{%- if s.id == "appearance" %}
+{% call su.grp("Theme", "browser", s.label) %}{% call su.box() %}
+  {% call su.row("Colour mode", "Auto follows the system setting. Also the moon key in the account menu.", "Theme", s.label) %}
+    {{ su.bseg("shell.mode", [("auto", "auto"), ("light", "light"), ("dark", "dark")], "Colour mode") }}
+  {% endcall %}
+  {%- if sv.ui_opts | length > 1 %}
+  {% call su.row("UI theme", "This browser only (cookie pm_ui); other browsers keep their own. The default is theme in pm.toml.", "Theme", s.label) %}
+    <form method="get" action="/settings" class="s-ui" data-s-ui>
+      <input type="hidden" name="s" value="appearance">
+      {{ psel.select("ui", sv.ui_opts, value=sv.ui_theme, label="UI theme") }}
+    </form>
+  {% endcall %}
+  {%- endif %}
+{% endcall %}{% endcall %}
+{% call su.grp("Fonts", "browser", s.label) %}{% call su.box() %}
+  {% call su.row("Interface font", "system, sans, serif, mono, or the name of an installed family.", "Fonts", s.label) %}
+    <input class="x-in s-fam" type="text" data-s-b="font.ui" list="s-fams" maxlength="60" autocomplete="off" spellcheck="false" placeholder="system" aria-label="Interface font">
+  {% endcall %}
+  {% call su.row("Chat font", "same = the interface font.", "Fonts", s.label) %}
+    <input class="x-in s-fam" type="text" data-s-b="font.chat" list="s-fams-chat" maxlength="60" autocomplete="off" spellcheck="false" placeholder="same" aria-label="Chat font">
+  {% endcall %}
+  {% call su.row("Code font", "Code blocks, terminal, paths.", "Fonts", s.label) %}
+    <input class="x-in s-fam" type="text" data-s-b="font.mono" list="s-fams" maxlength="60" autocomplete="off" spellcheck="false" placeholder="mono" aria-label="Code font">
+  {% endcall %}
+  {% call su.row("Interface size", "Text and controls, in per cent.", "Fonts", s.label) %}
+    {{ su.bseg("font.size", sv.ui_sizes, "Interface size") }}<span class="s-unit">%</span>
+  {% endcall %}
+  {% call su.row("Chat text size", "0 = follow the interface.", "Fonts", s.label) %}
+    <input class="x-in s-num" type="number" inputmode="numeric" min="0" max="32" data-s-b="chat.size" placeholder="0" aria-label="Chat text size in px"><span class="s-unit">px</span>
+  {% endcall %}
+  {% call su.row("Composer text size", "0 = default (16 px on phones, no zoom).", "Fonts", s.label) %}
+    <input class="x-in s-num" type="number" inputmode="numeric" min="0" max="32" data-s-b="cmp.size" placeholder="0" aria-label="Composer text size in px"><span class="s-unit">px</span>
+  {% endcall %}
+  <div class="s-prev" aria-hidden="true"><span>The quick brown fox</span><span class="s-pchat">Chat text</span><span class="mono">~/dev/pm · main</span></div>
+{% endcall %}{% endcall %}
+<datalist id="s-fams">{% for f in sv.fonts %}<option value="{{ f }}"></option>{% endfor %}</datalist>
+<datalist id="s-fams-chat"><option value="same"></option>{% for f in sv.fonts %}<option value="{{ f }}"></option>{% endfor %}</datalist>
+{% call su.grp("Layout", "browser", s.label) %}{% call su.box() %}
+  {% call su.row("Sidebar", "Open or icons only. Same as " ~ "⌘B / Ctrl+B.", "Layout", s.label) %}
+    {{ su.bseg("shell.rail", [("open", "open"), ("rail", "icons")], "Sidebar") }}
+  {% endcall %}
+  {% call su.row("Fonts and sizes", "Back to the defaults above.", "Layout", s.label) %}
+    <button class="x-btn sm" type="button" data-s-breset="fonts">Reset fonts</button>
+  {% endcall %}
+  {% call su.row("Panel widths", "The chat aside width (drag its edge, or Display › Chat aside width).", "Layout", s.label) %}
+    <button class="x-btn sm" type="button" data-s-breset="layout">Reset to default</button>
+  {% endcall %}
+{% endcall %}{% endcall %}
+{% call su.grp("Session tabs", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Open tabs follow you", "Tabs, their order and the reopen list are kept on the server: every device and window shows the same tabs.", "Session tabs", s.label) %}
+    {{ psw.switch("tabsync", on=true, label="Open tabs follow you", hide_label=true, disabled=true, why="Always on: tabs are kept on the server") }}
+  {% endcall %}
+  {% call su.row("Open tabs", sv.tabs_open ~ " session tab" ~ ("" if sv.tabs_open == 1 else "s") ~ " + the page tab.", "Session tabs", s.label) %}
+    {%- if sv.tabs_open %}{{ su.act(sv.acts.close_tabs) }}{% else %}<button class="x-btn sm" type="button" disabled title="No session tab is open">Close all session tabs</button>{% endif %}
+  {% endcall %}
+{% endcall %}{% endcall %}
+
+{%- elif s.id == "display" %}
+{% call su.grp("Running status", "all", s.label) %}{% call su.box() %}
+  {% call su.row("While an agent works", "Playful: a changing working word (Noodling…, Brewing…) in the chat, Inbox, sidebar and tabs. Plain: “Working…”. Off: only the green dot.", "Running status", s.label) %}
+    {{ su.aseg("run_status", [("playful", "playful"), ("plain", "plain"), ("off", "off")], p.get("run_status"), "While an agent works") }}
+  {% endcall %}
+{% endcall %}{% endcall %}
+{% call su.grp("Status dots and counts", "all", s.label, note="Every state dot and count follows: sidebar, tabs, Inbox, Projects, chat and aside. Default keeps the light and dark theme colours; a picked colour is used in both themes.") %}
+  <p class="s-gtools"><button class="x-btn sm" type="button" data-s-areset="{{ sv.resets.dots }}">Reset colours</button></p>
+  {% call su.box() %}
+  {%- for k, label, help in sv.dots %}
+  {% call su.row(label, help, "Status dots and counts colour", s.label) %}{{ su.colour(k, p.get(k), label) }}{% endcall %}
+  {%- endfor %}
+  <div class="s-prev" aria-hidden="true"><span><i class="dot running"></i>running</span><span><i class="dot waiting"></i>needs you</span><span><i class="dot failed"></i>failed</span><span><i class="dot idle"></i>idle</span><span><i class="dot ended"></i>ended</span></div>
+  {% endcall %}
+{% endcall %}
+{% call su.grp("Message source pills", "all", s.label, note="The small pill before a row's last message (Inbox, project agents). Grey is the old look.") %}
+  <p class="s-gtools"><button class="x-btn sm" type="button" data-s-areset="{{ sv.resets.src }}">Reset</button></p>
+  {% call su.box() %}
+  {%- for k, label, help in sv.srcs %}
+  {% call su.row(label, help, "Message source pills", s.label) %}
+    {{ su.aseg("src_" ~ k, [("grey", "grey"), ("border", "border"), ("soft", "soft")], p.get("src_" ~ k), label ~ " style") }}
+  {% endcall %}
+  {%- endfor %}
+  {% endcall %}
+{% endcall %}
+{% call su.grp("Model id", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Show the model pill", "The model id in the chat header, message headers and the chat aside header. The composer's model picker stays.", "Model id", s.label) %}
+    {{ psw.switch("a_model_pill", on=p.get("model_pill"), label="Show the model pill", hide_label=true, attrs={"data-s-a": "model_pill"}) }}
+  {% endcall %}
+{% endcall %}{% endcall %}
+{% call su.grp("Keyboard", "browser", s.label, note="The full list stays under ? and in the tooltips.") %}{% call su.box() %}
+  {% call su.row("Show shortcut hints", "The key labels in the sidebar, the account menu, lists and filter boxes.", "Keyboard", s.label) %}
+    {{ psw.switch("b_khints", on=true, label="Show shortcut hints", hide_label=true, attrs={"data-s-b": "keys.hints"}) }}
+  {% endcall %}
+  {% call su.row("Shortcut helper", "The toast when you use a shortcut. Key and action: the key chip and what it did. Action only: no key chip. Off: no toast for shortcuts.", "Keyboard", s.label) %}
+    {{ su.bseg("keys.toast", [("key", "key and action"), ("action", "action only"), ("off", "off")], "Shortcut helper") }}
+  {% endcall %}
+{% endcall %}{% endcall %}
+{% call su.grp("Panels", "browser", s.label) %}{% call su.box() %}
+  {% call su.row("Chat aside width", "Share of the window, at least 360 px. Drag the aside's edge for any width.", "Panels", s.label) %}
+    {{ su.bseg("aside.pct", sv.aside_pcts, "Chat aside width") }}<span class="s-unit">%</span>
+  {% endcall %}
+  {% call su.row("Sessions list in the sidebar", "Off hides the Sessions heading, filter and list; the pages and the foot stay.", "Panels", s.label) %}
+    {{ psw.switch("b_sess", on=true, label="Sessions list in the sidebar", hide_label=true, attrs={"data-s-b": "side.sess"}) }}
+  {% endcall %}
+{% endcall %}{% endcall %}
+
+{%- elif s.id == "colors" %}
+{% call su.grp("Agent messages", "all", s.label) %}
+  <p class="s-gtools"><button class="x-btn sm" type="button" data-s-areset="{{ sv.resets.chat }}">Reset all chat colours</button></p>
+  {% call su.box() %}
+  {% call su.row("Background", "One colour for every agent message: replies and Working notes alike. Tint = a light wash of the agent's colour.", "Agent messages", s.label) %}
+    {{ su.aseg("msg_bg", [("default", "default"), ("page", "page"), ("tint", "tint"), ("custom", "custom")], p.get("msg_bg"), "Agent message background") }}
+    <span class="s-custom" data-s-when="msg_bg=custom"{% if p.get("msg_bg") != "custom" %} hidden{% endif %}>{{ su.colour("col_msg_bg", p.get("col_msg_bg"), "Custom message background") }}</span>
+  {% endcall %}
+  {% call su.row("Left edge in the agent colour", "A 3 px bar on the left of each agent message, and on list rows.", "Agent messages", s.label) %}
+    {{ psw.switch("a_kind_edge", on=p.get("kind_edge"), label="Left edge in the agent colour", hide_label=true, attrs={"data-s-a": "kind_edge"}) }}
+  {% endcall %}
+  {% call su.row("Model pill in the agent colour", "The model id in the message header and the chat header.", "Agent messages", s.label) %}
+    {{ psw.switch("a_kind_pill", on=p.get("kind_pill"), label="Model pill in the agent colour", hide_label=true, attrs={"data-s-a": "kind_pill"}) }}
+  {% endcall %}
+  {% endcall %}
+{% endcall %}
+{% call su.grp("Your messages", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Background", "Your bubbles in every chat.", "Your messages", s.label) %}{{ su.colour("col_user_bg", p.get("col_user_bg"), "Your message background") }}{% endcall %}
+  {% call su.row("Border", "", "Your messages", s.label) %}{{ su.colour("col_user_bd", p.get("col_user_bd"), "Your message border") }}{% endcall %}
+{% endcall %}{% endcall %}
+{% call su.grp("Agent kinds", "all", s.label, note="Also used for the tab edge, Inbox rows, the sidebar and the composer pill.") %}{% call su.box() %}
+  {%- for k, label in sv.kinds %}
+  {% call su.row(label, "", "Agent kinds colour", s.label) %}{{ su.colour(k, p.get(k), label) }}{% endcall %}
+  {%- endfor %}
+{% endcall %}{% endcall %}
+{% call su.grp("Tool calls", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Pill style", "The chips in “N tool calls”.", "Tool calls", s.label) %}
+    {{ su.aseg("tool_pill", [("border", "border"), ("fill", "fill"), ("both", "both")], p.get("tool_pill"), "Tool pill style") }}
+  {% endcall %}
+  {%- for k, label, help in sv.tools %}
+  {% call su.row(label, help, "Tool calls colour", s.label) %}{{ su.colour(k, p.get(k), label) }}{% endcall %}
+  {%- endfor %}
+{% endcall %}{% endcall %}
+{%- endif %}

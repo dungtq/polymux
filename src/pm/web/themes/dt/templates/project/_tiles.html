@@ -1,0 +1,15 @@
+{#- dt project view: the six summary tiles (PRD §6.4: Agents, Git, TODO, Issues, Stack, VMs; LAYOUT.md §5: 6 per row,
+    3 per row when the project main is <= 760px). A tile is a button: a click opens its tab (js/project.js,
+    [data-pj-goto]). Each: label, value (+ small unit text), one muted sub line (yellow with the word when it needs a
+    look: "2 need you", "3 dirty"). View model: ProjectView.tiles (Tile); a tile whose tab is hidden in the project's
+    settings is left out. -#}
+{%- set keys = v.tabs | map(attribute="key") | list -%}
+<div class="pj-sum" role="group" aria-label="Summary of {{ v.name }}">
+  {%- for t in v.tiles if t.key in keys %}
+  <button class="pj-tile" type="button" data-pj-goto="{{ t.key }}" title="Open the {{ t.label }} tab">
+    <span class="l">{{ t.label }}</span>
+    <span class="v">{{ t.value }}{% if t.small %} <small>{{ t.small }}</small>{% endif %}</span>
+    <span class="s{{ ' warn' if t.cls == 'warn' }}">{{ t.sub }}</span>
+  </button>
+  {%- endfor %}
+</div>

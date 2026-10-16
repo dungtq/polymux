@@ -1,0 +1,12 @@
+{% from "_agents_macros.html" import newform %}{% from "_filterbox.html" import filterbox %}{% from "_sortbar.html" import filtersel %}
+<section class="ag-view" aria-label="Skills">
+<form class="pctl ag-ctl" action="{{ base }}" method="get" role="search" data-filter-live data-filter-target="#ag-skills">
+<input type="hidden" name="s" value="skills">{% for k, v in hidden if k == "sort" %}<input type="hidden" name="sort" value="{{ v }}">{% endfor %}
+{{ filterbox(q, label="Filter skills") }}
+{{ filtersel(shows, show, "show") }}<noscript><button type="submit" class="small">Go</button></noscript>
+</form>
+{{ newform(csrf, "skill_create", agent.name, "skills", "skill", true) }}
+<div id="ag-skills" hx-get="{{ self_url }}" hx-trigger="pm:refresh" hx-swap="innerHTML" data-nodiff>
+{% include "_agents_skills_list.html" %}
+</div>
+</section>

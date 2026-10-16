@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_head, notice %}
+{% from "_filterbox.html" import filterbox %}
+{% from "_limitbar.html" import showsel %}
+{% block title %}tmux{% endblock %}
+{% block content %}
+<div class="pg-tmux">
+{% call page_head("tmux", stats, short=true) %}
+<details class="newsess head-actions phead-act">
+  <summary>New session</summary>
+  <form class="inline-form" method="post" action="/tmux/session/new" hx-post="/tmux/session/new" hx-target="#flash" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="name" maxlength="40" autocomplete="off" placeholder="session name" aria-label="Session name" required>
+    <span class="formbtns"><button type="submit" class="primary">OK</button><button type="button" class="cancel" data-newsess-cancel>Cancel</button></span>
+  </form>
+</details>
+{% endcall %}
+{% for e in errors %}{{ notice("err", e, "badge bad") }}{% endfor %}
+<form class="filterbar expandbar" id="tmux-filter" method="get" action="/tmux" role="search" data-filter-live data-filter-target="#tmux-list">
+  {{ filterbox(q) }}
+  {% for k, v in keep_sort %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <button type="button" class="small" data-details-toggle="open">Expand all</button> <button type="button" class="small" data-details-toggle="close">Collapse all</button>
+  {{ showsel(limit_links) }}<noscript><button type="submit" class="small">Go</button></noscript>
+</form>
+<div id="tmux-list" hx-get="{{ self_url }}" hx-trigger="pm:refresh" hx-swap="innerHTML" data-nodiff>
+{% include "_tmux_list.html" %}
+</div>
+
+{% from "_popup.html" import dialog, dlg_foot %}{% set kill_t %}Kill <strong id="kill-label" data-typed-label></strong>?{% endset %}
+{% call dialog("kill-dialog", kill_t, typed=true) %}
+  <p class="small muted">Type <code data-typed-expect></code> to confirm.</p>
+  <label class="small pmdlg-in">Name<input id="kill-input" data-typed-in autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Confirm name"></label>
+  <label class="small" data-typed-force hidden><input type="checkbox"> Clients are attached; force</label>
+  {% call dlg_foot() %}<button type="button" class="small danger" data-typed-go disabled>Kill</button>{% endcall %}
+{% endcall %}
+</div>
+<script src="/static/js/lists.js" defer></script>
+<script src="/static/js/newsess.js" defer></script>
+{% endblock %}

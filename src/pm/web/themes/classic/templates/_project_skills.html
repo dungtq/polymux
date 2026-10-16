@@ -1,0 +1,16 @@
+{# Skills tab of the project docs panel: Local / Global sub-tabs with counts, Local open first (projview.js switches them). #}
+<div class="pj-skills">
+  <div class="tabs pj-sktabs tabs-line" role="tablist" aria-label="Skill scope">{% for scope, label in (("local", "Local"), ("global", "Global")) %}<button type="button" class="tab" role="tab" data-sk-tab="{{ scope }}" aria-selected="{{ 'true' if scope == 'local' else 'false' }}" title="{{ 'This project' if scope == 'local' else 'Home (global)' }}">{{ label }} <span class="pj-n">{{ skills[scope] | length }}</span></button>{% endfor %}</div>
+  {% for scope, label in (("local", "Local (this project)"), ("global", "Global (home)")) %}
+  <div class="pj-skgrp" role="tabpanel" data-scope="{{ scope }}"{% if scope != "local" %} hidden{% endif %}>
+  {% if skills[scope] %}
+  <div class="pj-sk-wrap"><table class="pj-sk" aria-label="{{ label }} skills">
+  <colgroup><col class="c-n"><col class="c-s"><col class="c-d"></colgroup>
+  <thead><tr><th scope="col">Name</th><th scope="col">Source</th><th scope="col">Description</th></tr></thead>
+  <tbody>
+  {% for k in skills[scope] %}<tr><td class="sk-n"><a class="mono" href="{{ base }}/skill/{{ scope }}/{{ k.src }}/{{ k.name | urlencode }}" data-pj-open data-title="{{ k.name }}" title="{{ k.name }}">{{ k.name }}</a></td><td class="sk-s small muted">{{ k.src }}</td><td class="small muted" title="{{ k.desc }}"><div class="sk-d">{{ k.desc }}</div></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="small muted">None.</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>

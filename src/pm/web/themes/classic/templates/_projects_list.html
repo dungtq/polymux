@@ -1,0 +1,28 @@
+{% from "_macros.html" import git_badge %}
+{% from "_sortbar.html" import hc %}
+{% from "_limitbar.html" import limitbar %}
+<div class="list" role="list">
+<div class="pitem phd"><span class="pstar"></span>
+<div class="hrow prow">{{ hc(cols.main, "c-main", true) }}{{ hc(cols.age, "c-age", true) }}{{ hc(cols.res, "c-res", true) }}{{ hc(cols.ntfy, "c-ntfy", true) }}{{ hc(cols.act, "c-act", true) }}{{ hc(cols.git, "c-git", true) }}</div></div>
+{% for p in projects %}
+{% set enc = p.name | urlencode %}{% set pinned = p.name in pins %}
+<div class="pitem" role="listitem" data-key="p-{{ p.name }}" data-q="{{ p | project_q }}" data-frow>
+  <form class="pstar{{ ' pinned' if pinned }}" method="post" action="/p/{{ enc }}/pin" hx-post="/p/{{ enc }}/pin">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="pinned" value="{{ '0' if pinned else '1' }}">
+    <button type="submit" class="star" aria-pressed="{{ 'true' if pinned else 'false' }}" aria-label="{{ 'Unpin ' if pinned else 'Pin ' }}{{ p.name }}" title="{{ 'Unpin' if pinned else 'Pin' }}">{% if pinned %}&#9733;{% else %}&#9734;{% endif %}</button>
+  </form>
+  <a class="lrow prow" href="/p/{{ enc }}">
+    <span class="c-main"><strong>{{ p.name }}</strong></span>
+    <span class="c-age muted">{% if p.agent_ids %}{{ p.agent_ids | length }}{% else %}&ndash;{% endif %}</span>
+    <span class="c-res muted">{% if p.todo and p.todo.total %}{{ p.todo.done }}/{{ p.todo.total }}{% else %}&ndash;{% endif %}</span>
+    {% set n = ntfy_counts.get(p.path, 0) %}<span class="c-ntfy muted">{% if n %}{{ n }}{% else %}&ndash;{% endif %}</span>
+    {% set t = activity.get(p.name) %}<span class="c-act muted">{% if t %}{{ t | ago }}{% endif %}</span>
+    <span class="c-git">{{ git_badge(p.git) }}
+      {% if p.stack %}{% set stk %}stack {{ p.stack.running }}/{{ p.stack.total }}{% endset %}<span class="gmore"><span class="badge {{ 'ok' if p.stack.total and p.stack.running == p.stack.total else 'warn' }}">{{ stk }}</span></span><span class="gplus muted" title="{{ stk }}">+1</span>{% endif %}</span>
+  </a>
+</div>
+{% else %}
+  <p class="muted">No projects found{% if q or flags %} matching the search/filters{% endif %}.</p>
+{% endfor %}
+</div>
+{{ limitbar(limit_links, limit_shown, limit_total, limit_path, keep_all) }}

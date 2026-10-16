@@ -1,0 +1,82 @@
+/* dt Inbox (PRD.md §6.2, LAYOUT.md §5, L-6; prefix i-): the table's column templates and the Inbox's own cell
+   looks. Markup: templates/inbox.html, _inbox.html, parts/_agentrow.html; parts: css/parts.css, css/table.css.
+   Tokens only. Columns (one track per cell, in cell order):
+     live   dot · Agent · Project · tmux · Last message · Age · CPU · RAM · actions
+     ended  dot · Agent · Project · Last message · Ran for · Ended · actions
+   L-6: Last message keeps ~240px. tmux, CPU and RAM (.i-w) drop when the page column is <= 1000px (aside open
+   at 1512, 1100 windows), Project too at <= 760px (.hide-n, table.css), and the narrowest template shares the rest. */
+
+/* ---------- column templates ---------- */
+.i-list{--g-cols:var(--dot) minmax(9rem,1fr) fit-content(9rem) fit-content(9rem) minmax(0,2.2fr) auto auto auto auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto;
+  --g-cols-s:var(--dot) minmax(7rem,1fr) minmax(0,1.5fr) auto auto}
+@container pg (max-width:1000px){
+  .i-list{--g-cols:var(--dot) minmax(8rem,1fr) fit-content(8rem) minmax(0,2fr) auto auto}
+  .i-list .i-w{display:none}
+}
+.i-end{--g-cols:var(--dot) minmax(9rem,1fr) fit-content(9rem) minmax(0,2fr) auto auto auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto}
+
+/* ---------- controls: the Unread / Group form is one item of the controls row (after .sp: kept at the right, also
+   when it wraps onto a line of its own, PARTS §2) ---------- */
+.i-ctl{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:var(--s2) var(--s3);margin:0}
+.i-errs{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);margin:0 0 var(--s3);color:var(--failed);
+  font-size:var(--fs-ui)}
+
+/* ---------- name cell: unread count, pin, context chip ---------- */
+.i-un{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:var(--badge-h);
+  height:var(--badge-h);padding:0 var(--s1);border-radius:var(--r-pill);background:var(--badge-un);
+  color:var(--on-accent);font-size:var(--fs-xs);font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.i-un.i-und{width:var(--dot-un);min-width:0;height:var(--dot-un);padding:0}
+.i-pin{display:inline-flex;flex:0 0 auto;color:var(--accent)}
+.i-pin>svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+.chip.i-ctx{flex:0 0 auto;border-color:var(--waiting);color:var(--waiting);font-variant-numeric:tabular-nums}
+
+/* ---------- last message: source chip, question (yellow), error (red) ---------- */
+.i-msg{color:var(--muted)}
+.p-gr.un .i-msg{color:var(--fg)}
+.i-src{display:inline-flex;align-items:center;height:var(--badge-h);margin-right:var(--s2);padding:0 var(--s1);
+  border:1px solid var(--line);border-radius:var(--r-pill);color:var(--muted);font-size:var(--fs-xs);
+  vertical-align:middle}
+.i-q{color:var(--waiting);font-weight:500}
+.i-err{color:var(--failed)}
+.i-q>svg.i{width:var(--icon-xs);height:var(--icon-xs);margin-right:var(--s1);vertical-align:middle}
+.p-gr .i-tm{color:var(--muted)}
+.p-gr .i-tm:hover{color:var(--accent)}
+.i-nores{display:inline-flex;align-items:center;justify-content:center;min-width:var(--ib-sm)}
+
+/* ---------- row details: question / error box, recap, facts, actions ---------- */
+.i-det{display:flex;flex-direction:column;gap:var(--s3)}
+.i-det .p-kv{margin:0}
+.i-ask{padding:var(--s2) var(--s3);border:1px solid var(--waiting);border-radius:var(--r);background:var(--page)}
+.i-ask.bad{border-color:var(--failed)}
+.i-askq{display:flex;align-items:flex-start;gap:var(--s2);margin:0 0 var(--s2);color:var(--fg);font-weight:600;
+  overflow-wrap:anywhere}
+.i-askq>svg.i{width:var(--icon-sm);height:var(--icon-sm);margin-top:calc(var(--s1) / 2);color:var(--waiting)}
+.i-ask.bad .i-askq{color:var(--failed);font-weight:500}
+.i-ask .note{margin:0;color:var(--muted);font-size:var(--fs-s)}
+.i-recap{min-width:0}
+.i-rhead{display:flex;align-items:center;gap:var(--s2);margin:0 0 var(--s1)}
+.i-rhead [data-i-rage]{font-size:var(--fs-s)}
+.i-rhead [data-i-rage]::before{content:"· updated "}
+.i-rhead [data-i-rage]::after{content:" ago"}
+.i-rhead .x-btn{margin-left:auto}
+.i-rbody{min-width:0;max-height:calc(var(--row-h) * 6);overflow:auto;overflow-wrap:anywhere}
+.i-rbody p,.i-rbody ul,.i-rbody ol{margin:0 0 var(--s1)}
+.i-rbody :is(strong.rx-k,.rx-k){display:none}
+/* context bar in the facts: 4px, green, yellow from 60 % */
+progress.i-bar{width:calc(var(--s6) * 3);height:var(--s1);margin:0 var(--s1) 0 0;border:0;border-radius:var(--r-pill);
+  background:var(--line2);vertical-align:middle;-webkit-appearance:none;appearance:none}
+progress.i-bar::-webkit-progress-bar{border-radius:var(--r-pill);background:var(--line2)}
+progress.i-bar::-webkit-progress-value{border-radius:var(--r-pill);background:var(--lvl-ok)}
+progress.i-bar::-moz-progress-bar{border-radius:var(--r-pill);background:var(--lvl-ok)}
+progress.i-bar.warn::-webkit-progress-value{background:var(--lvl-warn)}
+progress.i-bar.warn::-moz-progress-bar{background:var(--lvl-warn)}
+
+/* ---------- phone (< 700px): two-line rows (table.css); line 2 keeps the question / error colour ---------- */
+@media (max-width:699px){
+  .p-tools>.sp{display:none}
+  .gc-m .i-src{display:none}
+  .i-det .p-dacts .sp{display:none}
+  .i-res .lb{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+}

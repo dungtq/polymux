@@ -1,0 +1,78 @@
+/* Project page document panel (Browse, Git, README ... tabs, skills table, docs beside the page). Moved out of rows.css (500-line cap); linked right after it in base.html so the cascade is unchanged. Tokens only. */
+/* project page: right-hand document tabs (Browse, Git status, README, CHANGELOG, opened file) + skills */
+.pj-split{display:block}
+.pj-right{margin-top:24px;border-top:1px solid var(--line);min-width:0}
+.pj-tabbar{display:flex;align-items:stretch;border-bottom:1px solid var(--line)}
+.pj-tabbar .pj-tabs{flex:1 1 auto;min-width:0;border-bottom:0}
+.pj-close{flex:none;align-self:flex-start;height:34px;background:none;border:0;color:var(--muted);cursor:pointer;padding:0 10px;font-size:1rem;line-height:1}
+.pj-close:hover{background:var(--hover);color:var(--fg)}
+.pj-close:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pj-showdocs{display:inline-block;margin:0 0 0 12px;font-size:var(--fs-s);font-family:inherit;color:var(--accent)}
+.pj-pathrow{overflow-wrap:anywhere}
+.pj-nodocs .pj-right{display:none}
+.pj-showdocs[hidden]{display:none}
+/* tab look: tabs.css .tabs-line; here only the doc tab bar layout (wraps on desktop, scrolls on phones) */
+.pj-n{display:inline-block;min-width:1.6em;padding:0 6px;border:1px solid var(--line);border-radius:var(--r-pill);text-align:center;font-size:.75rem;color:var(--muted)}
+.pj-body{padding:12px 0;overflow:visible;overflow-wrap:anywhere}
+.pj-body[aria-busy=true]{opacity:.6}
+.pj-meta{margin:0 0 8px}
+.pj-doc pre{overflow:auto}
+.pj-doc img{max-width:100%}
+.pj-body .dirty-files{max-height:none}
+/* skills: a fixed-layout table (name | source | description). The wrapper scrolls sideways when narrow, never the page.
+   The description wraps to at most 2 lines (ellipsis); the full text is in the cell title. */
+.pj-sk-wrap{overflow-x:auto;max-width:100%;margin:0 0 12px}
+.pj-sk{table-layout:fixed;width:100%;min-width:560px;border-collapse:collapse}
+.pj-sk .c-n{width:13em}.pj-sk .c-s{width:6.5em}.pj-sk .c-d{width:auto}
+.pj-sk th{text-align:left;font-weight:500;font-size:.75rem;color:var(--muted);padding:4px 10px 6px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+.pj-sk td{padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.35}
+.pj-sk tbody tr:hover{background:var(--hover)}
+.pj-sk .sk-n a{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj-sk .sk-s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj-sk .sk-d{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.pj-skgrp>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px}
+.pj-skgrp>summary::-webkit-details-marker{display:none}
+.pj-skgrp>summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .12s;margin:0 2px 0 2px}
+.pj-skgrp[open]>summary::before{transform:rotate(45deg)}
+.pj-skgrp>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.pj-skgrp>summary:hover{color:var(--fg)}
+.pj-files-btn{margin-left:.75em;padding:1px 8px;border:1px solid var(--line);border-radius:4px;font-size:.75rem;text-decoration:none;color:var(--fg)}
+.pj-files-btn:hover{background:var(--hover)}
+/* Files pane (tree, icons, code, diff, markdown): css/filespane.css */
+@media (max-width:599px){.pj-sk{min-width:520px}.pj-sk .c-n{width:11em}}
+@media (min-width:1000px){
+  /* docs beside the page: the window does not scroll; the left column and the docs panel each have their own scrollbar */
+  html:has(body:not(.chat-open) .pj-split:not(.pj-nodocs)){overflow:hidden}
+  body:not(.chat-open) .v5-shell>main:has(.pj-split:not(.pj-nodocs)){height:calc(100vh - var(--top-h));min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  body:not(.chat-open) .pg-project:has(.pj-split:not(.pj-nodocs)){flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  body:not(.chat-open) .pj-split:not(.pj-nodocs){flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;align-items:stretch}
+  body:not(.chat-open) .pj-split:not(.pj-nodocs) .pj-main{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:20px;border-right:1px solid var(--line)}
+  body:not(.chat-open) .pj-split:not(.pj-nodocs) .pj-main>.pj-tabbar{position:sticky;top:0;z-index:2;background:var(--bg)}
+  body:not(.chat-open) .pj-right{margin-top:0;border-top:0;padding-left:20px;position:static;height:auto;display:flex;flex-direction:column;min-height:0}
+  body:not(.chat-open) .pj-body{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+  body:not(.chat-open) .pj-file{max-height:none}
+  /* the left column is narrower: Agents/tmux rows drop the wide columns */
+}
+@media (max-width:699px){
+  /* phone: the tabs are one row that scrolls sideways (projview.js keeps the selected tab in view); the x stays at its end */
+  .pj-tabbar{flex-wrap:nowrap}
+  .pj-tabbar .pj-tabs{flex-wrap:nowrap;gap:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none}
+  .pj-tabbar .pj-tabs::-webkit-scrollbar{display:none}
+  .pj-tabbar .pj-tab{flex:none;max-width:none;padding:11px 6px;font-size:var(--fs-s)}
+  /* the x is its own cell (hairline), so a tab that runs under it reads as "scrolls on", not as a cut label */
+  .pj-close{align-self:stretch;height:auto;min-width:40px;border-left:1px solid var(--line)}
+}
+/* project doc pane: text size control at the right of the meta line; size = the viewer's own mdSize (fonts.js) */
+.pj-meta-zoom{display:flex;align-items:center;flex-wrap:wrap;gap:0 4px}
+.pj-zoom{margin-left:auto}
+.pj-zoom .zoomctl{margin:0;padding:0;border:0}
+.pj-zoom .vc-zb,.pj-zoom .vc-zv{height:28px}
+.pj-zoom .vc-zb{width:28px;padding:0}
+.pj-doc.md{font-size:var(--md-size,inherit)}
+.pj-meta .pj-zoom button{color:var(--muted);padding:0;font-size:var(--fs-s);text-decoration:none}
+.pj-meta .pj-zoom button:hover{color:var(--fg);background:var(--hover);text-decoration:none}
+.pj-meta .pj-zoom .vc-zv{padding:0 4px}
+/* skills: Local / Global sub-tabs under the doc tabs (tabs.css look) */
+.pj-sktabs{margin-bottom:8px}
+.pj-sktabs .pj-n{margin-left:4px}
+.pj-skgrp[hidden]{display:none}

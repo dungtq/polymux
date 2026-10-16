@@ -1,0 +1,9 @@
+{% set pstate = 'loading' if pane_loading else ('empty' if not text.strip() else 'ok') %}
+<div id="pane" class="pane-wrap" data-pane data-state="{{ pstate }}" data-conn="ok" hx-get="/a/{{ agent.id }}/pane?h={{ digest }}" hx-trigger="every 2s, pm:agent_state from:document, pm:refresh" hx-swap="outerHTML" hx-sync="this:replace">
+<pre class="pane" data-pin tabindex="0" aria-label="Agent terminal output">{{ text }}</pre>
+<p class="pane-note pane-note-loading" role="status">Loading pane&hellip;</p>
+<p class="pane-note pane-note-empty" role="status">No output yet</p>
+<p class="pane-lost" role="status">Disconnected, retrying&hellip;</p>
+<button type="button" class="pane-jump" data-pane-jump hidden>Jump to bottom</button>
+{% if oob %}<span id="agent-state" hx-swap-oob="true"><span class="badge st-{{ agent.state.value }}">{{ agent.state.value }}</span></span>{% endif %}
+</div>

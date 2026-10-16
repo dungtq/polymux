@@ -1,0 +1,22 @@
+/* Usage: chat panel (.usg) and /agents usage tab (.usg-page). Tokens only. */
+.usg{margin-top:12px;padding-top:10px;border-top:1px solid var(--line2)}
+.usg-h{margin:0 0 6px;font-size:var(--fs-s);font-weight:600}
+.usg-h .muted{font-weight:400}
+.usg-grid{display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin:0;font-size:var(--fs-s)}
+.usg-grid dt{color:var(--muted)}
+.usg-grid dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.usg-foot{margin:6px 0 0;font-size:.75rem}
+.usg-page .usg-note{margin:8px 0;font-size:var(--fs-s)}
+.usg-range{display:flex;gap:8px;margin:8px 0}
+.usg-r{display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:.75rem;color:var(--fg);text-decoration:none}
+.usg-r[aria-current]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.usg-h2{margin:20px 0 6px;padding-top:12px;border-top:1px solid var(--line2);font-size:15px;font-weight:600}
+.usg-t{margin:0}
+.usg-row{display:grid;grid-template-columns:minmax(0,1.6fr) 4em 5em 5em 5em 5em 5em 5em;gap:0 10px;align-items:center;min-height:36px;padding:0 12px}
+.usg-row>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.usg-row .num{text-align:right;font-variant-numeric:tabular-nums}
+.usg-hd{background:var(--subtle);color:var(--colh);font-size:var(--fs-s);font-weight:600}
+@media (max-width:700px){
+  .usg-row{grid-template-columns:minmax(0,1.6fr) 3.5em 4.5em 4.5em 4.5em}
+  .usg-row>:nth-child(4),.usg-row>:nth-child(7),.usg-row>:nth-child(8){display:none}
+}

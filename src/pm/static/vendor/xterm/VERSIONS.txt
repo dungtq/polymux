@@ -1,0 +1,4 @@
+xterm.js      @xterm/xterm 6.0.0 (https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/lib/xterm.js) sha256 14903579ff54664cd72f8e8699e6961a6272c21863ec1c3b118cdc8af5d4a972 MIT
+xterm.css     @xterm/xterm 6.0.0 (https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.css) sha256 854a7c0fb70e8b1a083c16797ab827299fb18744f5ad34f227b48337e33293c6 MIT
+addon-fit.js  @xterm/addon-fit 0.11.0 (https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11.0/lib/addon-fit.js) sha256 ba3ea256ce0620a0992a197d6c9baea64823fc93d8da07a9e366ca9943c18527 MIT
+LICENSE       MIT, copyright The xterm.js authors (from @xterm/xterm 6.0.0)

@@ -1,0 +1,107 @@
+/* Chat items (docs/CHAT-SYNC.md): the conversation list #ci, tool groups under a reply, turn-end lines,
+   outbox bubbles (#ci-pending) and the live strip's waiting tool + pane tail. Bubbles reuse .chat-bubble
+   (agent.css, shell.css), chips reuse .tchip (chat.css). Tokens only (tokens.css); light + dark via tokens.
+   Linked before chrome/agent/shell.css: selectors that must win carry one class more. */
+
+.ci, .ci-items, .ci-pending { display: flex; flex-direction: column; min-width: 0; }
+.ci { margin-top: var(--s1); }
+.ci-more { margin: var(--s2) 0; }
+.ci-more:empty { display: none; }
+.ci .chat-empty { margin: var(--s2) 2px; }
+
+/* reply header: model name, then the agent id */
+.ci-text .chat-meta .ci-aid { font-size: .75rem; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* "Continue..." / Canvas only on the newest reply with a turn end after it:
+   chat-items.js marks it .ci-done-last after every insert or load. Copy stays on every bubble. */
+.ci-items > .ci-text:not(.ci-done-last) :is(.chat-meta .cv-open, .ci-foot) { display: none; }
+/* a turn without a prompt of yours (a background-task notification) is still running: none anywhere */
+body:has(#chat .chat-working) .ci-items :is(.chat-meta .cv-open, .ci-foot) { display: none; }
+/* Continue... sits at the bottom right of the reply */
+.ci-text .ci-foot { display: flex; justify-content: flex-end; margin-top: var(--s2); }
+/* phone: the fixed jump rail sits over the bottom right of the newest reply */
+@media (max-width: 699px) { .ci-text .ci-foot { padding-right: 52px; } }
+/* Compact mode: replies folded into Working notes show no header actions, so no Continue either */
+.ci[data-cv="compact"] .ci-cn-li > .ci-text > .ci-foot { display: none; }
+.ci-items .chat-bubble.role-user .md p + p, .ci-pending .chat-bubble.role-user .md p + p { margin-top: .5em; }
+.ci-items .chat-bubble .md > :last-child, .ci-pending .chat-bubble .md > :last-child { margin-bottom: 0; }
+
+/* ---- tool group under a reply: count header (folded by default), then one row per call ---- */
+.ci-tg { margin: 2px 0 var(--s2) 14px; padding-left: 10px; border-left: 2px solid var(--line); min-width: 0; }
+.ci-tg-h { display: flex; align-items: center; gap: 4px; min-height: 28px; font-size: var(--fs-s); color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; list-style: none; border-radius: var(--ctl-radius); }
+.ci-tg-h::-webkit-details-marker { display: none; }
+.ci-tg-h::marker { content: ""; }
+.ci-tg-h:hover { color: var(--fg); }
+.ci-tg-h:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ci-car { flex: none; transition: transform .12s; }
+.ci-tg[open] > .ci-tg-h .ci-car { transform: rotate(90deg); }
+.ci-tot { flex: none; margin-right: 2px; }
+.ci-tot b { color: var(--fg); font-weight: 600; }
+.ci-chips { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.ci-run { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; color: var(--accent); }
+.ci-run:empty { display: none; }
+
+.ci-rows { list-style: none; margin: 2px 0 0; padding: 0; }
+.ci-tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px; min-height: 24px; padding: 0 4px; border-radius: 4px; font-size: .75rem; }
+@media (hover: hover) { .ci-tr:hover { background: var(--hover); } }
+.ci-tr .tchip { height: 18px; }
+.ci-tl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+
+/* status cell: spinner + elapsed, waiting after 10 s, background pill, done, failed */
+.ci-ts { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ci-ts.is-run { color: var(--accent); }
+.ci-ts.is-run.is-wait { color: var(--waiting); }
+.ci-ts .ci-wt { display: none; }
+.ci-ts.is-wait .ci-wt { display: inline; }
+.ci-ts.is-bg { color: var(--muted); }
+.ci-ts.is-ok > [aria-hidden] { color: var(--ok-fg); }
+.ci-ts.is-err { color: var(--failed); }
+.ci-bgp { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border: 1px solid var(--line); border-radius: var(--r-pill); font-size: .6875rem; color: var(--muted); }
+.ci-spin { display: inline-block; flex: none; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ci-spin .9s linear infinite; }
+@keyframes ci-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ci-spin, .ob-s-sending .ob-dot { animation: none; } .ci-car { transition: none; } }
+
+/* turn end: one quiet line between turns */
+.ci-end { display: flex; align-items: center; gap: var(--s2); margin: var(--s1) 0 10px; font-size: var(--fs-s); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ci-end::before, .ci-end::after { content: ""; flex: 1; border-top: 1px solid var(--line2); }
+.ci-end span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- outbox: delivery state on a user bubble, actions while it waits or failed ---- */
+/* the state is the dot alone (words in title + .sr-only); only "Not sent" keeps visible text. Shapes tell the
+   states apart without colour: saved = muted ring, cancelled = muted dot, wait = attn, sending = accent pulsing,
+   in pane = accent dot, queued = accent ring, done = run green, failed = err dot + text */
+.chat-meta .ob-st { position: relative; display: inline-flex; align-items: center; gap: 4px; flex: none; margin-right: 2px; padding: 4px; font-size: .75rem; white-space: nowrap; color: var(--muted); cursor: default; }
+.ob-dot { width: 8px; height: 8px; flex: none; box-sizing: border-box; border-radius: 50%; background: var(--muted); }
+.ob-s-saved .ob-dot { background: transparent; border: 2px solid var(--muted); }
+.ob-s-wait .ob-dot { background: var(--st-attn); }
+.ob-s-sending .ob-dot, .ob-s-inpane .ob-dot { background: var(--accent); }
+.ob-s-sending .ob-dot { animation: pm-working 1.4s ease-in-out infinite; }
+.ob-s-queued .ob-dot { background: transparent; border: 2px solid var(--accent); }
+.ob-s-done .ob-dot { background: var(--st-run); }
+.chat-meta .ob-s-failed { color: var(--failed); }
+.ob-s-failed .ob-dot { background: var(--st-err); }
+.ob-act { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.ob-act:empty { display: none; }
+.chat-bubble.ci-ob.ob-wait, .chat-bubble.ci-ob.ob-saved { border-style: dashed; }
+.chat-bubble.ci-ob.ob-failed { border-color: var(--failed); }
+.ci-pending:empty { display: none; }
+
+/* ---- live strip: a tool that has been running > 10 s, with the masked pane tail ---- */
+.ci-wait, .ci-bgs { margin: var(--s1) 0 var(--s2); min-width: 0; }
+.ci-bgs-h { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+@media (max-width: 699px) { .ci-bgs-h { display: none; } }
+.ci-wait-h { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: var(--fs-s); color: var(--waiting); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* the newest 5 rows in full: exactly 5 line-heights, anchored to the bottom (older/wrapped rows clip at the top) */
+.ci-tail { margin: 0; padding: 0 10px; box-sizing: content-box; max-height: calc(5 * 1.45em); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; border: 6px solid var(--pane-bg); border-width: 6px 0; box-shadow: 0 0 0 1px var(--line); border-radius: var(--box-r); background: var(--pane-bg); color: var(--pane-fg); font: .6875rem/1.45 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; white-space: pre; }
+
+/* ---- touch and phone ---- */
+@media (pointer: coarse) {
+  .ci-tg-h { min-height: 40px; }
+  .ob-act button { min-height: 40px; }
+  .ci-text .ci-foot .cm-cont button, .ci-text .chat-meta .cv-open { min-height: 36px; }
+}
+@media (max-width: 559px) {
+  .ci .chat-meta .stamp, .ci-pending .chat-meta .stamp { display: none; }
+  .ci-tg { margin-left: 4px; padding-left: 8px; }
+  .ci-tr { grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px; }
+  .ci-tail { white-space: pre-wrap; overflow-wrap: anywhere; }
+}

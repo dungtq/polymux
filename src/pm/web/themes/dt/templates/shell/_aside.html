@@ -1,0 +1,22 @@
+{#- Chat aside (DESIGN.md §6.1, LAYOUT.md §2, SHELL.md §4): one agent chat (or a read-only terminal) beside any page.
+    Docked right column from 900px (html.aside, width --aside-w from --aside-pct), fixed overlay with the scrim below,
+    not used on phones (opening a chat there opens its tab). Per browser, so js/head.js restores html.aside and
+    --aside-pct before paint and js/aside.js fills the head and the iframe (/a/<id>?embed=1 or /term/<urlid>?embed=1).
+    Head: state dot (+ .vh word), id truncated from the left (L-4), kind chip, Open as tab, Close.
+    Hooks for aside.js: [data-aside-edge] (resize separator, 20-50 %), [data-aside-dot] [data-aside-state]
+    [data-aside-name] [data-aside-kind], [data-act=astab], [data-act=aside] (close), [data-aside-body] holding
+    [data-aside-empty] and, while open, iframe.x-aframe. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<aside id="x-aside" class="x-aside" aria-label="Chat aside">
+  <div class="x-adrag" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="x-aside" aria-label="Chat aside width" aria-valuemin="20" aria-valuemax="50" aria-valuenow="30" title="Drag to resize · double-click: 30 % · arrow keys: 1 %" data-aside-edge></div>
+  <div class="x-ah">
+    <i class="dot unknown" aria-hidden="true" data-aside-dot hidden></i><span class="vh" data-aside-state></span>
+    <b class="x-an sfx" data-aside-name><bdi>Chat aside</bdi></b>
+    <span class="chip k" data-aside-kind hidden></span><span class="sp"></span>
+    <button class="x-ib" type="button" data-act="astab" aria-label="Open as tab" title="Open as tab" data-k-title="mod+shift+L" disabled><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}tabs"/></svg></button>
+    <button class="x-ib" type="button" data-act="aside" aria-controls="x-aside" aria-label="Close the chat aside" title="Close" data-k-title="mod+L"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  <div class="x-abody" data-aside-body>
+    <p class="x-aempty" data-aside-empty>No chat here yet. Select an agent and press <kbd data-k="mod+L"></kbd>, or move a session tab here with <kbd data-k="mod+shift+L"></kbd>.</p>
+  </div>
+</aside>

@@ -1,0 +1,88 @@
+{% macro post_form(url, extra="") %}method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#qchat-settings" hx-swap="outerHTML"{{ extra | safe }}{% endmacro %}
+{% macro row_form(url, name, label, cls="set-quiet") %}<form class="inline" {{ post_form(url) }}><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ name }}"><button type="submit" class="{{ cls }}">{{ label }}</button></form>{% endmacro %}
+{% macro toggle(url, name, on, what) %}<input type="checkbox" name="on" value="1"{% if on %} checked{% endif %} aria-label="Use {{ name }}" hx-post="{{ url }}" hx-trigger="change" hx-swap="none" hx-vals='{{ {"name": name, "csrf": csrf} | tojson }}'>{% endmacro %}
+<section id="qchat-settings" class="set-section">
+<h2 class="set-h">Quick chat</h2>
+{% if notice %}<p class="set-notice" role="status">{{ notice }}</p>{% endif %}
+
+<form {{ post_form("/settings/qchat") }}>
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="part" value="tools">
+<h3>Tools</h3>
+<div class="card set-sec">
+  <p class="small muted">Which tools profiles the popup offers. Each conversation picks one; the folder is fixed when it starts.</p>
+  <div class="qcs-prof">
+    <label class="qcs-card"><span class="qcs-ct"><input type="checkbox" checked disabled> none</span><span class="qcs-cd">Text only, no files, no MCP. Always on.</span></label>
+    <label class="qcs-card"><span class="qcs-ct"><input type="checkbox" name="profile_read" value="1"{% if qc.profiles.read %} checked{% endif %}> read</span><span class="qcs-cd">{{ qc.read_tools | join(', ') }} + MCP, in a project folder. No writes, no commands.</span></label>
+    <label class="qcs-card qcs-full"><span class="qcs-ct"><input type="checkbox" name="profile_full" value="1"{% if qc.profiles.full %} checked{% endif %}> full</span><span class="qcs-cd">Bash, Edit, Write + MCP, in a project folder, without asking. Works in any logged-in session.</span></label>
+  </div>
+  <div class="qcs-grid">
+    <label class="small">Default profile <select name="default_profile">{% for p in qc_profiles %}<option{% if qc.default_profile == p %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+    <label class="small">Default folder <select name="default_folder"><option value="">(none)</option>{% for f in qc_folders %}<option{% if qc.default_folder == f %} selected{% endif %}>{{ f }}</option>{% endfor %}</select></label>
+    <label class="small">Read tools <input name="read_tools" maxlength="1000" value="{{ qc.read_tools | join(', ') }}" spellcheck="false" autocomplete="off"></label>
+    <label class="small">Full: permission mode <select name="full_permission_mode">{% for m in qc_modes %}<option{% if qc.full_permission_mode == m %} selected{% endif %}>{{ m }}</option>{% endfor %}</select></label>
+    <label class="small">Max turns per message <input type="number" name="max_turns" value="{{ qc.max_turns }}" min="1" max="200"></label>
+    <label class="small">Timeout per message (s) <input type="number" name="timeout_s" value="{{ qc.timeout_s }}" min="10" max="3600"></label>
+  </div>
+  <div class="qcs-line"><span class="set-main small muted">Your hooks and settings in <code>~/.claude</code> are never loaded (no stop hook, no ntfy from quick chat).</span><button type="submit" class="primary">Save</button></div>
+</div>
+</form>
+
+<h3>MCP servers <span class="small muted">used by the read and full profiles</span></h3>
+<div class="card set-sec">
+  <div class="qcs-line"><span class="set-main small muted">Read from <code>~/.claude.json</code> (user and project scope); edit those there. Manual servers live in pm's state dir. claude.ai connectors are listed only and are never passed to quick chat. Env values and headers are never shown.</span>
+    <form class="inline" {{ post_form("/settings/qchat/mcp/rescan") }}><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Re-read ~/.claude.json</button></form></div>
+  <div class="qcs-tbl" role="table" aria-label="MCP servers">
+    <div class="qcs-row qcs-hd" role="row"><span role="columnheader"><span class="sr-only">On</span></span><span role="columnheader">Name</span><span role="columnheader" class="qcs-src">Source</span><span role="columnheader" class="qcs-type">Type</span><span role="columnheader" class="qcs-tgt">Command / URL</span><span role="columnheader"><span class="sr-only">Actions</span></span></div>
+    {% for m in qc_mcp %}<div class="qcs-row" role="row">{% if m.type == "connector" %}<input type="checkbox" disabled aria-label="{{ m.name }} is not available">{% else %}{{ toggle("/settings/qchat/mcp/toggle", m.name, m.enabled, "mcp") }}{% endif %}<span class="mono">{{ m.name }}</span><span class="qcs-src">{{ m.source }}</span><span class="qcs-type">{{ m.type }}</span><span class="qcs-tgt mono small" title="{{ m.target }}">{{ m.target }}</span><span class="qcs-acts">{% if m.testable %}{{ row_form("/settings/qchat/mcp/test", m.name, "Test") }}{% endif %}{% if m.manual %}{{ row_form("/settings/qchat/mcp/remove", m.name, "Remove", "set-quiet danger") }}{% endif %}</span></div>
+    {% else %}<p class="small muted">No MCP servers found.</p>{% endfor %}
+  </div>
+  <details class="set-more"><summary>Add a server manually</summary>
+    <form class="qcs-add" {{ post_form("/settings/qchat/mcp/add") }}>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="small">Name <input name="name" placeholder="tavily" maxlength="64" spellcheck="false" autocomplete="off" required></label>
+      <label class="small">Type <select name="type"><option>http</option><option>sse</option><option>stdio</option></select></label>
+      <label class="small">URL or command <input name="target" placeholder="https://mcp.example.com/mcp  or  npx -y some-mcp" maxlength="500" spellcheck="false" autocomplete="off" required></label>
+      <label class="small qcs-wide">Headers (http / sse only; one "Name: value" per line; stored 0600, never shown again) <textarea name="headers" spellcheck="false" autocomplete="off" placeholder="Authorization: Bearer ..."></textarea></label>
+      <p class="qcs-wide"><button type="submit">Add server</button></p>
+    </form>
+  </details>
+</div>
+
+<form {{ post_form("/settings/qchat") }}>
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="part" value="skills">
+<h3>Skills <span class="small muted">used by the read and full profiles</span></h3>
+<div class="card set-sec">
+  <div class="qcs-line"><span class="set-main small muted">Found in <code>~/.claude/skills</code>, the default folder's <code>.claude/skills</code> and installed plugins. Only ticked skills are offered in the popup; Claude loads one when it fits, or when you type <code>/name</code>. Your hooks and settings are still not loaded.</span>
+    <button type="submit" formaction="/settings/qchat/skills/rescan" hx-post="/settings/qchat/skills/rescan">Re-scan</button></div>
+  <div class="qcs-tbl" role="table" aria-label="Skills">
+    <div class="qcs-row qcs-hd" role="row"><span role="columnheader"><span class="sr-only">On</span></span><span role="columnheader">Name</span><span role="columnheader" class="qcs-src">Source</span><span role="columnheader" class="qcs-type">Type</span><span role="columnheader" class="qcs-tgt">Description</span><span role="columnheader"><span class="sr-only">Actions</span></span></div>
+    {% for k in qc_skills %}<div class="qcs-row" role="row">{{ toggle("/settings/qchat/skills/toggle", k.name, k.enabled, "skill") }}<span class="mono">{{ k.name }}</span><span class="qcs-src">{{ k.source }}</span><span class="qcs-type">skill</span><span class="qcs-tgt small muted" title="{{ k.description }}">{{ k.description }}</span><span class="qcs-acts"><button type="button" class="set-quiet" hx-get="/settings/qchat/skills/{{ k.name | urlencode }}" hx-target="#qcs-skillview" hx-swap="innerHTML">View</button></span></div>
+    {% else %}<p class="small muted">No skills found.</p>{% endfor %}
+  </div>
+  <div id="qcs-skillview" aria-live="polite"></div>
+  <label class="small set-check"><input type="checkbox" name="skills_in_none" value="1"{% if qc.skills_in_none %} checked{% endif %}> Skills also work in the <b>none</b> profile when typed as <code>/name</code> (text-only skills)</label>
+  <p><button type="submit" class="primary">Save</button></p>
+</div>
+</form>
+
+<form {{ post_form("/settings/qchat") }}>
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="part" value="history">
+<h3>History</h3>
+<div class="card set-sec">
+  <div class="qcs-line"><span class="set-main"><span class="mono small">{{ qc_stats.path }}</span> <span class="small muted">{{ qc_stats.convs }} conversations &middot; {{ qc_stats.msgs }} messages &middot; {% if qc_stats.size >= 1048576 %}{{ '%.1f' % (qc_stats.size / 1048576) }} MB{% else %}{{ '%.0f' % (qc_stats.size / 1024) }} KB{% endif %}</span></span></div>
+  <div class="qcs-grid">
+    <label class="small">Keep conversations (0 = all) <input type="number" name="keep_convs" value="{{ qc.keep_convs }}" min="0" max="100000"></label>
+    <label class="small">Delete after days (0 = never) <input type="number" name="keep_days" value="{{ qc.keep_days }}" min="0" max="3650"></label>
+  </div>
+  <label class="small set-check"><input type="checkbox" name="nav_search" value="1"{% if qc.nav_search %} checked{% endif %}> Show quick chat history in the navbar search</label>
+  <p><button type="submit" class="primary">Save</button></p>
+</div>
+</form>
+<div class="card set-sec">
+  <form class="set-row" {{ post_form("/settings/qchat/history/delete-all", ' data-confirm="Delete all quick chat history? This cannot be undone."') }}>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <span class="set-main small muted">Text is masked (secrets) before it is stored. Never logged, audited or sent to ntfy.</span>
+    <button type="submit" class="danger">Delete all history</button>
+  </form>
+</div>
+</section>

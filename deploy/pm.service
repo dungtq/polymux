@@ -1,0 +1,15 @@
+[Unit]
+Description=pm control plane (127.0.0.1:8093, behind nginx)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/dev/pm
+ExecStart=%h/dev/pm/.venv/bin/pm
+Restart=on-failure
+TimeoutStopSec=15
+RestartSec=3
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

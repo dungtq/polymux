@@ -1,0 +1,45 @@
+{% from "_macros.html" import dot %}
+{% if mode == "review" %}
+<section class="ag-view ag-rev" aria-label="Review changes">
+<h2>Review changes</h2>
+<p class="muted ag-hint">{{ plan.ops | length }} file operation{{ "" if plan.ops | length == 1 else "s" }}. Nothing has been changed yet.</p>
+<div class="list ag-table" role="list">
+<div class="hrow arow-op ag-head" role="presentation"><span class="hcell">Operation</span><span class="hcell">Path</span><span class="hcell">Detail</span></div>
+{% for o in plan.ops %}<div class="lrow arow-op" role="listitem"><span class="muted">{{ o.kind }}</span><span class="mono" title="{{ o.path }}">{{ o.path }}</span><span class="muted" title="{{ o.detail }}">{{ o.detail or "–" }}</span></div>{% endfor %}
+</div>
+<form class="ag-rvf" method="post" action="/agents/apply">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="token" value="{{ plan.token }}"><input type="hidden" name="ctx_agent" value="{{ ctx_agent }}"><input type="hidden" name="ctx_tab" value="{{ ctx_tab }}">
+{% for k, v in hidden %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<button type="submit" class="{{ 'danger' if destructive else 'primary' }}">Apply</button> <a class="button" href="{{ back }}">Cancel</a>
+</form>
+</section>
+{% elif mode == "result" %}
+<section class="ag-view" aria-label="Result">
+<h2>Applied</h2>
+<ul class="ag-lines">{% for l in lines %}<li class="mono">{{ l }}</li>{% endfor %}</ul>
+<p><a class="button" href="{{ back }}">Back to {{ tab }}</a></p>
+</section>
+{% elif mode == "notice" %}
+<section class="ag-view" aria-label="Notice">
+<div class="set-notice ag-warnbox" role="alert">{{ notice }}</div>
+<p><a class="button" href="{{ back }}">Back to {{ tab }}</a></p>
+</section>
+{% elif mode == "edit" %}
+{% set act = kind ~ "_edit" %}
+<section class="ag-view" aria-label="Edit {{ kind }}">
+<h2>Edit {{ kind }} <span class="mono">{{ obj }}</span></h2>
+<form method="post" action="/agents/review" class="ag-form">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="{{ act }}"><input type="hidden" name="ctx_agent" value="{{ agent.name }}"><input type="hidden" name="ctx_tab" value="{{ tab }}"><input type="hidden" name="name" value="{{ obj }}">
+{% if kind == "skill" %}<label><span class="muted">Description</span><input type="text" name="description" required maxlength="300" value="{{ desc }}" autocomplete="off"></label>{% endif %}
+<label><span class="muted">Body</span><textarea name="body" rows="16" maxlength="262144" spellcheck="false">{{ body }}</textarea></label>
+<div class="ag-fbtn"><button type="submit">Review</button> <a class="button" href="{{ back }}">Cancel</a></div>
+</form>
+{% if can_delete %}
+<form method="post" action="/agents/review" class="ag-form ag-delf" id="delete">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="{{ kind }}_delete"><input type="hidden" name="ctx_agent" value="{{ agent.name }}"><input type="hidden" name="ctx_tab" value="{{ tab }}"><input type="hidden" name="name" value="{{ obj }}">
+<label><span class="muted">Delete {{ kind }} {{ obj }}: type its name to confirm</span><input type="text" name="confirm" required autocomplete="off" spellcheck="false" aria-label="Type {{ obj }} to confirm deleting it"></label>
+<div class="ag-fbtn"><button type="submit" class="danger">Review delete</button></div>
+</form>
+{% endif %}
+</section>
+{% endif %}

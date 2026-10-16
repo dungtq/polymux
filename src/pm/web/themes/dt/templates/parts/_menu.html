@@ -1,0 +1,29 @@
+{#- Row / page ⋯ menu TRIGGER (DESIGN.md §6.10). Contract: PARTS.md §9. This emits only the trigger button and
+    its items as JSON (data-menu); js/parts.js turns them into pm7.menu items (layers.js draws the one menu: popover
+    on desktop, bottom sheet on phones, Esc, outside click, focus return). Never a popup of its own.
+    {% import "parts/_menu.html" as pm %}
+
+    pm.menu(items, label="Actions", keep=true, cls="")
+      label  aria-label and title of the trigger, and the menu's label ("Actions for claude-1c70ee")
+      keep   .keep: the trigger also shows on phones and without hover (row actions: DESIGN §6.10)
+      items  list of dicts, in order:
+        {"sep": true}                                             separator
+        {"id", "label", "icon", "note", "key", "danger", "disabled", "why", <one action>}
+           id   item id (listkeys data-key-<k>="menu:<id>" runs it); key = key spec shown as kbd ("E", "P")
+           why  shown as the note when disabled (say why)
+        actions (exactly one):
+           "href": "/path"                    a link (same-origin path)
+           "click": "<selector>"              clicks that element inside the trigger's row ([data-row-id]) or
+                                              [data-menu-scope] (reuses a row button: htmx, confirm, page JS)
+           "det": true                        toggles the row's details (pm7.table.det)
+           "copy": "text"                     copies to the clipboard, toast "Copied"
+           "event": "name"                    dispatches CustomEvent name (bubbles) on the trigger,
+                                              detail {id: row id, item: item id}
+           "post": "/url", "vals": {...}      POST with the CSRF token (pm7.fetch); "confirm": question (plain
+                                              confirm), "typed": exact name (typed confirm), "ok": button text,
+                                              "done": toast after the server said OK, "refresh": selector that gets
+                                              the htmx event pm7:refresh afterwards; errors toast the status -#}
+
+{%- macro menu(items, label="Actions", keep=true, cls="") -%}
+<button class="x-ib sm p-mbtn{{ ' keep' if keep }}{{ ' ' ~ cls if cls }}" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="{{ label }}" title="{{ label }}" data-menu='{{ items | tojson }}'><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#more"/></svg></button>
+{%- endmacro -%}

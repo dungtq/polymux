@@ -1,0 +1,50 @@
+/* Agent chat sidebar: TMUX tree of the agent session + HISTORY of ended agents. Reuses .v5-side / .vs-* from shell.css.
+   Inside the aside: head, filter, TMUX section (max 55%, own scroll), HISTORY section (fills the rest, own scroll). */
+.ts-side{overflow:hidden}
+.ts-side .vs-head,.ts-side .vs-filter{flex:0 0 auto}
+.ts-sec{display:flex;flex-direction:column;min-height:0;border-top:1px solid var(--line)}
+.ts-tmux{flex:0 1 auto;max-height:55%}
+.ts-histsec{flex:1 1 0}
+.ts-h{flex:0 0 auto;display:flex;align-items:baseline;justify-content:space-between;margin:0;padding:8px 12px 4px;font-size:.6875rem;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.ts-h{gap:8px;white-space:nowrap}
+.ts-hs{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:400;letter-spacing:0;text-transform:none}
+.ts-side .vs-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
+.ts-win[hidden],.ts-pane[hidden],.ts-hist[hidden]{display:none}
+.ts-side .ts-win,.ts-side .ts-pane,.ts-side .ts-hist{font-size:var(--fs-s)}
+.ts-side .ts-pane{padding-left:30px;color:var(--fg)}
+.ts-pid{color:var(--muted);font-variant-numeric:tabular-nums}
+.ts-num{flex:0 0 auto;min-width:1ch;color:var(--muted);font-variant-numeric:tabular-nums}
+.ts-win.on .ts-num,.ts-pane.on .ts-num{color:inherit}
+.ts-win .vs-c,.ts-pane .vs-c{flex:0 100 auto;min-width:2.5em;white-space:nowrap;max-width:7em;overflow:hidden;text-overflow:ellipsis}
+.ts-side .vs-row:focus-visible,.ts-hl:focus-visible,.ts-res:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* history row: link fills the row, Resume appears on hover/focus (always on touch) */
+.ts-side .ts-hist{position:relative;padding:0}
+.ts-hl{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;min-height:32px;padding:4px 12px 4px 10px;color:inherit;text-decoration:none}
+/* kind pill (the .kpill macro): never shrinks; border/text follow the agent kind (data-kind, --k) */
+.ts-kp{flex:0 0 auto;display:inline-flex}
+.ts-kp .kpill{margin-left:0}
+.ts-hist .ts-ago{text-align:right}
+.ts-none{margin:0;padding:6px 12px;color:var(--muted);font-size:var(--fs-s)}
+.ts-res{display:none;text-decoration:none;line-height:22px;position:absolute;right:4px;top:50%;transform:translateY(-50%);height:24px;padding:0 8px;font:inherit;font-size:.75rem;color:var(--accent);background:var(--subtle);border:1px solid var(--ctl-line);border-radius:var(--ctl-radius);cursor:pointer}
+.ts-res:hover{background:var(--hover)}
+.ts-hist:hover .ts-res,.ts-hist:focus-within .ts-res{display:inline-block}
+.ts-hist:hover .ts-ago,.ts-hist:hover .ts-dur,.ts-hist:focus-within .ts-ago,.ts-hist:focus-within .ts-dur{visibility:hidden}
+.ts-hist:hover:not(:has(.ts-res)) .vs-c{visibility:visible}
+@media (min-width:900px){
+  .side-collapsed .ts-side .vs-head{padding:12px 8px 8px}
+  .side-collapsed .ts-sec{display:none}
+}
+@media (max-width:899px){
+  .ts-side{width:min(86vw,300px);flex-basis:auto}
+  .ts-win,.ts-pane,.ts-hl{min-height:var(--ctl-h)}
+  .ts-res{display:none!important}
+  .ts-hist .vs-c{visibility:visible!important}
+}
+.ts-side .vs-all{flex:0 0 auto;white-space:nowrap}
+/* project directory of the viewed session: ties the sidebar (live tmux + ended history) to its project */
+.vs-pdir{display:flex;flex:1 1 auto;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--muted);font-size:.75rem;min-width:0}
+.vs-pdir svg{flex:0 0 auto}
+.vs-pdn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}  /* long paths lose their head, the project folder at the end stays visible */
+.ts-side .vs-head .vs-toggle{margin-left:auto}
+.vs-pdir::before{flex:0 0 auto}

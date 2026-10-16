@@ -1,0 +1,21 @@
+{# Shared popup markup (docs/UI-RULES.md "Controls"). Look: static/css/popup.css. Behaviour: static/js/dialog.js (pmDialog:
+   data-dlg-open / data-dlg-close, backdrop, Esc, focus) and static/js/popup.js (pm.popover menus and sheets).
+   dialog(id, title, size, cls, head, x, typed): a static modal <dialog class="pmdlg">, opened by any button with
+     data-dlg-open="<id>". title may be markup (a {% set %} block); size md (default) | sm | wide | full; head = extra
+     markup at the right of the title (a link); x = a close x; typed = a typed-confirm dialog (dialog.js data-dlg-typed).
+     The caller() block is the body; end it with dlg_foot(). Usage:
+       {% call dialog("stop-dialog", "Stop ALL agents?") %}<p>...</p>{% call dlg_foot() %}<button ...>Stop</button>{% endcall %}{% endcall %}
+   dlg_foot(cancel): the button row, [Cancel][primary buttons from caller()] right-aligned.
+   close_x(label): the one close x icon button (dialog.js builds the same one for pmDialog({closeX: true})). #}
+{% macro close_x(label="Close") -%}
+<button type="button" class="pmdlg-x" data-dlg-close aria-label="{{ label }}" title="{{ label }} (Esc)"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+{%- endmacro %}
+{% macro dialog(id, title, size="md", cls="", head="", x=false, typed=false) -%}
+<dialog id="{{ id }}" class="pmdlg{{ ' pmdlg-' ~ size if size != 'md' }}{{ ' ' ~ cls if cls }}" aria-labelledby="{{ id }}-title"{% if typed %} data-dlg-typed{% endif %}>
+  <div class="pmdlg-head"><p id="{{ id }}-title" class="pmdlg-title">{{ title }}</p>{{ head }}{% if x %}{{ close_x() }}{% endif %}</div>
+{{ caller() }}
+</dialog>
+{%- endmacro %}
+{% macro dlg_foot(cancel="Cancel") -%}
+<div class="pmdlg-foot"><button type="button" class="small" data-dlg-close>{{ cancel }}</button>{% if caller %}{{ caller() }}{% endif %}</div>
+{%- endmacro %}

@@ -1,0 +1,43 @@
+{#- dt Servers › Services (PRD §6.9): one table of the Docker containers; List, or By stack (bands with Restart
+    stack); state dot + health word; row details with Start / Restart / Stop / Kill; protected names locked (disabled
+    items say why). Rows filter on the client (filter box in servers.html, [data-p-q]); segments and sort are links.
+    Included by _servers.html; v = dt_servers(). Buttons [data-sv-run=<⋯ item id>] run the row's ⋯ item (js/servers.js),
+    band buttons [data-sv-stack] the "stack" item of a row in that band. -#}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set s = v.sv %}
+{%- macro ct(r, cur) %}
+  {% call tb.row(r.name, cur=cur, q=r.q, title=r.name ~ ": " ~ r.word) %}
+    {{ tb.dot(r.dot, r.word) }}
+    {% call tb.name(r.name) %}{% if r.protected %}<span class="chip" title="Protected: can be looked at, never stopped from here">protected</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.stack or "–" }}{% endcall %}
+    {% call tb.cell("hide-s muted") %}{{ r.image }}{% endcall %}
+    {% call tb.cell("hide-s " ~ r.cls) %}{{ r.word }}{% endcall %}
+    {{ tb.end(r.up) }}
+    {% call tb.cell("hide-n muted", num=true) %}{{ r.ports or "–" }}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}
+      {%- if r.vis %}<button class="x-btn sm" type="button" data-sv-run="{{ r.vis.id }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ r.vis.icon }}"/></svg><span class="lb">{{ r.vis.label }}</span></button>{% endif -%}
+      {{ tb.det_btn("sv-ct", r.name, label=r.name) }}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}
+    {% endcall %}
+  {% endcall %}
+  {% call tb.det("sv-ct", r.name, label=r.name) %}
+    {{ tb.kv(r.kv) }}
+    {%- if r.acts %}{% call tb.dacts() %}{% for id, label, icon in r.acts %}<button class="x-btn sm{{ ' danger' if id == 'kill' }}" type="button" data-sv-run="{{ id }}" data-sv-for="{{ r.name }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ icon }}"/></svg>{{ label }}</button>{% endfor %}{% endcall %}{% endif %}
+  {% endcall %}
+{%- endmacro %}
+{% call tb.table("sv-ct", "Containers", cls="sv-ct", list="sv-ct" if s.rows else none,
+                 keys={"enter": "det"}, labels={"enter": "Details"}) %}
+  {%- if s.ok and s.rows %}{{ tb.gh(s.cols, sort=s.sort) }}{% endif %}
+  {%- if s.groups %}
+  {%- for g in s.groups %}
+  {% call tb.group(g.key, g.label, count=g.count, cls=g.cls, icon="box", actions=g.actions) %}
+    {%- for r in g.rows %}{{ ct(r, r.name == s.cur) }}{% endfor %}
+  {% endcall %}
+  {%- endfor %}
+  {%- else %}
+  {%- for r in s.rows %}{{ ct(r, r.name == s.cur) }}{% endfor %}
+  {%- endif %}
+  {%- if not s.rows %}{{ tb.empty(s.text) }}{% endif %}
+  {{ tb.empty("No container matches the filter.", fnone=true) }}
+{% endcall %}
+{%- if s.foot %}<p class="p-foot">{{ s.foot }}</p>{% endif %}

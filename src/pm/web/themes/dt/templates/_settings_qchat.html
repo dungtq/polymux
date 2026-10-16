@@ -1,0 +1,111 @@
+{#- dt override of the core's Quick chat settings fragment (GET /settings/qchat; loaded into Settings › Quick chat,
+    and again on pm7:refresh after a ⋯ / button POST). Flat tabs Tools · MCP servers · Skills · History (client panels;
+    the page's search shows every panel). Forms with data-s-form save on change (POST /settings/qchat, part=tools |
+    skills | history: the whole part each time); switches with data-s-toggle post /settings/qchat/mcp|skills/toggle
+    (name, on; 204); the add-server form posts /settings/qchat/mcp/add (header values are write-only, never shown).
+    Context: qc, qc_mcp, qc_skills, qc_folders, qc_profiles, qc_modes, qc_stats, notice; view model
+    dt_settings("qchat") (pm.web.dt.settings.QChat). All "all devices". -#}
+{%- import "settings/_ui.html" as su %}{% import "parts/_switch.html" as psw %}{% import "parts/_select.html" as psel %}
+{%- import "parts/_tabs.html" as pt %}{% import "parts/_table.html" as tb %}{% import "parts/_menu.html" as pm %}
+{%- set q = dt_settings("qchat") %}
+{%- set S = "Quick chat" %}
+<div id="s-qchat" hx-get="/settings/qchat" hx-trigger="pm7:refresh" hx-swap="outerHTML" hx-disinherit="*">
+{%- if not q %}<p class="s-err">Quick chat settings could not be shown.</p>
+{%- else %}
+{{ pt.tabs(q.tabs, "Quick chat settings", cls="s-qtabs") }}
+
+{% call pt.panel("s-qc-tools", "qc-tools", cur=true) %}
+<form class="s-form" method="post" action="/settings/qchat" data-s-form data-s-what="Quick chat tools">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="part" value="tools">
+{% call su.grp("Tools profiles", "all", S, note="Each conversation picks one profile; its folder is fixed when it starts.") %}{% call su.box() %}
+  {% call su.row("Profiles offered", "none: text only, no files, no MCP (always on). read: " ~ (qc.read_tools | join(", ")) ~ " + MCP, in a project folder. full: Bash, Edit, Write + MCP, without asking.", "Tools profiles", S, wide=true) %}
+    <span class="s-cards">
+      {{ psw.switch("", on=true, label="none", disabled=true, why="Always on") }}
+      {{ psw.switch("profile_read", on=qc.profiles.read, label="read") }}
+      {{ psw.switch("profile_full", on=qc.profiles.full, label="full") }}
+    </span>
+  {% endcall %}
+  {% call su.row("Default profile", "", "Tools profiles", S) %}{{ psel.select("default_profile", q.profiles, value=qc.default_profile, label="Default profile") }}{% endcall %}
+  {% call su.row("Default folder", "", "Tools profiles", S) %}{{ psel.select("default_folder", q.folders, value=qc.default_folder, label="Default folder") }}{% endcall %}
+  {% call su.row("Read tools", "Comma separated tool names for the read profile.", "Tools profiles", S, wide=true) %}
+    <input class="x-in mono s-wide" type="text" name="read_tools" maxlength="1000" value="{{ qc.read_tools | join(', ') }}" spellcheck="false" autocomplete="off" aria-label="Read tools">
+  {% endcall %}
+  {% call su.row("Full: permission mode", "", "Tools profiles", S) %}{{ psel.select("full_permission_mode", q.modes, value=qc.full_permission_mode, label="Full profile permission mode") }}{% endcall %}
+  {% call su.row("Max turns per message", "", "Tools profiles", S) %}<input class="x-in s-num" type="number" name="max_turns" min="1" max="200" value="{{ qc.max_turns }}" aria-label="Max turns per message">{% endcall %}
+  {% call su.row("Timeout per message", "", "Tools profiles", S) %}<input class="x-in s-num" type="number" name="timeout_s" min="10" max="3600" value="{{ qc.timeout_s }}" aria-label="Timeout per message in seconds"><span class="s-unit">s</span>{% endcall %}
+{% endcall %}{% endcall %}
+</form>
+{% endcall %}
+
+{% call pt.panel("s-qc-mcp", "qc-mcp") %}
+{% call su.grp("MCP servers", "all", S, note="Read from ~/.claude.json (edit them there). Manual servers live in pm's state folder. claude.ai connectors are listed only and never passed to Quick chat. Env values and headers are never shown.", q="mcp") %}
+  <p class="s-gtools">{{ su.act(q.acts.rescan_mcp) }}<button class="x-btn sm" type="button" data-s-addmcp aria-expanded="false" aria-controls="s-mcp-add"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#plus"/></svg>Add server</button></p>
+  {% call tb.table("s-mcp", "MCP servers", cls="s-mcp") %}
+    {{ tb.gh([{"label": "Name"}, {"label": "Source", "cls": "hide-s"}, {"label": "Type", "cls": "hide-n"}, {"label": "Command / URL", "cls": "hide-n"}, {"sr": "Use"}, {"sr": "Actions"}]) }}
+    {%- for m in q.mcp %}
+    {% call tb.row(m.name) %}
+      {% call tb.name(m.name) %}{% endcall %}
+      {% call tb.cell("muted hide-s") %}{{ m.source }}{% endcall %}
+      {% call tb.cell("muted hide-n") %}{{ m.type }}{% endcall %}
+      {% call tb.cell("muted mono hide-n") %}{{ m.target or "—" }}{% endcall %}
+      {% call tb.meta() %}{{ m.source }} · {{ m.type }}{% endcall %}
+      <span class="gc-sw" role="cell">{{ psw.switch("on", on=m.on, label="Use " ~ m.name, hide_label=true, disabled=m.fixed, why="claude.ai connectors are never passed to Quick chat", attrs=({} if m.fixed else {"data-s-toggle": "/settings/qchat/mcp/toggle", "data-s-name": m.name})) }}</span>
+      {% call tb.acts() %}{% if m.menu %}{{ pm.menu(m.menu, label="Actions for " ~ m.name) }}{% endif %}{% endcall %}
+    {% endcall %}
+    {%- else %}
+    {{ tb.empty("No MCP servers found in ~/.claude.json. Add one manually.") }}
+    {%- endfor %}
+  {% endcall %}
+  <form class="s-add" id="s-mcp-add" method="post" action="/settings/qchat/mcp/add" data-s-submit data-s-what="MCP server" data-s-refresh="#s-qchat" autocomplete="off" hidden>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {{ psel.select("type", [("http", "http"), ("sse", "sse"), ("stdio", "stdio")], value="http", label="Type") }}
+    <input class="x-in" name="name" placeholder="name" maxlength="64" aria-label="Name" spellcheck="false" required>
+    <input class="x-in mono s-wide" name="target" placeholder="https://… or a command" maxlength="500" aria-label="URL or command" spellcheck="false" required>
+    <textarea class="x-in s-hdrs" name="headers" rows="2" spellcheck="false" autocomplete="off" placeholder="Authorization: Bearer … (http / sse; one per line, write-only)" aria-label="Headers, write-only"></textarea>
+    <button class="x-btn sm pri" type="submit">Add server</button>
+  </form>
+{% endcall %}
+{% endcall %}
+
+{% call pt.panel("s-qc-skills", "qc-skills") %}
+{% call su.grp("Skills", "all", S, note="Found in ~/.claude/skills, the default folder's .claude/skills and installed plugins. Only switched-on skills are offered; Claude loads one when it fits or when you type /name.", q="skills") %}
+  <p class="s-gtools">{{ su.act(q.acts.rescan_skills) }}</p>
+  <form class="s-form" method="post" action="/settings/qchat" data-s-form data-s-what="Skills">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="part" value="skills">
+  {% call su.box() %}
+    {% call su.row("Skills also work in the none profile", "Typed as /name, text only.", "Skills", S) %}{{ psw.switch("skills_in_none", on=qc.skills_in_none, label="Skills in the none profile", hide_label=true) }}{% endcall %}
+  {% endcall %}
+  </form>
+  {% call tb.table("s-skills", "Skills", cls="s-skl") %}
+    {{ tb.gh([{"label": "Name"}, {"label": "Source", "cls": "hide-s"}, {"label": "Description", "cls": "hide-n"}, {"sr": "View"}, {"sr": "Offer"}]) }}
+    {%- for k in qc_skills %}
+    {% call tb.row(k.name) %}
+      {% call tb.name(k.name) %}{% endcall %}
+      {% call tb.cell("muted hide-s") %}{{ k.source }}{% endcall %}
+      {% call tb.cell("muted hide-n") %}{{ k.description }}{% endcall %}
+      {% call tb.meta() %}{{ k.description }}{% endcall %}
+      {% call tb.acts() %}<button class="x-btn sm keep" type="button" hx-get="/settings/qchat/skills/{{ k.name | urlencode }}" hx-target="#s-skillview" hx-swap="innerHTML" aria-label="View {{ k.name }}">View</button>{% endcall %}
+      <span class="gc-sw" role="cell">{{ psw.switch("on", on=k.enabled, label="Offer " ~ k.name, hide_label=true, attrs={"data-s-toggle": "/settings/qchat/skills/toggle", "data-s-name": k.name}) }}</span>
+    {% endcall %}
+    {%- else %}
+    {{ tb.empty("No skills found.") }}
+    {%- endfor %}
+  {% endcall %}
+  <div id="s-skillview" class="s-skillview" aria-live="polite"></div>
+{% endcall %}
+{% endcall %}
+
+{% call pt.panel("s-qc-history", "qc-history") %}
+<form class="s-form" method="post" action="/settings/qchat" data-s-form data-s-what="History">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="part" value="history">
+{% call su.grp("History", "all", S, note="Text is masked (secrets) before it is stored. Never logged, audited or sent to ntfy.", q="history conversations") %}{% call su.box() %}
+  {% call su.row("Stored in", qc_stats.convs ~ " conversations · " ~ qc_stats.msgs ~ " messages · " ~ q.size, "History", S) %}{{ su.ro(qc_stats.path) }}{% endcall %}
+  {% call su.row("Keep conversations", "0 = all.", "History", S) %}<input class="x-in s-num" type="number" name="keep_convs" min="0" max="100000" value="{{ qc.keep_convs }}" aria-label="Keep conversations">{% endcall %}
+  {% call su.row("Delete after", "0 = never.", "History", S) %}<input class="x-in s-num" type="number" name="keep_days" min="0" max="3650" value="{{ qc.keep_days }}" aria-label="Delete after days"><span class="s-unit">days</span>{% endcall %}
+  {% call su.row("Show quick chat history in search", "Results in the search dialog.", "History", S) %}{{ psw.switch("nav_search", on=qc.nav_search, label="Show quick chat history in search", hide_label=true) }}{% endcall %}
+  {% call su.row("Delete all history", "Cannot be undone. Asks you to type delete.", "History", S) %}{{ su.act(q.acts.delete_history) }}{% endcall %}
+{% endcall %}{% endcall %}
+</form>
+{% endcall %}
+{%- endif %}
+</div>

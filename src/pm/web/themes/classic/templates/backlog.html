@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_backlog.html" import item %}
+{% block title %}Backlog{% endblock %}
+{% block content %}
+{% if done %}<p class="small muted" data-bl-done>Saved.</p><script src="/static/js/backlog.js" defer></script>{% else %}
+<div class="row bl-head">
+  {% if edit %}
+  <h1>Backlog: <a href="/p/{{ project|urlencode }}">{{ project }}</a> <span class="muted small">{{ open_n }} open</span></h1>
+  {% if embed %}<button type="button" data-bl-close>Cancel</button>{% else %}<a class="button" href="{{ cancel }}">Cancel</a>{% endif %}
+  {% else %}
+  <h1>Backlog <span class="muted small">{{ total_open }} open in {{ entries|length }} project{{ '' if entries|length == 1 else 's' }}</span></h1>
+  {% if entries %}<span class="bl-all"><button type="button" class="bl-expand" data-open="1">Expand all</button> <button type="button" class="bl-expand" data-open="0">Collapse all</button></span>{% endif %}
+  {% endif %}
+</div>
+{% if error %}<p class="bl-err" role="alert">{{ error }}</p>{% endif %}
+{% if edit %}
+{% if lease_other %}
+<div class="bl-lease" role="status">
+  <p><strong>Being edited by {{ lease_other.owner }} since {{ lease_other.since }}.</strong>
+  Read-only until they save, cancel or the 5 minute lease runs out.</p>
+  <form method="post" action="/backlog/lease/take">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="project" value="{{ project }}">
+    {% if back in ('project', 'embed') %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+    <button type="submit">Take over</button>
+  </form>
+</div>
+{% endif %}
+{% if diff %}
+<div class="bl-conflict">
+  <p class="small muted">Differences: <span class="bl-d-del">- current file</span> / <span class="bl-d-add">+ your text</span></p>
+  <pre class="bl-diff" tabindex="0">{{ diff }}</pre>
+</div>
+{% endif %}
+<form class="bl-edit" id="bl-edit" method="post" action="/backlog/save" data-project="{{ project }}" data-lease="{{ lease_id }}"{% if lease_other %} data-readonly{% endif %}>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="project" value="{{ project }}">
+  <input type="hidden" name="lease" value="{{ lease_id }}">
+  {% if back in ('project', 'embed') %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+  <label class="small muted" for="bl-content">{{ project }}/BACKLOG.md (max {{ max_kb }} KB)</label>
+  <textarea id="bl-content" name="content" rows="24" spellcheck="false" autocapitalize="off"{% if lease_other %} readonly{% endif %}>{{ content }}</textarea>
+  <div class="bl-actions">
+    {% if not lease_other %}<button type="submit">Save</button>
+    {% if diff %}<input type="hidden" name="new_token" value="{{ new_token }}"><a class="button" href="/backlog?p={{ project|urlencode }}&amp;edit=1{{ '&amp;back=project' if back == 'project' }}{{ '&amp;embed=1' if embed }}">Reload current</a>
+    <button type="submit" name="force" value="1" class="bl-danger">Overwrite anyway</button>{% endif %}{% endif %}
+    {% if embed %}<button type="button" class="bl-cancel" data-bl-close>Cancel</button>{% else %}<a class="button bl-cancel" href="{{ cancel }}">Cancel</a>{% endif %}
+  </div>
+  <p id="bl-lease-msg" class="small muted" role="status" hidden></p>
+</form>
+<script src="/static/js/backlog.js" defer></script>
+{% else %}
+{% if entries %}
+<form class="bl-add" method="post" action="/backlog/add">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <select name="project" aria-label="Project">{% for e in entries %}<option value="{{ e.name }}">{{ e.name }}</option>{% endfor %}</select>
+  <input name="text" maxlength="{{ max_item }}" placeholder="Add to Inbox..." aria-label="New backlog item" required autocomplete="off">
+  <button type="submit">Add</button>
+</form>
+{% endif %}
+<div class="bl-groups">
+{% for e in entries %}
+<details class="bl-group" data-project="{{ e.name }}" id="bl-{{ e.name }}">
+  <summary><span class="bl-name">{{ e.name }}</span> <span class="badge">{{ e.open_n }} open</span>{% if e.done_n %} <span class="muted small">{{ e.done_n }} done</span>{% endif %}</summary>
+  <div class="bl-body">
+    <div class="bl-links small"><a href="/p/{{ e.name|urlencode }}">Project</a> &middot; {% if e.tracker %}<a href="/p/{{ e.name|urlencode }}#issues">Issues</a> <span class="muted">(issue tracker: edit items one by one)</span>{% else %}<a href="/backlog?p={{ e.name|urlencode }}&amp;edit=1">Edit file</a>{% endif %}</div>
+    <div class="bl-list">
+    {% for b in e.blocks %}
+      {% if b.kind == 'md' %}<div class="bl-md md">{{ b.html | safe }}</div>
+      {% else %}{{ item(b, csrf, e.token, e.name, 'group') }}{% endif %}
+    {% endfor %}
+    </div>
+  </div>
+</details>
+{% else %}<p class="muted">No project has a BACKLOG.md yet. Add one from a project page.</p>{% endfor %}
+</div>
+<script src="/static/js/backlog.js" defer></script>
+{% endif %}
+{% endif %}
+{% endblock %}

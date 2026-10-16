@@ -1,0 +1,10 @@
+/* Command palette (Cmd/Ctrl+Shift+P). Built on dialog.pmdlg (popup.css), opened by pmDialog; tokens only. */
+dialog.pmdlg.pal{width:min(520px,calc(100vw - 24px));margin:12vh auto auto;padding:0;overflow:hidden}
+.pal-in{display:block;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 16px;background:transparent;color:inherit;font:inherit;outline:none}
+.pal-list{list-style:none;margin:0;padding:4px;max-height:min(50dvh,360px);overflow:auto}
+.pal-it{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:6px 12px;border-radius:var(--ctl-radius,6px);cursor:pointer;white-space:nowrap}
+.pal-it.on{background:var(--hover)}
+.pal-l{overflow:hidden;text-overflow:ellipsis}
+.pal-empty,.pal-hint{margin:0;padding:8px 16px}
+.pal-hint{border-top:1px solid var(--line)}
+@media (max-width:699px){dialog.pmdlg.pal:not(.pmdlg-full){width:calc(100vw - 24px);margin:8vh auto auto}}  /* stays at the top on phones (popup.css makes dialogs bottom sheets): the keyboard covers the bottom */

@@ -1,0 +1,22 @@
+{#- dt Agents › agent › MCP (read-only): where the config is written · table state dot · Name (+ key in args) · Command
+    / host · Transport · Env names · ⋯ (Move the key to env…, Copy name). Per-agent on/off is not in the core
+    (docs/MCP-SHARING-RESEARCH.md), so there is no switch. View model: dt_agents("detail"). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set dv = dt_agents("detail") -%}
+{% call ph.tools() %}<span class="note">{{ dv.note }}</span>{% endcall %}
+{% call tb.table("agents-dm", "MCP servers of " ~ dv.label, cls="a-dmt", list="agents-dm") %}
+  {{ tb.gh(dv.cols, sort=dv.sort) }}
+  {%- for r in dv.items %}
+  {% call tb.row(r.id, cur=loop.first, title=r.desc, attrs=r.attrs) %}
+    {{ tb.dot(r.state, r.word) }}
+    {% call tb.name(r.name) %}{% if r.warn %}<span class="chip warn" title="An API key is passed as a command-line argument (visible in ps)">{{ r.warn }}</span>{% endif %}{% endcall %}
+    {% call tb.cell("mono muted") %}<span title="{{ r.desc }}">{{ r.desc or "–" }}</span>{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.cells[0] }}{% endcall %}
+    {% call tb.cell("hide-n muted") %}<span title="{{ r.cells[1] }}">{{ r.cells[1] }}</span>{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- else %}
+  {% call tb.empty() %}No MCP servers configured for {{ dv.label }}. <a href="/agents?t=mcp">See the servers other agents use</a>{% endcall %}
+  {%- endfor %}
+{% endcall %}

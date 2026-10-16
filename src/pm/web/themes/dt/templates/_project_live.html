@@ -1,0 +1,11 @@
+{#- dt override of the core's project live fragment (GET /p/<name>/live, pages.project_live): the content of the project
+    view's #pj-agents (project.html), i.e. the Agents tab (project/_agents.html), plus the tmux tab's #pj-tmux out of
+    band (hx-swap-oob; only when the tab is shown: "live" not hidden, else htmx would find no target). The route
+    renders it without a request and without the page's summaries; dt_project() reads only the rows context here
+    (agents, idle_agents, pinned_agents, inbox_meta, sessions, ended, hid, ...). -#}
+{%- set v = dt_project() -%}
+{%- if v %}{% include "project/_agents.html" %}
+{%- if v.sessions %}
+<div id="pj-tmux" class="pj-tmux" data-tm-rows hx-swap-oob="true">{% include "project/_tmux.html" %}</div>
+{%- endif %}
+{%- else %}<p class="p-empty">The agents list could not be built. Reload the page; the error is in pm's log.</p>{% endif %}

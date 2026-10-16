@@ -1,0 +1,39 @@
+{#- dt Settings body: section nav (groups You · Work · Security · System, sticky) + one section at a time (body cap;
+    phones: the section list, then one section with ‹ Settings). Overrides the core's _settings_panel.html: rendered by
+    settings.html and by GET /settings/panel (a section reloads itself from /settings/panel?s=<id> with hx-select on
+    the event pm7:refresh, after a ⋯ / button POST; hx-disinherit: its hx-select must not reach the lazy fragments
+    and buttons inside). View model dt_settings() (pm.web.dt.settings); every row
+    carries data-p-q for the page's search box (js/filter.js client mode, js/settings.js shows the hits per section).
+    Scope chips: this browser · all devices · pm.toml (read-only).
+    The same body for the page (settings.html) and the popup (shell/_settings.html loads /settings/panel?s=<id>): the
+    search box (one filter box over #s-panel) sits here, above the nav, so both get it. -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}
+{%- set sv = sv if sv is defined and sv else dt_settings() %}
+{%- if not sv %}<p class="s-err" id="s-panel">Settings could not be shown. Reload the page; the server log says why.</p>
+{%- else %}
+{% call ph.tools("s-tools") %}
+  {{ pf.fbox("settings", placeholder="Search settings", label="Search all settings", rows="#s-panel") }}
+{% endcall %}
+<div class="s-lay s-v-{{ sv.view }}" id="s-panel" data-s-cur="{{ sv.cur }}">
+  <nav class="s-nav" aria-label="Settings sections">
+    {%- for g in sv.nav %}
+    <p class="s-gl">{{ g.label }}</p>
+    {%- for s in g.secs %}
+    <a href="{{ s.href }}" data-s-go="{{ s.id }}"{% if s.cur %} aria-current="page"{% endif %}><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ s.icon }}"/></svg><span class="t">{{ s.label }}</span><span class="c" data-s-hits hidden></span><svg class="i s-chev" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#right"/></svg></a>
+    {%- endfor %}
+    {%- endfor %}
+  </nav>
+  <div class="s-body">
+    <p class="s-none" data-s-none hidden>No setting matches. <button class="x-btn sm" type="button" data-s-clear>Clear the search</button></p>
+    {%- for g in sv.nav %}{% for s in g.secs %}
+    <section class="s-sec" id="s-sec-{{ s.id }}" data-s-sec="{{ s.id }}" aria-labelledby="s-h-{{ s.id }}"{% if not s.cur %} hidden{% endif %}
+      {%- if s.id != "qchat" %} hx-get="/settings/panel?s={{ s.id }}" hx-trigger="pm7:refresh" hx-select="#s-sec-{{ s.id }}" hx-swap="outerHTML" hx-disinherit="*"{% endif %}>
+      <button class="s-back" type="button" data-s-back><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#left"/></svg>Settings</button>
+      <h2 id="s-h-{{ s.id }}">{{ s.label }}</h2>
+      <p class="s-lead">{{ s.lead }}</p>
+      {%- include "settings/_" ~ (s.group | lower) ~ ".html" %}
+    </section>
+    {%- endfor %}{% endfor %}
+  </div>
+</div>
+{%- endif %}

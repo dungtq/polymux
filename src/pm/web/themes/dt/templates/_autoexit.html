@@ -1,0 +1,19 @@
+{#- dt override of the core's auto-exit fragment (GET /settings/autoexit; a POST without Accept JSON also renders it):
+    the "Auto-exit idle agents" group of Settings › Agents. Saves on change (POST /settings/autoexit, js/settings-forms.js);
+    Preview (dry run) loads GET /settings/autoexit/preview (_autoexit_preview.html) into #s-ae-prev. Context: secs,
+    hours, notice (+ page_ctx). -#}
+{%- import "settings/_ui.html" as su %}
+<div id="s-autoexit">
+<form class="s-form" method="post" action="/settings/autoexit" data-s-form data-s-what="Auto-exit">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% call su.grp("Auto-exit idle agents", "all", "Agents", note="Checked every few minutes against real activity. Only idle, resumable Claude sessions in tmux sessions on the autoexit_sessions allow-list (never pm*); each exit is audited, never sent to ntfy. Resume from the ended agent page.", q="dry run preview") %}
+  <p class="s-gtools"><button class="x-btn sm" type="button" hx-get="/settings/autoexit/preview" hx-target="#s-ae-prev" hx-swap="innerHTML">Preview (dry run)</button></p>
+  {% call su.box() %}
+  {% call su.row("Exit Claude agents idle for more than", "0 = off.", "Auto-exit idle agents", "Agents") %}
+    <input class="x-in s-num" type="number" name="hours" min="0" max="8760" step="any" value="{{ hours }}" aria-label="Exit idle agents after hours"><span class="s-unit">hours</span>
+  {% endcall %}
+  {% endcall %}
+  <div id="s-ae-prev" class="s-out" aria-live="polite"></div>
+{% endcall %}
+</form>
+</div>

@@ -1,0 +1,33 @@
+<div id="chat" class="chat"{% if embed %} data-embed{% endif %}{% if not ended %} hx-get="/a/{{ agent.id }}/chat?h={{ digest }}" hx-trigger="every 2s, pm:agent_state from:document, pm:inbox from:document, pm:refresh" hx-swap="outerHTML" hx-sync="this:replace"{% endif %}>
+{# Live strip (GET /a/<id>/chat): never message text (that is the items list, _chatitems.html). #}
+{% from "_chatmsg.html" import copy_btn, tool_chip with context %}
+{% if running %}
+<p class="chat-working" role="status"><svg class="spin" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg><span>working&hellip;</span>{% if strip.tools %}<span class="cw-n muted">{{ strip.tools }} tool call{{ '' if strip.tools == 1 else 's' }}</span>{% endif %}</p>
+{% if strip.wait_name %}
+<section class="ci-wait" aria-label="Waiting on a tool call">
+  <p class="ci-wait-h">Waiting &middot; {{ tool_chip(strip.wait_name) }} &middot; <span class="ci-wait-el" data-start="{{ strip.wait_start }}"><span class="el">{{ (now - strip.wait_start) | dur }}</span></span></p>
+  {% if strip.tail %}<pre class="ci-tail" aria-label="Last pane lines (masked)">{{ strip.tail }}</pre>{% endif %}
+</section>
+{% endif %}
+{% endif %}
+{# background shells only: background sub-agents (Agent/Task) already have their own rows below (_subagents) #}
+{% set bgs = strip.bg | rejectattr("name", "in", ("Agent", "Task")) | list if strip is defined and strip.bg else [] %}
+{% if bgs and not ended %}
+<ul class="steps ci-bgs" aria-label="Background tasks running">
+  {% for b in bgs %}
+  <li class="st"><span class="muted ci-bgs-h">Background &middot; </span>{{ tool_chip(b.name) }} &middot; <span class="st-l muted">{{ b.line }}</span> &middot; <span class="ci-ts is-bg" data-start="{{ b.ts }}"><span class="el">{{ (now - b.ts) | dur }}</span></span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if view.queued and not ended %}
+<article class="chat-bubble role-user chat-queued" aria-label="Queued message">
+  <header class="chat-meta"><strong>You</strong> <span class="badge">Queued</span></header>
+  <div class="chat-text">{{ view.queued | pm_hint_strip }}</div>
+  <form class="chat-opt" method="post" action="/a/{{ agent.id }}/key" hx-post="/a/{{ agent.id }}/key" hx-target="#flash" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="C-x C-s">
+    <button type="submit" class="small" title="Send it now instead of waiting for the current step">Send now</button>
+  </form>
+</article>
+{% endif %}
+{% include "_chat_ask.html" %}
+</div>

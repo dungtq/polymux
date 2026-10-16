@@ -1,0 +1,49 @@
+{#- dt Agents › one agent (PRD §6.8 "side detail"; LAYOUT §5 "Agents": the detail at the side when the page column is
+    >= 1000px, one column below, full screen on phones). GET /agents/{name}?s=skills|rules|mcp|scripts (core
+    agentspage.agent_detail); also the editor and the review / result / notice pages of the core's form flow
+    (agentsedit: mode = edit | review | result | notice), rendered in the detail's body (agents/_mode.html).
+    Left: the narrow Installed list (the open agent selected). Right: head (back link < 1000px, dot, name, kind chip,
+    In library, close) · facts (version, binary, config, rules file, skills dir, MCP config) · login (the classic
+    _agents_auth.html fragment in its own .x-cl box, README A22: its output block polls every 2s only while a login
+    runs; shell/_classic.html loads agents-page.css for it, flag classic_page = "agents") · tabs Skills · Rules · MCP ·
+    Scripts (?s=) · the tab (_agents_d_<tab>.html) · the New / Sync dialogs (agents/_dlg.html).
+    View models: dt_agents("frame" | "installed" | "detail"). -#}
+{% extends "base.html" %}
+{% set classic_page = "agents" %}
+{% block title %}{{ (title ~ " - ") if title is defined and title }}{{ agent.label or agent.name }} - Agents{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/agents.css">
+<script src="/static/t/dt/js/agents.js" defer></script>
+{% endblock %}
+{% block content %}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_tabs.html" as pt -%}
+{%- set f = dt_agents("frame") -%}{%- set dv = dt_agents("detail") -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<div id="a-page" class="a-page a-dpage" data-a-view="installed"{% if dv %} data-a-agent="{{ dv.name }}"{% endif %}>
+{%- if f and dv %}
+{{ ph.head("Agents", stats=f.stats, actions=f.actions) }}
+{{ pt.tabs(f.tabs, "Agents sections") }}
+<div class="a-split">
+<div class="a-l">{% include "_agents_installed.html" %}</div>
+<section class="a-det" data-kind="{{ dv.kind }}" aria-labelledby="a-det-t">
+  <div class="a-dh">
+    <a class="x-btn sm a-back" href="/agents"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}left"/></svg>Agents</a>
+    <h2 id="a-det-t"><i class="dot {{ 'running' if dv.installed else 'idle' }}" aria-hidden="true" title="{{ 'installed' if dv.installed else 'not installed' }}"></i><span class="vh">{{ 'installed' if dv.installed else 'not installed' }}: </span><span class="a-dn">{{ dv.label }}</span><span class="chip k" data-kind="{{ dv.kind }}">{{ dv.name }}</span></h2>
+    <span class="sp"></span>
+    <a class="x-btn sm" href="{{ dv.lib_href }}" title="This agent's skills, rules and scripts in the Library">In library</a>
+    <a class="x-ib sm a-close" href="/agents" aria-label="Close the details" title="Close the details"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></a>
+  </div>
+  <dl class="p-kv a-kv">{% for k, v, cls in dv.kv %}<dt>{{ k }}</dt><dd{% if cls %} class="{{ cls }}"{% endif %} title="{{ v }}">{{ v }}</dd>{% endfor %}</dl>
+  <div class="x-cl pg-agents a-auth"><div id="ag-auth" class="ag-auth" hx-get="{{ dv.base }}/auth" hx-trigger="load" hx-swap="outerHTML"><div class="ag-auth-line"><span class="muted ag-auth-k">Auth</span><span class="muted ag-auth-st">Checking…</span></div></div></div>
+  {{ pt.tabs(dv.tabs, "Sections of " ~ dv.label) }}
+  <div class="a-dbody">
+  {%- if dv.mode %}{% include "agents/_mode.html" %}{% else %}{% include "_agents_d_" ~ dv.tab ~ ".html" %}{% endif %}
+  </div>
+</section>
+</div>
+{%- if not dv.mode %}{% include "agents/_dlg.html" %}{% endif %}
+{%- else %}
+<p class="p-empty">This agent's page could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+</div>
+{% endblock %}

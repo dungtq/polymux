@@ -1,0 +1,10 @@
+{# Topbar bell dropdown body: last 5 system messages. Context: rows, unread, total, csrf. #}
+<div class="bell-head"><span class="bell-h">Notifications{% if unread %} <span class="ntfy-unread">{{ unread }} unread</span>{% endif %}</span>
+  {% if unread %}<form class="inline" method="post" action="/inbox/read-system" hx-post="/inbox/read-system" hx-swap="none"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="ntfy-mark">Mark all read</button></form>{% endif %}</div>
+{% if rows %}<ul class="bell-list">
+{% for r in rows %}<li class="bell-row{% if r.unread %} unread{% endif %}"><a class="pop-item" href="{{ r.click or '/notifications' }}"{% if r.unread %} data-bell-read="{{ r.key }}"{% endif %} title="{{ r.message }} ({{ r.abs }})">
+  <span class="bell-t">{% if r.priority != 3 %}<span class="ntfy-prio p{{ r.priority }}" title="priority {{ r.priority }}">P{{ r.priority }}</span> {% endif %}{{ r.title or "(no title)" }}</span>
+  <span class="bell-ago muted small">{{ r.ago }}</span></a></li>
+{% endfor %}</ul>
+{% else %}<p class="muted small bell-none">No system messages.</p>{% endif %}
+<a class="pop-item bell-more" href="/notifications">More{% if total > rows|length %} ({{ total }}){% endif %} &rarr;</a>

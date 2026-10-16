@@ -1,0 +1,89 @@
+{#- dt Backlog component parts shared by backlog/_issues.html and backlog/_todo.html (`bl` = dt_backlog()).
+    {% import "backlog/_bar.html" as bb with context %}
+    bb.root(cls)  {% call %}: the component root div#bl-<tab> (the HX-Target that makes GET /backlog answer with the
+                  component alone). It reloads itself (outerHTML) on pm7:refresh (a ⋯ item's or js/backlog.js's
+                  refresh), pm7:resync and the stream's agent events (the agent dot); data-bl-url = its page URL
+                  (js/backlog.js writes it to the address bar on the Backlog page), data-bl-projects = the tracker
+                  projects (Add issue, Move), data-bl-scope = page | project, data-bl-project = the project filter.
+    bb.top()      page scope: head (stats, Add issue / Add task) + Issues / TODO tabs (links: ?tab=).
+    bb.tools(filter_rows=none)   the controls row: filter box (issues: server mode into the component; TODO: client
+                  mode over the rows), Status segments, then Project and Group selects (page scope) or the Add button
+                  (project scope).
+    bb.bulk()     the bulk bar for selected issues (hidden until a row is selected; js/backlog.js).
+    bb.foot()     empty line handled by the table; this is Show all + the key hints. -#}
+{%- import "parts/_head.html" as ph -%}
+{%- import "parts/_tabs.html" as pt -%}
+{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_filter.html" as pf -%}
+{%- import "parts/_select.html" as psel -%}
+{%- import "parts/_table.html" as tb -%}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+
+{%- macro root(cls="") -%}
+<div class="bl-c {{ cls }}" id="{{ bl.st.target }}" data-bl-scope="{{ bl.st.scope }}" data-bl-tab="{{ bl.st.tab }}" data-bl-url="{{ bl.st.url() }}" data-bl-project="{{ bl.st.project }}" data-bl-projects='{{ bl.projects | tojson }}' hx-get="{{ bl.st.url() }}" hx-trigger="{{ bl.trigger }}" hx-swap="outerHTML">
+{{ caller() }}
+</div>
+{%- endmacro -%}
+
+{%- macro top() -%}
+{%- if bl.st.scope == "page" %}
+{{ ph.head(bl.title, stats=bl.stats, actions=[{"label": bl.add.label, "icon": "plus", "title": bl.add.label,
+                                               "attrs": {"data-bl-add": bl.add.kind}}] if bl.add else none) }}
+{{ pt.tabs(bl.tabs, "Backlog") }}
+{%- endif %}
+{%- if bl.error %}<p class="bl-alert" role="alert">{{ bl.error }}</p>{% endif %}
+{%- endmacro -%}
+
+{%- macro tools() -%}
+{%- set t = "#" ~ bl.st.target -%}
+{% call ph.tools("bl-tools") %}
+  {%- if bl.st.tab == "issues" %}
+  {{ pf.fbox("bl-issues-" ~ bl.st.scope, value=bl.st.q, placeholder="Filter #, title, project", label="Filter issues",
+             get=bl.st.url(q="", limit=0), target=t, push=false) }}
+  {%- else %}
+  {{ pf.fbox("bl-todo-" ~ bl.st.scope, value=bl.st.q, placeholder="Filter task, section, project", label="Filter tasks",
+             rows=t) }}
+  {%- endif %}
+  {{ ps.seg(bl.segs, label="Status", target=t, push=false) }}
+  <span class="sp"></span>
+  {%- if bl.st.scope == "page" %}
+  <span class="bl-sels">
+  {{- psel.select("project", bl.proj_opts, value=bl.st.project, label="Project",
+                  attrs={"hx-get": bl.st.url(project="", limit=0), "hx-trigger": "change", "hx-target": t,
+                         "hx-swap": "outerHTML"}) -}}
+  {{- psel.select("group", bl.group_opts, value=bl.st.group, label="Group",
+                  attrs={"hx-get": bl.st.url(group="project"), "hx-trigger": "change", "hx-target": t,
+                         "hx-swap": "outerHTML"}) -}}
+  </span>
+  {%- elif bl.add %}
+  <button class="x-btn" type="button" data-bl-add="{{ bl.add.kind }}" title="{{ bl.add.label }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}plus"/></svg><span>{{ bl.add.label }}</span></button>
+  {%- endif %}
+{% endcall %}
+{%- endmacro -%}
+
+{%- macro bulk() -%}
+<div class="bl-bulk" role="region" aria-label="Selected issues" data-bl-bulkbar hidden>
+  <b class="bl-bn" data-bl-n aria-live="polite">0 selected</b>
+  <button class="x-btn sm" type="button" data-bl-bulk="all" title="Select every issue shown (not the folded groups)">Select shown</button>
+  <span class="sp"></span>
+  <button class="x-btn sm" type="button" data-bl-bulk="done"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}check"/></svg>Done</button>
+  <button class="x-btn sm" type="button" data-bl-bulk="dispatch"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}send"/></svg>Dispatch</button>
+  <button class="x-btn sm" type="button" data-bl-bulk="move"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}swap"/></svg>Move…</button>
+  <button class="x-ib sm keep" type="button" data-bl-bulk="clear" aria-label="Clear the selection" title="Clear the selection"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}x"/></svg></button>
+</div>
+{%- endmacro -%}
+
+{%- macro empty() -%}
+{%- if bl.empty %}
+{% call tb.empty() %}{{ bl.empty }}{% if bl.clear %} <a href="{{ bl.clear }}" hx-get="{{ bl.clear }}" hx-target="#{{ bl.st.target }}" hx-swap="outerHTML">Clear the filter</a>{% endif %}{% endcall %}
+{%- endif %}
+{%- if not bl.ok %}
+{{ tb.empty("The tracker database is busy; the list loads again on the next change or reload.") }}
+{%- endif %}
+{%- endmacro -%}
+
+{%- macro foot(noun) -%}
+{{ tb.foot(bl.shown, bl.total, more_href=bl.more or none, target=("#" ~ bl.st.target) if bl.st.scope == "page" else none,
+           noun=noun) }}
+{%- if bl.st.scope == "page" %}{{ tb.hints(bl.hints) }}{% endif %}
+{%- endmacro -%}

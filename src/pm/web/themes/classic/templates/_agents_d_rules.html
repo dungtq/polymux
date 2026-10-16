@@ -1,0 +1,20 @@
+{% from "_agents_macros.html" import hc, dash, editlinks, newform %}{% from "_macros.html" import dot %}
+<section class="ag-view" aria-label="Rules">
+{% include "_agents_sync.html" %}
+{{ newform(csrf, "rule_create", agent.name, "rules", "rule") }}
+{% if validation is not none %}{% include "_agents_validate.html" %}{% endif %}
+<div class="list ag-table" role="list">
+<div class="hrow arow-r ag-head" role="presentation"><span class="c-dot"></span>{{ hc(cols["c-nm"], "c-nm") }}{{ hc(cols["c-mo"], "c-mo") }}{{ hc(cols["c-ln"], "c-ln") }}{{ hc(cols["c-pa"], "c-pa") }}{{ hc(cols["c-sm"], "c-sm") }}<span class="c-ac"></span></div>
+{% for r in rows %}
+<div class="lrow arow-r{{ ' vr-warn' if r.status in ('drift', 'broken', 'missing') }}" role="listitem">
+<span class="c-dot">{{ dot({"ok": "running", "drift": "waiting", "broken": "failed", "missing": "failed"}.get(r.status, "unknown"), r.status) }}</span>
+<span class="c-nm" title="{{ r.name }}"><strong>{{ r.name }}</strong></span>
+<span class="c-mo muted">{{ r.mode }}</span>
+<span class="c-ln muted">{{ r.lines }}</span>
+<span class="c-pa mono muted" title="{{ r.path }}{{ ' -> ' ~ r.target if r.target }}">{{ r.path }}{{ " -> " ~ r.target if r.target }}</span>
+<span class="c-sm" title="{{ r.summary }}">{{ dash(r.summary) }}</span>
+<span class="c-ac">{% if r.path in can_edit %}{{ editlinks(base, "rule", r.path.rsplit("/", 1)[-1], r.path in can_delete) }}{% endif %}</span>
+</div>
+{% else %}<p class="muted ag-empty">No rules found for this agent.</p>{% endfor %}
+</div>
+</section>

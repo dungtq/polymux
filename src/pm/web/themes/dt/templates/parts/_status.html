@@ -1,0 +1,31 @@
+{#- Status line and attention list (LAYOUT.md §4 step 3, DESIGN.md §1.4 "what needs a look comes first"): the page's
+    one-line verdict and the "worth a look" list under it. Contract: docs/themes/dt/PARTS.md §16 (end).
+    {% import "parts/_status.html" as pst %}
+
+    pst.status(dot, word, note="", cls="")
+      p.p-status[role=status]: a state dot (running | waiting | failed | idle, aria-hidden) + the word (600; cls
+      ok | warn | bad colours it, the word says the state) + a muted note (what the verdict is based on)
+    pst.attn(items, label="Worth a look")
+      div.p-attn[role=list] of rows; item = {"tone" warn | bad | muted, "icon", "text", "go", "href"}: a link row when
+      href (the tab or anchor that shows it; "go" = the target's name at the right), else a plain row. Nothing is
+      rendered for an empty list. -#}
+
+{%- macro status(dot, word, note="", cls="") -%}
+<p class="p-status" role="status"><i class="dot {{ dot }}" aria-hidden="true"></i><span class="w{{ ' ' ~ cls if cls }}">{{ word }}</span>
+  {%- if note %}<span class="n">{{ note }}</span>{% endif %}</p>
+{%- endmacro -%}
+
+{%- macro attn(items, label="Worth a look") -%}
+{%- if items %}
+<div class="p-attn" role="list" aria-label="{{ label }}">
+  {%- for a in items %}
+  {%- set tag = "a" if a.get("href") else "div" %}
+  <div role="listitem"><{{ tag }} class="p-attn-i {{ a.get('tone') or 'muted' }}"{% if a.get("href") %} href="{{ a.href }}"{% endif %}>
+    {%- if a.get("icon") %}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ a.icon }}"/></svg>{% endif -%}
+    <span class="t">{{ a.text }}</span>
+    {%- if a.get("go") %}<span class="go">{{ a.go }}</span>{% endif -%}
+  </{{ tag }}></div>
+  {%- endfor %}
+</div>
+{%- endif %}
+{%- endmacro -%}

@@ -1,0 +1,81 @@
+/* dt theme (pm v7) Notifications page and the top-bar bell popover (prefix n-; PRD.md §6.7, LAYOUT.md §4-5,
+   DESIGN.md §6.8-6.14). Markup: templates/ntfy.html (.n-pg), _ntfy.html (the list, also the bell's data), the bell
+   button in shell/_top.html; behaviour js/notifs.js. Loaded by base.html (not embed).
+   Tokens only. The table, bands, details, segments, switch and select are the shared parts (table.css, parts.css):
+   this file sets the list's grid template and the n- cell looks only. */
+
+/* ---------- the list: unread dot · title (flexible) · agent · project · age · actions ---------- */
+.n-list{--g-cols:var(--dot) minmax(0,1fr) fit-content(11rem) fit-content(9rem) auto auto;
+  --g-cols-n:var(--dot) minmax(0,1fr) fit-content(11rem) auto auto;
+  --g-cols-s:var(--dot) minmax(0,1fr) auto auto}
+.n-list .gc-dot .dot.un{background:var(--badge-un)}
+.n-list .gc-dot .dot.read{background:none}
+.n-list .gc-nm{gap:var(--s2)}
+.n-list .gc-nm>.nm{flex:0 1 auto}
+/* P-tag first (it is after the title in the DOM, so a screen reader reads the title first) */
+.n-pri{order:-1}
+.n-pri.warn{border-color:var(--waiting)}
+.n-pri.bad{border-color:var(--failed)}
+.n-rep{flex:0 0 auto;color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.n-rec{flex:0 1 auto;min-width:0;overflow:hidden;font-weight:400;text-overflow:ellipsis}
+.n-pin{flex:0 0 auto;width:var(--icon-xs);height:var(--icon-xs);color:var(--muted)}
+.n-who{display:inline-flex;max-width:100%;vertical-align:bottom}
+.n-who>.sfx{min-width:0}
+
+/* ---------- row details: message, recap, facts, actions ---------- */
+.n-body{margin:0 0 var(--s3);color:var(--fg);font-size:var(--fs-m);white-space:pre-wrap;overflow-wrap:anywhere}
+.n-body.muted{color:var(--muted);font-size:var(--fs-ui)}
+.n-rx{margin:0 0 var(--s3);padding:var(--s2) var(--s3);border:1px solid var(--line2);border-radius:var(--r);
+  background:var(--page);color:var(--fg);font-size:var(--fs-ui)}
+.n-rx :is(p,ul,ol,pre){margin:0 0 var(--s2)}
+.n-rx>:last-child,.n-rx .md>:last-child{margin-bottom:0}
+.n-rx strong{font-weight:600}
+.n-rx .rx-m{margin:var(--s2) 0 0;color:var(--muted);font-size:var(--fs-s)}
+.n-rx pre{overflow:auto;font-family:var(--font-mono);font-size:var(--fs-s)}
+.n-list .p-kv .ok{color:var(--ok-fg)}
+
+/* ---------- ntfy unreachable ---------- */
+.n-warn{display:flex;align-items:center;gap:var(--s2);margin:0 0 var(--s3);color:var(--waiting);font-size:var(--fs-ui)}
+.n-warn svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+
+/* ---------- the page's Source / Unread / Period state (on .n-pg, from the URL) hides rows from the first paint;
+   js/notifs.js counts with the same rule (keep the two in step) ---------- */
+:is(.n-pg[data-n-src=pinned] .n-list .p-gg:not([data-p-grp=pinned]),
+  .n-pg:is([data-n-src=agent],[data-n-src=system],[data-n-un]) .n-list [data-p-grp=pinned]){display:none}
+:is(.n-pg[data-n-src=agent] .n-row:not(.n-agent),
+  .n-pg[data-n-src=system] .n-row:not(.n-system),
+  .n-pg[data-n-un] .n-row:not(.un),
+  .n-pg[data-n-per=today] .n-row.n-pp:not(.n-p-today),
+  .n-pg[data-n-per=week] .n-row.n-pp:not(.n-p-week),
+  .n-pg[data-n-per=last_week] .n-row.n-pp:not(.n-p-last_week),
+  .n-pg[data-n-per=month] .n-row.n-pp:not(.n-p-month),
+  .n-pg[data-n-per=last_month] .n-row.n-pp:not(.n-p-last_month),
+  .n-pg[data-n-per=year] .n-row.n-pp:not(.n-p-year)),
+:is(.n-pg[data-n-src=agent] .n-row:not(.n-agent),
+  .n-pg[data-n-src=system] .n-row:not(.n-system),
+  .n-pg[data-n-un] .n-row:not(.un),
+  .n-pg[data-n-per=today] .n-row.n-pp:not(.n-p-today),
+  .n-pg[data-n-per=week] .n-row.n-pp:not(.n-p-week),
+  .n-pg[data-n-per=last_week] .n-row.n-pp:not(.n-p-last_week),
+  .n-pg[data-n-per=month] .n-row.n-pp:not(.n-p-month),
+  .n-pg[data-n-per=last_month] .n-row.n-pp:not(.n-p-last_month),
+  .n-pg[data-n-per=year] .n-row.n-pp:not(.n-p-year))+.p-det{display:none}
+/* a band with nothing left in this view; the "nothing in this view" line */
+.n-list .p-gg.n-off{display:none}
+.n-list .p-empty:has([data-n-none]){display:none}
+.n-pg[data-n-none] .n-list .p-empty:has([data-n-none]){display:block}
+/* the head's Mark all read only while something it marks is unread (first paint; js/notifs.js then sets [hidden]) */
+.n-pg:not(:has(.n-row.un)) [data-n-readall],
+.n-pg[data-n-src=system]:not(:has(.n-row.n-system.un)) [data-n-readall]{display:none}
+
+/* ---------- top-bar bell popover (#x-menu.n-bell, built by js/notifs.js with pm7.menu): a message row (an item
+   with a note) is two lines, title (unread: dot + 600) and "P4 · 3m" under it ---------- */
+.x-menu.n-bell{width:min(calc(var(--menu-min-w) * 2),calc(100vw - var(--s4)))}
+.x-menu.n-bell :is(a,button):has(>small){flex-wrap:wrap;row-gap:0;padding-top:var(--s1);padding-bottom:var(--s1);
+  white-space:normal}
+.x-menu.n-bell :is(a,button):has(>small)::before{content:"";flex:0 0 var(--dot);height:var(--dot);border-radius:50%}
+.x-menu.n-bell .un::before{background:var(--badge-un)}
+.x-menu.n-bell :is(a,button):has(>small)>span{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.x-menu.n-bell .un>span{font-weight:600}
+.x-menu.n-bell :is(a,button)>small{flex:1 0 100%;margin-left:0;padding-left:calc(var(--dot) + var(--s3))}

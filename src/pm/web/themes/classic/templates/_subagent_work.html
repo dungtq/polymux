@@ -1,0 +1,38 @@
+{# One opened sub-agent (Sub-agents tab, GET /a/<id>/subagents?id=...) as a mini chat: meta line, the prompt
+   (clamped to 3 lines, "Show all" in static/js/subagents.js), replies as Markdown bubbles, consecutive tool
+   steps folded into one group (the chat's .ci-tg markup, _ci_macros.html), the last reply with Copy.
+   Re-fetched in place by nodiff.js while it runs: ids are stable, the prompt's open state is data-open. #}
+{% set now = now if now is defined else now_epoch() %}
+{% from "_chatmsg.html" import copy_btn %}
+{% from "_ci_macros.html" import group with context %}
+{% set s = work.sub %}
+{% set tok = s.tokens | default(0) or 0 %}
+{% set uid = (s.group ~ s.sid) | replace("/", "-") %}
+{# blocks: pm.agents.subagents.blocks (prompt / reply / tools, grouped in Python) #}
+{% set blocks = work.blocks() %}
+{% macro tool_group(b, uid, n) -%}
+{% set tools = [] %}
+{% for st in b.steps %}{% set _ = tools.append({"seq": "sa-" ~ uid ~ "-" ~ (st.id or (n ~ "-" ~ loop.index)), "name": st.label or "tool", "line": st.text, "status": st.status, "ts": st.ts or 0, "ended": st.ended or 0, "note": ""}) %}{% endfor %}
+{{ group({"group": "sa-tg-" ~ uid ~ "-" ~ n, "seq": 0, "parent": 0, "tools": tools, "running": b.running, "counts": b.counts}) }}
+{%- endmacro %}
+<div class="sa-chat">
+<p class="sa-meta"><span>{{ s.calls }}{{ '+' if s.calls_more }} tool call{{ '' if s.calls == 1 and not s.calls_more else 's' }}</span>{% if tok %}<span>{{ tok | tokens }} tokens</span>{% endif %}{% if s.t0 %}<span title="{{ s.t0 | ts }}">started {{ s.t0 | time }}</span>{% endif %}{% if s.running %}<span class="sa-m-run">running {{ s.elapsed(now) }}</span>{% elif s.t0 and s.mtime %}<span>took {{ (s.mtime - s.t0) | duration }}</span>{% endif %}<span class="mono" title="sub-agent id">{{ s.sid }}</span></p>
+{% if work.truncated %}<p class="muted small sa-note">Showing the opening prompt and the latest {{ work.steps | length }} steps.</p>{% endif %}
+{% for blk in blocks %}{% set b = blk.step %}{% if blk.kind == "prompt" %}
+<article class="chat-bubble sa-ask" id="sa-p-{{ uid }}-{{ loop.index }}" data-sa-prompt>
+  <header class="chat-meta"><strong>Prompt</strong> <span class="muted">from {{ agent.id }}</span>{{ copy_btn(b.text) }}</header>
+  <div class="sa-ptxt">{{ b.text }}</div>
+  {% if b.text | length > 240 or b.text.count("\n") > 2 %}<button type="button" class="small sa-more" data-sa-more><span class="sa-more-a">Show all</span><span class="sa-more-l">Show less</span></button>{% endif %}
+</article>
+{% elif blk.kind == "reply" %}{% set final = blk.last %}
+<article class="chat-bubble role-assistant sa-reply{{ ' sa-final' if final }}" id="sa-t-{{ uid }}-{{ loop.index }}">
+  <header class="chat-meta"><strong>{{ s.kind or 'sub-agent' }}</strong>{% if final and not s.running %} <span class="muted">reply</span>{% endif %}{% if b.ts | default(0) %} <span class="muted stamp" title="{{ b.ts | ts }}">{{ b.ts | time }}</span>{% endif %}{% if final %}{{ copy_btn(b.text) }}{% endif %}</header>
+  <div class="chat-text md">{{ b.text | md }}</div>
+</article>
+{% else %}{{ tool_group(blk, uid, loop.index) }}
+{% endif %}{% else %}<p class="muted small">Nothing recorded yet.</p>{% endfor %}
+{% set lastb = blocks | last if blocks else none %}
+{% if s.running and lastb and lastb.kind == "tools" and ((lastb.steps | last).status == "run" or s.waiting) %}{% set lt = lastb.steps | last %}
+<p class="sa-wait"><span class="ci-spin" aria-hidden="true"></span>Waiting &middot; {{ lt.label or 'tool' }}{% if lt.text %} &middot; <span class="mono sa-wt" title="{{ lt.text }}">{{ lt.text }}</span>{% endif %} &middot; {{ (now - (lt.ts or s.mtime)) | duration }}</p>
+{% endif %}
+</div>

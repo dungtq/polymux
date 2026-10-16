@@ -1,0 +1,3 @@
+name = "dt"
+label = "dt (keyboard)"
+description = "Keyboard-first shell: tabs, sessions sidebar, chat aside. Own templates and static files under /static/t/dt; loaded by the dt plugin (pm.web.dt)."

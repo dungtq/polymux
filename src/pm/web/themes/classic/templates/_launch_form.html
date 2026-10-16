@@ -1,0 +1,17 @@
+{# GET /launch/form: one project's launch form from launchctx.form_model (project, base, projects, running, kinds,
+   launch_data, bypass_allowed, todo, todo_selected). No classic page uses it (classic opens /p/<name>/launch);
+   other themes override it. The <form> is the launch page's own (_launch_mainform.html), compact, with a project
+   picker; launch.js / launch.css / atfiles.js are the page's to load. -#}
+{% from "_agentname.html" import agent_name -%}
+{% set embed = true %}{% set from_inbox = true %}{% set launch_projects = projects %}
+{%- set review_text = launch_data.remembered.prompt if todo_selected is not none else "" %}
+<div class="launch-form" data-launch-form>
+<div id="launch-data" hidden data-json="{{ launch_data | tojson | forceescape }}"></div>
+{% if running %}<details class="running-line" role="status">
+  <summary><span class="rl-warn">{{ running | length }} agent{{ "s" if running | length != 1 }} already running here</span>
+    <span class="muted">&middot; same files unless you use a worktree branch</span></summary>
+  <ul>{% for a in running %}<li><a href="/a/{{ a.id }}" data-kind="{{ a.kind.value }}">{{ agent_name(a) }}</a></li>{% endfor %}</ul>
+</details>{% endif %}
+<div id="flash" class="flash-inline" role="status" aria-live="polite"></div>
+{% include "_launch_mainform.html" %}
+</div>

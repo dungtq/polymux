@@ -1,0 +1,39 @@
+{#- Flat page tabs (DESIGN.md §6.3, LAYOUT.md §4 step 2). Contract: docs/themes/dt/PARTS.md §3.
+    {% import "parts/_tabs.html" as pt %}
+
+    pt.tabs(items, label, cls="")
+      items  list of {"key", "label", "href" | "controls", "cur", "count", "bad", "icon", "title"}
+             href     = a link tab (server-rendered page sections, e.g. ?tab=mcp): a[role=tab], aria-current="page" on
+                        the current one; Enter follows the link
+             controls = the id of a tabpanel on this page: button[role=tab][aria-controls]; a click (or Enter / Space)
+                        selects it and shows its panel (js/parts.js, event pm7:tab)
+             cur      = the selected tab (none: the first); count = the number after the label (.c), bad = count in red
+      label  aria-label of the tablist
+      Roving tabindex: only the selected tab is a Tab stop; ←/→/Home/End move focus (js/parts.js).
+      The label is span.t[data-t]: its hidden 600 copy (css/parts.css) keeps the tab as wide as when selected, so the
+      labels never move when the selection changes.
+    pt.panel(id, tab_key, cur=false)   {% call %}: the tabpanel for a button tab (hidden unless cur). -#}
+
+{%- macro tabs(items, label, cls="") -%}
+{%- set ns = namespace(cur=items[0].key if items else "") -%}
+{%- for it in items | reverse %}{% if it.get("cur") %}{% set ns.cur = it.key %}{% endif %}{% endfor -%}
+{%- set cur_key = ns.cur -%}
+<div class="p-tabs{{ ' ' ~ cls if cls }}" role="tablist" aria-label="{{ label }}">
+  {%- for it in items %}
+  {%- set on = it.key == cur_key %}
+  {%- if it.get("href") %}
+  <a class="p-tab" role="tab" href="{{ it.href }}" id="p-tab-{{ it.key }}" aria-selected="{{ 'true' if on else 'false' }}" tabindex="{{ '0' if on else '-1' }}"{% if on %} aria-current="page"{% endif %} data-p-tab="{{ it.key }}"{% if it.get("title") %} title="{{ it.title }}"{% endif %}>
+  {%- else %}
+  <button class="p-tab" role="tab" type="button" id="p-tab-{{ it.key }}" aria-selected="{{ 'true' if on else 'false' }}" aria-controls="{{ it.controls }}" tabindex="{{ '0' if on else '-1' }}" data-p-tab="{{ it.key }}"{% if it.get("title") %} title="{{ it.title }}"{% endif %}>
+  {%- endif %}
+    {%- if it.get("icon") %}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ it.icon }}"/></svg>{% endif -%}
+    <span class="t" data-t="{{ it.label }}">{{ it.label }}</span>
+    {%- if it.get("count") is not none %}<span class="c{{ ' bad' if it.get('bad') }}">{{ it.count }}</span>{% endif -%}
+  {%- if it.get("href") %}</a>{% else %}</button>{% endif %}
+  {%- endfor %}
+</div>
+{%- endmacro -%}
+
+{%- macro panel(id, tab_key, cur=false) -%}
+<div class="p-tabpanel" role="tabpanel" id="{{ id }}" aria-labelledby="p-tab-{{ tab_key }}"{% if not cur %} hidden{% endif %}>{{ caller() }}</div>
+{%- endmacro -%}

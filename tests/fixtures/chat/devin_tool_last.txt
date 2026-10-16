@@ -1,0 +1,15 @@
+ Fixed the lockfile and reran the build. Two warnings remain.
+
+ ● Ran Command
+ │ $ npm run build --workspaces
+ │   > built 2 packages
+ │ {"ok":true,"warnings":2}
+ └ exit 0
+
+ ● Read File
+ │ src/index.ts
+ └ 120 lines
+────────────────────────────────────────────────
+❭ keep going
+────────────────────────────────────────────────
+ swe-2

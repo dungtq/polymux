@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tmux and git
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tmux git
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6.0.1
+        with:
+          version: "0.12.21"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Lint
+        run: uv run ruff check src tests tools
+
+      - name: Tests
+        run: uv run pytest -q

@@ -1,0 +1,7 @@
+<dl class="recap-grid">
+  {% if rc.prompt %}<dt>First prompt</dt><dd class="recap-t" title="{{ rc.prompt }}">{{ rc.prompt }}</dd>{% endif %}
+  {% if rc.reply %}<dt>Last reply</dt><dd class="recap-t" title="{{ rc.reply }}">{{ rc.reply }}</dd>{% endif %}
+  {% if rc.exact %}<dt>Tool calls</dt><dd>{{ rc.tools }}</dd>{% endif %}
+  {% if rc.duration %}<dt>Duration</dt><dd>{{ dur(rc.duration) }}{% if rc.started %} <span class="muted">since <span class="stamp">{{ rc.started | ts }}</span></span>{% endif %}</dd>{% endif %}
+  {% if rc.files %}<dt>Files touched</dt><dd class="recap-files">{% for f in rc.files %}<span class="mono" title="{{ f }}">{{ f }}</span>{% endfor %}{% if rc.more_files %}<span class="muted">+{{ rc.more_files }} more</span>{% endif %}</dd>{% endif %}
+</dl>

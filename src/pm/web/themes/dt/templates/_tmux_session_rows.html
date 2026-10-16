@@ -1,0 +1,67 @@
+{#- dt tmux: the windows of one session (PRD.md §6.6), the row details of a session row in _tmux_list.html.
+    Rendered by the core's GET /tmux/{sid}/live (context: session, rows, sid_url, terminal_enabled) and, through the
+    macro windows(w), in place for a session opened by the URL (?open=sN). View model: dt_tmux("windows")
+    (pm.web.dt.tmux.Windows). A nested grid table (its own keyboard list "tmux-win": J K, ↵ = terminal tab), one
+    row per pane: dot (the pane's agent) · Window (index: name, the read-only terminal link) · Pane · Command · Path ·
+    Agent (opens the chat aside) · ⋯ (Open terminal, Kill window, Kill pane: typed, disabled on protected sessions).
+    Phone line 2: command · path · agent. Then a note: what can be killed here and the attach command. Hooks for
+    js/tmux.js: row data-tm-term, a[data-tm-term-link], a[data-tm-agent]. Also the macro sess_row(s, table, cur): one
+    session row and its details, shared by _tmux_list.html and the project view's tmux tab (project/_tmux.html). -#}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+
+{%- macro windows(w) -%}
+{%- call tb.table("tmux-w-" ~ w.sid, "Windows of " ~ w.name, cls="tm-wins", list="tmux-win", keys={"enter": "event:tm:term", "o": "event:tm:term"}, labels={"enter": "Open the terminal in a tab", "o": "Open the terminal in a tab"}) %}
+  {{ tb.gh([{"sr": "Agent state"}, {"label": "Window"}, {"label": "Pane", "cls": "hide-n"}, {"label": "Command"},
+            {"label": "Path", "cls": "hide-n"}, {"label": "Agent", "cls": "hide-s"}, {"sr": "Actions"}]) }}
+  {%- for r in w.rows %}
+  {% call tb.row(r.id, cls="tm-w" ~ (" tm-cur" if r.current and r.first else ""), cur=loop.first, attrs={"data-tm-term": r.term or none}) %}
+    {%- if r.agent %}{{ tb.dot(r.agent.state, r.agent.word) }}{% else %}<span class="gc-dot" role="cell"><span class="vh">no agent</span></span>{% endif %}
+    {% call tb.cell("gc-nm") %}
+      {%- if r.first %}<span class="tm-wi">{{ r.index }}</span>
+      {%- if r.term %}<a class="nm" href="{{ r.term }}" data-tm-term-link title="Open window {{ r.index }}: {{ r.name }} as a read-only terminal tab">{{ r.name }}</a>
+      {%- else %}<span class="nm">{{ r.name }}</span>{% endif %}
+      {%- if r.current %}<span class="chip" title="tmux's current window of this session">current</span>{% endif %}
+      {%- else %}<span class="tm-wi" aria-hidden="true"></span><span class="nm muted">pane of window {{ r.index }}</span>{% endif -%}
+    {% endcall %}
+    {% call tb.cell("hide-n mono muted") %}{{ r.id }}{% endcall %}
+    {% call tb.cell("mono") %}<span title="{{ r.command }}">{{ r.command or "–" }}</span>{% endcall %}
+    {% call tb.cell("hide-n mono muted tm-path") %}<span title="{{ r.path }}">{{ r.path }}</span>{% endcall %}
+    {% call tb.cell("hide-s") %}{% if r.agent %}<a class="tm-ag" href="/a/{{ r.agent.id }}" data-tm-agent="{{ r.agent.id }}" title="{{ r.agent.word }}: open the chat">{{ r.agent.id }}</a>{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for window " ~ r.index ~ ", pane " ~ r.id) }}{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {%- if not w.rows %}{{ tb.empty("This session has no windows.") }}{% endif %}
+{% endcall %}
+<p class="p-foot tm-note">
+  {%- if w.lock %}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#lock"/></svg>{% endif -%}
+  <span>{{ w.note }}</span><span aria-hidden="true">·</span><span>Attach in your terminal: <code class="mono">{{ w.attach }}</code></span>
+</p>
+{%- endmacro -%}
+
+{#- One session row (+ its row details: the windows) of a sessions table: the tmux page's list (table "tmux") and the
+    project view's tmux tab (table "pj-tmux", project/_tab_tmux.html). s = pm.web.dt.tmux.Sess. -#}
+{%- macro sess_row(s, table="tmux", cur=false) -%}
+  {% call tb.row(s.id, cls="tm-s", open=s.open, cur=cur, attrs={"data-tm-term": s.term or none, "data-tm-project": s.project or none, "data-tm-launch": s.launch or none}) %}
+    {%- if s.state %}{{ tb.dot(s.state, s.word) }}{% else %}<span class="gc-dot" role="cell"><span class="vh">no agents</span></span>{% endif %}
+    {% call tb.name(s.name) %}
+      {%- if s.lock %}<span class="tm-lock" title="{{ "pm's own session: never killed from pm" if s.lock == "pm" else "Protected: nothing in it can be killed from pm" }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#lock"/></svg><span class="vh">{{ "pm's own session" if s.lock == "pm" else "protected" }}</span></span>{% endif -%}
+      {%- if s.lock == "pm" %}<span class="chip">pm</span>{% endif -%}
+    {% endcall %}
+    {% call tb.cell("muted", num=true) %}<span title="{{ s.windows }} windows, {{ s.panes }} panes">{{ s.windows }}</span>{% endcall %}
+    {% call tb.cell("hide-n" ~ ("" if s.clients else " muted"), num=true) %}{{ s.clients }}{% endcall %}
+    {% call tb.cell("hide-s") %}<span class="tm-ags">
+      {%- for a in s.agents %}<a class="tm-ag" href="/a/{{ a.id }}" data-tm-agent="{{ a.id }}" title="{{ a.word }}: open the chat"><i class="dot {{ a.state }}" aria-hidden="true"></i><span class="vh">{{ a.word }}: </span>{{ a.id }}</a>{% endfor -%}
+      {%- if s.more %}<span class="muted tm-more" title="{{ s.more_title }}">{{ s.more }}</span>{% endif -%}
+      {%- if not s.agents %}<span class="muted">–</span>{% endif -%}
+    </span>{% endcall %}
+    {{ tb.end(s.age, since=s.since) }}
+    {% call tb.meta() %}{{ s.meta }}{% endcall %}
+    {% call tb.acts() %}{{ tb.det_btn(table, s.id, open=s.open, label=s.name) }}{{ pm.menu(s.menu, label="Actions for " ~ s.name) }}{% endcall %}
+  {% endcall %}
+  {%- if s.wins %}{% call tb.det(table, s.id, open=true, src=s.src, label=s.name) %}{{ windows(s.wins) }}{% endcall %}
+  {%- else %}{{ tb.det(table, s.id, open=s.open, src=s.src, label=s.name) }}{% endif %}
+{%- endmacro -%}
+
+{%- set _w = dt_tmux("windows") if session is defined else none -%}
+{%- if _w %}{{ windows(_w) }}{% elif session is defined %}<p class="p-empty">The windows could not be read. Reload the page; the error is in pm's log.</p>{% endif -%}

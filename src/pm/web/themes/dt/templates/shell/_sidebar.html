@@ -1,0 +1,33 @@
+{#- Sidebar (SHELL.md §4, DESIGN.md §6.1): page nav, the sessions list (filter + #x-sess, refreshed by htmx on agent
+    events), foot (Audit, Settings = the Settings popup [data-sp-open], js/settings-popup.js; a plain link where there
+    is no popup, Collapse). Context: shell. Current page = aria-current + .cur (server-rendered).
+    Rail (icons only) = html.side-rail from head.js; under 900px it is an overlay (side-open), on phones a drawer. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- macro navrow(r) -%}
+<a href="{{ r.href }}" data-nav="{{ r.key }}"{% if r.key == "settings" and not r.cur %} data-sp-open aria-haspopup="dialog" aria-controls="sp-dlg"{% endif %}{% if r.cur %} class="cur" aria-current="page"{% endif %} title="{{ r.label }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ r.icon }}"/></svg><span class="t">{{ r.label }}</span>
+  {%- if r.count %}<span class="n{{ ' hot' if r.hot }}" title="{{ r.count }}{{ ' need you' if r.hot }}">{{ r.count }}</span>{% endif %}
+  {%- if r.chord %}{% if "mod" in r.chord %}<kbd data-k="{{ r.chord }}"></kbd>{% else %}<kbd>{{ r.chord }}</kbd>{% endif %}{% endif %}</a>
+{%- endmacro -%}
+<aside id="x-side" class="x-side" aria-label="Sidebar">
+  <nav class="x-nav" aria-label="Pages">
+    {%- for r in shell.nav %}
+    {{ navrow(r) }}
+    {%- endfor %}
+  </nav>
+  <div class="x-shead"><span id="x-sess-h">Sessions</span><span class="sp"></span><kbd data-k="mod+P"></kbd></div>
+  <div class="x-sfilter"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}filter"/></svg><input type="search" placeholder="Filter sessions" aria-label="Filter sessions" aria-controls="x-sess" autocomplete="off" spellcheck="false" data-sfilter></div>
+  <div id="x-sess" class="x-sess" role="region" aria-labelledby="x-sess-h" hx-get="/dt/side" hx-trigger="pm:agent_state from:document, pm:agent_added from:document, pm:agent_removed from:document" hx-swap="innerHTML" hx-sync="this:queue last">
+{% include "shell/_sessions.html" %}
+  </div>
+  <div class="x-sfoot">
+    {#- phones only (css/qchat.css): Quick chat lives in the drawer there (PRD §9 decision 6) -#}
+    <button class="x-sqc" type="button" data-q-open aria-controls="q-panel" aria-pressed="false"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}chat"/></svg><span class="t">Quick chat</span></button>
+    {#- phones only (css/shell.css): the top-bar Launch is hidden there; js/launch.js opens the dialog for this page's
+        project ([data-l-open] without data-l-project falls back to the top bar's) -#}
+    <a class="x-sla" href="/launch" data-l-open aria-haspopup="dialog" aria-controls="l-dlg"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg><span class="t">Launch an agent</span></a>
+    {%- for r in shell.foot %}
+    {{ navrow(r) }}
+    {%- endfor %}
+    <button class="x-sfold" type="button" data-act="side" aria-controls="x-side" title="Collapse the sidebar" data-k-title="mod+B"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}side-l"/></svg><span class="t">Collapse</span><kbd data-k="mod+B"></kbd></button>
+  </div>
+</aside>

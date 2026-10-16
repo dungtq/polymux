@@ -1,0 +1,41 @@
+{#- dt project view, VMs tab body (docs/themes/dt/PRD.md §6.4): the fragment of GET /p/{name}/vms (core route
+    servers.project_vms; ctx vm, patterns, fb, csrf, request), swapped into #pj-vms by project/_tab_vms.html. Overrides
+    classic _project_vms.html for the dt theme only. View model: dt_pjops() (pm.web.dt.pjops.view).
+    Rows: state dot, VM, vCPU, RAM, disk, state; one visible action (Start / Shut down, js/pjvms.js) + ⋯ (console and
+    snapshots in the row details, snapshot, revert, Force off [typed], Delete [typed]). No New VM. -#}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set v = dt_pjops() -%}
+{%- if v.state == "ok" %}
+<div class="p-tools"><span class="note">{{ v.stats }}</span></div>
+{%- endif %}
+{% call tb.table("pjv-vms", "Virtual machines", cls="pj-vm", list="pjv-vms" if v.rows else none,
+                 keys={"enter": "det"}, labels={"enter": "Console and snapshots"}) %}
+  {%- if v.rows %}
+  {{ tb.gh([{"sr": "State"}, {"label": "VM"}, {"label": "vCPU", "num": true, "cls": "hide-n"},
+            {"label": "RAM", "num": true, "cls": "hide-n"}, {"label": "Disk", "num": true, "cls": "hide-s"},
+            {"label": "State", "cls": "hide-n"}, {"sr": "Actions"}]) }}
+  {%- endif %}
+  {%- for r in v.rows %}
+  {% call tb.row(r.name, cur=loop.first, title=r.name ~ ": " ~ r.state) %}
+    {{ tb.dot(r.dot, r.state) }}
+    {% call tb.name(r.name) %}{% if r.protected %}<span class="chip" title="Protected: pm never changes it">protected</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{{ r.vcpu }}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{{ r.ram }}{% endcall %}
+    {% call tb.cell("hide-s", num=true) %}{{ r.disk }}{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.state }}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}
+      {%- if r.act %}<button class="x-btn sm" type="button" {{ r.act.hook }} data-pjv-post="{{ r.act.url }}" data-pjv-what="{{ r.act.label }} {{ r.name }}"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ r.act.icon }}"/></svg><span class="lb">{{ r.act.label }}</span></button>{% endif -%}
+      {{ tb.det_btn("pjv-vms", r.name, label=r.name) }}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}
+    {% endcall %}
+  {% endcall %}
+  {% call tb.det("pjv-vms", r.name, label=r.name) %}
+    {{ tb.kv(r.kv) }}
+    <div class="pj-vlive" data-pjv-live data-pjv-vm="{{ r.name }}"><p class="muted">Console and snapshots load when this opens.</p></div>
+  {% endcall %}
+  {%- endfor %}
+  {%- if not v.rows %}{{ tb.empty(v.text) }}{% endif %}
+{% endcall %}
+{%- if v.rows %}
+<p class="p-foot">Shut down sends an ACPI shutdown; Force off and Delete are in ⋯ and ask for the VM name. Delete keeps the disk images.</p>
+{%- endif %}

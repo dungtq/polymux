@@ -1,0 +1,2 @@
+{% from "_macros.html" import dot %}
+<ul class="ag-finds" aria-label="Validation results">{% for lvl, subj, msg in validation %}<li class="ag-find{{ ' ag-warn' if lvl != 'ok' }}">{{ dot({"ok": "running", "warn": "waiting", "error": "failed"}.get(lvl, "unknown"), lvl) }}<span class="ag-ft"><span class="mono">{{ subj }}</span> {{ msg }}</span></li>{% else %}<li class="ag-find">No rules files found.</li>{% endfor %}</ul>

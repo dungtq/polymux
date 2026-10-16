@@ -1,0 +1,155 @@
+/* Builder: split chat | preview. Tokens only (no hex, no rgba). Linked from builder.html. */
+/* the page fills the viewport exactly: main is a column (head, then #builder), the split takes the rest; no page scroll */
+.bld-page main,body.bld-page:not(.chat-open) .v5-shell:not(.has-side)>main{max-width:none;margin:0;padding:8px 16px 16px;border:0;min-height:0;box-sizing:border-box;height:calc(100dvh - var(--top-h,44px));display:flex;flex-direction:column;overflow:hidden}
+.bld-page main>*{flex:none}
+.bld-page main>#builder{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.bld-head{display:flex;align-items:center;gap:12px;min-width:0;min-height:var(--ctl-h);padding:4px 0 8px;border-bottom:1px solid var(--line2);margin-bottom:8px}
+.bld-head h1,.bld-page main .bld-head h1{margin:0;padding:0;border:0;width:auto;display:block;font-size:1.25rem;font-weight:600;white-space:nowrap}
+.bld-head .bld-stats{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:var(--fs-s)}
+.bld-head .bld-act{display:flex;gap:12px;align-items:center;white-space:nowrap;font-size:var(--fs-s)}
+.bld-head a{color:var(--accent);text-decoration:none}.bld-head a:hover{text-decoration:underline}
+.bld-sr{position:absolute;opacity:0;pointer-events:none}
+.bld-tabs{display:none;flex:none;gap:0;margin:0 0 8px}   /* phones only (below); look: tabs.css; never shrunk by the #builder column */
+.bld-tabs .tab{padding:0 16px}
+.bld-tabs .tab:hover{background:none}
+
+.bld-split{display:grid;grid-template-columns:minmax(280px,var(--bld-left,38%)) 9px minmax(0,1fr);flex:1 1 auto;min-height:0;border:1px solid var(--line);border-radius:var(--box-r);overflow:hidden;background:var(--page)}
+.bld-pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.bld-ph{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 12px;background:var(--subtle);border-bottom:1px solid var(--line);white-space:nowrap;min-width:0}
+.bld-ph strong{font-weight:600;font-size:.875rem}
+.bld-ph .nm{overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto;color:var(--muted);font-size:var(--fs-s)}
+.bld-ph .ro{margin-left:auto;font-size:.75rem;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-pill);padding:0 8px;line-height:18px}
+/* resize handle: 9px hit area, a 1px hairline at rest, a 3px accent line on hover, focus and drag (UI-RULES) */
+.bld-div{position:relative;background:var(--page);cursor:col-resize;touch-action:none}
+.bld-div::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;transform:translateX(-50%);background:var(--line)}
+.bld-div:hover::after,.bld-div:focus-visible::after,.bld-div.drag::after,.bld-div.on::after{width:3px;background:var(--accent)}
+.bld-div:focus-visible{outline:none}
+
+/* chat */
+.bld-msgs{flex:1 1 auto;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px;container:bldmsgs/inline-size}
+/* narrow chat pane: drop the long stamp from message headers first (the age stays; full stamp is in the age title) */
+@container bldmsgs (max-width:480px){.chat-meta .stamp{display:none}}
+/* composer stats row in the narrow chat column: drop the token and turn counts (in the stats panel), and let New Chat /
+   Fork wrap under the stats instead of squeezing them (the 5h / W limits were cut off at the right) */
+.bld-chat .composer .tokbar .ts-tok,.bld-chat .composer .tokbar .ts-turns{display:none}
+.bld-chat .composer .cstat .tokbar{flex:1 1 auto}
+.bld-foot{padding:8px 12px;border-top:1px solid var(--line);font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--subtle)}
+.bld-foot a{color:var(--accent);text-decoration:none}.bld-foot a:hover{text-decoration:underline}
+
+/* toolbar */
+.bld-tb{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:6px 8px;border-bottom:1px solid var(--line);min-width:0}
+.bb{display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--ctl-h);height:var(--ctl-h);box-sizing:border-box;border:1px solid var(--ctl-line);border-radius:var(--ctl-radius);background:var(--subtle);color:var(--fg);cursor:pointer;padding:0;text-decoration:none}
+.bb:hover{background:var(--hover)}
+.bb:focus-visible,.bld-path input:focus-visible,.bld-files summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bb svg{width:16px;height:16px}
+.bld-src,.bld-size,.bld-zoom{flex:0 1 auto;min-width:0;height:var(--ctl-h);min-height:var(--ctl-h);font-size:var(--ctl-font);text-overflow:ellipsis;background-color:var(--subtle)}
+.bld-src{width:8.5em}.bld-size{width:17em}.bld-zoom{width:7.5em}
+.bld-zoom[hidden]{display:none}
+.bld-path{flex:1 1 16em;min-width:14em;display:flex}
+.bld-path input{width:100%;min-width:0;box-sizing:border-box;height:var(--ctl-h);padding:0 var(--ctl-pad);border:1px solid var(--ctl-line);border-radius:var(--ctl-radius);background:var(--bg);color:var(--fg);font:inherit;font-size:var(--ctl-font);font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+.bld-st{display:inline-flex;align-items:center;gap:6px;flex:none;font-size:var(--fs-s);color:var(--muted);white-space:nowrap}
+.bld-files{border-bottom:1px solid var(--line);font-size:var(--fs-s)}
+.bld-files summary{display:flex;align-items:center;gap:8px;min-height:var(--ctl-h);padding:0 12px;cursor:pointer;color:var(--muted);list-style:none;white-space:nowrap}
+.bld-files summary::-webkit-details-marker{display:none}
+.bld-files summary::before{content:"";flex:none;box-sizing:border-box;width:7px;height:7px;margin:0 2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .1s}
+.bld-files[open] summary::before{transform:rotate(45deg)}
+.bld-files summary:hover{background:var(--hover)}
+.bld-files .cnt{border:1px solid var(--line);border-radius:var(--r-pill);padding:0 8px;line-height:18px;font-size:.75rem}
+.bld-files ul{max-height:30vh;overflow:auto;list-style:none;margin:0;padding:0 0 4px}
+.bld-files li a{display:flex;gap:8px;align-items:center;min-height:28px;padding:0 12px 0 32px;color:var(--fg);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:.78rem}
+.bld-files li a:hover{background:var(--hover)}
+.bld-files li a[aria-current]{background:var(--accent-soft)}
+.bld-files li .sz{margin-left:auto;color:var(--muted)}
+
+/* stage */
+.bld-stage{flex:1 1 auto;min-height:0;background:var(--subtle);overflow:auto;display:flex;justify-content:center;justify-content:safe center;align-items:stretch;padding:0}
+.bld-frame{width:100%;border:0;background:Canvas;color-scheme:light;display:block}
+.bld-frame[hidden],.bld-note[hidden]{display:none}
+/* fixed screen size: laid out at the real width x height, scaled to fit by builder.js (--scr-w/-h/-s on the stage);
+   the negative margins give back the space the transform does not release */
+.bld-stage[data-size]{padding:16px;align-items:flex-start}
+.bld-stage[data-size] .bld-frame{flex:none;width:var(--scr-w);height:var(--scr-h);transform:scale(var(--scr-s,1));transform-origin:0 0;margin:0 calc(var(--scr-w) * (var(--scr-s,1) - 1)) calc(var(--scr-h) * (var(--scr-s,1) - 1)) 0;box-shadow:0 0 0 1px var(--line);border-radius:var(--box-r)}
+/* Ctrl/Cmd held: the wheel must reach the stage, not the iframe under the pointer (zoom steps, builder-screen.js) */
+#builder.bld-ctrl .bld-frame{pointer-events:none}
+.bld-plink{color:var(--accent);text-decoration:underline;text-underline-offset:2px;word-break:break-all}
+
+.bld-note{margin:auto;max-width:440px;padding:24px;text-align:center;color:var(--muted);font-size:.875rem}
+.bld-note h2{margin:0 0 4px;font-size:.9375rem;font-weight:600;color:var(--fg)}
+.bld-note p{margin:0 0 8px}
+.bld-note code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:.85em;background:var(--subtle);padding:0 4px;border-radius:4px}
+
+@media (pointer:coarse){.bb{width:40px;height:40px}.bld-src,.bld-size,.bld-zoom{height:40px;min-height:40px;font-size:16px}.bld-path input{height:40px;font-size:16px}}
+@media (max-width:899px){.bld-split{grid-template-columns:minmax(220px,38%) 9px minmax(0,1fr)}.bld-st .tx{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
+@media (max-width:699px){
+  /* phones: stop above the bottom nav (+2px for the header and nav hairlines) */
+  .bld-page main,body.bld-page:not(.chat-open) .v5-shell:not(.has-side)>main{padding:8px 16px;height:calc(100dvh - var(--top-h,88px) - var(--nav-clear,60px) - 2px)}
+  .bld-head .bld-stats,.bld-head .bld-act a:not(.keep){display:none}
+  .bld-head .bld-act{margin-left:auto}
+  .bld-tabs{display:flex}
+  .bld-split{display:block;border-radius:var(--box-r)}
+  .bld-div{display:none}
+  .bld-pane{height:100%}
+  #bt-chat:checked~.bld-split .bld-prev,#bt-prev:checked~.bld-split .bld-chat{display:none}
+  .bld-size,.bld-zoom{display:none}
+  .bld-path input{font-size:16px;height:40px}.bb{width:40px;height:40px}
+  /* phones show the page at the real phone width: the size presets are off */
+  .bld-stage[data-size]{padding:0;align-items:stretch}
+  .bld-stage[data-size] .bld-frame{flex:1 1 auto;width:100%;height:auto;transform:none;margin:0;box-shadow:none;border-radius:0}
+}
+
+/* read-only chat: no action buttons from the shared message partials */
+.bld-msgs .chatlog{margin:0}
+.bld-msgs .ci-foot,.bld-msgs .cm-cont,.bld-msgs .cv-open,.bld-msgs .chat-copy{display:none}
+.bld-files .empty{padding:4px 12px 8px 32px;color:var(--muted)}
+.bld-split:has(.slash-list){overflow:visible}
+
+/* phones: the composer (composer.css .composer--flow) takes its natural height and the message list shrinks */
+@media (max-width:699px){.bld-msgs{min-height:0}}
+/* the page's notices (#flash) sit at the top: at the bottom they would cover the composer's Send */
+body.bld-page #flash,body.bld-page #flash>.flash{top:calc(var(--top-h) + var(--s2));bottom:auto}
+
+/* Page | API switch (cv-seg look from chrome.css) and the API pane (builder-api.js): endpoints left, request +
+   response right when the preview pane is wide, stacked when narrow */
+.bld-view{flex:none;box-sizing:border-box;height:var(--ctl-h)}
+.bld-view button{min-height:0;height:100%}
+#builder:not([data-view=api]) .bld-apionly,#builder[data-view=api] .bld-tb>:not(.bld-view):not(.bld-apionly),
+#builder[data-view=api] .bld-files,#builder[data-view=api] .bld-stage{display:none}
+.bld-target{flex:0 1 auto;width:auto;max-width:12em;min-width:0;height:var(--ctl-h);min-height:var(--ctl-h);font-size:var(--ctl-font);background-color:var(--subtle)}
+.bld-apisrc{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:var(--fs-s)}
+.bld-prev{container:bldprev/inline-size}
+.bld-api{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.bld-api[hidden],.bld-api [hidden]{display:none}
+.bld-api .bld-note .err{color:var(--st-err);overflow-wrap:anywhere}
+.bld-eps{list-style:none;margin:0;padding:4px 0;flex:none;max-height:32%;overflow:auto;border-bottom:1px solid var(--line)}
+.bld-eps button{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:0 12px;border:0;border-radius:0;background:none;color:var(--fg);font-weight:400;text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer}
+.bld-eps button:hover{background:var(--hover)}
+.bld-eps button[aria-current]{background:var(--accent-soft)}
+.bld-eps button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.bld-eps .m{flex:none;width:4.5em;color:var(--muted);font-size:.75rem;font-weight:500}
+.bld-eps .m,.bld-eps .p,.bld-line input,.bld-fld input,.bld-fld textarea,.bld-res pre{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+.bld-eps .p{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:.78rem}
+.bld-eps .s{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:var(--fs-s)}
+.bld-work{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:12px}
+.bld-req{display:flex;flex-direction:column;gap:8px}
+.bld-line{display:flex;gap:8px;min-width:0}
+.bld-line select{flex:none;width:7.5em;height:var(--ctl-h)}
+.bld-line input{flex:1 1 auto;min-width:0;box-sizing:border-box;font-size:var(--ctl-font)}
+.bld-line button{flex:none}
+.bld-fld{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-s);color:var(--muted)}
+.bld-fld input,.bld-fld textarea{width:100%;box-sizing:border-box;color:var(--fg);font-size:.78rem}
+.bld-fld textarea{resize:vertical;min-height:calc(var(--ctl-h) * 1.5)}
+.bld-fld select{align-self:flex-start;max-width:100%;height:var(--ctl-h);font-size:var(--ctl-font)}
+#builder.bld-real .bld-mockst{display:none}
+.bld-res{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line2);padding-top:12px;min-width:0}
+.bld-resh{display:flex;align-items:center;gap:8px;font-size:var(--fs-s);font-weight:600;min-width:0;overflow-wrap:anywhere}
+.bld-resheaders summary{cursor:pointer;color:var(--muted);font-size:var(--fs-s);display:flex;align-items:center;gap:8px}
+.bld-resheaders summary:focus-visible,.bld-resb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bld-resheaders .cnt{border:1px solid var(--line);border-radius:var(--r-pill);padding:0 8px;line-height:18px;font-size:.75rem}
+.bld-res pre{margin:0;padding:8px 12px;background:var(--subtle);border:1px solid var(--line);border-radius:var(--box-r);font-size:.78rem;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--fg)}
+.bld-resheaders pre{margin-top:8px}
+@container bldprev (min-width:720px){
+  .bld-api:not([hidden]):has(.bld-eps:not([hidden])){display:grid;grid-template-columns:minmax(220px,34%) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+  .bld-eps{max-height:none;border-bottom:0;border-right:1px solid var(--line)}
+}
+@media (pointer:coarse){.bld-target,.bld-line select,.bld-fld select{height:40px;min-height:40px;font-size:16px}.bld-view{height:40px}.bld-eps button{min-height:40px}}
+@media (max-width:699px){.bld-target{height:40px;font-size:16px}.bld-view{height:40px}.bld-line input,.bld-fld input,.bld-fld textarea{font-size:16px}.bld-line select{height:40px}}

@@ -1,0 +1,29 @@
+{#- dt tmux page (PRD.md §6.6, LAYOUT.md §5 tmux). The list is #tm-list (templates/_tmux_list.html), also the
+    fragment the core route (GET /tmux with HX-Request) returns for a filter, segment, sort, Show all or live refresh;
+    a session's windows load into its row details from GET /tmux/{sid}/live (templates/_tmux_session_rows.html).
+    The New session dialog sits outside the list, so a live refresh never replaces it while it is open; its folder
+    field suggests the project folders (view model dt_tmux(), pm.web.dt.tmux). Page CSS / JS: css/tmux.css,
+    js/tmux.js. -#}
+{% extends "base.html" %}
+{% block title %}tmux{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/tmux.css">
+<script src="/static/t/dt/js/tmux.js" defer></script>
+{% endblock %}
+{% block content %}
+{% include "_tmux_list.html" %}
+{%- set tv = dt_tmux() %}
+<dialog id="tm-new" class="x-dlg tm-new" aria-labelledby="tm-new-t">
+  <form method="post" action="/tmux/session/new" novalidate data-tm-newform>
+    <h2 id="tm-new-t">New tmux session</h2>
+    <p class="bd">A detached session with one shell window. Attach to it in your terminal or open it here read-only.</p>
+    <label class="x-dlg-l">Name<input class="mono" type="text" name="name" maxlength="64" required autocomplete="off" autocapitalize="off" spellcheck="false" pattern="[A-Za-z0-9._][A-Za-z0-9._\-]*" placeholder="e.g. scratch" aria-describedby="tm-new-h" autofocus></label>
+    <p id="tm-new-h" class="x-dlg-hint tm-hint">Letters, digits, dot, - and _ (not - first), up to 64.</p>
+    <label class="x-dlg-l">Folder<input class="mono" type="text" name="cwd" list="tm-folders" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Optional: a project folder" aria-describedby="tm-new-f"></label>
+    <datalist id="tm-folders">{% for f in (tv.folders if tv else []) %}<option value="{{ f }}"></option>{% endfor %}</datalist>
+    <p id="tm-new-f" class="x-dlg-hint tm-hint">Pick a project folder or type a path to an existing folder under a project root. Empty: tmux starts in its default folder.</p>
+    <p class="tm-err" role="alert" data-tm-err hidden></p>
+    <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit">Create session</button></div>
+  </form>
+</dialog>
+{% endblock %}

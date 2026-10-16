@@ -1,0 +1,123 @@
+{#- dt Launch dialog body (PRD.md §6.12, LAYOUT.md §5 "Launch", DESIGN.md §6.11): the dt version of the core
+    partial GET /launch/form?project=&todo= (launchctx.form_model), loaded by js/launch.js into dialog#l-dlg
+    (shell/_launch.html) and loaded again when the project picker changes. View model: dt_launch()
+    (pm.web.dt.launch); the model list, efforts, permission modes, templates and worktree hints are launch_data,
+    a JSON attribute on the form (data-l-data) that js/launch.js reads.
+    Order: title row with the project picker · tabs New agent | From TODO · running agents (one warning line) ·
+    Agent cards (kind colour; the core has no login state) · Model + Effort · Permissions (a sentence per mode; bypass
+    needs "I understand", confirm_bypass) · Runs in + optional worktree branch · Prompt (templates, @ files, attach) ·
+    foot: what is remembered, Launch in background (open=0), Launch (open=1, mod+Enter).
+    The form posts with js/launch.js (POST <base>/launch, or <base>/dispatch for an unchanged TODO prompt). -#}
+{%- import "parts/_tabs.html" as pt -%}
+{%- import "parts/_switch.html" as psw -%}
+{%- set v = dt_launch() -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set n = v.running | length -%}
+<form class="l-form" method="post" action="{{ v.base }}/launch" data-l-form data-l-base="{{ v.base }}" data-l-project="{{ v.project }}" data-l-path="{{ v.path }}" data-l-kind="{{ v.kind }}" data-l-todosel="{{ '' if v.todo_sel is none else v.todo_sel }}" data-l-data="{{ v.data | tojson | forceescape }}" autocomplete="off">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="l-hd">
+  <h2 id="l-dlg-t">Launch an agent in</h2>
+  <select class="sel l-proj" data-l-proj aria-label="Project" title="Project">
+    {%- for p in v.projects %}<option value="{{ p }}"{% if p == v.project %} selected{% endif %}>{{ p }}</option>{% endfor -%}
+  </select>
+  <span class="sp"></span>
+  <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+</div>
+{{ pt.tabs([{"key": "l-new", "label": "New agent", "controls": "l-pnew", "cur": true},
+            {"key": "l-todo", "label": "From TODO", "controls": "l-ptodo", "count": v.todo_free}], "Launch", cls="l-tabs") }}
+{%- call pt.panel("l-pnew", "l-new", cur=true) %}
+<div class="l-bd">
+  {%- if n %}
+  <details class="l-run">
+    <summary><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}warn"/></svg><span class="t"><b>{{ n }} agent{{ "s" if n != 1 }} already running in {{ v.project }}.</b> They share the same files unless you use a worktree branch.</span><span class="l-runs" aria-hidden="true"></span></summary>
+    <div class="l-runl">
+      {#- data-kind on the wrapper (the chip inherits --k): classic shell.css colours the text of any a[data-kind] -#}
+      {%- for a in v.running %}<span data-kind="{{ a.kind }}"><a class="chip k" href="/a/{{ a.id }}" data-l-agent="{{ a.id }}" title="{{ a.state }}{{ ' · ' ~ a.title if a.title }}"><i class="dot {{ a.state }}" aria-hidden="true"></i><span class="vh">{{ a.state }}</span>{{ a.id }}</a></span>{% endfor -%}
+    </div>
+  </details>
+  {%- endif %}
+  <div class="l-sec">
+    <div class="l-lab" id="l-alab">Agent</div>
+    <div class="l-ags" role="radiogroup" aria-labelledby="l-alab">
+      {%- for c in v.cards %}
+      <label class="l-ag" data-kind="{{ c.kind }}"><input type="radio" name="kind" value="{{ c.kind }}"{% if c.cur %} checked{% endif %}><b>{{ c.label }}</b><small class="mono">{{ c.kind }}</small></label>
+      {%- endfor %}
+    </div>
+  </div>
+  <div class="l-sec l-two">
+    <div class="l-mcol">
+      <div class="l-lab" id="l-mlab">Model</div>
+      <button type="button" class="l-model" data-l-model aria-expanded="false" aria-controls="l-mlist" aria-labelledby="l-mlab l-mname"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}sparkle"/></svg><b id="l-mname" data-l-mname>default</b><small data-l-mnote></small><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}down"/></svg></button>
+      <div class="l-mlist" id="l-mlist" data-l-mlist hidden>
+        <div class="p-fbox"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}search"/></svg><input type="search" data-l-mq placeholder="Filter models" aria-label="Filter models" autocomplete="off" spellcheck="false"></div>
+        <div class="l-mopts" role="listbox" aria-label="Models" data-l-mopts></div>
+      </div>
+      <input type="hidden" name="model_choice" value="" data-l-mchoice>
+      <label class="l-fld" data-l-varrow hidden><span>Variant</span><select class="sel" name="variant" data-l-var></select></label>
+      <label class="l-fld" data-l-custom hidden><span>Model id</span><input class="x-in mono" name="model" maxlength="100" autocapitalize="off" spellcheck="false" placeholder="as the agent expects it" disabled></label>
+    </div>
+    <div class="l-ecol" data-l-effrow hidden>
+      <div class="l-lab" id="l-elab">Effort</div>
+      <span class="p-seg l-eff" role="group" aria-labelledby="l-elab" data-l-eff></span>
+      <input type="hidden" name="effort" value="" data-l-effort>
+    </div>
+  </div>
+  <div class="l-sec">
+    <div class="l-lab" id="l-plab" data-l-mlabel>Permissions</div>
+    <span class="p-seg l-modes" role="group" aria-labelledby="l-plab" data-l-modes></span>
+    <input type="hidden" name="permission_mode" value="" data-l-mode>
+    <label class="l-fld" data-l-xrow hidden><span data-l-xlabel>Option</span><select class="sel" name="permission_extra" data-l-x disabled></select></label>
+    <p class="l-help" data-l-help></p>
+    <label class="l-ok" data-l-okrow hidden><input type="checkbox" name="confirm_bypass" value="1" data-l-ok disabled><span>I understand: the agent can run any command and change any file without asking. Not remembered; audited.</span></label>
+  </div>
+  <div class="l-sec l-two">
+    <div>
+      <div class="l-lab">Runs in</div>
+      <p class="l-where"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}tmux"/></svg><span>a new tmux window in <b>{{ v.project }}</b>’s session</span></p>
+    </div>
+    <div class="l-wt">
+      <div class="l-lab">{{ psw.switch("", label="Own worktree branch", attrs={"data-l-wt": ""}) }}</div>
+      <span class="l-br" data-l-brrow hidden><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}branch"/></svg><input class="x-in mono" name="branch" maxlength="80" autocapitalize="off" spellcheck="false" placeholder="feature/x" list="l-branches" aria-label="Worktree branch" data-l-branch disabled></span>
+      <datalist id="l-branches" data-l-blist></datalist>
+      <p class="l-help" data-l-bhint>Off: runs in <span class="mono">{{ v.path }}</span> with the others.</p>
+    </div>
+  </div>
+  <div class="l-sec">
+    <div class="l-lab"><label for="l-prompt">Prompt</label> <span class="muted">optional · @ for files · paste or drop files</span></div>
+    {%- if v.data.templates %}
+    <div class="l-tpl" role="group" aria-label="Prompt templates">
+      {%- for t in v.data.templates %}<button type="button" class="x-btn sm" data-l-tpl="{{ loop.index0 }}" title="{{ t.text }}">{{ t.name }}</button>{% endfor -%}
+    </div>
+    {%- endif %}
+    <div class="l-pbox" data-l-pbox>
+      <textarea id="l-prompt" name="prompt" rows="4" maxlength="8000" placeholder="What should it do? Paste a screenshot or drop files here." data-l-prompt>{{ v.prompt }}</textarea>
+      <div class="l-prow"><span class="l-chips" data-l-chips aria-label="Attachments"></span><span class="sp"></span><button type="button" class="x-ib sm" data-l-attach aria-label="Attach files" title="Attach files"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}clip"/></svg></button></div>
+      <input type="file" multiple hidden data-l-file aria-label="Attach files">
+      <div class="l-at" role="listbox" aria-label="Files" data-l-at hidden></div>
+    </div>
+    <p class="l-help" data-l-todonote{% if v.todo_sel is none %} hidden{% endif %}>From TODO: while the prompt is unchanged, Launch dispatches the item and marks it in progress.</p>
+  </div>
+</div>
+{%- endcall %}
+{%- call pt.panel("l-ptodo", "l-todo") %}
+<div class="l-bd">
+  <p class="l-help">Use an open item as the prompt of a new agent. A dispatched item shows “In progress” until that agent stops.</p>
+  <ul class="l-todo">
+    {%- for t in v.todo %}
+    <li class="l-ti{{ ' busy' if t.busy }}"><span class="l-tt">{{ t.text }}</span>
+      {%- if t.busy %}<span class="l-tb">In progress: <a href="/a/{{ t.busy }}" data-l-agent="{{ t.busy }}">{{ t.busy }}</a></span>
+      {%- else %}<button type="button" class="x-btn sm" data-l-todo="{{ t.index }}" data-l-tprompt="{{ t.prompt }}">Use as prompt</button>{% endif %}</li>
+    {%- else %}
+    <li class="l-tnone">No open TODO items in {{ v.project }}.</li>
+    {%- endfor %}
+  </ul>
+</div>
+{%- endcall %}
+<p class="l-err" role="alert" data-l-err hidden></p>
+<div class="l-ft">
+  <span class="l-rem" title="The last launch in a project is remembered for the next one (bypass never is)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}clock"/></svg><span class="ell">{% if v.remembered %}Remembered for {{ v.project }}: {{ v.remembered }}{% else %}Your choices are remembered for {{ v.project }}{% endif %}</span></span>
+  <span class="sp"></span>
+  <button type="submit" class="x-btn" name="open" value="0" data-l-go="bg">Launch in background</button>
+  <button type="submit" class="x-btn pri" name="open" value="1" data-l-go="tab"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}play"/></svg>Launch<kbd data-k="mod+Enter"></kbd></button>
+</div>
+</form>

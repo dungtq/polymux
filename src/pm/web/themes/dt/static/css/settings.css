@@ -1,0 +1,167 @@
+/* dt Settings page and popup body (docs/themes/dt/PRD.md §6.11, LAYOUT.md §5 Settings; prefix s-; the popup frame sp-,
+   README A23 / A27): section nav (13.125rem = 210px, sticky)
+   + body capped at 55rem (880px), groups with a scope chip, rows (label + help left, control right), colour pickers,
+   tags, the search mode (.srch: every section with hits) and the phone flow (.s-v-list: the section list; .s-v-sec:
+   one section with ‹ Settings; not .list / .sec: classic lists.css styles .list). Markup: templates/settings.html,
+   _settings_panel.html, settings/_*.html, _settings_qchat.html, _autoexit*.html; the popup frame shell/_settings.html
+   (dialog#sp-dlg: a --sp-w × --sp-h modal, full screen on phones). Loaded by base.html on every page. Parts (head,
+   filter box, segments, switch, select, grid table, ⋯): css/parts.css, table.css.
+   Tokens only; grid column widths in rem / fit-content (README A7); number and tag inputs sized in ch (their
+   content). */
+
+/* ---------- layout ---------- */
+.s-tools>.p-fbox{flex:0 1 13.125rem}
+.s-lay{display:grid;grid-template-columns:13.125rem minmax(0,55rem);gap:var(--s5);align-items:start}
+.s-nav{position:sticky;top:0;display:flex;flex-direction:column;gap:2px;min-width:0;padding-bottom:var(--s4)}
+.s-gl{margin:var(--s3) 0 var(--s1);padding:0 var(--s2);color:var(--colh);font-size:var(--fs-s);font-weight:600}
+.s-gl:first-child{margin-top:0}
+.s-nav a{display:flex;align-items:center;gap:var(--s2);height:var(--row-side-h);min-width:0;padding:0 var(--s2);
+  border-radius:var(--r);color:var(--fg);font-size:var(--fs-ui);text-decoration:none}
+.s-nav a:hover{background:var(--hover);text-decoration:none}
+.s-nav a[aria-current]{background:var(--accent-soft);font-weight:600}
+.s-nav svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.s-nav .t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-nav .c{color:var(--muted);font-size:var(--fs-s);font-variant-numeric:tabular-nums}
+.s-nav .s-chev{display:none}
+.s-body{min-width:0}
+.s-sec h2{margin:0;font-size:var(--fs-xl);font-weight:600;line-height:1.3}
+.s-lead{margin:var(--s1) 0 var(--s4);color:var(--muted);font-size:var(--fs-ui)}
+.s-back{display:none}
+.s-none{display:flex;align-items:center;gap:var(--s3);margin:0 0 var(--s4);color:var(--muted)}
+.s-none[hidden]{display:none}
+.s-err{color:var(--failed)}
+
+/* ---------- groups and rows ---------- */
+.s-grp{margin:0 0 var(--s5)}
+.s-gh{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);margin:0 0 var(--s2)}
+.s-gh h3{margin:0;font-size:var(--fs-m);font-weight:600}
+.s-hit{display:none;color:var(--muted);font-size:var(--fs-s)}
+.chip.s-scope{color:var(--muted);font-size:var(--fs-xs)}
+.s-ga,.s-gtools{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2)}
+.s-ga{margin-left:auto}
+.s-gtools{justify-content:flex-end;margin:0 0 var(--s2)}
+.s-box{border:1px solid var(--line);border-radius:var(--r);background:var(--bg)}
+.s-box+.p-g,.s-grp>.p-g{margin-top:var(--s2)}
+.s-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s4);min-height:var(--row-h);
+  padding:var(--s2) var(--s3);border-top:1px solid var(--line2)}
+.s-row:first-child{border-top:0}
+.s-row[hidden]{display:none}
+.s-lab{flex:1 1 14rem;min-width:0}
+.s-lab b{display:block;font-size:var(--fs-ui);font-weight:500}
+.s-lab small{display:block;color:var(--muted);font-size:var(--fs-s);line-height:1.4}
+.s-ctl{display:flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:var(--s2);min-width:0}
+.s-row.wide .s-ctl{flex:1 1 100%;justify-content:flex-start}
+.s-note{margin:var(--s2) 0 0;color:var(--muted);font-size:var(--fs-s)}
+.s-unit{color:var(--muted);font-size:var(--fs-ui)}
+.s-ro{min-width:0;color:var(--fg);font-size:var(--fs-ui);overflow-wrap:anywhere;text-align:right}
+.s-msg{color:var(--muted);font-size:var(--fs-s)}
+.s-msg.ok{color:var(--ok-fg)}
+.s-msg.err{color:var(--failed)}
+.s-ui{display:flex;align-items:center;gap:var(--s2);margin:0}
+
+/* ---------- controls ---------- */
+input.x-in.s-num{width:9ch}
+.s-ctl select.sel{max-width:var(--field-w)}
+input.x-in.s-port{width:7ch}
+input.x-in:is(.s-w,.s-fam){width:var(--field-w);max-width:100%}
+input.x-in.s-wide,input.x-in.s-pub{flex:1 1 var(--field-w);width:100%;min-width:0}
+.s-cards{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4)}
+.s-col{display:inline-flex;align-items:center;gap:var(--s2)}
+.s-cv{min-width:7ch;color:var(--muted);font-size:var(--fs-s)}
+.s-custom[hidden]{display:none}
+.s-tags{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1)}
+/* touch: rows of tags far enough apart that each × keeps its whole --hit target (.p-hit, css/parts.css) */
+@media (pointer:coarse){.s-tags{row-gap:calc(var(--hit) - var(--tag-h))}}
+.s-tag{display:inline-flex;align-items:center;gap:2px;height:var(--tag-h);padding:0 0 0 var(--s2);
+  border:1px solid var(--line);border-radius:var(--r-pill);background:var(--subtle);font-family:var(--font-mono);
+  font-size:var(--fs-s)}
+.s-tag button{display:inline-flex;align-items:center;justify-content:center;width:var(--tag-h);
+  height:calc(var(--tag-h) - 2px);min-height:0;margin:0;padding:0;border:0;border-radius:var(--r-pill);background:none;
+  color:var(--muted);cursor:pointer}
+.s-tag button:hover{background:var(--hover);color:var(--fg)}
+.s-tag svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+input.x-in.s-addtag{width:9ch}
+.s-add{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);margin-top:var(--s2);padding:var(--s3);
+  border:1px solid var(--line);border-radius:var(--r);background:var(--subtle)}
+.s-add[hidden]{display:none}
+.s-add .s-note{flex-basis:100%;margin:0}
+textarea.x-in.s-hdrs{flex:1 1 100%;min-height:calc(var(--ctl-h) * 2);margin:0;padding:var(--s1) var(--s2);
+  border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
+  font-family:var(--font-mono);font-size:var(--fs-in);resize:vertical}
+
+/* ---------- previews, lists ---------- */
+.s-prev{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);padding:var(--s2) var(--s3);
+  border-top:1px solid var(--line2);background:var(--subtle);color:var(--muted);font-size:var(--fs-ui)}
+.s-prev>span{display:inline-flex;align-items:center;gap:var(--s1)}
+.s-pchat{font-family:var(--font-chat)}
+.s-out{margin-top:var(--s2)}
+.s-list{margin:var(--s2) 0 0;padding-left:var(--s4);font-size:var(--fs-ui)}
+.s-skillview pre{margin:var(--s3) 0 0;padding:var(--s3);overflow:auto;border:1px solid var(--line);
+  border-radius:var(--r);
+  background:var(--subtle);font-family:var(--font-mono);font-size:var(--fs-s);white-space:pre-wrap}
+.s-qtabs{margin-bottom:var(--s4)}
+
+/* ---------- tables (one grid template each) ---------- */
+.s-keys{--g-cols:var(--dot) minmax(0,1fr) auto auto}
+.s-sess{--g-cols:var(--dot) minmax(0,1fr) fit-content(12rem) fit-content(12rem) auto;
+  --g-cols-n:var(--dot) minmax(0,1fr) fit-content(12rem) auto}
+.s-ukeys{--g-cols:var(--dot) fit-content(12rem) minmax(0,1fr) auto auto;--g-cols-s:var(--dot) minmax(0,1fr) auto auto}
+.s-srv{--g-cols:var(--dot) fit-content(10rem) minmax(0,1fr) fit-content(12rem) auto auto;
+  --g-cols-n:var(--dot) fit-content(10rem) minmax(0,1fr) auto auto}
+.s-srv .gc-act{gap:var(--s1)}
+.s-mcp{--g-cols:minmax(8rem,1fr) fit-content(9rem) fit-content(6rem) minmax(0,1.3fr) auto auto;
+  --g-cols-n:minmax(8rem,1fr) fit-content(9rem) auto auto;--g-cols-s:minmax(0,1fr) auto auto}
+.s-skl{--g-cols:fit-content(12rem) fit-content(6rem) minmax(0,1fr) auto auto;
+  --g-cols-n:minmax(0,1fr) fit-content(6rem) auto auto;--g-cols-s:minmax(0,1fr) auto auto}
+.s-dlg{width:min(var(--dlg-w),calc(100vw - var(--s5)))}
+
+/* ---------- search mode (js/settings.js shows every section with hits and every Quick chat panel) ---------- */
+.s-lay.srch :is(.s-sec,.s-grp)[data-s-off],.s-lay.srch .s-lead,.s-lay.srch .s-qtabs{display:none}
+.s-lay.srch .s-sec{margin-bottom:var(--s4)}
+.s-lay.srch .s-sec h2{margin-bottom:var(--s2);font-size:var(--fs-l)}
+.s-lay.srch .s-nav a[aria-current]{background:none;font-weight:400}
+
+/* ---------- phone (< 700px): the section list, then one section with ‹ Settings ---------- */
+@media (max-width:699px){
+  .s-tools>.p-fbox{flex:1 1 100%}
+  .s-lay{grid-template-columns:minmax(0,1fr);gap:0}
+  .s-lay.s-v-list:not(.srch) .s-body,.s-lay:is(.s-v-sec,.srch) .s-nav{display:none}
+  :is(.x-page,.sp-bd):has(.s-lay.s-v-sec:not(.srch)) :is(.s-head,.s-tools){display:none}
+  .s-nav{position:static;gap:0}
+  .s-nav a{height:var(--hit);border-radius:0;border-bottom:1px solid var(--line2);font-size:var(--fs-m)}
+  .s-nav a[aria-current]{background:none;font-weight:400}
+  .s-nav .s-chev{display:block}
+  .s-gl{margin:var(--s4) 0 var(--s1)}
+  .s-back{display:inline-flex;align-items:center;gap:var(--s1);height:var(--ctl-h);margin:0 0 var(--s2);padding:0;
+    border:0;
+    background:none;color:var(--accent);font:inherit;font-size:var(--fs-m);cursor:pointer}
+  .s-back svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+  .s-lay.srch .s-back{display:none}
+  .s-ctl{justify-content:flex-start}
+  .s-ro{text-align:left}
+  .s-gtools{justify-content:flex-start}
+}
+
+/* ---------- the popup frame (dialog#sp-dlg, shell/_settings.html, js/settings-popup.js) ---------- */
+dialog.sp-dlg{width:min(var(--sp-w),calc(100vw - var(--s6)));max-width:none;
+  height:min(var(--sp-h),calc(100dvh - var(--s6)));max-height:none;margin:auto;padding:0;
+  background:var(--page);color:var(--fg);border:1px solid var(--ctl-line);border-radius:var(--r-dlg);
+  box-shadow:var(--shadow-dlg);overflow:hidden;overscroll-behavior:contain}
+dialog.sp-dlg::backdrop{background:var(--scrim)}
+dialog.sp-dlg[open]{display:flex;flex-direction:column}
+.sp-hd{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;min-width:0;
+  padding:var(--s2) var(--s2) var(--s2) var(--s4);border-bottom:1px solid var(--line)}
+.sp-hd>svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.sp-hd h2{flex:0 0 auto;margin:0;font-size:var(--fs-l);font-weight:600}
+.sp-note{min-width:0;overflow:hidden;color:var(--muted);font-size:var(--fs-s);text-overflow:ellipsis;white-space:nowrap}
+.sp-hd .sp-page{flex:0 0 auto}
+.sp-bd{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5) var(--s5)}
+.sp-wait,.sp-err{margin:0;color:var(--muted);font-size:var(--fs-m)}
+.sp-err{color:var(--failed-fg)}
+@media (max-width:699px){
+  dialog.sp-dlg{width:100vw;height:100dvh;margin:0;padding-top:env(safe-area-inset-top);border:0;border-radius:0}
+  .sp-hd{padding:var(--s2) var(--s3)}
+  .sp-note{display:none}
+  .sp-hd .x-ib{width:var(--hit);height:var(--hit)}
+  .sp-bd{padding:var(--s3) var(--s3) calc(var(--s5) + env(safe-area-inset-bottom))}
+}

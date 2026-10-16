@@ -1,0 +1,156 @@
+/* dt Agents page (docs/themes/dt/PRD.md §6.8, LAYOUT.md §5 "Agents"; prefix a-). Markup: templates/agents.html,
+   agents_detail.html, _agents_*.html, agents/*.html; parts: css/parts.css (head, tabs, segments, filter, meters),
+   css/table.css (tables). This file sets the tables' column templates (--g-cols*, one track per cell in cell order)
+   and the a- looks: findings line, section headings, the split with the agent's detail, chips, the usage chart and
+   columns, the coverage grid, the editor and dialogs, the file-operations list in the review dialog. Tokens only.
+   L-6: the flexible text column (Agent, Name, Description, Command, Finding) keeps the room; .hide-n / .hide-s cells
+   drop at a page column of 760 / 520px. */
+
+/* ---------- column templates ---------- */
+/* Installed: dot · Agent · Version · Login · Skills · Rules · MCP · Scripts · Findings · ⋯ */
+.a-inst{--g-cols:var(--dot) minmax(10rem,1.4fr) minmax(5rem,1fr) fit-content(9rem) auto auto auto auto auto
+  var(--ib-sm);
+  --g-cols-n:var(--dot) minmax(8rem,1fr) auto auto auto var(--ib-sm)}
+/* beside an agent's detail: dot · Agent · Findings */
+.a-inst.a-narrow{--g-cols:var(--dot) minmax(0,1fr) auto}
+/* Library: Type · Name · Description · Agents · Copies · ⋯ */
+.a-libt{--g-cols:auto minmax(8rem,.8fr) minmax(0,1.6fr) fit-content(16rem) auto var(--ib-sm);
+  --g-cols-n:minmax(8rem,1fr) fit-content(14rem) auto var(--ib-sm);
+  --g-cols-s:minmax(8rem,1fr) fit-content(10rem) var(--ib-sm)}
+/* MCP servers: Server · Type · Command / host · Env names · Configured in · ⋯ */
+.a-mcpt{--g-cols:minmax(9rem,1fr) auto minmax(0,1.4fr) minmax(0,1fr) fit-content(14rem) var(--ib-sm);
+  --g-cols-n:minmax(8rem,1fr) minmax(0,1.2fr) fit-content(12rem) var(--ib-sm);
+  --g-cols-s:minmax(8rem,1fr) minmax(0,1fr) var(--ib-sm)}
+/* Coverage: Server · one column per installed agent (a-n1 … a-n12; the core knows 11 agent kinds) */
+.a-cov{--a-n:1;--g-cols:minmax(8rem,1.4fr) repeat(var(--a-n),minmax(3rem,1fr))}
+.a-n2{--a-n:2}.a-n3{--a-n:3}.a-n4{--a-n:4}.a-n5{--a-n:5}.a-n6{--a-n:6}.a-n7{--a-n:7}.a-n8{--a-n:8}
+.a-n9{--a-n:9}.a-n10{--a-n:10}.a-n11{--a-n:11}.a-n12{--a-n:12}
+/* Usage: Model · Share · Replies · Out; Top sessions: Session · Share · Replies · Span */
+.a-modt,.a-topt{--g-cols:minmax(0,1fr) auto auto auto;--g-cols-s:minmax(0,1fr) auto auto}
+/* Findings: dot · Finding · Agent · Fix */
+.a-findt{--g-cols:var(--dot) minmax(0,1fr) auto auto;--g-cols-s:var(--dot) minmax(0,1fr) auto}
+/* the agent's detail: Skills switch · Name · Description · Scope · ⋯ */
+.a-skt{--g-cols:auto minmax(7rem,.8fr) minmax(0,1.6fr) auto var(--ib-sm);
+  --g-cols-n:auto minmax(7rem,1fr) minmax(0,1fr) var(--ib-sm)}
+/* Rules: dot · Name · Path · Mode · Lines · ⋯ */
+.a-rut{--g-cols:var(--dot) minmax(7rem,.8fr) minmax(0,1.6fr) auto auto var(--ib-sm);
+  --g-cols-n:var(--dot) minmax(7rem,1fr) minmax(0,1fr) var(--ib-sm)}
+/* MCP: dot · Name · Command · Transport · Env · ⋯ */
+.a-dmt{--g-cols:var(--dot) minmax(7rem,.8fr) minmax(0,1.4fr) auto minmax(0,1fr) var(--ib-sm);
+  --g-cols-n:var(--dot) minmax(7rem,1fr) minmax(0,1fr) var(--ib-sm)}
+/* Scripts: Name · Purpose · Kind · Path · ⋯ */
+.a-sct{--g-cols:minmax(7rem,.8fr) minmax(0,1.4fr) auto minmax(0,1fr) var(--ib-sm);
+  --g-cols-n:minmax(7rem,1fr) minmax(0,1fr) var(--ib-sm)}
+/* rules validation: dot · file · message; review page: operation · path · detail */
+.a-valt{--g-cols:var(--dot) minmax(8rem,.6fr) minmax(0,1.4fr);margin-bottom:var(--s3)}
+.a-opst{--g-cols:auto minmax(0,1.4fr) minmax(0,1fr);--g-cols-s:auto minmax(0,1fr)}
+
+/* ---------- cells ---------- */
+.p-gr.a-off .gc-nm{color:var(--muted);font-weight:400}
+.a-chips{display:flex;align-items:center;gap:var(--s1);min-width:0;overflow:hidden}
+.a-chips>.chip{flex:0 0 auto}
+.a-cov .a-cc{text-align:center}
+.a-pct{margin-left:var(--s2);font-variant-numeric:tabular-nums}
+.a-page .gc-nm .mono{font-weight:400}
+
+/* ---------- lines between the parts: findings line, notes, section headings ---------- */
+.a-status{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s3);margin:0 0 var(--s3);
+  font-size:var(--fs-ui)}
+.a-status>a{font-weight:500}
+.a-note{margin:var(--s2) 0 0;font-size:var(--fs-s)}
+.a-page h3.a-h3{margin:0 0 var(--s3);padding:0;border:0;font-size:var(--fs-m);font-weight:600}
+
+/* ---------- Usage: two columns when the page column is wide, the day chart ---------- */
+.a-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s5);align-items:start}
+/* stacked: the second column's first heading keeps the gap above it (h2.p-h2:first-child has none); side by side
+   both columns start at the top */
+.a-col+.a-col>h2.p-h2:first-child{margin-top:var(--s5)}
+@container pg (min-width:1100px){
+  .a-cols{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+  .a-col+.a-col>h2.p-h2:first-child{margin-top:0}
+}
+.a-col{min-width:0}
+.a-chart{display:flex;align-items:flex-end;gap:var(--s1);height:calc(var(--row-h) * 4);padding:var(--s2) var(--s3) 0;
+  border:1px solid var(--line);border-radius:var(--r)}
+.a-chart .b{display:flex;flex:1 1 0;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;
+  height:100%}
+.a-chart .b i{display:block;width:100%;max-width:var(--s5);height:2%;border-radius:var(--r-xs) var(--r-xs) 0 0;
+  background:color-mix(in srgb,var(--accent) 70%,transparent)}
+.a-chart .b:hover i{background:var(--accent)}
+.a-chart .b span{padding:var(--s1) 0;overflow:hidden;color:var(--muted);font-size:var(--fs-xs);white-space:nowrap}
+.a-chart i.h1{height:5%}.a-chart i.h2{height:10%}.a-chart i.h3{height:15%}.a-chart i.h4{height:20%}
+.a-chart i.h5{height:25%}.a-chart i.h6{height:30%}.a-chart i.h7{height:35%}.a-chart i.h8{height:40%}
+.a-chart i.h9{height:45%}.a-chart i.h10{height:50%}.a-chart i.h11{height:55%}.a-chart i.h12{height:60%}
+.a-chart i.h13{height:65%}.a-chart i.h14{height:70%}.a-chart i.h15{height:75%}.a-chart i.h16{height:80%}
+.a-chart i.h17{height:85%}.a-chart i.h18{height:90%}.a-chart i.h19{height:95%}.a-chart i.h20{height:100%}
+/* many days: every other label */
+.a-chart:has(.b:nth-child(15)) .b:nth-child(even) span{visibility:hidden}
+
+/* ---------- one agent: the list at the left, the detail at the side (pg >= 1000px), one column below ---------- */
+.a-split{display:grid;grid-template-columns:minmax(14rem,.7fr) minmax(0,1.6fr);gap:var(--s5);align-items:start}
+.a-l{min-width:0}
+.a-det{min-width:0;padding:var(--s3) var(--s4) var(--s4);border:1px solid var(--line);
+  border-top:2px solid var(--k);border-radius:var(--r);background:var(--page)}
+.a-dh{display:flex;align-items:center;gap:var(--s2);min-width:0}
+.a-page .a-dh h2{display:flex;align-items:center;gap:var(--s2);min-width:0;margin:0;padding:0;border:0;
+  font-size:var(--fs-l);font-weight:600}
+.a-dn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.a-dh .chip{flex:0 0 auto}
+.a-back{display:none}
+.a-kv{margin:var(--s3) 0 var(--s2);font-size:var(--fs-ui)}
+.a-kv dd{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.a-auth{margin:0 0 var(--s3)}
+.a-dbody{min-width:0}
+@container pg (max-width:1000px){
+  .a-split{grid-template-columns:minmax(0,1fr)}
+  .a-split>.a-l{display:none}
+  .a-back{display:inline-flex}
+  .a-dh .a-close{display:none}
+}
+
+/* ---------- editor, dialogs (New skill / rule / script, Sync) ---------- */
+.a-form{display:flex;flex-direction:column;min-width:0}
+.a-fl{display:flex;flex-direction:column;gap:var(--s1);margin:0 0 var(--s3);font-size:var(--fs-ui);font-weight:500}
+.a-fl .muted{font-weight:400}
+.a-form input.x-in{width:100%;margin-top:0;font-family:var(--font-ui)}
+.a-form input.x-in.mono{font-family:var(--font-mono)}
+.a-form select.sel{width:100%}
+.a-ta{display:block;width:100%;min-height:var(--prompt-min-h);padding:var(--s2);border:1px solid var(--ctl-line);
+  border-radius:var(--r);background:var(--page);color:var(--fg);font-family:var(--font-mono);font-size:var(--fs-s);
+  resize:vertical}
+.a-ta:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
+.a-fbtn{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);margin-top:var(--s2)}
+.a-alert{margin:0 0 var(--s3);padding:var(--s2) var(--s3);border:1px solid var(--failed);border-radius:var(--r);
+  background:var(--failed-soft);color:var(--fg);font-size:var(--fs-ui);overflow-wrap:anywhere}
+.a-alert[hidden]{display:none}
+.x-dlg.a-dlg{width:min(var(--pal-w),calc(100vw - var(--s6)));margin:10vh auto auto;overflow:auto}
+.a-dnote{margin:0 0 var(--s3);font-size:var(--fs-ui)}
+.a-fs{min-width:0;margin:0 0 var(--s3);padding:0;border:0}
+.a-fs>legend{margin:0 0 var(--s1);padding:0;font-size:var(--fs-ui);font-weight:500}
+.a-mode>p{margin:0 0 var(--s3)}
+.a-lines{margin:0 0 var(--s3);padding-left:var(--s4);font-size:var(--fs-s)}
+.a-lines li{margin:0 0 var(--s1);overflow-wrap:anywhere}
+.a-mode .p-g{margin-bottom:var(--s3)}
+
+/* ---------- the review dialog's file operations (pm7.confirm body, built by js/agents.js) ---------- */
+.a-opsb{max-height:calc(var(--row-h) * 10);overflow:auto}
+.a-opsb>p{margin:0 0 var(--s2)}
+.a-opsb>p.a-opsh{margin:var(--s3) 0 var(--s1);color:var(--fg);font-weight:500}
+.a-ops{margin:0;padding-left:var(--s4)}
+.a-ops li{margin:0 0 var(--s1);overflow-wrap:anywhere}
+.a-ops code{font-family:var(--font-mono);font-size:var(--fs-s)}
+.a-ops small{display:block;color:var(--muted);font-size:var(--fs-s)}
+.a-opk{color:var(--fg);font-weight:500}
+
+/* ---------- touch, phone ---------- */
+@media (max-width:699px){
+  .a-det{padding:0;border:0;border-radius:0;background:none}
+  .a-dh{flex-wrap:wrap}
+  .a-page .a-dh h2{flex:1 1 100%;order:2}
+  #a-cov,#a-cov+.a-note,.p-h2:has(+#a-cov){display:none}
+  .a-chart{gap:calc(var(--s1) / 2)}
+  .a-findt .gc-nm>.nm{white-space:normal;overflow-wrap:anywhere}
+  .a-chart:has(.b:nth-child(8)) .b:nth-child(even) span{visibility:hidden}
+  .x-dlg.a-dlg{width:100vw;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}
+  .a-ta{font-size:var(--fs-in)}
+}

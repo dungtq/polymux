@@ -1,0 +1,7 @@
+{% if not rc.empty or hist %}
+<details class="chat-recap">
+  <summary>Recap{% if rc.tools %} <span class="muted">&middot; {{ rc.tools }} tool call{{ '' if rc.tools == 1 else 's' }}{% if rc.duration %} &middot; {{ dur(rc.duration) }}{% endif %}</span>{% endif %}{% if hist %} <span class="muted">&middot; {{ hist_total }} earlier</span>{% endif %}</summary>
+  {% if not rc.empty %}{% include "_recap_body.html" %}{% endif %}
+  {% if hist %}{% include "_history.html" %}{% endif %}
+</details>
+{% endif %}

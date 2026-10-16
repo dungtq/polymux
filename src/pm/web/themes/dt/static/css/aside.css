@@ -1,0 +1,61 @@
+/* dt chat aside parts (DESIGN.md §6.1, LAYOUT.md §2): head (dot, name, kind chip, Open as tab, Close), the resize
+   edge and the chat iframe. The column itself, html.aside and the < 900px overlay are in shell.css; the width is
+   --aside-w (tokens.css) from --aside-pct, set on <html> by head.js / aside.js. Behaviour: js/aside.js.
+   html.aside-drag: an edge drag is running (no text selection, the iframe does not take the pointer). Tokens only. */
+
+.x-aside{position:relative}
+.x-ah .x-an{flex:0 1 auto;min-width:0}
+.x-ah .dot{flex:0 0 var(--dot)}
+.x-ah .chip{flex:0 0 auto}
+.x-ah [hidden]{display:none}
+.x-ah .x-ib:disabled{opacity:.45;cursor:default}
+.x-ah .x-ib:disabled:hover{background:none;color:var(--head-muted)}
+.x-aempty kbd:empty{display:none}
+
+/* the chat: a same-origin iframe that fills the body */
+.x-abody.fr{padding:0;overflow:hidden}
+.x-abody.fr .x-aempty{display:none}
+.x-aframe{display:block;width:100%;height:100%;border:0;background:var(--page)}
+
+/* resize edge: the aside's 1px border is the hairline; hover, focus and drag show a 3px accent line on it */
+.x-adrag{position:absolute;z-index:var(--z-local);top:0;bottom:0;left:calc(var(--s1) * -1);width:var(--s2);
+  cursor:col-resize;touch-action:none}
+.x-adrag::before{content:"";position:absolute;top:0;bottom:0;left:calc(var(--s1) - 2px);width:3px;
+  background:transparent;transition:background var(--t-fast)}
+.x-adrag:hover::before,.x-adrag:focus-visible::before,.x-adrag.drag::before{background:var(--accent)}
+.x-adrag:focus-visible{outline:0}
+html.aside-drag,html.aside-drag *{cursor:col-resize;user-select:none}
+html.aside-drag .x-aframe{pointer-events:none}
+
+/* under 900px the aside is an overlay of fixed width: no edge */
+@media (max-width:899px){
+  .x-adrag{display:none}
+}
+
+/* ---------- btw (js/btw.js, README A9): a side question about the agent, in the aside's body (.fr) ----------
+   note · the answers (scrolls) · the question box; answers are the server's escaped markdown */
+.x-btw{display:flex;flex-direction:column;height:100%;min-height:0}
+.x-btwh{flex:0 0 auto;margin:var(--s3) var(--s3) 0;padding:var(--s2) var(--s3);border:1px dashed var(--line);
+  border-radius:var(--r);color:var(--muted);font-size:var(--fs-s)}
+.x-btwh b{color:var(--fg);font-weight:600}
+.x-btwlog{display:flex;flex-direction:column;gap:var(--s3);flex:1 1 auto;min-height:0;overflow:auto;
+  overscroll-behavior:contain;padding:var(--s3)}
+.x-btwe{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2);font-size:var(--fs-ui)}
+.x-btwm{min-width:0;font-size:var(--fs-m);overflow-wrap:anywhere}
+.x-btwm .h{margin:0 0 var(--s1);color:var(--muted);font-size:var(--fs-s)}
+.x-btwm.u .t{white-space:pre-wrap}
+.x-btwm.a .t:not(.md){white-space:pre-wrap}
+.x-btwm.a .t:empty::before{content:"…";color:var(--muted)}
+.x-btwm .t.md>:first-child{margin-top:0}
+.x-btwm .t.md>:last-child{margin-bottom:0}
+.x-btwa{display:flex;flex-wrap:wrap;gap:var(--s1);margin:var(--s2) 0 0}
+.x-btwerr{margin:0;color:var(--failed);font-size:var(--fs-ui)}
+.x-btwf{display:flex;align-items:flex-end;gap:var(--s2);flex:0 0 auto;padding:var(--s2) var(--s3) var(--s3);
+  border-top:1px solid var(--line2)}
+.x-btwin{flex:1 1 auto;min-width:0;min-height:calc(var(--ctl-h) * 2);max-height:40vh;margin:0;padding:var(--s2);
+  border:1px solid var(--ctl-line);border-radius:var(--r-pop);background:var(--page);color:var(--fg);font:inherit;
+  font-size:var(--fs-in);resize:vertical}
+.x-btwin:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* the aside chat's .md link on a page that is not that agent's session: the file in a sheet (aside.js reader) */
+.x-mdsheet{padding:0 var(--s3) var(--s3);font-size:var(--fs-m);overflow-wrap:anywhere}

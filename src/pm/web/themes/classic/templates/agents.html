@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_head %}
+{% from "_agents_macros.html" import tabs %}
+{% block title %}Agents{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/agents-page.css">
+<div class="pg-agents">
+{{ page_head("Agents", stats) }}
+{{ tabs(tab_items, section, "Agents sections") }}
+{% if section == "installed" %}{% include "_agents_installed.html" %}
+{% elif section == "library" %}{% include "_agents_library.html" %}
+{% elif section == "usage" %}{% include "_agents_usage.html" %}
+{% else %}{% include "_agents_mcp.html" %}{% endif %}
+</div>
+{% endblock %}

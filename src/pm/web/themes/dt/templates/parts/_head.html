@@ -1,0 +1,48 @@
+{#- Page head and controls row (DESIGN.md §6.2, LAYOUT.md §4 steps 1 and 4). Contract: docs/themes/dt/PARTS.md §2.
+    {% import "parts/_head.html" as ph %}
+
+    ph.head(title, stats=none, actions=none, id=none, cls="")   [optionally {% call %}: extra action markup]
+      title    the h1 (hidden on phones: the top bar has the title)
+      stats    the stats line: a string, or a list of strings / {"text", "cls" ("warn" | "bad" | "ok"), "title"}
+               joined with " · " (every page has one, DESIGN §6.2)
+      actions  list of {"label", "icon", "href" | "attrs", "pri", "danger", "title"}: a link with href, else a button;
+               "attrs" = extra attributes (hx-post, hx-confirm, data-*), rendered with xmlattr (escaped); at most one
+               "pri" (green) per page. The label sits in .lb: on phones the action is a 40px icon button beside the
+               filter box (or the tabs) and .lb is visually hidden, so the accessible name stays.
+               A {% call %} body is appended inside .p-acts (forms with a csrf field, a ⋯ menu trigger).
+      id       optional: the head gets id, the stats line id "<id>-stats" (a live swap target)
+    ph.stats(stats)   the stats line's content alone (a live swap of #<id>-stats, e.g. htmx hx-swap-oob)
+    ph.tools(cls="")   {% call %} only: the controls row (filter box first, then segments, switches, selects). -#}
+
+{%- macro stats(stats) -%}
+{%- if stats is string -%}{{ stats }}
+{%- else -%}{%- for s in stats -%}{% if not loop.first %} · {% endif -%}
+{%- if s is mapping -%}<span{% if s.get("cls") %} class="{{ s.cls }}"{% endif %}{% if s.get("title") %} title="{{ s.title }}"{% endif %}>{{ s.text }}</span>
+{%- else -%}{{ s }}{%- endif -%}
+{%- endfor -%}{%- endif -%}
+{%- endmacro -%}
+
+{%- macro action(a) -%}
+{%- set tag = "a" if a.get("href") else "button" -%}
+<{{ tag }} class="x-btn p-act{{ ' pri' if a.get('pri') }}{{ ' danger' if a.get('danger') }}"{% if a.get("href") %} href="{{ a.href }}"{% else %} type="button"{% endif %} title="{{ a.get('title') or a.label }}"{{ (a.get("attrs") or {}) | xmlattr }}>
+  {%- if a.get("icon") %}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ a.icon }}"/></svg>{% endif -%}
+  <span class="lb">{{ a.label }}</span></{{ tag }}>
+{%- endmacro -%}
+
+{%- set stats_line = stats -%}
+
+{%- macro head(title, stats=none, actions=none, id=none, cls="") -%}
+<div class="p-head{{ ' ' ~ cls if cls }}"{% if id %} id="{{ id }}"{% endif %}>
+  <h1>{{ title }}</h1>
+  {%- if stats %}
+  <p class="p-stats"{% if id %} id="{{ id }}-stats"{% endif %}>{{ stats_line(stats) }}</p>
+  {%- endif %}
+  {%- if actions or caller is defined %}
+  <div class="p-acts">{% for a in actions or [] %}{{ action(a) }}{% endfor %}{% if caller is defined %}{{ caller() }}{% endif %}</div>
+  {%- endif %}
+</div>
+{%- endmacro -%}
+
+{%- macro tools(cls="") -%}
+<div class="p-tools{{ ' ' ~ cls if cls }}">{{ caller() }}</div>
+{%- endmacro -%}

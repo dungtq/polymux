@@ -1,0 +1,11 @@
+{#- dt project view: the content of the Issues tab panel (PARTS.md §14; README O7: the Backlog component scoped
+    to this project). The frame renders section.pj-tab#pj-t-issues[data-pj-tab=issues] around it and fires pm7:pj-tab
+    {key: "issues"} on document when the panel shows; js/backlog.js then loads
+    GET /backlog?scope=project&tab=issues&project=<n> into #bl-issues (HX-Target bl-issues: the component alone,
+    backlog/_issues.html); a panel shown at first paint loads at once. Page CSS / JS come with the partial (backlog.js runs
+    once however many partials include it). Context: v = dt_project() of project.html (v.name). -#}
+<link rel="stylesheet" href="/static/t/dt/css/backlog.css">
+<script src="/static/t/dt/js/backlog.js" defer></script>
+<script src="/static/t/dt/js/backlog-reader.js" defer></script>
+<div class="bl-c" id="bl-issues" data-bl-scope="project" data-bl-tab="issues" data-bl-project="{{ v.name }}" data-bl-projects="[]" data-bl-lazy="/backlog?scope=project&amp;tab=issues&amp;project={{ v.name | urlencode }}"><p class="bl-load">Loading…</p></div>
+{% include "backlog/_dlg_issue.html" %}

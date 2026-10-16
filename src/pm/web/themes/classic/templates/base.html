@@ -1,0 +1,210 @@
+{% set navside = nav in ("inbox", "projects", "tmux", "servers", "agents", "backlog", "ntfy", "audit", "notifications", "settings") and not sidebar and not embed %}{% set side_on = sidebar or navside %}<!doctype html>
+<html lang="en"{% if embed %} class="v5-embed"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f8fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151b23" media="(prefers-color-scheme: dark)">
+<meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "[45]..", "swap": true, "error": true}]}'>
+<meta name="csrf-token" content="{{ csrf }}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="pm">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>{% if dev_banner %}[DEV] {% endif %}{% block title %}pm{% endblock %} - pm</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<script src="/static/js/theme.js"></script>
+<script src="/static/js/fonts.js"></script>
+{% if side_on %}<script src="/static/js/side-init.js"></script>
+{% endif %}<script src="/static/js/core.js" defer></script>
+<script src="/static/js/tabs.js" defer></script>
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/chat.css">
+<link rel="stylesheet" href="/static/css/chat-items.css">
+<link rel="stylesheet" href="/static/css/chat-continue.css">
+<link rel="stylesheet" href="/static/css/chat-compact.css">
+<link rel="stylesheet" href="/static/css/subagents.css">
+<link rel="stylesheet" href="/static/css/lists.css">
+<link rel="stylesheet" href="/static/css/ntfy.css">
+<link rel="stylesheet" href="/static/css/servers.css">
+<link rel="stylesheet" href="/static/css/backlog.css">
+<link rel="stylesheet" href="/static/css/inbox.css">
+<link rel="stylesheet" href="/static/css/chrome.css">
+<link rel="stylesheet" href="/static/css/tabs.css">
+<link rel="stylesheet" href="/static/css/rows.css">
+<link rel="stylesheet" href="/static/css/doctabs.css">
+<link rel="stylesheet" href="/static/css/data.css">
+<link rel="stylesheet" href="/static/css/agent.css">
+<link rel="stylesheet" href="/static/css/composer.css">
+<link rel="stylesheet" href="/static/css/shell.css">
+<link rel="stylesheet" href="/static/css/icons.css">
+<link rel="stylesheet" href="/static/css/nav.css">
+<link rel="stylesheet" href="/static/css/popup.css">
+<link rel="stylesheet" href="/static/css/filespane.css">
+<link rel="stylesheet" href="/static/css/qchat.css">
+<link rel="stylesheet" href="/static/css/palette.css">
+<link rel="stylesheet" href="/static/css/tablesize.css">
+<script src="/static/vendor/htmx.min.js" defer></script>
+<script src="/static/js/dialog.js" defer></script>
+<script src="/static/js/chat-compact.js" defer></script>
+<script src="/static/js/popup.js" defer></script>
+<script src="/static/js/composer.js" defer></script>
+<script src="/static/js/composer-attach.js" defer></script>
+<script src="/static/js/slash.js" defer></script>
+<script src="/static/js/imgview.js" defer></script>
+<script src="/static/js/tablesize.js" defer></script>
+<script src="/static/pm.js" defer></script>
+<script src="/static/js/live.js" defer></script>
+<script src="/static/js/passkey.js" defer></script>
+<script src="/static/js/nodiff.js" defer></script>
+<script src="/static/js/filter.js" defer></script>
+<script src="/static/js/ended.js" defer></script>
+<script src="/static/js/rowx.js" defer></script>
+<script src="/static/js/ntfy.js" defer></script>
+<script src="/static/js/more.js" defer></script>
+{% if not embed %}<script src="/static/js/acct.js" defer></script>
+<script src="/static/js/qchat.js" defer></script>
+<script src="/static/js/qchat-menu.js" defer></script>
+<script src="/static/js/search.js" defer></script>
+<script src="/static/js/palette.js" defer></script>
+{% else %}<script src="/static/js/keyfwd.js" defer></script>
+{% endif %}
+<script src="/static/js/qchat-aside.js" defer></script>
+<script src="/static/js/inbox.js" defer></script>
+<script src="/static/js/client-errors.js" defer></script>
+<script src="/static/js/reload.js" defer></script>
+{% if side_on %}<script src="/static/js/side.js" defer></script>
+{% endif %}{% if not embed %}<script src="/static/js/launchpop.js" defer></script>
+{% endif %}{% if drawer and not embed %}<script src="/static/js/jumprail.js" defer></script><script src="/static/js/drawer.js" defer></script>
+{% endif %}</head>
+<body class="{% block bodyclass %}{% endblock %}">
+{% if drawer and not embed %}<script src="/static/js/drawer-init.js"></script>
+{% endif %}<header class="topbar">
+  <a class="brand" href="/">pm{% if dev_banner %}<span class="devtag" title="Dev instance: fixture data, throwaway token">DEV</span>{% endif %}</a>
+  {% if not embed %}<div class="gsearch" id="gsearch"><button class="linkbtn gs-tgl" type="button" aria-label="Search" title="Search (/ or Cmd/Ctrl+K)"><svg class="hi" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button><input class="gs-in" type="search" name="q" placeholder="Search names, chats, files ( / or Ctrl+K )" aria-label="Search projects, tmux, agents, chats and files" autocomplete="off" spellcheck="false" maxlength="80" role="combobox" aria-expanded="false" aria-controls="gs-list"><div class="gs-list" id="gs-list" role="listbox" hidden></div></div>{% endif %}
+  <span>
+    {% set _lp = project.name if (project is defined and project and project.name is defined) else (agent.project if (agent is defined and agent and agent.project is defined) else "") %}<a class="toplink tb-launch" href="/launch{% if _lp %}?project={{ _lp | urlencode }}{% endif %}" aria-label="Launch an agent" title="Launch an agent"><svg class="hi" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span class="tl">Launch</span></a>
+    <button class="linkbtn tb-stop" type="button" data-dlg-open="stop-dialog" aria-label="Stop all agents" title="Stop all agents: Esc then Ctrl-C to each"><svg class="hi" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg><span class="tl">Stop</span></button>
+    {%- from "_acct.html" import navicon %}{% for i in NAV if i.top %}
+    <a class="toplink" href="{{ i.href }}" aria-label="{{ i.label }}" title="{{ i.label }}">{{ navicon(i.icon) }}<span class="tl">{{ i.label }}</span></a>
+    {%- endfor %}
+    <details class="acct bell" id="bell-menu">
+      <summary class="linkbtn acct-sum bell-sum" aria-label="Notifications" title="System notifications"><svg class="hi" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="tl">Alerts</span><span class="vs-ub" data-system-badge hidden></span></summary>
+      <div class="acct-pop bell-pop pop" id="bell-pop" data-sheet hx-get="/ntfy/bell" hx-trigger="bell-open, pm:refresh from:document" hx-swap="innerHTML" hx-sync="this:replace" data-nodiff aria-live="polite"><p class="muted small bell-none">Loading...</p></div>
+    </details>
+    <button class="linkbtn tb-qchat" type="button" data-qchat-open aria-haspopup="dialog" aria-label="Quick chat" title="Quick chat (claude -p)"><svg class="hi" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span class="tl">Chat</span></button>
+    {% from "_acct.html" import acct_groups with context %}<details class="acct" id="acct-menu">
+      <summary class="linkbtn acct-sum" aria-label="Account and display" title="Theme, settings, reload, log out"><svg class="hi" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg><span class="tl">Menu</span><svg class="hi acct-car" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="acct-pop pop" role="menu" aria-label="Account and display" data-sheet>
+        {{ acct_groups("pop") }}
+      </div>
+    </details>
+  </span>
+</header>
+<div class="v5-shell{% if side_on %} has-side{% endif %}">
+{% if side_on %}{% include "_side.html" %}{% endif %}
+<main>
+<aside class="lockbar reloadbar" id="reloadbar" role="status" aria-live="polite" hidden><span class="rb-t"></span> <button type="button" class="rb-b" hidden>Reload now</button></aside>
+{% if require_unlock and locked %}
+<aside class="lockbar" id="lockbar" role="region" aria-label="Locked">
+  <strong>Locked.</strong> <span class="small">Actions need unlock.</span>
+  {% if provisioned %}
+  <form class="unlock" method="post" action="/unlock" hx-post="/unlock" hx-target="#unlock-flash" hx-swap="innerHTML" data-unlock>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="TOTP code" aria-label="TOTP code" required>
+    <button type="submit">Unlock</button>
+  </form>
+  {% else %}
+  <a href="/settings">Set up TOTP</a>
+  {% endif %}
+  <button type="button" data-passkey="auth" data-target="unlock-flash">Use passkey</button>
+  <div id="unlock-flash" class="flash-inline" role="status" aria-live="polite"></div>
+</aside>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+{% if drawer and not embed %}<div class="jump-rail pg-rail" id="pg-rail" role="group" aria-label="Scroll the page"><button type="button" class="vc-jump" data-main-jump="top" title="Jump to top" aria-label="Jump to top"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h14M6 19l6-6 6 6M6 12.5l6-6 6 6"/></svg></button><button type="button" class="vc-jump" data-main-jump="bottom" title="Jump to bottom" aria-label="Jump to bottom"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5h14M6 11l6 6 6-6M6 4.5l6 6 6-6"/></svg></button></div>{% include "_drawer.html" %}{% endif %}
+</div>
+{% if not embed %}<section id="qchat" class="qchat" role="dialog" aria-label="Quick chat" hidden>
+  <header class="qc-head">
+    <button type="button" class="qc-hbtn" data-qc-hist aria-haspopup="true" aria-expanded="false" aria-controls="qc-hist" aria-label="Chat history" title="Chat history"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg></button>
+    <strong class="qc-t" title="New conversation"><span class="qc-tt">New conversation</span></strong>
+    <button type="button" class="qc-new small" title="Start a new conversation">New</button>
+    <button type="button" class="qc-max small" aria-pressed="false" title="Expand to a full chat window">Expand</button>
+    <button type="button" class="qc-x small" aria-label="Close quick chat" title="Close (Esc)">&times;</button>
+  </header>
+  <div class="qc-hist pop" id="qc-hist" hidden>
+    <input class="qc-hsearch" type="search" placeholder="Search history" aria-label="Search chat history">
+    <div class="qc-hlist" data-qc-list></div>
+    <div class="qc-hfoot"><a href="#" data-qc-expand>Open history in the full window</a></div>
+  </div>
+  <div class="qc-body">
+    <aside class="qc-side" aria-label="Chat history">
+      <input class="qc-hsearch" type="search" placeholder="Search history" aria-label="Search chat history">
+      <div class="qc-hlist" data-qc-list></div>
+    </aside>
+    <div class="qc-main">
+      <div class="qc-log" role="log" aria-live="polite"><p class="qc-empty muted small">Ask anything. This conversation is saved to history after the first answer.</p></div>
+      <p class="qc-gone" hidden>This session is gone from <code>~/.claude</code> (Claude deletes transcripts after 30 days). You can still read it here; sending starts a new session with the same settings.</p>
+      <p class="qc-note muted small"></p>
+      <div class="qc-foot">
+        {% from "_composer_macros.html" import composer, send_keys with context %}{% set sk = send_keys() | string %}
+        {{ composer("qchat", action="/qchat/send", send="stream", flow=true, features=["attach", "paste", "stop"], draft_key="qchat", maxlength=8000, slash=[], label="Quick chat message",
+                    placeholder=("Message (" ~ (sk ~ " sends, Shift+Enter newline" if sk == "Enter" else sk ~ " sends, Enter newline") ~ ")", "Message")) }}
+        <div class="qc-mrow">
+          <label class="muted small" for="qc-model">Model</label>
+          <select id="qc-model" class="qc-model" title="Model"><option value="">default</option></select>
+          <span class="qc-sep" aria-hidden="true">|</span>
+          <label class="muted small" for="qc-tools">Tools</label>
+          <select id="qc-tools" class="qc-sel" title="Tools profile for this conversation"><option value="none">none</option></select>
+          <span class="qc-fold" hidden><span class="qc-sep" aria-hidden="true">|</span>
+          <label class="muted small" for="qc-dir">Folder</label>
+          <select id="qc-dir" class="qc-sel" title="Working folder (fixed once the conversation starts)"></select></span>
+          <span class="qc-sep" aria-hidden="true">|</span>
+          <span class="qc-mcp qc-mcps"><button type="button" class="qc-mcpbtn" aria-haspopup="true" aria-expanded="false" title="MCP servers for this conversation">MCP<span class="qc-mcpn">0</span> <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="qc-mcppop pop" hidden></div></span>
+          <span class="qc-sep" aria-hidden="true">|</span>
+          <span class="qc-mcp qc-skl"><button type="button" class="qc-mcpbtn" aria-haspopup="true" aria-expanded="false" title="Skills for this conversation (type / in the message to use one)">Skills<span class="qc-mcpn">0</span> <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="qc-mcppop pop" hidden></div></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="qc-rmenu pop" role="menu" aria-label="Conversation" hidden><button type="button" class="pop-item" role="menuitem" data-qc-act="rename">Rename</button><button type="button" class="pop-item" role="menuitem" data-qc-act="copy">Copy as Markdown</button><button type="button" class="pop-item danger" role="menuitem" data-qc-act="delete">Delete</button></div>
+</section>
+{% endif %}
+{% if not embed %}{% from "_popup.html" import dialog, dlg_foot %}{% call dialog("stop-dialog", "Stop ALL agents?") %}
+  <p class="small muted">Sends Esc then Ctrl-C to every agent on this host. Stops current work; does not kill sessions or close tmux windows. Unsaved prompts may be lost.</p>
+  <form method="post" action="/panic" hx-post="/panic" hx-target="#flash" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="scope" value="all">
+    <label class="small pmdlg-in">Type PANIC to confirm <input name="confirm" autocomplete="off" autocapitalize="characters" pattern="PANIC" required></label>
+    {% call dlg_foot() %}<button type="submit" class="small danger">Stop all agents</button>{% endcall %}
+  </form>
+{% endcall %}
+{% endif %}
+{% if not embed %}<dialog id="palette" class="pmdlg pal" aria-label="Command palette">
+  <input class="pal-in" type="text" placeholder="Type a command" aria-label="Command" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="pal-list">
+  <ul class="pal-list" id="pal-list" role="listbox" aria-label="Commands"></ul>
+  <p class="pal-empty muted small" hidden>No matching command.</p>
+  <p class="pal-hint muted small">Up/Down, Enter runs, Esc closes</p>
+</dialog>
+{% endif %}
+{% block flash %}<div id="flash" class="flash" role="status" aria-live="polite"></div>{% endblock %}
+<nav class="tabbar" aria-label="Main">
+  {%- for i in NAV if i.tab is not none %}{% set on = nav == i.key %}
+  <a href="{{ i.href }}" class="{{ i.tab ~ ' ' if i.tab }}{{ 'on' if on }}"{% if on %} aria-current="page"{% endif %}>{{ i.label }}{% if i.badge == "inbox" %}<span class="tabbadge" data-inbox-badge hidden></span>{% endif %}</a>
+  {%- endfor %}
+  <button type="button" class="tabmore{{ ' on' if nav in NAV | selectattr('more') | map(attribute='key') | list }}" aria-haspopup="true" aria-expanded="false" aria-controls="moresheet">More&hellip;</button>
+  <div id="moresheet" class="moresheet pop" role="menu" aria-label="More" data-sheet hidden>
+    {%- for i in NAV if i.more %}
+    <a class="pop-item" href="{{ i.href }}" role="menuitem"{% if nav == i.key %} aria-current="page"{% endif %}>{{ i.label }}</a>
+    {%- endfor %}
+    <form method="post" action="/logout"><button type="submit" class="pop-item danger" role="menuitem">Log out</button></form>
+  </div>
+</nav>
+</body>
+</html>

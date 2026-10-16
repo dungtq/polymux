@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Fake virsh for tests: logs argv to $FAKE_VIRSH_LOG; state in $FAKE_VIRSH_STATE (json: name->state)."""
+import json, os, sys
+a = sys.argv[1:]
+open(os.environ["FAKE_VIRSH_LOG"], "a").write(json.dumps(a) + "\n")
+st_path = os.environ["FAKE_VIRSH_STATE"]
+st = json.load(open(st_path))
+if a[:2] == ["-r", "-c"]:
+    a = a[3:]
+elif a[:1] == ["-c"]:
+    a = a[2:]
+    if a[0] in ("start", "shutdown", "destroy", "undefine"):
+        if os.environ.get("FAKE_VIRSH_FAIL"):
+            print("error: boom"); sys.exit(1)
+        n = a[-1]
+        st[n] = {"start": "running", "shutdown": "running", "destroy": "shut off"}.get(a[0], "x")
+        if a[0] == "undefine": del st[n]
+        json.dump(st, open(st_path, "w")); sys.exit(0)
+    if a[0] == "vol-delete":
+        print("vol deleted"); sys.exit(0)
+c = a[0]
+if c == "list":
+    print("\n".join(st)); print()
+elif c == "domstate":
+    print(st[a[-1]]); print()
+elif c == "dominfo":
+    n = a[-1]
+    print(f"Id: -\nName: {n}\nState: {st[n]}\nCPU(s): 2\nMax memory: 2097152 KiB\nPersistent: yes\nAutostart: disable")
+elif c == "domblklist":
+    n = a[-1]
+    print(" Type Device Target Source\n------\n file disk vda /var/lib/libvirt/images/%s.qcow2\n" % n)
+elif c == "domblkinfo":
+    print(" Target Capacity Allocation Physical\n-----\n vda 21474836480 1073741824 1073741824\n")
+elif c == "pool-info":
+    print("Name: images\nCapacity: 100.00 GiB\nAllocation: 40.00 GiB\nAvailable: 60.00 GiB")
+elif c == "vol-list":
+    print(" Name Path Type Capacity Allocation\n-----")
+    for n in st:
+        print(f" {n}.qcow2 /var/lib/libvirt/images/{n}.qcow2 file 20.00 GiB 1.00 GiB")
+    print(" orphan.qcow2 /var/lib/libvirt/images/orphan.qcow2 file 5.00 GiB 2.00 GiB")
+    print(" base.qcow2 /var/lib/libvirt/images/base.qcow2 file 5.00 GiB 2.00 GiB")
+    print(" templates /var/lib/libvirt/images/templates dir 0 bytes 0 bytes")
+elif c == "vol-dumpxml":
+    if "alpha.qcow2" in a:
+        print("<volume><backingStore><path>/var/lib/libvirt/images/base.qcow2</path></backingStore></volume>")
+    else:
+        print("<volume></volume>")
+else:
+    sys.exit(2)

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Plans - {{ project.name }}{% endblock %}
+{% block flash %}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/plans.css">
+<div class="pg-project pg-plans">
+<h1{% if embed %} class="sr-only"{% endif %}>Plans <span class="muted small">{{ items | length }} in <a href="{{ base }}"{% if embed %} target="_top"{% endif %}>{{ project.name }}</a></span></h1>
+<p class="small muted pl-src">Agent plan folders (<span class="mono">~/.claude/plans</span>, <span class="mono">~/.cursor/plans</span>) are listed when a plan mentions <span class="mono">{{ project.path }}</span>, plus <span class="mono">{{ project.path }}/plans/</span> and the project's own <span class="mono">PLAN.md</span> (read-only).
+{% if show_all %}Showing all agent plans. <a href="{{ base }}/plans{{ "?embed=1" if embed }}">Only this project</a>{% else %}<a href="{{ base }}/plans?all=1{{ "&embed=1" if embed }}">Show all agent plans</a>{% endif %}</p>
+{% if error %}<p class="pl-err" role="alert">{{ error }}</p>{% endif %}
+{% if notice %}<p class="pl-ok small" role="status">Plan {{ notice }}.</p>{% endif %}
+<div class="lhead pl-row" aria-hidden="true"><span class="pl-n">Name</span><span class="pl-l">Location</span><span class="pl-s">Size</span><span class="pl-a">Modified</span></div>
+<div class="list pl-list" role="list">
+{% for p in items %}
+  <a class="lrow pl-row" href="{{ base }}/plans/{{ p.name | urlencode }}{% if p.src != 'project' %}?src={{ p.src }}{{ '&embed=1' if embed }}{% elif embed %}?embed=1{% endif %}" title="{{ p.label }}: {{ p.name }}.md - {{ p.mtime | ts }}">
+    <span class="pl-n mono">{{ p.name }}.md</span>
+    <span class="pl-l muted">{{ p.label }}</span>
+    <span class="pl-s muted">{{ (p.size / 1024) | round(1) }} KB</span>
+    <span class="pl-a muted">{{ p.mtime | ago }}</span>
+  </a>
+{% else %}
+  <p class="muted pl-empty">No plans yet. Create one below.</p>
+{% endfor %}
+</div>
+<h2 id="new">New plan</h2>
+<form class="pl-form" method="post" action="{{ base }}/plans/new">
+  <input type="hidden" name="csrf" value="{{ csrf }}">{% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+  <label class="small muted" for="pl-src">Location</label>
+  <select id="pl-src" name="src">{% for k, v in sources.items() if k not in ('claude-project', 'root') %}<option value="{{ k }}"{% if k == form_src %} selected{% endif %}>{{ v }}{% if k == 'claude' %} (~/.claude/plans){% elif k == 'cursor' %} (~/.cursor/plans){% else %} ({{ project.name }}/plans){% endif %}</option>{% endfor %}</select>
+  <label class="small muted" for="pl-name">Name (letters, digits, . _ -; saved with .md; agent folders get a hidden project comment)</label>
+  <input id="pl-name" name="name" value="{{ form_name }}" maxlength="68" required autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. auth-rework">
+  <label class="small muted" for="pl-text">Markdown (max {{ max_kb }} KB)</label>
+  <textarea id="pl-text" name="text" rows="12" spellcheck="false" aria-label="Plan text">{{ form_text }}</textarea>
+  <div><button type="submit" class="primary">Create plan</button></div>
+</form>
+</div>
+{% endblock %}

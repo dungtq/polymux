@@ -1,0 +1,32 @@
+{#- dt Backlog dialogs for issues (DESIGN.md §6.11, layers.js pm7.dialog), outside the swapped component so a live
+    refresh never closes them. Included by backlog/_page.html and project/_tab_issues.html (once per page).
+    - dialog#bl-add: Add issue, a real form: Project (filled by js/backlog.js from the opener's component,
+      data-bl-projects; hidden when the component is scoped to one project), Title, Details (Markdown), images. Submit
+      (js/backlog.js): each image goes to POST /p/{n}/image (field image) first, then POST /p/{n}/issues (title, body,
+      images = the stored paths, one per line); the toast comes after the server said OK, errors stay in the form.
+    - dialog#bl-rd: the issue reader. Its frame keeps a fixed head (#N and the project, filled by js/backlog-reader.js
+      from the opener; Close, focused on open) above the scrolling body, so it can always be closed (loading, a load
+      error, the phone's full-screen dialog); the body is GET /p/{n}/issues/{num} (the dt _issue_detail.html =
+      backlog/_issue_reader.html, no Close of its own), loaded into [data-bl-rdbody] on open and after an action. -#}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+<dialog id="bl-add" class="x-dlg bl-dlg" aria-labelledby="bl-add-t">
+<form class="bl-f" data-bl-addform novalidate>
+  <div class="x-dh"><h2 id="bl-add-t">Add issue</h2><span class="sp"></span>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}x"/></svg></button></div>
+  <label class="bl-fl" data-bl-fprow><span>Project</span><select class="sel" name="project" data-bl-fproj required></select></label>
+  <label class="bl-fl"><span>Title</span><input class="x-in" type="text" name="title" maxlength="500" required autocomplete="off" spellcheck="true" placeholder="What is wrong or missing, in one line"></label>
+  <label class="bl-fl"><span>Details <span class="muted">(Markdown, optional)</span></span><textarea class="bl-ta" name="body" rows="6" placeholder="Steps, expected and actual result, links"></textarea></label>
+  <div class="bl-fl"><span>Images <span class="muted">(png, jpg, gif, webp; optional)</span></span>
+    <span class="bl-pickrow"><button class="x-btn sm" type="button" data-bl-pick><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}img"/></svg>Attach images</button><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-bl-files hidden>
+    <span class="bl-chips" data-bl-chips aria-live="polite"></span></span></div>
+  <p class="bl-alert" role="alert" data-bl-ferr hidden></p>
+  <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit" data-bl-fok>Add issue</button></div>
+</form>
+</dialog>
+<dialog id="bl-rd" class="x-dlg bl-dlg bl-rdd" aria-labelledby="bl-rd-h bl-rd-t" aria-describedby="bl-rd-m">
+<div class="x-dh bl-rdf">
+  <span class="bl-rdh" id="bl-rd-h"><span class="mono muted" data-bl-rdno>Issue</span><span class="chip" hidden><span class="ell" data-bl-rdp></span></span></span>
+  <span class="sp"></span>
+  <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}x"/></svg></button></div>
+<div class="bl-rdb" data-bl-rdbody><p class="muted" id="bl-rd-m">Loading…</p></div>
+</dialog>

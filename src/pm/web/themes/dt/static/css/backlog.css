@@ -1,0 +1,155 @@
+/* dt Backlog (PRD.md §6.5, LAYOUT.md §5; prefix bl-): the Issues and TODO tables' column templates and the
+   Backlog's own cell looks, the bulk bar, the tick, the section bands, the dialogs (Add issue, Add task, the issue
+   reader). Markup: templates/backlog/*.html, _issue_detail.html, project/_tab_{issues,todo}.html; parts: parts.css,
+   table.css, layers.css. Tokens only. Names avoid the classic backlog.css ones (.bl-item .bl-box .bl-seg
+   .bl-group .bl-err .bl-card .bl-head .bl-add .bl-text .bl-md .bl-num .bl-body ...), which _classic.html still loads.
+   Columns (one track per cell, in cell order):
+     issues        select · dot · # · title · notes/images · age · actions        (Group: none adds project after title)
+     TODO          tick · task · # · actions   (Group: none adds project · section; .bl-nonum: no # column)
+   .hide-n (notes, project) drops at a page column <= 760px (table.css). */
+
+/* ---------- column templates ---------- */
+.bl-iss{--g-cols:var(--icon-sm) var(--dot) auto minmax(0,1fr) auto auto auto;
+  --g-cols-n:var(--icon-sm) var(--dot) auto minmax(0,1fr) auto auto}
+.bl-iss.bl-flat{--g-cols:var(--icon-sm) var(--dot) auto minmax(0,1fr) fit-content(10rem) auto auto auto}
+.bl-td{--g-cols:var(--icon-sm) minmax(0,1fr) auto auto}
+.bl-td.bl-flat{--g-cols:var(--icon-sm) minmax(0,1fr) fit-content(16rem) auto auto;
+  --g-cols-n:var(--icon-sm) minmax(0,1fr) auto auto}
+/* no task has a tracker number (TODO.md items): no "#" column */
+.bl-td.bl-nonum{--g-cols:var(--icon-sm) minmax(0,1fr) auto}
+.bl-td.bl-flat.bl-nonum{--g-cols:var(--icon-sm) minmax(0,1fr) fit-content(16rem) auto;
+  --g-cols-n:var(--icon-sm) minmax(0,1fr) auto}
+
+/* ---------- controls row: the two selects stay together at the right ---------- */
+.bl-sels{display:flex;gap:var(--s2);min-width:0}
+.bl-sels select.sel{max-width:var(--field-w)}
+.bl-alert{margin:var(--s2) 0 0;color:var(--failed);font-size:var(--fs-ui)}
+.bl-c>.bl-alert{margin:0 0 var(--s3)}
+.bl-load{margin:0;color:var(--muted);font-size:var(--fs-ui)}
+
+/* ---------- cells ---------- */
+.p-gr input.bl-ck{display:block;width:var(--icon-sm);height:var(--icon-sm);min-height:0;margin:0;padding:0;
+  accent-color:var(--accent);cursor:pointer}
+.bl-ckc{display:flex;align-items:center;margin:0;cursor:pointer}
+.p-gr.bl-on,.p-gr.bl-on:hover{background:var(--accent-soft)}
+.bl-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400}
+.bl-t code{padding:0 var(--s1);border-radius:var(--r-xs);background:var(--subtle);font-family:var(--font-mono);
+  font-size:var(--fs-s)}
+.bl-done .bl-t{color:var(--muted)}
+.bl-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.bl-a{display:inline-flex;align-items:center;gap:var(--s1);margin-right:var(--s2);color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.bl-a svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+
+/* TODO tick: a 16px box (green when done); a --hit (44px) hit area on touch */
+.p-gr button.bl-tick{position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:var(--icon-sm);height:var(--icon-sm);min-width:0;min-height:0;margin:0;padding:0;
+  border:1px solid var(--ctl-line);border-radius:var(--r-xs);background:var(--page);color:var(--on-accent);
+  box-shadow:none;cursor:pointer}
+.p-gr button.bl-tick:hover{border-color:var(--btn-green)}
+.p-gr button.bl-tick.on{background:var(--btn-green);border-color:var(--btn-green)}
+.p-gr button.bl-tick svg.i{width:var(--icon-xs);height:var(--icon-xs);stroke-width:2.4}
+.p-gr button.bl-tick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* touch: the tick and the select box get a --hit (44px) target around them (their cells let it out) */
+@media (pointer:coarse){
+  .p-gr>:is(.bl-tickc,.bl-ckc){position:relative;overflow:visible}
+  .p-gr button.bl-tick::after{content:"";position:absolute;inset:calc((var(--icon-sm) - var(--hit)) / 2)}
+  .p-gr>.bl-ckc::after{content:"";position:absolute;top:50%;left:50%;width:var(--hit);height:var(--hit);
+    transform:translate(-50%,-50%)}
+}
+
+/* section bands inside a project band (TODO): lighter than the project band, indented */
+.p-grp.bl-sec{background:var(--page)}
+.p-grp.bl-sec .p-fold{padding-left:calc(var(--s3) + var(--s4));color:var(--colh);font-size:var(--fs-s);font-weight:500}
+.bl-c[data-bl-scope=project] .p-grp.bl-sec .p-fold{padding-left:var(--s3)}
+
+/* ---------- bulk bar (selected issues) ---------- */
+.bl-bulk{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);min-height:var(--row-h);margin:0 0 var(--s2);
+  padding:var(--s1) var(--s1) var(--s1) var(--s3);border:1px solid var(--line);border-radius:var(--r);
+  background:var(--subtle);font-size:var(--fs-ui)}
+.bl-bn{font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---------- dialogs: Add issue, Add task (form width, DESIGN §6.11), the issue reader ---------- */
+.x-dlg.bl-dlg{width:min(var(--pal-w),calc(100vw - var(--s6)));margin:10vh auto auto;overflow:auto}
+.bl-f{display:flex;flex-direction:column}
+.bl-fl{display:flex;flex-direction:column;gap:var(--s1);margin-top:var(--s3);font-size:var(--fs-ui);font-weight:500}
+.bl-fl .muted{font-weight:400}
+.bl-dlg .bl-f input:not([type=hidden]){margin-top:0;font-family:var(--font-ui)}
+.bl-dlg .bl-f input.mono{font-family:var(--font-mono);font-size:var(--fs-s);color:var(--muted)}
+.bl-f select.sel{width:100%}
+.bl-ta{display:block;width:100%;min-height:calc(2 * var(--row-h));padding:var(--s2);border:1px solid var(--ctl-line);
+  border-radius:var(--r);background:var(--page);color:var(--fg);font:inherit;font-size:var(--fs-in);font-weight:400;
+  resize:vertical;box-shadow:none}
+.bl-ta:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
+.bl-pickrow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2)}
+.bl-chips{display:flex;flex-wrap:wrap;gap:var(--s1)}
+.bl-note{margin:0;color:var(--muted);font-size:var(--fs-ui)}
+.bl-tfall{margin-top:var(--s3)}
+
+/* reader: a fixed head (#N, project, Close) over the body, which scrolls on its own (edge to edge, so focus rings
+   near its sides are not clipped) */
+.x-dlg.bl-rdd{max-height:calc(90dvh - var(--s6))}
+.x-dlg.bl-rdd[open]{display:flex;flex-direction:column;overflow:hidden}
+.bl-rdf{flex:0 0 auto;min-width:0;margin:0}
+.bl-rdh{display:flex;align-items:center;gap:var(--s2);min-width:0}
+.bl-rdh>.chip{min-width:0}
+.bl-rdb{flex:1 1 auto;min-height:0;margin:0 calc(-1 * var(--s4)) calc(-1 * var(--s4));
+  padding:var(--s1) var(--s4) var(--s4);overflow:auto;overscroll-behavior:contain}
+.bl-rdb>.muted,.bl-rdb>.bl-alert{margin:var(--s2) 0 0}
+.bl-st.bl-ok{border-color:var(--ok-fg);color:var(--ok-fg)}
+.x-dlg h2.bl-rdt{margin:var(--s2) 0 var(--s1);overflow-wrap:anywhere}
+.bl-rdt code,.bl-prose code{padding:0 var(--s1);border-radius:var(--r-xs);background:var(--subtle);
+  font-family:var(--font-mono);font-size:var(--fs-s)}
+.bl-rdm{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);margin:0 0 var(--s3);color:var(--muted);
+  font-size:var(--fs-ui)}
+.bl-rda{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0 0 var(--s3)}
+.bl-send{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s3);margin:0 0 var(--s3);
+  font-size:var(--fs-ui)}
+.bl-send a{display:inline-flex;align-items:center;gap:var(--s1)}
+.bl-prose{font-size:var(--fs-m);overflow-wrap:anywhere}
+.bl-prose>:first-child{margin-top:0}
+.bl-prose>:last-child{margin-bottom:0}
+.bl-prose :is(p,ul,ol,pre,blockquote,table){margin:0 0 var(--s2)}
+.bl-prose :is(ul,ol){padding-left:var(--s5)}
+.bl-prose pre{padding:var(--s2);overflow:auto;border-radius:var(--r);background:var(--subtle);font-size:var(--fs-s)}
+.bl-prose pre code{padding:0;background:none}
+.bl-prose img{max-width:100%;height:auto}
+.bl-prose blockquote{padding-left:var(--s3);border-left:2px solid var(--line);color:var(--muted)}
+.bl-rdimg{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0 0}
+.bl-rdimg a{display:block;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bl-rdimg img{display:block;width:calc(4 * var(--row-h));height:calc(3 * var(--row-h));object-fit:cover}
+.bl-nh{margin:var(--s4) 0 var(--s1);font-size:var(--fs-m);font-weight:600}
+.bl-nh .muted{font-weight:400}
+.bl-notes{margin:0;padding:0;list-style:none}
+.bl-notes>li{padding:var(--s2) 0;border-top:1px solid var(--line2)}
+.bl-nm{margin:0 0 var(--s1);font-size:var(--fs-ui)}
+.bl-nm b{font-weight:500}
+.bl-notef .ft{margin-top:var(--s2)}
+.bl-rd>.bl-alert{margin:0 0 var(--s3)}
+.bl-editf{margin:0 0 var(--s3)}
+.bl-editf>.bl-fl:first-child{margin-top:0}
+.bl-editf .bl-ta{min-height:calc(6 * var(--row-h))}
+.bl-editf .ft{margin-top:var(--s3)}
+.bl-notef .bl-ta{margin-top:var(--s2)}
+
+/* ---------- phone (< 700px) ---------- */
+@media (max-width:699px){
+  .bl-sels{flex:1 1 100%}
+  .bl-sels select.sel{flex:1 1 0;min-width:0;max-width:none}
+  .p-gr>.bl-ckc{display:none}
+  .bl-bulk{margin:0 calc(-1 * var(--s4)) var(--s2);border-right:0;border-left:0;border-radius:0}
+  .bl-bulk .x-btn.sm{height:var(--ib);font-size:var(--fs-m)}
+  /* selecting (a checkbox, ⋯ Select or X): the checkbox takes the dot's place on line 1 and 2 */
+  .bl-selmode .p-g .p-gr{grid-template-columns:var(--icon) minmax(0,1fr) auto auto}
+  .bl-selmode .p-gr>.bl-ckc{display:flex;grid-area:1/1/3/2;align-self:center}
+  .bl-selmode .p-gr>.gc-dot{display:none}
+  .bl-selmode .p-gr input.bl-ck{width:var(--icon);height:var(--icon)}
+  /* TODO: the tick sits where the dot is, over both lines */
+  .bl-td .p-gr{grid-template-columns:var(--icon-sm) minmax(0,1fr) auto auto}
+  .bl-td .p-gr>.gc-dot{grid-area:1/1/3/2;align-self:center}
+  .bl-td .p-gr>.gc-end:empty{display:none}
+  .p-grp.bl-sec .p-fold{padding-left:var(--s5)}
+  .x-dlg.bl-dlg{width:100vw;height:100dvh;max-height:none;margin:0;border:0;border-radius:0;
+    padding-top:calc(var(--s4) + env(safe-area-inset-top))}
+  .bl-rdb{padding-bottom:calc(var(--s4) + env(safe-area-inset-bottom))}
+}

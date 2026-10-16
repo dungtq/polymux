@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_head %}
+{% from "_filterbox.html" import filterbox %}
+{% from "_limitbar.html" import showsel %}
+{% block title %}ntfy{% endblock %}
+{% block content %}
+{% call page_head("ntfy", stats, short=true) %}<span class="head-actions"><form class="inline" id="ntfy-markread" method="post" action="/inbox/read-all" hx-post="/inbox/read-all" hx-swap="none" hidden><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="ntfy-mark">Mark all read</button></form></span>{% endcall %}
+<div class="filterbar" id="ntfy-tools-all" role="search" data-keep hx-preserve="true">
+  {{ filterbox() }}
+  {{ showsel([{"key": "10", "label": "10", "active": true}, {"key": "20", "label": "20", "active": false}, {"key": "50", "label": "50", "active": false}, {"key": "all", "label": "All", "active": false}], "ntfy-n") }}
+</div>
+<section id="ntfy-all" class="ntfy-panel" data-nodiff data-keep hx-get="/ntfy/panel?scope=all" hx-trigger="every 15s, pm:refresh from:document" hx-swap="innerHTML" aria-live="polite">{{ ntfy_html|safe }}</section>
+{% endblock %}

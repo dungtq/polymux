@@ -1,0 +1,24 @@
+{#- dt project view: the head (PRD §6.4, LAYOUT.md §4 step 1, DESIGN §6.2): the project name (h1), the stats line
+    (path · agents · running · need you · branch and git summary) and the actions Launch agent (the one green), Git ▾,
+    Restart stack (a compose stack only), Stop agents (red, typed PANIC). Built from parts/_head.html; the actions come
+    from the view model (ProjectView.actions: href / attrs only). Before it, the project sidebar button (.pj-nbtn,
+    shown when the sidebar is collapsed or off-canvas: [data-pj-navo] in js/project.js).
+    Behaviour (js/project.js): [data-pj-launch] opens pm7.launch.open({project}) when the Launch dialog is there (else
+    the link: /p/<name>/launch); [data-pj-git] is a ⋯-style trigger (data-menu, js/parts.js) whose items fire pj:git;
+    [data-pj-restart] and [data-pj-stop] confirm in the page, then post; [data-pj-settings] opens the project settings
+    in the reader aside (js/pjsettings.js). Under the head, the links row (ProjectView.links): linked projects (their
+    Files tab) and the plugins' project links (ext_groups: external links from plugins; a new browser tab). -#}
+{%- import "parts/_head.html" as ph -%}
+<div class="pj-hrow">
+  <button class="x-ib pj-nbtn" type="button" data-pj-navo aria-controls="pj-nav" aria-label="Show the project sidebar" title="Show the project sidebar" data-k-title="mod+shift+B"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#side-l"/></svg></button>
+  {{ ph.head(v.name, stats=v.stats, actions=v.actions, id="pj-head", cls="pj-head") }}
+</div>
+{%- if v.links %}
+<div class="pj-links" role="group" aria-label="Links of {{ v.name }}">
+  {%- for g in v.links %}
+  <span class="pj-lg"><span class="pj-lgt">{{ g.title }}</span>
+    {%- for l in g.links %}<a class="chip" href="{{ l.url }}" title="{{ l.desc }}"{% if l.ext %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ l.label }}{% if l.ext %}<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#open"/></svg><span class="vh"> (new tab)</span>{% endif %}</a>{% endfor -%}
+  </span>
+  {%- endfor %}
+</div>
+{%- endif %}

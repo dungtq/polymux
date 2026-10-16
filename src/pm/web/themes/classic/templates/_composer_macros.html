@@ -1,0 +1,252 @@
+{# The one composer (docs/UI-GLOSSARY.md "composer"). Look: static/css/composer.css. Behaviour: static/js/composer.js (input,
+   send key, draft, history, autosize, Send/Stop) + composer-dock.js (phone dock) + composer-attach.js + the plugins
+   (chat-send.js transport, slash.js, atfiles.js, snippets.js, modelpick.js, issue-save.js). base.html loads composer.js,
+   composer-attach.js and slash.js on every page (quick chat); composer_scripts(mode) the agent composers' rest.
+
+   composer(mode, action="", field="text", features=none, draft_key=none, send="", flow=none, label="", rec=none, placeholder=none,
+            maxlength=4000, upload="", atfiles="", slash=none)
+     mode      live | builder | ended (an agent in context) | qchat | launch | continue (no agent: never reads `agent`).
+               The defaults below follow it.
+     action    POST URL of the form (live/builder: /a/<id>/message; ended: /a/<id>/resume, or /fork without a session id;
+               qchat: /qchat/send). Launch renders no form of its own: the box sits inside the Launch form and posts with it.
+     field     name of the textarea
+     features  what the box shows: keys attach paste aside snippets model stats actions notices hint stop exit
+               (agent-free modes: attach paste stop only; default none)
+     draft_key pm.store key suffix of the unsent text ("pm.draft:<key>"); "" = no draft (default for agent-free modes)
+     send      transport: "htmx" (chat-send.js: outbox bubble), "form" (the form's own post; the box clears on success),
+               "stream" (quick chat: qchat.js reads the form's submit and streams the answer itself), "dialog" (Continue: the
+               popup's Start button, through pm.composer.init(root, {onSend}); its [data-cmp-form] is a div, never posted)
+     flow      true: in the page flow (.composer--flow: Builder, quick chat, Launch, Continue); false: fixed bar at the bottom
+     rec       ended mode: the registry record (resume_id, kind, project)
+     placeholder (full, short) text of the box; default: the agent's "Message to <model> in <window>" (live/builder)
+     upload    upload URL of attachments (default /a/<id>/image; Launch: /p/<name>/image). An agent-free composer with
+               'attach' and no upload reads text files into the message instead (data-attach="inline": quick chat)
+     atfiles   @ file listing URL (default /a/<id>/atfiles); slash: the / command list (default the agent's catalog)
+   Send key: Settings > Composer, except Launch and Continue: always Ctrl/Cmd+Enter (Enter is a newline; a stray Enter must
+   never launch an agent or start a chat).
+   Root contract (no ids needed by the JS): <section class="composer composer--dock|--flow [composer--ended]"
+     data-composer=<mode> data-send-key="enter|mod-enter" data-draft-key data-send data-agent data-state data-upload
+     data-attach data-paste-lines data-slash data-slash-at data-atfiles>, hooks [data-cmp-form] [data-cmp-input]
+     [data-cmp-send] [data-cmp-alt] [data-cmp-bar] [data-cmp-chips] [data-cmp-hint] [data-cmp-flash] [data-cmp-slash-card]
+     [data-cmp-reload] [data-cmp-upload] [data-cmp-file] [data-cmp-stop]. Composer forms answer into [data-cmp-flash]
+     (composer.js keeps it to their own root). No ids: tests/test_agent_registry.py (an ended page has no /message,
+     /key, /interrupt, /stop or /pane) checks the URLs. #}
+{% from "_macros.html" import agent_text with context %}
+{% set RESUMABLE = ['claude', 'codex', 'devin', 'cursor-agent', 'antigravity', 'agy'] %}
+
+{# the composer's icons, one place #}
+{% macro cbar_icon(kind) -%}
+{%- set p = {
+  'keys': '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M7 15h10"/>',
+  'attach': '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',
+  'paste': '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 17 2.5-3 2 2.5L15 15l2 2"/>',
+  'aside': '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M12 9v6M9 12h6"/>',
+  'send': '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  'stop': '<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>',
+  'caret': '<path d="m6 15 6-6 6 6"/>',
+} -%}
+{%- set small = kind == 'caret' -%}
+<svg class="ci-{{ kind }}" viewBox="0 0 24 24" width="{{ 14 if small else 20 }}" height="{{ 14 if small else 20 }}" fill="none" stroke="currentColor" stroke-width="{{ '2.6' if small else ('2.4' if kind == 'send' else '2') }}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ p[kind] | safe }}</svg>
+{%- endmacro %}
+
+{# "Enter" or "Ctrl+Enter": what sends, for titles and placeholders (Settings > Composer) #}
+{% macro send_keys() %}{{ "Ctrl+Enter" if (composer_send_key() if composer_send_key is defined else "enter") == "mod-enter" else "Enter" }}{% endmacro %}
+
+{# one icon button of the bar: label = aria-label = title = tooltip; the call block adds its data attributes #}
+{% macro cicon(kind, label, tip="") -%}
+<button type="button" class="cicon tip" {{ caller() if caller }} aria-label="{{ label }}" title="{{ label }}" data-tip="{{ tip or label }}">{{ cbar_icon(kind) }}</button>
+{%- endmacro %}
+
+{# Send (green square; becomes Stop while the agent / the answer runs and the box is empty) + the snippets caret #}
+{% macro send_split(stop, snip=true, stop_title="Interrupt agent (sends Ctrl-C, then Esc)") -%}
+{%- set t = "Send message (" ~ send_keys() ~ ")" -%}
+{%- set b %}<button type="submit" class="csend tip tip-r" data-cmp-send aria-label="{{ t }}" title="{{ t }}" data-tip="{{ t }}"{% if stop %} data-stop-title="{{ stop_title }}"{% endif %}>{{ cbar_icon('send') }}{% if stop %}{{ cbar_icon('stop') }}{% endif %}</button>{% endset -%}
+{% if snip %}<span class="snipwrap csplit">{{ b }}<button type="button" class="csend-more tip tip-r" data-snip aria-haspopup="menu" aria-expanded="false" aria-label="Snippets: insert canned text, or save the message as an issue (not sent)" title="Snippets: insert canned text, or save the message as an issue (not sent)" data-tip="Snippets, Save as issue (not sent)">{{ cbar_icon('caret') }}</button><div class="snipmenu pop" role="menu" aria-label="Snippets" data-sheet hidden></div></span>{% else %}{{ b }}{% endif %}
+{%- endmacro %}
+
+{# one pill "<model> <effort>" -> menu: current model, Effort >, More models > (modelpick.js); items submit the two forms #}
+{% macro model_pill(base) -%}
+{% if models or efforts %}
+{% set dflt = model_is_default|default(false) %}
+{% set ns = namespace(row=none) %}
+{% for m in models %}{% if ns.row is none and cur_model and ((m[0] == cur_model) if dflt else (m[0] == cur_model or cur_model.startswith(m[0]) or m[0] in cur_model)) %}{% set ns.row = m %}{% endif %}{% endfor %}
+{% set chk %}<svg class="mp-ck" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>{% endset %}
+{% set chev %}<svg class="mp-ch" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg>{% endset %}
+<div class="modelbar mpick" data-mpick>
+  <button type="button" class="mp-pill" data-mp-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Model and effort ({{ agent_text(agent) }})" title="Switch the model or the reasoning effort of {{ agent_text(agent) }}"><span class="mp-m" data-mp-pill-m>{{ (cur_model | model_short) if cur_model else ("model" if models else "") }}</span>{% if efforts %} <span class="mp-e" data-mp-pill-e>{{ cur_effort or "default" }}</span>{% endif %}<svg class="mp-up" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 15 6-6 6 6"/></svg></button>
+  <div class="mp-menu pop" role="menu" aria-label="Model and effort" data-sheet hidden>
+    <div class="mp-panel" data-mp-panel="main">
+      {% if models %}<button type="button" class="mp-row mp-cur" role="menuitem" data-mp-close><span class="mp-t"><span class="mp-n" data-mp-cur-n>{{ (cur_model | model_short) if cur_model else "current model" }}</span><span class="mp-s muted" data-mp-cur-s>{{ (cur_model ~ (" (default)" if dflt else "")) if cur_model else "not known yet" }}</span></span>{{ chk }}</button>{% endif %}
+      {% if efforts %}<button type="button" class="mp-row" role="menuitem" aria-haspopup="menu" data-mp-go="effort"><span class="mp-n">Effort</span><span class="mp-v muted" data-mp-eff-v>{{ cur_effort or "default" }}</span>{{ chev }}</button>{% endif %}
+      {% if models %}<button type="button" class="mp-row" role="menuitem" aria-haspopup="menu" data-mp-go="models"><span class="mp-n">More models</span>{{ chev }}</button>{% endif %}
+    </div>
+    {% if efforts %}
+    <div class="mp-panel" data-mp-panel="effort" hidden>
+      <form method="post" action="{{ base }}/effort" hx-post="{{ base }}/effort" hx-target="[data-cmp-flash]" hx-swap="innerHTML">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="button" class="mp-row mp-back" role="menuitem" data-mp-back><span class="mp-n">Effort</span></button>
+        {% for e in efforts %}<button type="submit" name="effort" value="{{ e }}" class="mp-row" role="menuitemradio" aria-checked="{{ 'true' if e == cur_effort else 'false' }}" data-mp-label="{{ e }}"><span class="mp-n">{{ e }}{% if effort_is_default and e == cur_effort %} <span class="muted">(default)</span>{% endif %}</span>{{ chk }}</button>{% endfor %}
+      </form>
+    </div>
+    {% endif %}
+    {% if models %}
+    <div class="mp-panel" data-mp-panel="models" hidden>
+      <form method="post" action="{{ base }}/model" hx-post="{{ base }}/model" hx-target="[data-cmp-flash]" hx-swap="innerHTML">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="button" class="mp-row mp-back" role="menuitem" data-mp-back><span class="mp-n">More models</span></button>
+        <div class="mp-list">{% for m in models %}<button type="submit" name="model" value="{{ m[0] }}" class="mp-row" role="menuitemradio" aria-checked="{{ 'true' if ns.row is not none and m[0] == ns.row[0] else 'false' }}" data-mp-label="{{ m[0] | model_short }}" data-mp-sub="{{ m[0] }}"><span class="mp-t"><span class="mp-n">{{ m[1] }}</span>{% if m[0] != m[1] %}<span class="mp-s muted">{{ m[0] }}</span>{% endif %}</span>{{ chk }}</button>{% endfor %}</div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{%- endmacro %}
+
+{# Exit / Exit and kill window (opened by data-dlg-open="exit-dialog"; same markup as _popup.html dialog(), written out:
+   tests/test_exit_resume.py reads this source) #}
+{% macro exit_dialog(base) -%}
+<dialog id="exit-dialog" class="pmdlg" aria-labelledby="exit-dlg-title">
+  <div class="pmdlg-head"><p id="exit-dlg-title" class="pmdlg-title">Exit {{ agent_text(agent) }}?</p></div>
+  <p class="small muted">The session id is saved, so you can resume it from Ended sessions.</p>
+  <div class="pmdlg-opts">
+    <form method="post" action="{{ base }}/exit" data-transition="Exiting&hellip;" hx-post="{{ base }}/exit" hx-target="[data-cmp-flash]" hx-swap="innerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small danger" title="Send the quit command (/exit, /quit for codex) to the agent; the tmux window stays as it is">Exit</button>
+      <span class="small muted">Sends the quit command (/exit, /quit for codex); the tmux window stays.</span>
+    </form>
+    <form method="post" action="{{ base }}/exitkill" data-transition="Exiting&hellip;" hx-post="{{ base }}/exitkill" hx-target="[data-cmp-flash]" hx-swap="innerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small danger" title="Kill this agent's tmux pane (the window closes with its last pane); no graceful exit">Exit and kill window</button>
+      <span class="small muted">Kills the tmux pane at once, no graceful exit.</span>
+    </form>
+  </div>
+  <div class="pmdlg-foot"><button type="button" class="small" data-dlg-close autofocus>Cancel</button></div>
+</dialog>
+{%- endmacro %}
+
+{# above the box: slash command output, the inline notice line, the send hint, the pm reload notice #}
+{% macro notices(f, free=false) -%}
+{% if not free %}<div class="slash-card-wrap" data-cmp-slash-card aria-live="polite"></div>
+{% endif %}<div class="flash-inline" data-cmp-flash role="status" aria-live="polite"></div>
+{% if 'hint' in f %}<p class="send-hint" data-cmp-hint role="status" hidden><span class="sh-txt">Use the project skills / sub-agents for this task</span><label class="sh-off"><input type="checkbox" data-hint-off> hide this hint</label><button type="button" class="sh-x" data-hint-close aria-label="Dismiss hint">&times;</button></p>{% endif %}
+{% if 'notices' in f %}<div class="pmreload" data-cmp-reload role="status" aria-live="polite" data-served="{{ now_epoch() | int if now_epoch is defined else 0 }}" hidden>
+  <span class="pmr-t small"></span>
+  <button type="button" class="small pmr-act" hidden></button>
+  {% if agent.project == 'pm' %}<button type="button" class="small pmr-refresh" hidden>Refresh page</button>
+  {% if not dev_banner %}<form class="pmr-restart" method="post" action="/service/reload" hx-post="/service/reload" hx-swap="none" hx-confirm="Reload (restart) the pm service? The UI is unavailable for a few seconds." hidden><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small danger">Restart pm</button></form>{% endif %}{% endif %}
+</div>{% endif %}
+{%- endmacro %}
+
+{# token status + Builder / New Chat / Fork, right above the box #}
+{% macro stats_row(f, base, mode) -%}
+<div class="cstat">
+  {% if 'stats' in f %}<details id="chat-stats" class="tab-stats tokbar" hx-get="{{ base }}/stats" hx-trigger="load, every 6s, pm:agent_state from:document" hx-swap="innerHTML" data-nodiff></details>{% endif %}
+  {% if 'actions' in f %}<div class="agent-actions">
+    {% if mode == 'live' and (agent.cwd or project) %}<a class="button small bld-link" href="{{ base }}/builder"{% if embed %} target="_top"{% endif %} title="Chat and a live preview of this agent's project files">Builder</a>{% endif %}
+    {% if clear_cmd %}<form method="post" action="{{ base }}/newchat" data-newchat data-confirm="Send {{ clear_cmd }} to {{ agent.label or agent.id }} and clear its tmux history? The conversation context is dropped.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small danger" title="Send {{ clear_cmd }} to this agent and clear its tmux scrollback">New Chat</button>
+    </form>{% endif %}
+    {% if agent.kind in RESUMABLE %}<form method="post" action="{{ base }}/fork" hx-post="{{ base }}/fork" hx-target="[data-cmp-flash]" hx-swap="innerHTML" hx-confirm="Fork {{ agent_text(agent) }} into a new tmux window? The original is left untouched.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small" title="Fork this conversation into a new agent in a new tmux window (background, this chat stays open)">Fork</button>
+    </form>{% endif %}
+  </div>{% endif %}
+</div>
+{%- endmacro %}
+
+{# the bar under the text: icon buttons left, Send right. inline: text files go into the message (quick chat), not
+   uploaded; send=false: the page's own buttons send (Launch, Continue: `hint` names the key) #}
+{% macro live_bar(f, inline=false, send=true, hint="", stop_title="") -%}
+<div class="cbar" data-cmp-bar>
+  <div class="cbar-l">
+    {% if 'keys' in f %}{% call cicon('keys', 'Keys: show quick keys and the pane') %}data-keys aria-pressed="false"{% endcall %}{% endif %}
+    {% if 'attach' in f %}{% call cicon('attach', 'Add a text file (or drop one here)' if inline else 'Attach files (paths are added to the message)') %}data-attach{% endcall %}{% endif %}
+    {% if 'paste' in f and inline %}{% call cicon('paste', 'Paste text from the clipboard') %}data-paste-text{% endcall %}
+    {% elif 'paste' in f %}{% call cicon('paste', 'Paste screenshot from clipboard') %}data-paste-img{% endcall %}{% endif %}
+    {% if 'aside' in f %}{% call cicon('aside', 'btw: ask a side question about this chat (Quick chat, not sent to the agent)', 'btw: side question in Quick chat (not sent to the agent)') %}data-aside{% if embed %} hidden{% endif %} data-agent="{{ agent.id }}" data-label="{{ agent.label or agent.id }}"{% endcall %}{% endif %}
+  </div>
+  <div class="cbar-r">{% if hint %}<span class="cmp-keyhint small muted">{{ hint }}</span>{% endif %}{% if send %}{{ send_split('stop' in f, 'snippets' in f, stop_title) if stop_title else send_split('stop' in f, 'snippets' in f) }}{% endif %}</div>
+</div>
+{%- endmacro %}
+
+{# ended session: Resume and send (primary) / Fork and send; plain Resume / Fork while the box is empty #}
+{% macro ended_bar(rec, base) -%}
+{%- set who = agent.label or agent.id -%}
+<div class="cbar" data-cmp-bar>
+  <div class="cbar-l"><span class="cmp-state small muted">Session ended</span></div>
+  <div class="cbar-r cmp-ended-acts">
+    {% if rec.resume_id %}<button type="button" class="small" data-cmp-alt data-label-empty="Fork" data-label-text="Fork and send" hx-post="{{ base }}/fork" hx-target="[data-cmp-flash]" hx-swap="innerHTML" hx-confirm="Fork {{ who }} into a new tmux window? The original is left untouched." title="Fork this conversation into a new agent in a new tmux window, with the message as its first prompt">Fork</button>
+    <button type="submit" class="small primary" data-cmp-send data-cmp-empty-ok data-label-empty="Resume" data-label-text="Resume and send" title="Resume this session in a new tmux window, with this text as its opening message ({{ send_keys() }})">Resume</button>
+    {% else %}<button type="button" class="small" disabled title="No session id recorded, cannot resume">Resume</button>
+    <button type="submit" class="small primary" data-cmp-send data-cmp-empty-ok data-label-empty="Fork" data-label-text="Fork and send" title="Fork this conversation into a new agent in a new tmux window, with this text as its opening message ({{ send_keys() }})">Fork</button>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro composer(mode, action="", field="text", features=none, draft_key=none, send="", flow=none, label="", rec=none, placeholder=none, maxlength=4000, upload="", atfiles="", slash=none) -%}
+{%- set free = mode in ['qchat', 'launch', 'continue'] -%}
+{%- set base = "" if free else "/a/" ~ agent.id -%}
+{%- set ended = mode == 'ended' -%}
+{%- set LIVE = ['keys', 'attach', 'paste', 'aside', 'snippets', 'model', 'stats', 'actions', 'notices', 'hint', 'stop', 'exit'] -%}
+{%- set f = features if features is not none else ([] if ended or free else (LIVE | reject('equalto', 'keys') | list if mode == 'builder' else LIVE)) -%}
+{%- set flow = flow if flow is not none else (mode == 'builder' or free) -%}
+{%- set act = action or ('' if free else base ~ ('/message' if not ended else ('/resume' if rec.resume_id else '/fork'))) -%}
+{%- set dk = draft_key if draft_key is not none else ('' if free else base ~ ('/builder' if mode == 'builder' else '')) -%}
+{%- set key = 'mod-enter' if mode in ['launch', 'continue'] else (composer_send_key() if composer_send_key is defined else 'enter') -%}
+{%- set up = upload or ('' if free or ended else base ~ '/image') -%}
+{%- set atf = atfiles or ('' if free or ended else base ~ '/atfiles') -%}
+{%- set cat = slash if slash is not none else (none if free or ended else slash_catalog | default([])) -%}
+{%- set inline = free and 'attach' in f and not up -%}
+<section class="composer composer--{{ 'flow' if flow else 'dock' }}{{ ' composer--ended' if ended }}" data-composer="{{ mode }}" data-send-key="{{ key }}" data-draft-key="{{ dk }}" data-send="{{ send or ('form' if ended else 'htmx') }}"{% if not free %} data-agent="{{ agent.id }}"{% endif %}{% if not free and not ended %} data-state="{{ agent.state.value }}"{% endif %}{% if up %} data-upload="{{ up }}" data-paste-lines="{{ composer_paste_lines|default(10) }}"{% endif %}{% if inline %} data-attach="inline"{% endif %}{% if atf %} data-atfiles="{{ atf }}"{% endif %}{% if cat is not none %} data-slash="{{ cat | tojson | forceescape }}"{% endif %}{% if mode == 'qchat' %} data-slash-at="word"{% endif %} aria-label="{{ label or ('Resume or fork this session with a message' if ended else 'Message the agent') }}">
+  {{ notices(f, free) }}
+  {% if 'stats' in f or 'actions' in f %}{{ stats_row(f, base, mode) }}{% endif %}
+  {% if ended %}{% set who = agent.label or agent.id %}<form class="cform" data-cmp-form method="post" action="{{ act }}" hx-post="{{ act }}" hx-target="[data-cmp-flash]" hx-swap="innerHTML"{% if rec.resume_id %} data-transition="Resuming&hellip;" hx-confirm="Resume {{ who }} in a new tmux window?"{% else %} hx-confirm="Fork {{ who }} into a new tmux window? The original is left untouched."{% endif %}>
+  {% elif mode == 'continue' %}<div class="cform" data-cmp-form>{# never posted: the popup's Start sends (onSend) #}
+  {% elif free and mode != 'launch' %}<form class="cform" data-cmp-form method="post" action="{{ act }}" autocomplete="off">
+  {% elif not free %}<form class="cform" data-cmp-form method="post" action="{{ act }}" hx-post="{{ act }}" hx-target="[data-cmp-flash]" hx-swap="innerHTML">{% endif %}
+    {% if not free or mode == 'qchat' %}<input type="hidden" name="csrf" value="{{ csrf }}">{% endif %}{% if mode == 'builder' %}<input type="hidden" name="mode" value="builder">{% endif %}
+    <div class="cbox">
+      <div class="cattach" data-cmp-chips aria-label="Attachments"></div>
+      {% if ended %}<textarea data-cmp-input name="{{ field }}" rows="2" maxlength="{{ maxlength }}" {% set verb = 'Resume' if rec.resume_id else 'Fork' %}placeholder="Type to {{ verb | lower }} with a message ({{ send_keys() }}: {{ verb }} and send)" data-ph-short="{{ verb }} with a message" aria-label="Message for the resumed session"></textarea>
+      {% else %}{% set ph = placeholder or (("Message", "Message") if free else agent | placeholder) %}<textarea data-cmp-input name="{{ field }}" rows="2" maxlength="{{ maxlength }}" placeholder="{{ ph[0] }}" data-ph-short="{{ ph[1] }}" aria-label="{{ label if free and label else 'Message' }}"{% if not free %} required{% endif %}></textarea>{% endif %}
+      {% if ended %}{{ ended_bar(rec, base) }}
+      {% elif mode == 'launch' %}{{ live_bar(f, send=false, hint="Ctrl+Enter launches") }}
+      {% elif mode == 'continue' %}{{ live_bar(f, send=false, hint="Ctrl+Enter starts") }}
+      {% elif free %}{{ live_bar(f, inline=inline, stop_title="Stop the answer") }}
+      {% else %}{{ live_bar(f) }}{% endif %}
+    </div>
+  {% if mode == 'continue' %}</div>{% elif mode != 'launch' %}</form>{% endif %}
+  {% if 'model' in f or 'exit' in f %}<div class="mrow">
+    {% if 'model' in f %}{{ model_pill(base) }}{% endif %}
+    {% if 'exit' in f %}<div class="agent-actions mb-act"><button type="button" class="small danger" data-dlg-open="exit-dialog" title="Exit this agent; the session can be resumed">Exit</button></div>{% endif %}
+  </div>{% endif %}
+  {% if 'attach' in f and free %}<input type="file" data-cmp-file multiple hidden{% if up and composer_accept %} accept="{{ composer_accept }}"{% endif %} aria-label="File">
+  {% elif 'attach' in f %}<form class="imgform" data-cmp-upload method="post" action="{{ up }}" enctype="multipart/form-data" hidden>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="file" name="image" multiple{% if composer_accept %} accept="{{ composer_accept }}"{% endif %} aria-label="File">
+  </form>{% endif %}
+  {% if 'stop' in f and not free %}<form class="cstop" data-cmp-stop method="post" action="{{ base }}/interrupt" hx-post="{{ base }}/interrupt" hx-target="[data-cmp-flash]" hx-swap="innerHTML" hx-confirm="Interrupt {{ agent_text(agent) }}? This sends Ctrl-C/Esc to the running agent." hidden>
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" tabindex="-1">Interrupt</button>
+  </form>{% endif %}
+  {% if 'exit' in f %}{{ exit_dialog(base) }}{% endif %}
+</section>
+{%- endmacro %}
+
+{# the Continue popup's prompt box (continuepop.js clones it into its pmConfirm dialog): a <template>, so it is inert until
+   used and no script or style is inline; Ctrl/Cmd+Enter = Start #}
+{% macro continue_template() -%}
+<template id="cmp-continue">{{ composer("continue", send="dialog", maxlength=4000, label="New prompt", placeholder=("Prompt for the new chat", "Prompt for the new chat")) }}</template>
+{%- endmacro %}
+
+{# the agent composers' scripts, in order. base.html loads the shared part on every page (quick chat is a composer too):
+   core.js, htmx, dialog.js, popup.js, composer.js, composer-attach.js, slash.js #}
+{% macro composer_scripts(mode, dock=true) -%}
+{% if dock %}<script src="/static/js/composer-dock.js" defer></script>
+{% endif %}<script src="/static/js/agentmode.js" defer></script>
+{% if mode != 'ended' %}<script src="/static/js/chat-send.js" defer></script>
+<script src="/static/js/atfiles.js" defer></script>
+<script src="/static/js/issue-save.js" defer></script>
+<script src="/static/js/snippets.js" defer></script>
+<script src="/static/js/modelpick.js" defer></script>
+<script src="/static/js/newchat.js" defer></script>
+{% if agent.project == 'pm' %}<script src="/static/js/pmreload.js" defer></script>
+{% endif %}{% endif %}
+{%- endmacro %}

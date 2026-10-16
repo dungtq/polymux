@@ -1,0 +1,39 @@
+{#- Layer roots (SHELL.md §4, DESIGN.md §6.10-6.16, §7), driven by layers.js / search.js / keys.js:
+    #x-scrim (overlay sidebar / aside under 900px, phone sheet), dialog#x-pal (search: the first input is the
+    combobox, [role=listbox], [data-scope], [data-pfopen] = what ↵ does to the selected row, [data-pfhint]), dialog#x-keys (frame; keys.js fills [data-keys-body]
+    from its key table), dialog#x-stop (Stop all agents: typed PANIC, plain form POST; opened by the `stop` verb),
+    and the roots layers.js fills itself: dialog#x-dlg (h2#x-dlg-t, .bd, input.mono, .ft), div#x-menu,
+    div#x-sheet (.grab, .hd, .ls), div#x-toast (the one live region, .on / .err).
+    Dialogs open with showModal() (top layer); [data-act=close] inside one closes it. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<div id="x-scrim" class="x-scrim" hidden></div>
+{% if not embed %}<dialog id="x-pal" class="x-pal" aria-label="Search">
+  <div class="x-pin">
+    <svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}search"/></svg>
+    <span class="x-scope" data-scope hidden></span>
+    <input id="x-pal-in" type="text" role="combobox" aria-expanded="true" aria-controls="x-pl" aria-autocomplete="list" aria-label="Search sessions, projects, pages and commands" placeholder="Search sessions, projects, pages · &gt; for commands" autocomplete="off" spellcheck="false">
+    <button class="x-btn x-pcancel" type="button" data-act="close">Cancel</button>
+  </div>
+  <ul id="x-pl" class="x-pl" role="listbox" aria-label="Results"></ul>
+  <div class="x-pf"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>↵</kbd> <span data-pfopen>open</span></span><span data-pfhint></span><span class="sp"></span><span><kbd>Esc</kbd> close</span></div>
+</dialog>
+<dialog id="x-keys" class="x-keys" aria-labelledby="x-keys-t">
+  <div class="x-dh">
+    <svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}kbd"/></svg><h2 id="x-keys-t">Keyboard shortcuts</h2><span class="sp"></span>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  <div class="x-kbody" data-keys-body></div>
+</dialog>
+<dialog id="x-stop" class="x-dlg" aria-labelledby="x-stop-t" aria-describedby="x-stop-b">
+  <form method="post" action="/panic" hx-post="/panic" hx-target="#flash" hx-swap="innerHTML">
+    <h2 id="x-stop-t">Stop all agents?</h2>
+    <p id="x-stop-b" class="bd">Sends Esc then Ctrl-C to every agent on this host. Stops current work; does not kill sessions or close tmux windows. Unsaved prompts may be lost.</p>
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="scope" value="all">
+    <label class="x-dlg-l">Type <code>PANIC</code> to confirm<input class="mono" type="text" name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" pattern="PANIC" required></label>
+    <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn red" type="submit">Stop all agents</button></div>
+  </form>
+</dialog>
+{% endif %}<dialog id="x-dlg" class="x-dlg" aria-labelledby="x-dlg-t"></dialog>
+<div id="x-menu" class="x-menu" role="menu" hidden></div>
+<div id="x-sheet" class="x-sheet" role="dialog" aria-modal="true" aria-label="Sheet" hidden></div>
+<div id="x-toast" class="x-toast" role="status" aria-live="polite"></div>

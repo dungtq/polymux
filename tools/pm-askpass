@@ -1,0 +1,8 @@
+#!/bin/sh
+# SSH_ASKPASS helper for pm "Install key": prints the one-time password that pm writes into a private
+# FIFO ($PM_ASKPASS_FIFO, in a 0700 directory, removed right after ssh exits). The password is never in
+# argv, env or on disk. Answers password prompts only; anything else (host key questions) gets nothing.
+case "$1" in
+  *[Pp]assword*) [ -p "$PM_ASKPASS_FIFO" ] && exec cat -- "$PM_ASKPASS_FIFO" ;;
+esac
+exit 1

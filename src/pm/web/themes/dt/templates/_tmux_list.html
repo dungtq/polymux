@@ -1,0 +1,38 @@
+{#- dt tmux list (PRD.md §6.6, LAYOUT.md §4-5): #tm-list, the whole page content and the fragment the core
+    route returns (GET /tmux with HX-Request: filter, segment, sort, Show all, live refresh). View model: dt_tmux()
+    (pm.web.dt.tmux). Order (LAYOUT §4): head + stats · errors · controls (filter, segments) · one sessions table
+    · foot · key hints. Every request into the list swaps the element itself (outerHTML), so hx-get is always the
+    list's current URL (self_url). Live (V7-CODE-7, no timed poll): agent events from the stream, pm:refresh and
+    pm7:refresh (a ⋯ item's "refresh", js/tmux.js after New session), pm7:resync (stream reopened). Open row details
+    (js/table.js) and the filter text (js/filter.js) survive the swap; js/tmux.js keeps the open windows' content
+    until their fresh copy arrives. A session opened by the URL (?open=sN) renders its windows in place
+    (macro windows of _tmux_session_rows.html). Row hooks for js/tmux.js: data-tm-term (terminal href),
+    data-tm-project / data-tm-launch (Launch an agent here), a[data-tm-agent] (chat aside). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- from "_tmux_session_rows.html" import windows, sess_row -%}
+{%- set v = dt_tmux() -%}
+<div id="tm-list" class="tm-page" hx-get="{{ v.self_url if v else '/tmux' }}" hx-trigger="pm:agent_state from:document, pm:agent_added from:document, pm:agent_removed from:document, pm7:resync from:document, pm:refresh, pm7:refresh" hx-swap="outerHTML">
+{%- if v %}
+{{ ph.head("tmux", stats=v.stats, id="tm-head", actions=[{"label": "New session", "icon": "plus", "pri": true, "title": "Start a new detached tmux session", "attrs": {"data-tm-new": ""}}]) }}
+{%- if errors %}
+<p class="tm-errs" role="status">{% for e in errors %}<span>{{ e }}</span>{% endfor %}</p>
+{%- endif %}
+{% call ph.tools() %}
+  {{ pf.fbox("tmux", value=v.q, placeholder="Filter sessions, windows, agents", label="Filter sessions", get="/tmux", target="#tm-list") }}
+  {{ ps.seg(v.segs, label="Show", target="#tm-list") }}
+{% endcall %}
+{% call tb.table("tmux", "tmux sessions", cls="tm-list", list="tmux", keys={"enter": "det", "o": "menu:term"},
+                 labels={"enter": "Show the windows", "o": "Open the terminal in a tab"}) %}
+  {{ tb.gh(v.cols, sort=v.sort, target="#tm-list") }}
+  {%- for s in v.rows %}
+  {{ sess_row(s, cur=loop.first) }}
+  {%- endfor %}
+  {% if v.empty %}{% call tb.empty() %}{{ v.empty }}{% if v.empty_url %} <a href="{{ v.empty_url }}" hx-get="{{ v.empty_url }}" hx-target="#tm-list" hx-swap="outerHTML" hx-push-url="true">{{ v.empty_link }}</a>{% endif %}{% endcall %}{% endif %}
+{% endcall %}
+{{ tb.foot(v.shown, v.total, more_href=v.more_url, target="#tm-list", noun="sessions") }}
+{{ tb.hints([("J K", "move"), ("Enter", "windows"), ("O", "terminal tab"), ("/", "filter")]) }}
+{%- else %}
+<p class="p-empty">The tmux list could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+</div>

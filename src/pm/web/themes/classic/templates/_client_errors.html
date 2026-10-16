@@ -1,0 +1,33 @@
+{# /audit "Client errors" panel: the filter box (the page's one query, sent here as ?q=) + kind select, then the list.
+   list_only (HX-Target: ce-list, from the live box, the kind select, the pager or Clear): only #ce-list. #}
+{% from "_filterbox.html" import filterbox %}{% from "_limitbar.html" import pager %}
+{% if not list_only %}<div id="ce-panel" class="ce">
+<form class="aud-filter" method="get" action="/audit/client-errors" role="search" data-filter-live data-filter-target="#ce-list">
+  {{ filterbox(ce_q) }}
+  <select name="ce_kind" aria-label="Kind">
+    <option value="all">all kinds</option>
+    {% for k in kinds %}<option value="{{ k }}"{% if k == ce_kind %} selected{% endif %}>{{ k }}</option>{% endfor %}
+  </select>
+  <button type="button" class="ce-clear" hx-post="/audit/client-errors/clear" hx-vals='{"csrf": "{{ csrf }}"}' hx-confirm="Clear all client errors?" hx-swap="none">Clear</button>
+</form>
+{% endif %}<div id="ce-list" hx-get="/audit/client-errors?{{ qs(ce_kind, ce_q, ce.page) }}" hx-trigger="ce-refresh from:body, pm:refresh" hx-swap="outerHTML">
+<p class="small muted aud-meta">{{ ce.total }} reports{% if ce.total %}, showing {{ ce.start + 1 }}-{{ ce.start + ce.rows | length }}{% endif %}</p>
+<table class="aud">
+  <thead><tr><th>time</th><th>kind</th><th>status</th><th>request</th><th>page</th><th>message</th></tr></thead>
+  <tbody>
+  {% for e in ce.rows %}
+  {% set t = e.get('ts') | dt %}
+  <tr>
+    <td class="aud-time mono" data-l="time"><time title="{{ e.get('ts') | ts }}">{{ t[5:] if t | length > 10 else t }}</time></td>
+    <td data-l="kind"><span class="badge {{ 'bad' if e.get('kind') in ('js', 'promise') else '' }}">{{ e.get('kind') }}</span></td>
+    <td data-l="status" class="mono">{{ e.get('status') or '' }}</td>
+    <td data-l="request" class="mono aud-target">{{ e.get('method') }} {{ e.get('url') }}{% if e.get('line') %}:{{ e.get('line') }}{% endif %}</td>
+    <td data-l="page" class="mono aud-target">{{ e.get('page') }}</td>
+    <td data-l="message" class="mono small aud-detail">{{ e.get('msg') }}</td>
+  </tr>
+  {% else %}<tr class="aud-empty"><td colspan="6" class="muted">No client errors.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{{ pager(ce.page, ("/audit/client-errors?" ~ qs(ce_kind, ce_q, ce.page - 1)) if ce.page > 1 else "", ("/audit/client-errors?" ~ qs(ce_kind, ce_q, ce.page + 1)) if ce.has_older else "", "Client error pages", "#ce-list") }}
+</div>
+{% if not list_only %}</div>{% endif %}

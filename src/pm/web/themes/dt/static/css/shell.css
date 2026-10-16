@@ -1,0 +1,253 @@
+/* dt shell (DESIGN.md §6.1, LAYOUT.md §2-3): page grid, controls (.x-ib .x-ib.sm .x-btn .x-in), top bar, tab strip,
+   sidebar (nav, sessions, foot, rail), main column, chat aside, phone bottom nav. Tokens only (tokens.css).
+   Flags: html.side-rail and html.no-sess (head.js), .side-open and .aside on html or body (sidebar.js / aside.js),
+   body.x-sessview (server: a session tab is current), body.x-embed (server: content only).
+   Some selectors carry an extra `html` / attribute so they also beat classic globals while
+   shell/_classic.html is loaded (e.g. classic's `html:not(.v5-embed) body`, `input:not(...):not(...)`). */
+
+/* ---------- page grid: top bar / sidebar | main | aside / bottom nav ---------- */
+html body.x{display:grid;grid-template-columns:var(--side-now) minmax(0,1fr) var(--aside-now);
+  grid-template-rows:var(--top-h) minmax(0,1fr) var(--bnav-now);place-items:stretch;place-content:stretch;
+  height:100vh;height:100dvh;overflow:hidden}
+html body.x.x-embed{display:block;height:auto;overflow:visible}
+
+/* ---------- controls ---------- */
+.x-ib{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);flex:0 0 auto;
+  min-width:var(--ib);height:var(--ib);min-height:0;padding:0 var(--s2);border:0;border-radius:var(--r);background:none;
+  color:var(--head-muted);font:inherit;font-size:var(--fs-ui);font-weight:400;line-height:1;text-decoration:none;
+  cursor:pointer;transition:background var(--t-fast)}
+.x-ib:hover{background:var(--hover);color:var(--fg);text-decoration:none}
+.x-ib[aria-pressed=true]{background:var(--accent-soft);color:var(--accent)}
+/* small variant: row actions, ⋯ triggers, row details toggles (26px; touch 40px) */
+.x-ib.sm{min-width:var(--ib-sm);height:var(--ib-sm);padding:0;color:var(--muted)}
+.x-ib.sm svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+/* touch (LAYOUT §3): every small control is a 40px target; interactive chips too (a chip that is a link or a
+   button, or holds one: the attachment chip's ×); a plain label chip keeps its size */
+@media (pointer:coarse){
+  .x-ib.sm{min-width:var(--ib);height:var(--ib)}
+  .x-btn.sm{min-height:var(--ctl-h)}
+  :is(a,button).chip,.chip:has(>button){min-height:var(--ctl-h)}
+}
+.x-ib .b{position:absolute;top:0;right:0;min-width:var(--badge-h);height:var(--badge-h);padding:0 var(--s1);
+  border-radius:var(--r-pill);background:var(--failed);color:var(--page);font-size:var(--fs-xs);font-weight:600;
+  line-height:var(--badge-h);text-align:center}
+.x-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);height:var(--ctl-h);min-height:0;
+  min-width:0;padding:0 var(--s3);border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--subtle);
+  color:var(--fg);font:inherit;font-size:var(--fs-ui);font-weight:500;line-height:1;white-space:nowrap;
+  text-decoration:none;cursor:pointer;transition:background var(--t-fast)}
+.x-btn:hover{background:var(--hover);text-decoration:none}
+.x-btn svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.x-btn.pri{background:var(--btn-green);border-color:var(--btn-green);color:var(--on-accent);font-weight:600}
+.x-btn.pri:hover{background:var(--btn-green);filter:brightness(1.08)}
+.x-btn.red{background:var(--failed);border-color:var(--failed);color:var(--page);font-weight:600}
+.x-btn.danger{color:var(--failed)}
+.x-btn.danger:hover{background:var(--failed);border-color:var(--failed);color:var(--page)}
+.x-btn.sm{height:var(--ctl-h-sm);padding:0 var(--s2);font-size:var(--fs-s)}
+.x-btn:disabled{opacity:.55;cursor:not-allowed}
+input.x-in:not([type=checkbox]),.x-sfilter input[type=search]{height:var(--ctl-h);min-height:0;max-width:none;
+  padding:0 var(--s2);border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
+  font:inherit;font-size:var(--fs-in);box-shadow:none}
+input.x-in:not([type=checkbox]):focus,.x-sfilter input[type=search]:focus{border-color:var(--accent);outline:0;
+  box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* ---------- top bar ---------- */
+.x-top{grid-column:1/-1;grid-row:1;display:flex;align-items:center;gap:var(--s1);min-width:0;
+  padding:0 var(--s2) 0 var(--s1);background:var(--head);box-shadow:inset 0 -1px var(--line)}
+/* lead block as wide as the sidebar, so the first tab starts over the page column */
+.x-lead{display:flex;align-items:center;gap:2px;flex:0 0 auto;width:calc(var(--side-now) - var(--s2));min-width:0}
+.x-brand{display:flex;align-items:center;gap:var(--s2);padding:0 var(--s3) 0 var(--s1);color:var(--fg);
+  font-size:var(--fs-m);font-weight:600;white-space:nowrap;text-decoration:none}
+.x-brand:hover{text-decoration:none}
+.x-dev{padding:0 var(--s1);border:1px solid var(--waiting);border-radius:var(--r-xs);color:var(--waiting);
+  font-size:var(--fs-xs);font-weight:600;line-height:var(--badge-h)}
+.x-mtitle,.x-back,.x-tabcount{display:none}
+.x-launch{margin:0 var(--s1)}
+.x-acct{position:relative}
+.x-acct>summary{list-style:none}
+.x-acct>summary::-webkit-details-marker{display:none}
+.x-acct[open]>summary{background:var(--hover);color:var(--fg)}
+
+/* ---------- tab strip: home tab fixed, session tabs shrink to --tab-min, then scroll with a fade ---------- */
+.x-tabs{flex:1 1 auto;align-self:stretch;display:flex;align-items:flex-end;gap:2px;min-width:0;padding-right:var(--s1);
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  mask-image:linear-gradient(to left,transparent,var(--fg) var(--s5))}
+.x-tabs::-webkit-scrollbar{display:none}
+/* div.x-tab = the tab's box (hooks, .on); the a[role=tab] fills it; the close button sits beside the link */
+.x-tab{position:relative;display:flex;align-items:center;flex:0 1 var(--tab-w);min-width:var(--tab-min);
+  height:calc(var(--top-h) - var(--s2));padding:0 var(--s1) 0 0;border:1px solid transparent;border-bottom:0;
+  border-radius:var(--r) var(--r) 0 0;color:var(--head-muted);font-size:var(--fs-ui);white-space:nowrap;
+  user-select:none}
+.x-tab>a{display:flex;align-items:center;gap:var(--s2);flex:1 1 auto;align-self:stretch;min-width:0;
+  padding:0 var(--s2) 0 var(--s3);border-radius:inherit;color:inherit;text-decoration:none}
+.x-tab:hover{background:var(--hover);color:var(--fg)}
+.x-tab>a:hover{text-decoration:none}
+.x-tab>a:focus-visible{outline-offset:-2px}
+.x-tab.on{background:var(--page);border-color:var(--line);color:var(--fg);font-weight:600}
+/* kind top edge (2px) on the current tab; accent for the home tab and terminals */
+.x-tab.on::before{content:"";position:absolute;top:-1px;left:-1px;right:-1px;height:2px;
+  border-radius:var(--r) var(--r) 0 0;background:var(--k,var(--accent))}
+.x-tab:not(.on):not(:hover)+.x-tab:not(.on):not(:hover)::after{content:"";
+  position:absolute;left:-2px;top:var(--s2);bottom:var(--s2);width:1px;background:var(--line)}
+.x-tab .nm{flex:1 1 auto;min-width:0}
+.x-tab svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.x-tab.term>a>svg.i{color:var(--muted)}
+.x-tab.ended{color:var(--muted)}
+.x-tab.home{flex:0 0 var(--home-tab-w);min-width:0;padding-right:0}
+.x-tab.home>a{padding-right:var(--s3)}
+.x-tab .cl{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:var(--icon);
+  height:var(--icon);min-width:0;min-height:0;padding:0;border:0;border-radius:var(--r-xs);background:none;
+  color:var(--muted);cursor:pointer;visibility:hidden}
+.x-tab:hover .cl,.x-tab:focus-within .cl,.x-tab.on .cl{visibility:visible}
+.x-tab .cl:hover{background:var(--hover);color:var(--fg)}
+.x-tab .cl svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+@media (hover:none){.x-tab .cl{visibility:visible}}
+.x-newtab{align-self:center;margin-left:2px}
+
+/* ---------- sidebar: nav, sessions, foot ---------- */
+.x-side{grid-column:1;grid-row:2/4;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;
+  background:var(--subtle);border-right:1px solid var(--line)}
+.x-nav,.x-sfoot{display:flex;flex-direction:column;gap:1px;padding:var(--s2)}
+.x-sfoot{border-top:1px solid var(--line)}
+.x-nav a,.x-sfoot a,.x-sfold{position:relative;display:flex;align-items:center;gap:var(--s3);width:100%;
+  height:var(--ctl-h);min-height:0;padding:0 var(--s2);border:0;border-radius:var(--r);background:none;color:var(--fg);
+  font:inherit;font-size:var(--fs-ui);font-weight:400;white-space:nowrap;text-decoration:none;cursor:pointer}
+.x-nav a:hover,.x-sfoot a:hover,.x-sfold:hover{background:var(--hover);text-decoration:none}
+.x-nav a.cur,.x-sfoot a.cur{background:var(--accent-soft);font-weight:600}
+.x-nav a:focus-visible,.x-sfoot a:focus-visible,.x-sfold:focus-visible{outline-offset:-2px}
+.x-side svg.i{color:var(--muted)}
+.x-nav a.cur svg.i,.x-sfoot a.cur svg.i{color:var(--accent)}
+.x-side .t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.x-nav .n{min-width:var(--chip-h);height:var(--chip-h);padding:0 var(--s1);border-radius:var(--r-pill);
+  background:var(--hover);color:var(--muted);font-size:var(--fs-xs);font-weight:600;line-height:var(--chip-h);
+  text-align:center;font-variant-numeric:tabular-nums}
+.x-nav .n.hot{background:var(--badge-need-soft);color:var(--badge-need)}
+.x-side kbd{display:none}
+html:not(.side-rail) .x-nav a:is(:hover,:focus-visible) kbd:not(:empty),
+html:not(.side-rail) .x-sfoot :is(a,button):is(:hover,:focus-visible) kbd:not(:empty){display:inline-block}
+html:not(.side-rail) .x-nav a:is(:hover,:focus-visible) .n:has(+ kbd:not(:empty)){display:none}
+.x-shead{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s3) var(--s1) var(--s4);
+  border-top:1px solid var(--line);color:var(--muted);font-size:var(--fs-xs);letter-spacing:.04em;
+  text-transform:uppercase}
+.x-shead:hover kbd:not(:empty){display:inline-block}
+.x-sfilter{position:relative;padding:var(--s1) var(--s2) var(--s2)}
+.x-sfilter>svg.i{position:absolute;left:var(--s4);
+  top:calc(var(--s1) + (var(--ctl-h) - var(--icon-sm)) / 2);width:var(--icon-sm);height:var(--icon-sm);
+  pointer-events:none}
+.x-sfilter input[type=search]{width:100%;padding-left:calc(var(--s2) + var(--icon-sm) + var(--s2))}
+.x-sess{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 var(--s2) var(--s2)}
+.x-sg>summary{display:flex;align-items:center;gap:var(--s2);height:var(--ctl-h-sm);padding:0 var(--s2);
+  border-radius:var(--r);color:var(--muted);font-size:var(--fs-s);font-weight:600;list-style:none;cursor:pointer}
+.x-sg>summary::-webkit-details-marker{display:none}
+.x-sg>summary:hover{background:var(--hover)}
+.x-sg>summary:focus-visible{outline-offset:-2px}
+.x-sg>summary svg.i{width:var(--icon-xs);height:var(--icon-xs);transition:transform var(--t-fast)}
+.x-sg:not([open])>summary svg.i{transform:rotate(-90deg)}
+.x-sgn{margin-left:auto;font-weight:400;font-variant-numeric:tabular-nums}
+.x-sr{position:relative;display:flex;align-items:center;gap:var(--s2);height:var(--row-side-h);
+  padding:0 var(--s2) 0 calc(var(--s4) + var(--s1));border-radius:var(--r);color:var(--fg);font-size:var(--fs-ui);
+  text-decoration:none}
+.x-sr:hover{background:var(--hover);text-decoration:none}
+.x-sr.cur{background:var(--accent-soft);font-weight:600}
+.x-sr:focus-visible{outline-offset:-2px}
+.x-sr .nm{flex:1 1 auto}
+.x-sr .a{flex:0 0 auto;color:var(--muted);font-size:var(--fs-s);font-weight:400;font-variant-numeric:tabular-nums}
+.x-open{position:absolute;left:var(--s2);top:50%;width:var(--dot-open);height:var(--dot-open);
+  margin-top:calc(var(--dot-open) / -2);border-radius:50%;background:var(--accent)}
+.x-sempty,.x-snone{margin:0;padding:var(--s2);color:var(--muted);font-size:var(--fs-ui)}
+.x-sfoot kbd{margin-left:auto}
+.x-sfoot a.x-sla{display:none}  /* "Launch an agent": phones only (the top-bar Launch is hidden there) */
+
+/* rail (Cmd+B, desktop only): icons, the needs-you count becomes a dot */
+@media (min-width:900px){
+  .side-rail .x-lead{width:auto}
+  .side-rail .x-side :is(.t,.n,kbd),.side-rail :is(.x-shead,.x-sfilter,.x-sess){display:none}
+  .side-rail .x-side :is(.x-nav,.x-sfoot){padding:var(--s2) var(--s1)}
+  .side-rail .x-sfoot{margin-top:auto}
+  .side-rail :is(.x-nav a,.x-sfoot a,.x-sfold){justify-content:center;padding:0}
+  .side-rail .x-nav .n.hot{display:block;position:absolute;top:var(--s1);right:var(--s1);width:var(--dot-un);
+    min-width:0;height:var(--dot-un);padding:0;font-size:0;background:var(--badge-need)}
+  .side-rail .x-sfold svg.i{transform:scaleX(-1)}
+}
+/* html.no-sess (Settings › Display, this browser; head.js): no sessions list, the foot stays at the bottom */
+.no-sess :is(.x-shead,.x-sfilter,.x-sess){display:none}
+.no-sess .x-sfoot{margin-top:auto}
+
+/* ---------- main column ---------- */
+html body.x>.x-main{grid-column:2;grid-row:2;place-self:stretch;width:auto;min-width:0;min-height:0;max-width:none;
+  height:auto;margin:0;padding:0;
+  border:0;border-radius:0;background:var(--page);overflow:auto;overscroll-behavior:contain;container:pg/inline-size}
+html body.x.x-embed>.x-main{overflow:visible}
+.x-page{max-width:var(--cap);padding:var(--s4) var(--s5) var(--s6)}
+.x-embed .x-page{max-width:none;padding:var(--s2) var(--s3) 0}
+.x-lock{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);padding:var(--s2) var(--s5);
+  border-bottom:1px solid var(--line);background:var(--waiting-soft);color:var(--waiting-fg);font-size:var(--fs-ui)}
+.x-lock>svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.x-lock-f{display:flex;gap:var(--s2);margin:0}
+.x-lock input.x-in:not([type=checkbox]){width:9em}
+.x-lock-msg{flex-basis:100%;color:var(--fg)}
+.x-lock-msg:empty{display:none}
+
+/* ---------- chat aside (Cmd+L): docked column from 900px, overlay below ---------- */
+.x-aside{grid-column:3;grid-row:2/4;display:none;flex-direction:column;min-width:0;min-height:0;
+  background:var(--page);border-left:1px solid var(--line)}
+.aside .x-aside{display:flex}
+.x-ah{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;min-width:0;height:calc(var(--ib) + var(--s2));
+  padding:0 var(--s2) 0 var(--s3);border-bottom:1px solid var(--line2)}
+.x-ah b{font-weight:600}
+.x-abody{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--s3)}
+.x-aempty{margin:0;color:var(--muted);font-size:var(--fs-ui)}
+
+/* ---------- phone bottom nav ---------- */
+.x-bnav{display:none}
+
+/* ---------- under 900px: sidebar and aside are overlays (scrim: layers.css) ---------- */
+@media (max-width:899px){
+  .x-lead{width:auto}
+  .x-side{position:fixed;z-index:var(--z-side-over);top:var(--top-h);bottom:0;left:0;width:var(--side-over-w);
+    transform:translateX(-100%);visibility:hidden;
+    transition:transform var(--t-slide) var(--ease),visibility 0s linear var(--t-slide)}
+  .side-open .x-side{transform:none;visibility:visible;box-shadow:var(--shadow-side);
+    transition:transform var(--t-slide) var(--ease)}
+  .x-sfold{display:none}
+  .aside .x-aside{position:fixed;z-index:var(--z-aside-over);top:var(--top-h);right:0;bottom:0;
+    width:var(--aside-over-w);box-shadow:var(--shadow-side)}
+}
+
+/* ---------- phone (< 700px): 48px title bar, drawer sidebar, bottom nav, no aside ---------- */
+@media (max-width:699px){
+  .x-top{gap:0;padding:env(safe-area-inset-top) var(--s1) 0}
+  .x-lead{display:contents}
+  .x-brand,.x-tabs,.x-launch,.x-asidebtn,.x-acct,.x-bell{display:none}
+  .x-ib svg.i{width:var(--s5);height:var(--s5)}
+  .x-sessview .x-sbtg{display:none}
+  .x-back{display:inline-flex}
+  .x-mtitle{display:flex;flex-direction:column;justify-content:center;flex:1 1 auto;min-width:0;
+    padding:0 var(--s1);line-height:1.2}
+  .x-mtitle b{display:flex;align-items:center;gap:var(--s2);min-width:0;font-size:var(--fs-l);font-weight:600}
+  .x-mtitle small{overflow:hidden;color:var(--muted);font-size:var(--fs-s);text-overflow:ellipsis;white-space:nowrap}
+  .x-tabcount{display:inline-flex}
+  .x-tabcount .cnt{display:flex;align-items:center;justify-content:center;min-width:calc(var(--icon) + 2px);
+    height:calc(var(--icon) + 2px);padding:0 2px;border:2px solid currentColor;border-radius:var(--r-xs);
+    color:var(--fg);font-size:var(--fs-xs);font-weight:600}
+  .x-side{top:0;width:var(--side-drawer-w);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  .x-nav a,.x-sfoot a,.x-sr{height:var(--row-side-h);font-size:var(--fs-m)}
+  .x-sfoot a.x-sla{display:flex}
+  /* the drawer scrolls as one: sessions get their full height, the foot follows them */
+  .x-side{overflow-y:auto;overscroll-behavior:contain}
+  .x-sess{flex:0 0 auto;min-height:auto;overflow:visible}
+  .x-sg>summary{height:var(--row-side-h)}
+  .x-page{padding:var(--s3) var(--s4) var(--s5)}
+  .aside .x-aside{display:none}
+  .x-bnav{grid-column:1/-1;grid-row:3;display:flex;padding-bottom:env(safe-area-inset-bottom);
+    background:var(--head);border-top:1px solid var(--line)}
+  :is(.x-sessview,.c-page) .x-bnav{display:none}  /* a session tab, an agent page: the composer takes the bottom */
+  .x-bnav a,.x-bnav button{position:relative;display:flex;flex:1 1 0;flex-direction:column;align-items:center;
+    justify-content:center;gap:2px;min-width:0;height:auto;min-height:0;padding:0;border:0;border-radius:0;
+    background:none;color:var(--muted);font:inherit;font-size:var(--fs-xs);font-weight:500;text-decoration:none}
+  .x-bnav .cur{color:var(--accent)}
+  .x-bnav svg.i{width:var(--s5);height:var(--s5)}
+  .x-bnav .b{position:absolute;top:var(--s1);left:calc(50% + var(--s2));min-width:var(--badge-h);height:var(--badge-h);
+    padding:0 var(--s1);border-radius:var(--r-pill);background:var(--failed);color:var(--page);font-size:var(--fs-xs);
+    font-weight:600;line-height:var(--badge-h);text-align:center}
+  .x-bnav .b.hot{background:var(--badge-need)}
+}

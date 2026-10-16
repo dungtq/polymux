@@ -1,0 +1,8 @@
+<div id="autoexit-note" class="em-rows">
+  {% if not info %}<div class="em-row"><span class="em-k">Exit</span><span class="em-v">Ended on its own</span></div>{% else %}
+  <div class="em-row"><span class="em-k">Exit</span><span class="em-v">{% if info.manual %}Exit requested (/exit){% else %}Auto-exit, idle {{ human(info.idle_s) }}{% endif %} <span class="stamp">{{ info.ts | dt }}</span> <span class="em-age">({{ info.ts | ago }})</span></span></div>
+{% endif %}
+  {% if facts.model %}<div class="em-row"><span class="em-k">Model</span><span class="em-v mono">{{ facts.model }}</span></div>{% endif %}
+  {% if facts.window %}<div class="em-row"><span class="em-k">Window</span><span class="em-v mono">{{ facts.window }}</span></div>{% endif %}
+  {% if facts.session %}<div class="em-row"><span class="em-k">Session</span><span class="em-v mono" title="{{ facts.session }}">{{ facts.session[:8] }}</span></div>{% endif %}
+</div>

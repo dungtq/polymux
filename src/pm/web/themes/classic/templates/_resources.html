@@ -1,0 +1,41 @@
+{% from "_macros.html" import empty, post_btn, sum_tile %}
+{% macro pbtn(url, label, fields, cls="", confirm="") %}{{ post_btn(csrf, url, label, fields, confirm, ("small " ~ cls) | trim) }}{% endmacro %}
+{% macro tbl(title, rows, key, cols, label) %}
+<section class="srv-card srv-wide" aria-labelledby="rs-h-{{ key }}">
+  <h2 id="rs-h-{{ key }}">{{ title }} <span class="muted small">{{ rows | length }}</span></h2>
+  {% if rows %}
+  <div class="dt dt-rs" role="table" aria-label="{{ title }}">
+    <div class="dt-head" role="row"><span class="rc-name" role="columnheader"><a href="/servers?t=resources&amp;s=name">{{ label }}</a></span><span class="rc-n" role="columnheader">{{ cols }}</span><span class="rc-cpu" role="columnheader"><a href="/servers?t=resources&amp;s=cpu"{% if rs == 'cpu' %} aria-current="true"{% endif %}>CPU</a></span><span class="rc-ram" role="columnheader"><a href="/servers?t=resources&amp;s=ram"{% if rs == 'ram' %} aria-current="true"{% endif %}>RAM</a></span></div>
+  {% for r in rows %}
+  {% set cells %}<strong class="rc-name">{{ r.name }}</strong><span class="rc-n muted">{% if key == 'tmux' %}{{ r.extra }} / {{ r.procs }}{% elif key == 'containers' %}&ndash;{% else %}{{ r.procs }}{% endif %}</span><span class="rc-cpu">{{ fcpu(r.cpu) }}</span><span class="rc-ram">{{ fb(r.rss) }}</span>{% endset %}
+  {% if key == 'programs' and can_proc and r.items %}
+  <details class="dt-item"><summary class="dt-row" title="{{ r.name }}: {{ fcpu(r.cpu) }} of one core, {{ fb(r.rss) }}">{{ cells }}</summary>
+    <div class="rc-procs">
+    {% for pid, start, rss, cpu, state in r.items %}
+      <div class="rc-proc"><span class="rc-pid mono">{{ pid }}</span><span class="rc-desc muted" title="{{ pdesc(pid, start) }}">{{ pdesc(pid, start) }}{% if state == 'T' %} <strong>paused</strong>{% endif %}</span><span class="rc-cpu muted">{{ fcpu(cpu) }}</span><span class="rc-ram muted">{{ fb(rss) }}</span><span class="rc-act">
+        {{ pbtn('/servers/proc/term', 'Quit', [('pid', pid), ('start', start)], '', 'Ask ' ~ r.name ~ ' (pid ' ~ pid ~ ') to quit?') }}
+        {% if state == 'T' %}{{ pbtn('/servers/proc/cont', 'Resume', [('pid', pid), ('start', start)]) }}
+        {% else %}{{ pbtn('/servers/proc/stop', 'Pause', [('pid', pid), ('start', start)], '', 'Pause ' ~ r.name ~ ' (pid ' ~ pid ~ ')?') }}{% endif %}
+        {{ pbtn('/servers/proc/kill', 'Kill', [('pid', pid), ('start', start)], 'danger', 'Force-kill ' ~ r.name ~ ' (pid ' ~ pid ~ ')? Unsaved work is lost.') }}</span></div>
+    {% endfor %}
+    {% if r.procs > r.items | length %}<p class="muted small">Showing the {{ r.items | length }} largest of {{ r.procs }}.</p>{% endif %}
+    </div></details>
+  {% else %}
+    <div class="dt-row" role="row" title="{{ r.name }}: {{ fcpu(r.cpu) }} of one core, {{ fb(r.rss) }}">{{ cells }}</div>
+  {% endif %}
+  {% endfor %}
+  </div>
+  {% else %}{{ empty('None.', 'small') }}{% endif %}
+</section>
+{% endmacro %}
+<section class="sum-strip" aria-label="Resource summary">
+  <div class="sum-head"><span class="sum-title">Resource summary</span></div>
+  <div class="sum-grid">
+  {% for t in rtiles %}{{ sum_tile(t, 'rsum-' ~ t.key) }}{% endfor %}
+  </div>
+</section>
+<p class="srv-stamp small muted">Updated <time title="{{ res.ts | ts }}">{{ res.ts | dt }}</time> &middot; CPU 100% = one core; sorted by {{ rs }}</p>
+{{ tbl("Programs", rsort(res.programs, rs)[:top], "programs", "Procs", "Program") }}
+{% if res.tmux_ok %}{{ tbl("tmux sessions", rsort(res.tmux, rs), "tmux", "Panes / procs", "Session") }}{% endif %}
+{% if res.docker_pending %}<p class="muted small">Collecting container stats&hellip;</p>{% elif res.docker_ok %}{{ tbl("Containers", rsort(res.containers, rs), "containers", "", "Container") }}{% endif %}
+{% if res.vms %}{{ tbl("VMs", rsort(res.vms, rs), "vms", "Procs", "Guest") }}{% endif %}

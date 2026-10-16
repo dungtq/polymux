@@ -1,0 +1,76 @@
+{#- dt New project dialog (PRD.md §6.4 last bullet, DESIGN.md §6.11): a native <dialog> opened with pm7.dialog
+    (js/layers.js: Esc, backdrop, focus trap, focus back to the opener) by js/projects.js ([data-pj-new]). Form model:
+    dt_projects("new") (pm.web.dt.projects.NewForm: root, templates, kinds, modes, remote). Behaviour:
+    js/newproject.js:
+    - "What will happen": GET /p/new/plan?<fields> (debounced while fields change) -> {ok, error, steps, templates};
+      the list and the error line ([data-pj-plan], [data-pj-err]) show the core's answer; Create is enabled when ok.
+    - Create: POST /p/new/run (pm7.fetch, CSRF) and the NDJSON stream read line by line: each step's state (done /
+      skipped / failed / not run) in [data-pj-steps], then the summary ([data-pj-sum]) with a link to the project.
+      A failure stops the run there; nothing is undone and the summary says what was done and what was not.
+    - First agent: kind select; model (from the Launch form's launch_data, GET /launch/form, when it can be read),
+      effort and permission mode (data-pj-modes = launch.form_spec), prompt; a bypass mode needs "I understand".
+    Checkboxes send explicit 1 / 0 (the core's defaults are git, remote, readme on). The gitdev remote box is unticked
+    and disabled (data-pj-never) when pm.toml has no git_remote_template: the core would skip that step anyway. Docker stack, hostname and VM
+    fields come only with plugin steps; the core has none, so there are none here. Phone: full screen. -#}
+{%- set nf = dt_projects("new") -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- if nf %}
+<dialog id="pj-new" class="x-dlg pj-ndlg" aria-labelledby="pj-new-t">
+<form class="pj-nf" method="post" action="/p/new/run" data-pj-nf data-pj-root="{{ nf.root }}" data-pj-modes='{{ nf.modes | tojson }}'>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="x-dh pj-ndh"><h2 id="pj-new-t">New project</h2><span class="sp"></span>
+    <button class="x-ib sm" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button></div>
+  <div class="pj-ncols">
+    <div class="pj-nfields" data-pj-fields>
+      <label class="pj-nfld"><span>Name</span>
+        <input class="x-in" type="text" name="name" required maxlength="64" pattern="[A-Za-z0-9_\-][A-Za-z0-9._\-]*" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="my-project" aria-describedby="pj-new-dir">
+        <small id="pj-new-dir" class="muted">Folder: <span class="mono" data-pj-dir>{{ nf.root }}/…</span></small></label>
+      <label class="pj-nfld"><span>Template</span>
+        <select class="sel" name="template" aria-describedby="pj-new-tpl">
+          {%- for t in nf.templates %}<option value="{{ t.name }}" data-desc="{{ t.description }}">{{ t.name }}</option>{% endfor %}
+        </select>
+        <small id="pj-new-tpl" class="muted" data-pj-tpl>{{ (nf.templates[0].description if nf.templates else "") or "Files written into the new folder (pm.toml project_templates)." }}</small></label>
+      <fieldset class="pj-nfs"><legend>Files and git</legend>
+        <label class="p-chk"><input type="checkbox" name="readme" value="1" checked> README.md with the project name</label>
+        <label class="p-chk"><input type="checkbox" name="git" value="1" checked data-pj-git> git repository</label>
+        <label class="p-chk{{ ' off' if not nf.remote }}" data-pj-gitdep{% if not nf.remote %} data-pj-never{% endif %}><input type="checkbox" name="remote" value="1"{% if nf.remote %} checked{% else %} disabled{% endif %}> <span><code>gitdev</code> remote
+          {%- if nf.remote %} <small class="muted mono">{{ nf.remote }}</small>{% else %} <small class="muted">(not configured: git_remote_template in pm.toml)</small>{% endif %}</span></label>
+        <label class="p-chk" data-pj-gitdep><input type="checkbox" name="commit" value="1"> First commit</label>
+      </fieldset>
+      <fieldset class="pj-nfs"><legend>First agent</legend>
+        <label class="pj-nfld"><span class="vh">Agent kind</span>
+          <select class="sel" name="agent" data-pj-kind aria-label="First agent">
+            <option value="">No agent</option>
+            {%- for k in nf.kinds %}<option value="{{ k }}">{{ k }}</option>{% endfor %}
+          </select></label>
+        <div class="pj-nagent" data-pj-agent hidden>
+          <div class="pj-nrow3">
+            <label class="pj-nfld"><span>Model</span><select class="sel" name="model" data-pj-model><option value="">Default</option></select></label>
+            <label class="pj-nfld"><span>Effort</span><select class="sel" name="effort" data-pj-effort><option value="">Default</option></select></label>
+            <label class="pj-nfld"><span data-pj-mlabel>Permission mode</span><select class="sel" name="permission_mode" data-pj-mode><option value="">Default</option></select></label>
+          </div>
+          <label class="pj-nfld" data-pj-extraw hidden><span data-pj-xlabel>Extra</span><select class="sel" name="permission_extra" data-pj-extra><option value="">Default</option></select></label>
+          <small class="muted pj-nhelp" data-pj-mhelp></small>
+          <label class="p-chk pj-nbypass" data-pj-bypass hidden><input type="checkbox" name="confirm_bypass" value="1"> I understand: this mode skips every permission prompt</label>
+          <label class="pj-nfld"><span>Prompt <small class="muted">(optional)</small></span><textarea class="pj-nta" name="prompt" rows="3" maxlength="20000" spellcheck="true" placeholder="What the agent should do first"></textarea></label>
+        </div>
+      </fieldset>
+    </div>
+    <aside class="pj-nplan" aria-labelledby="pj-plan-t">
+      <h3 id="pj-plan-t">What will happen</h3>
+      <ol class="pj-npl" data-pj-plan aria-live="polite"></ol>
+      <p class="pj-nerr" role="status" data-pj-err hidden></p>
+      <p class="pj-nnote muted" data-pj-note>Nothing is created until you press Create.</p>
+    </aside>
+  </div>
+  <div class="pj-nrun" data-pj-run hidden>
+    <ol class="pj-nsteps" data-pj-steps aria-live="polite"></ol>
+    <p class="pj-nsum" role="status" data-pj-sum hidden></p>
+  </div>
+  <div class="ft"><span class="pj-nft muted" data-pj-ftnote></span>
+    <button class="x-btn" type="button" data-act="close" data-pj-cancel>Cancel</button>
+    <a class="x-btn pri" href="/p" data-pj-open hidden>Open project</a>
+    <button class="x-btn pri" type="submit" data-pj-create disabled>Create</button></div>
+</form>
+</dialog>
+{%- endif %}

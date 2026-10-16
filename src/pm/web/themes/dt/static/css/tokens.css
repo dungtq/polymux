@@ -1,0 +1,189 @@
+/* dt theme (pm v7) design tokens: the ONLY file with :root custom properties and colour literals
+   (docs/themes/dt/DESIGN.md §3, CONDUCT.md V7-UI-2). Loaded first of the dt CSS.
+   Light/dark: light-dark() + color-scheme; html[data-theme=light|dark] forces one (js/head.js from
+   pm.v7.shell.mode), data-theme=auto or none follows the OS.
+   Part 1 = the classic tokens (colour names kept for un-ported classic content), part 2 = the v7 tokens
+   (§3.2), part 3 = shell state switches (sidebar rail, aside, phone bottom nav), part 4 = classic-content
+   compat (sizes whose classic value differs; deleted at cutover with shell/_classic.html). */
+:root{
+  color-scheme:light dark;
+
+  /* ---- 1. colours (classic names and values, DESIGN §3.1) ---- */
+  --page:light-dark(#ffffff,#0d1117);
+  --bg:light-dark(#ffffff,#0d1117);
+  --card:var(--bg);
+  --subtle:light-dark(#f6f8fa,#151b23);
+  --side:light-dark(#eef1f4,#090d13);
+  --head:light-dark(#f6f8fa,#151b23);
+  --head-fg:light-dark(#1f2328,#f0f6fc);
+  --head-muted:light-dark(#3d444d,#c9d1d9);
+  --colh:light-dark(#59636e,#9198a1);
+  --fg:light-dark(#1f2328,#f0f6fc);
+  --muted:light-dark(#59636e,#9198a1);
+  --idle:var(--muted);
+  --line:light-dark(#d0d7de,#3d444d);
+  --line2:light-dark(#eaeef2,#21262d);
+  --ctl-line:light-dark(#d0d7de,#3d444d);
+  --hover:light-dark(#eaeef2,#21262d);
+  --accent:light-dark(#0969da,#4493f8);
+  --accent-soft:light-dark(#ddf4ff,#1a2c4a);
+  --pane-bg:light-dark(#0d1117,#010409); --pane-fg:#e6edf3;
+  --code-bg:light-dark(#818b981f,#656c7633);
+  --selection:light-dark(#b6e3ff,#1f6feb66);
+  --scrim:light-dark(rgb(31 35 40/.4),rgb(1 4 9/.7));
+  --backdrop:rgb(0 0 0 / .45); --backdrop-strong:rgb(0 0 0 / .78);
+
+  /* state */
+  --waiting:light-dark(#9a6700,#d29922); --waiting-soft:light-dark(#fff8c5,#272115);
+  --running:light-dark(#1a7f37,#3fb950);
+  --failed:light-dark(#d1242f,#f85149);
+  --ok:var(--running); --warn:var(--waiting);
+  --ok-fg:light-dark(#116329,#3fb950);
+  --st-run:light-dark(#1a7f37,#3fb950); --st-attn:light-dark(#bf8700,#d29922);
+  --st-err:light-dark(#d1242f,#f85149);
+  --lvl-ok:light-dark(#1a7f37,#3fb950); --lvl-warn:light-dark(#9a6700,#d29922);
+  --lvl-red:light-dark(#cf222e,#f85149);
+  --running-soft:light-dark(#dafbe1,#12261e); --failed-soft:light-dark(#ffebe9,#2d1215);
+  --waiting-fg:light-dark(#7d4e00,#d29922); --failed-fg:light-dark(#b62324,#f85149);
+  --lvl-warn-soft:light-dark(#fff8c5,#3a2f0b); --lvl-red-soft:light-dark(#ffebe9,#3d1418);
+  --gb-branch-fg:light-dark(#0550ae,#79c0ff); --gb-branch-bg:light-dark(#ddf4ff,#12253f);
+  --gb-ok-fg:light-dark(#0f5323,#56d364); --gb-ok-bg:var(--running-soft);
+  --gb-warn-fg:light-dark(#6a3e00,#e3b341); --gb-warn-bg:light-dark(#fff1c2,#2d2410);
+  --btn-green:light-dark(#1a7f37,#238636); --on-accent:#fff;
+  --tab-on:#fd8c73; /* classic content only (Servers card edge); v7 never uses orange */
+
+  /* user-set state colours (Settings › Display override these on <html>); default = the state tokens */
+  --dot-run:var(--st-run); --dot-wait:var(--st-attn); --dot-fail:var(--st-err);
+  --dot-idle:var(--muted); --dot-end:var(--muted);
+  --badge-un:var(--accent); --badge-need:var(--waiting); --badge-need-soft:var(--waiting-soft);
+
+  /* agent kinds (WHO); [data-kind] sets --k (base.css) */
+  --k-claude:light-dark(#c96442,#e0866a); --k-codex:light-dark(#7c5cdb,#a58af0);
+  --k-devin:light-dark(#0e8f8f,#3cc0c0); --k-cursor-agent:light-dark(#5f6b7a,#9aa7b8);
+  --k-antigravity:light-dark(#d1388f,#f06ab2); --k-other:light-dark(#8a8f98,#6b7078);
+
+  /* tool families (chat chips) */
+  --tool-shell:light-dark(#6639ba,#bc8cff); --tool-read:light-dark(#136061,#39c5cf);
+  --tool-edit:light-dark(#953800,#f0883e); --tool-web:light-dark(#0550ae,#58a6ff);
+  --tool-agent:light-dark(#99286e,#f778ba); --tool-mcp:light-dark(#116329,#56d364);
+  --tool-other:var(--muted);
+  --bub-user-bg:light-dark(#ddf4ff,#12283f); --bub-user-bd:light-dark(#54aeff,#1f6feb);
+  --bub-asst-bg:light-dark(#f0f3f6,#1c2128); --bub-asst-bd:light-dark(#d0d7de,#3d444d);
+  /* Settings › Chat colours › Background "tint" (README A25): a wash of the agent's colour; head.js points
+     --bub-asst-bg at it */
+  --bub-asst-tint:color-mix(in srgb,var(--k,var(--accent)) 7%,var(--page));
+
+  /* files pane, git status, diff, code highlight (classic content) */
+  --ico-dir:light-dark(#54aeff,#4493f8); --ico-file:light-dark(#818b98,#9198a1);
+  --ico-dir-c:light-dark(#54aeff,#54aeff); --ico-md-c:light-dark(#0969da,#4493f8);
+  --ico-code-c:light-dark(#59636e,#9198a1); --ico-img-c:light-dark(#8250df,#ab7df8);
+  --ico-zip-c:light-dark(#9a6700,#d29922);
+  --gs-m:light-dark(#9a6700,#d29922); --gs-a:light-dark(#1a7f37,#3fb950); --gs-u:var(--muted);
+  --gs-c:light-dark(#1a7f37,#3fb950);
+  --df-add-bg:light-dark(#dafbe1,#12261e); --df-add-fg:light-dark(#116329,#7ee787);
+  --df-del-bg:light-dark(#ffebe9,#2d1316); --df-del-fg:light-dark(#82071e,#ffa198);
+  --df-hunk-bg:light-dark(#ddf4ff,#121d2f); --df-hunk-fg:light-dark(#0550ae,#79c0ff);
+  --hl-k:light-dark(#cf222e,#ff7b72); --hl-s:light-dark(#0a3069,#a5d6ff); --hl-c:light-dark(#59636e,#8b949e);
+  --hl-m:light-dark(#0550ae,#79c0ff); --hl-f:light-dark(#8250df,#d2a8ff); --hl-n:light-dark(#953800,#ffa657);
+  --hl-t:light-dark(#116329,#7ee787); --hl-e:light-dark(#82071e,#f85149);
+
+  /* ---- 2. v7 tokens (DESIGN §3.2) ---- */
+  /* shell geometry */
+  --top-h:40px;
+  --side-w:248px; --rail-w:48px; --side-over-w:280px; --side-drawer-w:min(320px,86vw);
+  --aside-w:clamp(360px,var(--aside-pct,30vw),50vw); --aside-over-w:min(440px,100vw);
+  --bnav-h:calc(56px + env(safe-area-inset-bottom));
+  --cap:1280px; --home-tab-w:148px; --tab-w:190px; --tab-min:110px;
+  --pj-cap:1180px; --reader-min:420px; --reader-w:36%; /* project view main cap, reader column (LAYOUT §5) */
+  /* session tab (DESIGN §3.2 row "Session", README A8): message column cap (LAYOUT §5), Builder chat width
+     (PRD §6.3), floating side panel (reader, canvas; DESIGN §6.19) max width */
+  --chat-cap:880px; --bld-chat-w:440px; --side-float-max:600px;
+  /* shell layers (README A10, LAYOUT §5): Launch dialog width, Quick chat panel and its conversation list;
+     Settings popup (README A27) */
+  --launch-w:760px; --qchat-w:720px; --qchat-h:640px; --qchat-list-w:220px; --sp-w:1040px; --sp-h:760px;
+  /* page sizes (README A19): field width cap (selects, attachment chip, a flexible stats run) and the narrow one
+     (branch input, quick chat chips); project sidebar column; centred empty note; prompt box height range */
+  --field-w:16rem; --field-w-sm:12.5rem; --pj-side-w:260px; --pj-side-w-sm:220px; --empty-w:22.5rem;
+  --prompt-min-h:6rem; --prompt-max-h:40vh;
+  /* meters (README A24, DESIGN §6.7): auto-fill cell width, bar height, share bar inside a table cell */
+  --meter-w:170px; --bar-h:4px; --bar-in-w:56px;
+  /* controls */
+  --ctl-h:30px; --ctl-h-sm:26px; --ib:32px; --ib-sm:26px; --seg-h:28px;
+  --sw-w:34px; --sw-h:20px; --chip-h:18px; --tag-h:24px;
+  /* rows */
+  --row-h:36px; --row-head-h:32px; --row-group-h:30px; --row-side-h:28px; --row-menu-h:32px;
+  /* radius */
+  --r-xs:4px; --r:6px; --r-pop:8px; --r-dlg:10px; --r-sheet:14px; --r-comp-phone:20px; --r-pill:999px;
+  /* type */
+  --fs-xs:.6875rem; --fs-s:.75rem; --fs-ui:.8125rem; --fs-m:.875rem; --fs-body:calc(14px * var(--fs-k,1));
+  --fs-l:1rem; --fs-xl:1.125rem; --fs-h1:1.25rem;
+  --fs-in:var(--fs-ui); /* text inputs; 16px on touch / phone (no iOS zoom), DESIGN §5 */
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;
+  --font-chat:var(--font-ui);
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  /* shadows: black alpha in both themes, never mixed from --fg (V7-UI-3) */
+  --shadow-menu:0 8px 24px light-dark(rgb(0 0 0 / .12),rgb(0 0 0 / .5));
+  --shadow-dlg:0 16px 48px light-dark(rgb(0 0 0 / .18),rgb(0 0 0 / .6));
+  --shadow-side:0 8px 24px light-dark(rgb(0 0 0 / .14),rgb(0 0 0 / .5));
+  /* layers (modal dialogs use the browser top layer and need none) */
+  --z-local:1; --z-sticky:10; --z-scrim:30; --z-side-over:40; --z-aside-over:45; --z-panel:50;
+  --z-pop:60; --z-drawer:70; --z-sheet:90; --z-toast:100;
+  /* motion (0s under prefers-reduced-motion, below) */
+  --t-fast:120ms; --t-slide:180ms; --ease:cubic-bezier(.2,.8,.2,1);
+  /* spacing; page padding 16 24 32 (phone 12 16 24) */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --gap:8px;
+  /* component geometry named in DESIGN §6 */
+  --dot:8px; --dot-open:5px; --dot-un:6px;
+  --icon:18px; --icon-sm:16px; --icon-xs:12px; --badge-h:16px;
+  --menu-min-w:200px; --acct-w:240px;
+  --dlg-w:440px; --pal-w:680px; --pal-top:72px; --pal-in-h:48px; --keys-w:720px;
+  --sheet-max-h:78dvh; --grab-w:36px;
+  /* touch hit area of a control drawn smaller than it (TODO tick, checkboxes; README A20, LAYOUT §3) */
+  --hit:44px;
+
+  /* classic names kept for classic content (same values as the classic tokens) */
+  --ctl-pad:12px; --ctl-font:.8125rem; --ctl-radius:6px; --box-r:6px; --r-ctl:6px; --pill-h:24px;
+  --nav-h:32px; --act-w:32px;
+  --pop-r:8px; --pop-shadow:var(--shadow-menu);
+
+  /* ---- 3. shell state (desktop defaults; switches below) ---- */
+  --side-now:var(--side-w); /* sidebar column actually shown */
+  --aside-now:0px;          /* chat aside column actually shown */
+  --bnav-now:0px;           /* phone bottom nav row actually shown */
+  --tab-h:0px;              /* classic name: room under classic fixed bars (= the dt bottom nav) */
+  --nav-clear:calc(var(--tab-h) + env(safe-area-inset-bottom));
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+
+/* touch: bigger controls and rows (an iPad gets these at any width) */
+@media (pointer:coarse){
+  :root{--ctl-h:40px; --ib:40px; --seg-h:40px; --sw-w:44px; --sw-h:26px; --row-side-h:44px; --row-menu-h:48px;
+    --fs-in:16px; --nav-h:44px; --act-w:40px}
+}
+/* sidebar rail and docked aside: desktop only (under 900 both are overlays and take no column) */
+@media (min-width:900px){
+  html.side-rail,body.side-rail{--side-now:var(--rail-w)}
+  html.aside,body.aside{--aside-now:var(--aside-w)}
+}
+@media (max-width:899px){
+  :root{--side-now:0px; --aside-now:0px}
+}
+/* phone: 48px top bar, bottom nav (hidden on a session tab and on an agent page: body.c-page), 15px body, two-line
+   rows */
+@media (max-width:699px){
+  :root{--top-h:calc(48px + env(safe-area-inset-top)); --fs-body:calc(15px * var(--fs-k,1)); --fs-in:16px; --row-h:56px;
+    --bnav-now:var(--bnav-h); --tab-h:var(--bnav-h)}
+  body:is(.x-sessview,.c-page){--bnav-now:0px; --tab-h:0px}
+}
+@media (prefers-reduced-motion:reduce){
+  :root{--t-fast:0s; --t-slide:0s}
+}
+
+/* ---- 4. classic-content compat (V7-ISO-10): un-ported page content (main.x-cl) and classic dialogs keep the
+   classic value of the names v7 redefines. Deleted at cutover with shell/_classic.html. ---- */
+.x-cl,dialog.pmdlg{--s3:16px; --fs-s:.8125rem; --fs-m:.9375rem; --fs-l:1.125rem;
+  --ctl-h:32px; --row-h:32px; --chip-h:24px; --dlg-w:420px}
+@media (pointer:coarse){
+  .x-cl,dialog.pmdlg{--ctl-h:40px; --row-h:40px; --chip-h:34px}
+}

@@ -1,0 +1,258 @@
+/* agent.css: agent page overrides, loaded after chrome.css */
+
+/* ---- agent page ---- */
+.agent-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin:4px 0 0}
+.agent-head h1{width:auto;flex:0 1 auto;display:block;margin:0;padding:0;border:0;min-width:0}
+.agent-kind{color:var(--muted);font-size:var(--fs-s);margin-left:2px}
+.agent-head #agent-state .badge{margin:0}
+.agent-head .agent-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.agent-head .agent-actions .button,.agent-head .agent-actions button{display:inline-flex;align-items:center;min-height:var(--ctl-h);height:var(--ctl-h);box-sizing:border-box}
+.agent-meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:6px 0 4px;white-space:nowrap;overflow:hidden}
+.agent-meta .am-main{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.agent-meta .am-host{flex:0 0 auto;color:var(--muted);opacity:.85}
+.agent-meta .am-origin{flex:0 1 auto;min-width:0;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-meta .am-origin::before{content:"\00b7";margin-right:8px}
+.agent-meta .am-origin a.mono{color:var(--accent)}
+@media (max-width:699px){
+  .agent-head .agent-actions{flex:1 0 100%;margin-left:0}
+  .agent-head .agent-actions .button,.agent-head .agent-actions button{min-height:40px;height:40px}
+}
+.chat-bubble.role-user{max-width:min(85%,640px);padding:10px 12px}
+.md pre{padding:10px 12px}
+
+/* ---- launch ---- */
+.running-strip.card{border:0;background:none;box-shadow:none;border-radius:0;padding:0;margin:0 0 12px;color:var(--waiting)}
+.running-strip > p:first-child{display:block;margin:0 0 4px;font-size:var(--fs-s);color:var(--waiting)}
+.running-strip > p:first-child::before{content:"";display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.5 15 14H1L8 1.5Zm-.75 5v3.5h1.5V6.5h-1.5Zm0 4.75v1.5h1.5v-1.5h-1.5Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.5 15 14H1L8 1.5Zm-.75 5v3.5h1.5V6.5h-1.5Zm0 4.75v1.5h1.5v-1.5h-1.5Z'/%3E%3C/svg%3E") center/contain no-repeat}
+.running-strip > p:first-child strong{font-weight:600}
+.running-strip ul{list-style:none;padding:0 0 0 22px}
+.running-strip li{display:flex;gap:8px;align-items:baseline;font-size:var(--fs-s)}
+.running-strip li a{padding:4px 0}
+main .launch-actions .button,main .launch-actions button{min-height:36px;height:36px}
+.launch-actions .button,.launch-actions button{padding:0 16px}
+.launch-actions button.secondary,.launch-actions .button.secondary{background:transparent;border-color:var(--ctl-line);color:var(--fg)}
+.launch-actions .button.secondary[data-launch-cancel]{border-color:transparent;color:var(--muted)}
+.launch-actions .button.secondary[data-launch-cancel]:hover{color:var(--fg);background:var(--hover)}
+@media (max-width:480px){.launch-actions > *{flex:1 1 100%}}
+/* TODO dispatch: one hairline row = text + select + Dispatch + Options */
+form.card.dispatch{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;border:0;border-top:1px solid var(--line);border-radius:0;background:none;box-shadow:none;margin:0;padding:6px 0}
+form.card.dispatch:last-of-type{border-bottom:1px solid var(--line)}
+form.card.dispatch > div:not(.row){flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+form.card.dispatch > .row{display:flex;align-items:center;gap:8px;margin:0;flex:0 0 auto}
+form.card.dispatch > .row select{min-height:32px;width:auto;max-width:9rem}
+form.card.dispatch > .row button{min-height:32px;height:32px}
+form.card.dispatch > details.dispatch-opts{flex:0 0 auto}
+form.card.dispatch > details.dispatch-opts > summary{color:var(--muted);font-size:var(--fs-s);cursor:pointer;list-style:none;padding:0 4px;min-height:32px;display:inline-flex;align-items:center}
+form.card.dispatch > details.dispatch-opts > summary::-webkit-details-marker{display:none}
+form.card.dispatch > details.dispatch-opts > summary:hover{color:var(--accent);text-decoration:underline}
+form.card.dispatch > details.dispatch-opts[open]{flex:1 0 100%;order:9}
+@media (max-width:699px){
+  form.card.dispatch > div:not(.row){flex:1 0 100%;white-space:normal}
+  form.card.dispatch > .row{flex:1 1 auto}
+  form.card.dispatch > .row select{flex:1;max-width:none;min-height:40px}
+  form.card.dispatch > .row button{min-height:40px;height:40px}
+  form.card.dispatch > details.dispatch-opts > summary{min-height:40px}
+}
+
+/* ---- terminal viewer ---- */
+.termpage main{padding-bottom:8px}
+.termpage .term{gap:8px;height:calc(100dvh - 44px - 16px);min-height:320px}
+.termpage .term-head{min-height:36px}
+.termpage .term-head .term-name{flex:1 1 auto;border:0;padding:0;margin:0;width:auto;font-size:1rem}
+.termpage .term-head .button{min-height:32px;display:inline-flex;align-items:center}
+.termpage .term-status{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:var(--fs-s);white-space:nowrap}
+.termpage .term-status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.termpage .term-status[data-state="live"]{color:var(--ok-fg,var(--btn-green))}
+.termpage .term-status[data-state="closed"]{color:var(--failed)}
+.termpage .term-badge{border:1px solid var(--line);border-radius:var(--r-pill);padding:0 8px;font-size:.6875rem;line-height:20px;letter-spacing:.03em;white-space:nowrap}
+.termpage .term-tools{display:flex;gap:6px;align-items:center}
+.termpage .term-nav{gap:8px}
+.termpage .term-nav .term-navbtn{min-height:36px;min-width:40px}
+.termpage .term-scroll{height:auto;flex:1 1 auto;min-height:200px;display:flex;flex-direction:column}
+.termpage .term-scroll[hidden]{display:none}
+.termpage .term-scroll .term-screen{flex:1 1 auto;height:auto;min-height:0;display:flex}
+.termpage .term-screen .term-fake{flex:1 1 auto;margin:0;padding:12px;font:12.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#d0d7de;white-space:pre;min-width:max-content;box-sizing:border-box}
+.termpage .term-scroll{overflow:auto}
+@media (max-width:700px){
+  .termpage .term{height:auto;min-height:0}
+  .termpage main{padding-bottom:0}
+  .termpage .term-scroll{height:calc(100dvh - 172px);min-height:240px;margin-bottom:0;overflow:auto}
+  .termpage .term-nav{flex-wrap:nowrap;gap:6px}
+  .termpage .term-nav .term-navbtn{min-height:40px;min-width:40px}
+  .termpage .term-navbtn{min-width:40px}
+  .termpage .term-histbtn{min-width:48px}
+  .termpage .term-winlabel{display:none}
+  .termpage .term-tools{flex:0 0 auto}
+  .termpage .term-nav #term-prev,.termpage .term-nav #term-next{flex:0 0 auto}
+  .termpage .term-tools{margin-left:auto}
+  .termpage .term-head .button{min-height:40px}
+}
+
+.termpage .term-screen .term-fake{background:#0d1117;border:0;border-radius:0}
+.termpage .term-status[data-state="live"]{color:var(--ok-fg,var(--btn-green))}
+main .agent-head h1{width:auto;flex:0 1 auto}
+.chat-bubble.role-user .chat-text,.chat-bubble.role-user .md p{margin:0}
+.running-strip li{line-height:1.3}
+.running-strip li a{padding:2px 0}
+.running-strip ul{margin-top:2px}
+form.card.dispatch > details.dispatch-opts{margin:0}
+.agent-head{justify-content:flex-start}
+.chat-bubble.role-user .chat-body,.chat-bubble.role-user .chat-body p{margin:0}
+
+/* ---- final review ---- */
+form.card.dispatch{align-items:center}
+form.card.dispatch>details.dispatch-opts>summary{line-height:1}
+.termpage .term-screen{padding:0}
+.termpage .term-scroll{border-radius:6px;overflow:hidden}
+/* fix I: date-time on every chat message */
+.chat-bubble .chat-meta{display:flex;min-height:0;margin-bottom:2px;font-size:var(--fs-s);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* user meta: right-aligned but never past the bubble's left edge (safe), wraps as a last resort; the stamp truncates */
+.chat-bubble.role-user .chat-meta{display:flex;justify-content:safe flex-end;flex-wrap:wrap;row-gap:0;min-width:0;max-width:100%}
+.chat-bubble.role-user .chat-meta .stamp{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* from 700px the user bubble has a fixed width (shell.css 50%): drop the stamp when it is too narrow (the age keeps it as title) */
+@media (min-width:700px){.chat-bubble.role-user{container:ububble/inline-size}}
+@container ububble (max-width:380px){.chat-meta .stamp{display:none}}
+.chat-meta strong{font-weight:500;text-transform:capitalize}
+
+/* ---- newer features (not in the mock) ---- */
+.mdpane-h .mdpane-act .small{min-height:28px;display:inline-flex;align-items:center}
+.mdpane.is-full{background:var(--bg)}
+.mdpane.is-full .mdpane-h{position:sticky;top:0;background:var(--bg)}
+.dispatch-prompt{background:var(--pane-bg,var(--code-bg,transparent));color:var(--pane-fg,inherit);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:4px 0 8px;font-size:var(--fs-s)}
+.agent-head .agent-actions .button.small{min-height:var(--ctl-h)}
+
+/* ---- chat bubbles: coloured, rounded, filled ---- */
+.chat-bubble{border:1px solid var(--bub-asst-bd);border-radius:12px;background:var(--bub-asst-bg);padding:10px 14px;margin:6px 0}
+.chat-bubble.role-user{background:var(--bub-user-bg);border:1px solid var(--bub-user-bd);margin-left:auto;padding:10px 14px}
+.chat-bubble.role-user .chat-meta strong{color:var(--accent)}
+.chat-bubble .md pre{background:var(--bg);border:1px solid var(--line);border-radius:8px}
+
+
+/* Last request = user bubble on the right; agent bubbles full width */
+.chat-bubble.role-user{width:fit-content;min-width:min(260px,85%)}
+.chat-bubble:not(.role-user){width:100%;box-sizing:border-box;max-width:100%}
+.chat-req .chat-text{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* agent meta: project row, then path (left) + tmux info (right) */
+.agent-meta.am-row2{margin-top:0}
+.agent-meta .am-ico{vertical-align:-3px;margin-right:6px}
+.agent-meta .am-main a.mono{color:var(--accent)}
+.chat-full{margin:4px 0}
+.chat-full a{color:var(--accent)}
+@media (max-width:699px){.agent-meta .am-origin::before{content:none}.agent-meta.am-row2{flex-wrap:wrap;white-space:normal}.agent-meta.am-row2 .am-host{flex:1 0 100%}}
+
+/* Terminal tab (same page): only the checked panel shows */
+.tabpanel-term{display:none}
+#tab-term:checked ~ .tabpanel-term{display:block}
+#tab-term:checked ~ .tabpanel-chat,#tab-term:checked ~ .tabpanel-pane,#tab-term:checked ~ .tabs ~ .tabpanel-chat{display:none}
+#tab-chat:checked ~ .tabpanel-term,#tab-pane:checked ~ .tabpanel-term{display:none}
+.term-frame{display:block;width:100%;height:calc(100vh - 260px);min-height:360px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+body.embed .topbar,body.embed .tabbar,body.embed .term-back,body.embed .term-name{display:none}
+/* must out-rank `.termpage .term-head .button{display:inline-flex}` */
+.termpage.embed .term-head .term-back{display:none}
+body.embed{padding-bottom:0}
+.chat-full{text-align:right}
+
+
+/* more space above the path/tmux row */
+.agent-meta.am-row2{margin-top:12px}
+
+
+.chat-imgs{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;margin:6px 0 0}
+.chat-img{display:block;max-width:min(240px,100%);line-height:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--subtle)}
+.chat-img img{display:block;max-width:100%;max-height:180px;width:auto;height:auto;object-fit:contain}
+.md .chat-img{display:inline-block;vertical-align:top}
+
+/* outgoing message: shown at once, then Sent */
+
+/* tokens + turns on the tabs row, right-hand side; click opens the full statistics */
+.tab-stats{float:right;position:relative;margin:8px 0 12px;font-size:var(--fs-s);font-variant-numeric:tabular-nums}
+.tab-stats:empty{display:none}
+.stats-sum{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:var(--ctl-h);white-space:nowrap;color:var(--muted)}
+.stats-sum::-webkit-details-marker{display:none}
+.stats-sum:hover{color:var(--fg)}
+.ts-dot{width:8px;height:8px;border-radius:50%;background:var(--lvl-ok)}
+.lvl-warn .ts-dot{background:var(--lvl-warn)} .lvl-red .ts-dot{background:var(--lvl-red)}
+.stats-sum.lvl-warn .ts-ctx{color:var(--lvl-warn);font-weight:600}
+.stats-sum.lvl-red .ts-ctx{color:var(--lvl-red);font-weight:600}
+/* Compact / Clear right after the context meter when it is amber/red (global small buttons, no banner) */
+.ts-act{display:inline-flex;align-items:center;gap:4px;flex:none}
+.stats-panel{position:absolute;right:0;top:100%;z-index:20;width:min(380px,calc(100vw - 32px));padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg);box-shadow:0 8px 24px rgba(0,0,0,.18);white-space:normal;color:var(--fg)}
+.stats-h{margin:0 0 8px;font-size:.9375rem;font-weight:600}
+.stats-h .muted{display:block;font-size:var(--fs-s);font-weight:400}
+.stats-ctx{padding:8px 10px;margin-bottom:10px;border:1px solid var(--line);border-left-width:4px;border-radius:6px;border-left-color:var(--lvl-ok)}
+.stats-ctx.lvl-warn{border-left-color:var(--lvl-warn);background:var(--lvl-warn-soft)}
+.stats-ctx.lvl-red{border-left-color:var(--lvl-red);background:var(--lvl-red-soft)}
+.stats-line{margin:0 0 6px}
+.stats-bar{display:block;width:100%;height:8px;border:0;border-radius:99px;overflow:hidden;appearance:none;background:var(--hover)}
+.stats-bar::-webkit-progress-bar{background:var(--hover);border-radius:99px}
+.stats-bar::-webkit-progress-value{border-radius:99px;background:var(--lvl-ok)}
+.stats-bar::-moz-progress-bar{border-radius:99px;background:var(--lvl-ok)}
+.lvl-warn .stats-bar::-webkit-progress-value{background:var(--lvl-warn)} .lvl-warn .stats-bar::-moz-progress-bar{background:var(--lvl-warn)}
+.lvl-red .stats-bar::-webkit-progress-value{background:var(--lvl-red)} .lvl-red .stats-bar::-moz-progress-bar{background:var(--lvl-red)}
+.stats-note{margin:8px 0 0;line-height:1.4}
+.lvl-red .stats-note{color:var(--lvl-red);font-weight:600}
+.lvl-warn .stats-note{color:var(--lvl-warn)}
+.stats-grid{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:0}
+.stats-grid dt{color:var(--muted)} .stats-grid dt.sub{padding-left:14px}
+.stats-grid dd{margin:0;text-align:right}
+.stats-foot{margin:10px 0 0;font-size:.75rem}
+.tabpanel{clear:both}
+
+/* agent header (templates/_agentname.html agent_head): "[>_] <agent id> [model pill] [Ended]", one line, ellipsis. The pill
+   is the one model pill (.kpill.kp-model, kind colour, lists.css + chrome.css); here it only gets the heading size. The ended state word is .kpill.at-ended. */
+.agent-head h1.agent-title{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;flex:0 1 auto;font-size:var(--fs-m);font-weight:500;line-height:1.5;white-space:nowrap}
+.agent-title .at-ico{flex:none;display:inline-flex;align-items:center;color:var(--muted);margin-right:-2px}
+.agent-title .at-base{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.agent-head[data-agent] h1.agent-title .kpill{flex:0 100 auto;min-width:3em;margin:0;overflow:hidden;text-overflow:ellipsis;font-size:.78em;line-height:1.4}
+.agent-head[data-agent] h1.agent-title .kpill.at-ended{flex:none;min-width:0;--pill:var(--waiting);background:var(--waiting-soft);border-color:color-mix(in srgb,var(--waiting) 45%,transparent);text-transform:none}
+.agent-head #agent-state.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* recap + history above the chat */
+.recap-w:empty{display:none}
+.chat-recap{margin:0 0 10px;border:1px solid var(--line);border-radius:var(--box-r);background:var(--bg);font-size:var(--fs-s)}
+.chat-recap>summary{cursor:pointer;padding:6px 10px;min-height:var(--ctl-h);display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recap-grid{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;margin:0;padding:6px 10px 10px;border-top:1px solid var(--line)}
+.recap-grid dt{color:var(--muted)} .recap-grid dd{margin:0;min-width:0}
+.recap-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recap-files{display:flex;flex-direction:column;gap:2px}
+.recap-files .mono{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recap-h{margin:0;padding:8px 10px 4px;font-size:var(--fs-s);font-weight:600;border-top:1px solid var(--line)}
+.hist-list{list-style:none;margin:0;padding:0 0 6px;max-height:11rem;overflow:auto}
+.hist-row{display:grid;grid-template-columns:minmax(0,1fr) 4rem 6rem;gap:8px;padding:4px 10px;min-height:var(--ctl-h);align-items:center;white-space:nowrap;color:var(--fg);text-decoration:none}
+.hist-row:hover{background:var(--hover)}
+.hist-row>span{overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.hist-row{grid-template-columns:minmax(0,1fr) 6rem}.hist-d{display:none}.recap-grid{grid-template-columns:1fr}}
+/* plan usage limits next to the token status: compact single-line items */
+.ts-lim{font-variant-numeric:tabular-nums}
+.tl-l{color:var(--accent)}
+/* scoped to .ts-lim: the summary itself carries lvl-warn/lvl-red (context), which must not recolour the limits */
+.stats-sum .ts-lim .tl-p{font-weight:700;color:var(--lvl-ok)} .stats-sum .ts-lim.lvl-warn .tl-p{color:var(--lvl-warn)} .stats-sum .ts-lim.lvl-red .tl-p{color:var(--lvl-red)}
+.tl-x{color:var(--muted)}
+.lim-row .lim-l{color:var(--accent)}
+.lim-row .lim-p{font-weight:700;color:var(--lvl-ok)} .lvl-warn .lim-row .lim-p{color:var(--lvl-warn)} .lvl-red .lim-row .lim-p{color:var(--lvl-red)}
+.lim-row .stats-bar{accent-color:var(--lvl-ok)}
+.lim{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.lim-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.lim-row{display:grid;grid-template-columns:9.5em minmax(40px,1fr) 5.5em;gap:8px;align-items:center;white-space:nowrap;font-size:var(--fs-s)}
+.lim-l{overflow:hidden;text-overflow:ellipsis}
+.lim-bar{height:6px}
+.lim-p{text-align:right;font-variant-numeric:tabular-nums}
+.lim-d>summary{list-style:none;cursor:pointer}.lim-d>summary::-webkit-details-marker{display:none}
+.lim-d>summary:hover .lim-l{text-decoration:underline}
+.lim-r{margin:2px 0 4px;font-size:.75rem;white-space:normal}
+@media (max-width:700px){.ts-lsep,.ts-lim{display:none}.lim-row{grid-template-columns:minmax(0,1fr) 5em;grid-template-areas:'l p' 'b b';gap:2px 8px}.lim-l{grid-area:l}.lim-p{grid-area:p}.lim-bar{grid-area:b}}
+/* ended-agent page: labelled fields (Project, Directory, Ended, ...), wrapping, never truncated */
+.ended-meta{margin:8px 0 4px;display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:16px;row-gap:2px}
+.ended-meta .em-rows{display:contents}
+.ended-meta #autoexit-note{display:contents}
+.ended-meta .em-row{display:contents}
+.ended-meta .em-k{color:var(--muted)}
+.ended-meta .em-v{min-width:0;overflow-wrap:anywhere;font-weight:400}
+.ended-meta .em-ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+.ended-meta .em-age{color:var(--muted)}
+.em-note{margin:6px 0 10px}
+.resume-why{align-self:center;margin-left:8px}
+.agent-actions form{display:flex;align-items:center;gap:8px}
+/* Resume / Fork repeated at the bottom of an ended session */
+@media (max-width:699px){.ended-meta{column-gap:12px}.ended-meta .em-ell{white-space:normal;overflow-wrap:anywhere}}

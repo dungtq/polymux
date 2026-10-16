@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+.pytest_cache/
+.ruff_cache/
+*.key
+.env*
+
+.*.lock
+.coverage
+htmlcov/
+
+# release extras
+.claude/
+*.db
+.env
+
+# personal agent rules (symlink from the private repo) and local Claude state
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/worktrees/
+.claude/*.lock

@@ -1,0 +1,51 @@
+{% from "_macros.html" import action_form, rx_all, prot_lock, prot_badge %}
+{% from "_agentrow.html" import agent_row, ended_list, agent_cols_head, group_label, PROJECT_COLS %}
+{% macro prow(a) %}{{ agent_row(a, PROJECT_COLS, (inbox_meta or {}).get(a.id), (agent_ntfy or {}).get(a.id), csrf, now) }}{% endmacro %}
+{% set base = "/p/" ~ (project.name | urlencode) %}{% set hid = hid or [] %}
+<div class="sec-h ptabs"><div class="tabs tabs-line" role="tablist" aria-label="tmux, stack and VMs" data-ptabs data-tabs-key="pm.ptab">
+  <button type="button" class="tab" role="tab" id="ptab-tmux" aria-controls="ptp-tmux" data-ptab="tmux" aria-selected="true">tmux <span class="pj-n">{{ sessions | length }}</span></button>
+  {% if 'stack' not in hid %}<button type="button" class="tab" role="tab" id="ptab-stack" aria-controls="ptp-stack" data-ptab="stack" aria-selected="false" tabindex="-1">Stack</button>{% endif %}
+  <button type="button" class="tab" role="tab" id="ptab-vm" aria-controls="ptp-vm" data-ptab="vm" aria-selected="false" tabindex="-1">VM</button>
+</div><span class="sec-act" data-slot="tmux-section-actions">{% set closable = sessions | rejectattr("protected") | list %}{% if closable %}<form class="inline" method="post" action="/p/{{ project.name | urlencode }}/tmux/close-all" hx-post="/p/{{ project.name | urlencode }}/tmux/close-all" hx-target="#flash" hx-swap="innerHTML" hx-confirm="Close all {{ closable | length }} tmux session{{ '' if closable | length == 1 else 's' }} of {{ project.name }}? Programs running in them stop. Protected sessions and sessions with attached clients are skipped."><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small danger" title="Close every unprotected tmux session of this project">Close all</button></form>{% endif %}</span></div>
+<div class="ptab-panel" id="ptp-tmux" role="tabpanel" aria-labelledby="ptab-tmux" data-ptab-panel="tmux" data-key="ptp-tmux">
+<div class="list" role="list">
+{% for s in sessions %}
+<div class="lrow srow" data-key="s-{{ s.id }}" data-q="{{ s | session_q(all_agents | selectattr('session_id', 'equalto', s.id) | list) }}" data-sid="{{ s.id }}" data-frow>
+  <span class="c-main"><button type="button" class="srow-tg" aria-expanded="false" aria-label="Show the windows of {{ s.name }}" title="Show / hide the windows"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>{{ prot_lock(s) }}<strong>{{ s.name }}</strong> {{ prot_badge(s) }} <span class="c-att muted">({{ s.attached }} attached)</span> <span class="c-nw muted">{{ s.windows | length }} window{{ '' if s.windows | length == 1 else 's' }}</span></span>
+  <span class="c-wins muted">{% for w in s.windows %}<span class="swin" title="window {{ w.index }}: {{ w.name }}"><span class="widx">{{ w.index }}</span><span class="wn">{{ w.name }}</span></span>{% endfor %}</span>
+  <span class="srow-act" data-slot="tmux-row-actions">{% if not s.protected %}<form class="inline" method="post" action="/tmux/session/{{ s.id | urlid }}/kill" hx-post="/tmux/session/{{ s.id | urlid }}/kill" hx-target="#flash" hx-swap="innerHTML" hx-confirm="Close tmux session {{ s.name }}? Programs running in it stop.{{ ' It has attached clients, which are disconnected.' if s.attached }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="confirm" value="{{ s.name }}">{% if s.attached %}<input type="hidden" name="force_attached" value="1">{% endif %}<button type="submit" class="small danger" title="Close this tmux session">Close</button></form>{% endif %}</span>
+</div>
+{% else %}<p class="muted">No sessions.</p>{% endfor %}
+</div>
+</div>
+{% if 'stack' not in hid %}<div class="ptab-panel" id="ptp-stack" role="tabpanel" aria-labelledby="ptab-stack" data-ptab-panel="stack" data-key="ptp-stack" hidden>
+  {% if project.stack %}
+    <span class="badge {{ 'ok' if project.stack.total and project.stack.running == project.stack.total else 'warn' }}">{{ project.stack.running }}/{{ project.stack.total }} running</span>
+    {% if project.stack.running %}{{ action_form(csrf, base ~ "/stack/restart", "Restart stack", confirm="Restart the compose stack?", cls="pj-restart") }}{% endif %}
+    {% for u in project.stack.urls %}<div><a href="{{ u }}" rel="noopener">{{ u }}</a></div>{% endfor %}
+  {% else %}<span class="muted">No compose file.</span>{% endif %}
+</div>{% endif %}
+<div class="ptab-panel" id="ptp-vm" role="tabpanel" aria-labelledby="ptab-vm" data-ptab-panel="vm" data-key="ptp-vm" data-keep hidden hx-get="{{ base }}/vms" hx-trigger="pm:vmload" hx-swap="innerHTML"><p class="muted">Loading&hellip;</p></div>
+{% set pinned_agents = pinned_agents or [] %}
+<div class="rx-head"><h2>Agents</h2>{% if agents or pinned_agents %}{{ rx_all() }}{% endif %}</div>
+{% if agents or pinned_agents %}
+{# Pinned and the active rows share one list (see _inbox.html): pinning moves a row inside the same parent #}
+<div class="list" role="list" data-key="l-agents">
+{{ agent_cols_head(PROJECT_COLS, pin=True) }}
+{% if pinned_agents %}{{ group_label("pinned", "Pinned", pinned_agents) }}{% for a in pinned_agents %}{{ prow(a) }}{% endfor %}
+{% if agents %}{{ group_label("active", "Active", agents) }}{% endif %}{% endif %}
+{% for a in agents %}{{ prow(a) }}{% endfor %}
+</div>{% elif not idle_agents %}<p class="muted">None.</p>{% else %}<p class="muted">None active.</p>{% endif %}
+{% if idle_agents %}
+<section class="inbox-sec sec-idle" aria-labelledby="sec-idle-p" data-key="sec-idle">
+  <details class="idle-fold" data-key="idle-fold" open>
+    <summary class="ended-head" id="sec-idle-p"><h2>Idle ({{ idle_agents | length }})</h2>{{ rx_all() }}<span class="fold-tog small" aria-hidden="true"><span class="ft-open">Expand</span><span class="ft-close">Collapse</span></span></summary>
+    <div class="list" role="list" data-key="l-idle">
+    {{ agent_cols_head(PROJECT_COLS, pin=True) }}
+    {% for a in idle_agents %}{{ prow(a) }}{% endfor %}
+    </div>
+  </details>
+</section>
+{% endif %}
+
+{{ ended_list(ended, ended_total, csrf, ended_ntfy, PROJECT_COLS, ended_models) }}

@@ -1,0 +1,29 @@
+{% from "_agents_macros.html" import tabs %}
+<link rel="stylesheet" href="/static/css/usage.css">
+<section class="usg-page" aria-label="Usage statistics">
+<nav class="usg-range" aria-label="Range">{% for k, label in ranges %}<a class="usg-r" href="/agents?t=usage&amp;r={{ k }}"{% if k == r %} aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+{% if not agg.sessions %}<p class="muted ag-empty">No Claude transcripts with usage in this range.</p>{% else %}
+<p class="muted usg-note">Claude Code transcripts only, sub-agents included. {{ agg.sessions }} sessions, {{ n(agg.total.replies) }} replies, {{ n(agg.total.tools) }} tool calls, {{ human(agg.total.total) }} new tokens, {{ human(agg.total.cache_read) }} cache read. Days are UTC+7.</p>
+<h2 class="usg-h2">By kind</h2>
+<div class="list usg-t" role="list">
+<div class="hrow usg-row usg-hd" role="presentation"><span>Kind</span><span class="num">Sess.</span><span class="num">Replies</span><span class="num">Tools</span><span class="num">In</span><span class="num">Out</span><span class="num usg-opt">Cache w</span><span class="num usg-opt">Cache r</span></div>
+{% for k, c in agg.kinds %}<div class="lrow usg-row" role="listitem"><span>{{ k }}</span><span class="num">{{ agg.sessions }}</span><span class="num">{{ n(c.replies) }}</span><span class="num">{{ n(c.tools) }}</span><span class="num">{{ human(c.input) }}</span><span class="num">{{ human(c.output) }}</span><span class="num usg-opt">{{ human(c.cache_write) }}</span><span class="num usg-opt">{{ human(c.cache_read) }}</span></div>{% endfor %}
+</div>
+<h2 class="usg-h2">By model</h2>
+<div class="list usg-t" role="list">
+<div class="hrow usg-row usg-hd" role="presentation"><span>Model</span><span class="num">Share</span><span class="num">Replies</span><span class="num">Tools</span><span class="num">In</span><span class="num">Out</span><span class="num usg-opt">Cache w</span><span class="num usg-opt">Cache r</span></div>
+{% for m, c in agg.models %}<div class="lrow usg-row" role="listitem"><span class="mono" title="{{ m }}">{{ m }}</span><span class="num">{{ share(c) }}%</span><span class="num">{{ n(c.replies) }}</span><span class="num">{{ n(c.tools) }}</span><span class="num">{{ human(c.input) }}</span><span class="num">{{ human(c.output) }}</span><span class="num usg-opt">{{ human(c.cache_write) }}</span><span class="num usg-opt">{{ human(c.cache_read) }}</span></div>{% endfor %}
+</div>
+<h2 class="usg-h2">By day</h2>
+<div class="list usg-t" role="list">
+<div class="hrow usg-row usg-hd" role="presentation"><span>Day</span><span class="num">Share</span><span class="num">Replies</span><span class="num">Tools</span><span class="num">In</span><span class="num">Out</span><span class="num usg-opt">Cache w</span><span class="num usg-opt">Cache r</span></div>
+{% for d, c in agg.days[:31] %}<div class="lrow usg-row" role="listitem"><span>{{ d }}</span><span class="num">{{ share(c) }}%</span><span class="num">{{ n(c.replies) }}</span><span class="num">{{ n(c.tools) }}</span><span class="num">{{ human(c.input) }}</span><span class="num">{{ human(c.output) }}</span><span class="num usg-opt">{{ human(c.cache_write) }}</span><span class="num usg-opt">{{ human(c.cache_read) }}</span></div>{% endfor %}
+</div>
+<h2 class="usg-h2">Top sessions</h2>
+<div class="list usg-t" role="list">
+<div class="hrow usg-row usg-hd" role="presentation"><span>Project</span><span class="num">Share</span><span class="num">Replies</span><span class="num">Tools</span><span class="num">In</span><span class="num">Out</span><span class="num usg-opt">Span</span><span class="num usg-opt">Cache r</span></div>
+{% for label, cwd, c, dur in agg.top %}<div class="lrow usg-row" role="listitem"><span class="ico-dir" title="{{ cwd }}">{{ label }}</span><span class="num">{{ share(c) }}%</span><span class="num">{{ n(c.replies) }}</span><span class="num">{{ n(c.tools) }}</span><span class="num">{{ human(c.input) }}</span><span class="num">{{ human(c.output) }}</span><span class="num usg-opt">{{ fmt_dur(dur) }}</span><span class="num usg-opt">{{ human(c.cache_read) }}</span></div>{% endfor %}
+</div>
+<p class="muted usg-note">Share is of new tokens (in + out + cache written); cache reads are shown apart.</p>
+{% endif %}
+</section>

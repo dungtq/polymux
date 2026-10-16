@@ -1,0 +1,27 @@
+{#- The ONE filter box (DESIGN.md §6.5). Contract: docs/themes/dt/PARTS.md §5. One per page for the page's
+    lists (the sidebar has its own). Matches name-type text only (ids, names, project, branch, window, title).
+    {% import "parts/_filter.html" as pf %}
+
+    pf.fbox(name, value="", placeholder="Filter", label="Filter", rows=none, get=none, target=none, swap="outerHTML",
+            push=true, delay=200, cls="")
+      name   the box's key: input[data-p-filter=<name>] (unique on the page; js/filter.js finds the box again by it)
+      value  the server's current q (?q=)
+      Client mode (rows = CSS selector of the list container): every [data-p-q="<lower-case text>"] inside it is hidden
+             when it does not contain every word typed; a .p-gg group with no row left hides; [data-p-fnone] shows
+             when nothing matches (js/filter.js, instant, re-applied after htmx swaps).
+      Server mode (get = URL, target = CSS selector): the input loads `get` with htmx on typing (hx-trigger "input
+             changed delay:<delay>ms, search", hx-sync replace) into target (swap); push = hx-replace-url (the address
+             bar keeps q). js/filter.js keeps the other query parameters of the page URL (segment, sort, group) on
+             that request, and keeps the caret, the typed text and the page scroll when a swap replaces the box.
+      Keys: / focuses it (keys.js); Esc clears it, a second Esc leaves it (layers.js, DESIGN §7); the × clears it.
+      The input is type=search with name "q" and a placeholder (the × shows only when the field has text). -#}
+
+{%- macro fbox(name, value="", placeholder="Filter", label="Filter", rows=none, get=none, target=none, swap="outerHTML", push=true, delay=200, cls="") -%}
+<div class="p-fbox{{ ' ' ~ cls if cls }}" role="search">
+  <svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#search"/></svg>
+  <input type="search" name="q" value="{{ value or '' }}" placeholder="{{ placeholder }}" aria-label="{{ label }}" autocomplete="off" spellcheck="false" enterkeyhint="search" data-p-filter="{{ name }}"
+    {%- if rows %} data-p-filter-rows="{{ rows }}"{% endif %}
+    {%- if get %} hx-get="{{ get }}" hx-trigger="input changed delay:{{ delay }}ms, search" hx-target="{{ target }}" hx-swap="{{ swap }}" hx-sync="this:replace"{% if push %} hx-replace-url="true"{% endif %}{% endif %}>
+  <button class="p-fclr" type="button" data-p-fclr tabindex="-1" aria-label="Clear the filter" title="Clear (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#x"/></svg></button>
+</div>
+{%- endmacro -%}

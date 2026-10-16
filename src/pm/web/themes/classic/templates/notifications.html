@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<h1>Notifications</h1>
+<p class="small muted">System messages: pm's own alerts, not tied to an agent. Agent messages are in the Inbox and on the project page.</p>
+<section id="ntfy-system" class="ntfy-panel" data-nodiff data-keep hx-get="/ntfy/panel?scope=system" hx-trigger="every 15s, pm:refresh from:document" hx-swap="innerHTML" aria-live="polite">{{ ntfy_html|safe }}</section>
+{% endblock %}

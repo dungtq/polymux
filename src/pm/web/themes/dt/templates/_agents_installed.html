@@ -1,0 +1,46 @@
+{#- dt Agents › Installed (PRD §6.8 "Installed"; LAYOUT §4 steps 3-5): the findings line, the filter box (client mode,
+    names) and one table: dot · Agent · Version · Login · Skills · Rules · MCP · Scripts · Findings · ⋯; "Not installed"
+    is a folded band. Beside an agent's detail (agents_detail.html) it is the narrow list: dot · Agent · Findings, the
+    open agent selected. Login cells ([data-a-login=<name>]) are filled by js/agents.js from GET /agents/auth.json (the
+    status cache; nothing is probed on render). View model: dt_agents("installed"). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set fr = dt_agents("frame") -%}{%- set ins = dt_agents("installed") -%}
+{%- macro irow(r, first) -%}
+{% call tb.row(r.name, href=r.href, kind=r.kind if r.installed else none, cls="a-row" ~ ("" if r.installed else " a-off"), cur=first, sel=r.sel, q=r.q, title=r.label) %}
+  {{ tb.dot("running" if r.installed else "idle", "installed" if r.installed else "not installed") }}
+  {% call tb.name(r.label) %}{% endcall %}
+  {%- if not ins.narrow %}
+  {% call tb.cell("hide-n muted") %}<span title="{{ r.version }}">{{ r.version }}</span>{% endcall %}
+  {% call tb.cell("hide-n") %}{% if r.installed %}<span class="muted" data-a-login="{{ r.name }}">…</span>{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+  {% call tb.cell(num=true) %}{{ r.skills }}{% endcall %}
+  {% call tb.cell("hide-n", num=true) %}{{ r.rules }}{% endcall %}
+  {% call tb.cell(num=true) %}{{ r.mcp }}{% endcall %}
+  {% call tb.cell("hide-n", num=true) %}{{ r.scripts }}{% endcall %}
+  {%- endif %}
+  {% call tb.cell("gc-end", num=true) %}{% if r.findings %}<span class="chip{{ ' warn' if r.warn }}" title="{{ r.findings }} finding{{ '' if r.findings == 1 else 's' }}">{{ r.findings }}<span class="vh"> findings</span></span>{% else %}<span class="muted" title="No findings">–</span>{% endif %}{% endcall %}
+  {% call tb.meta() %}{{ r.meta }}{% endcall %}
+  {%- if not ins.narrow %}{% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.label) }}{% endcall %}{% endif %}
+{% endcall %}
+{%- endmacro -%}
+{%- if ins %}
+{%- if fr and fr.find and not ins.narrow %}
+<p class="a-status{{ ' warn' if fr.find.warn }}" role="status"><span class="chip{{ ' warn' if fr.find.warn }}">{{ fr.find.total }} finding{{ '' if fr.find.total == 1 else 's' }}</span>
+  <span class="muted">{{ fr.find.parts | join(" · ") }}</span><a href="{{ fr.find.href }}">Review findings</a></p>
+{%- endif %}
+{%- if not ins.narrow %}
+{% call ph.tools() %}{{ pf.fbox("agents", placeholder="Filter agents", label="Filter agents", rows="#a-inst") }}{% endcall %}
+{%- endif %}
+{% call tb.table("agents", "Installed agents", cls="a-inst" ~ (" a-narrow" if ins.narrow else ""), list="agents", id="a-inst", labels={"enter": "Open the agent's details"}) %}
+  {{ tb.gh(ins.cols, sort=ins.sort) }}
+  {%- for r in ins.rows %}{{ irow(r, loop.first) }}{% endfor %}
+  {%- if ins.off %}
+  {% call tb.group("notinst", "Not installed", count=ins.off | length, open=false) %}
+    {%- for r in ins.off %}{{ irow(r, false) }}{% endfor %}
+  {% endcall %}
+  {%- endif %}
+  {%- if not ins.total %}{{ tb.empty("No coding agents found on this host.") }}{% endif %}
+  {{ tb.empty("No agent matches the filter.", fnone=true) }}
+{% endcall %}
+{%- if not ins.narrow %}{{ tb.hints([("J K", "move"), ("Enter", "details")]) }}{% endif %}
+{%- endif %}

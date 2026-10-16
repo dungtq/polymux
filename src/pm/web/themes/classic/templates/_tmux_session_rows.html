@@ -1,0 +1,16 @@
+{% from "_macros.html" import wico with context %}
+{% from "_agentname.html" import agent_name %}{% set term_on = terminal_enabled and session.name is term_ok %}
+<div class="list tx-list" role="list">
+<div class="hrow tx-head tx-w" role="presentation"><span class="hcell c-n">#</span><span class="hcell">Window</span><span class="hcell c-pane">Pane</span><span class="hcell c-cmd">Command</span><span class="hcell c-path">Path</span><span class="hcell">Agent</span></div>
+{% for r in rows %}{% set w = r.window %}{% set p = r.pane %}{% set a = r.agent %}
+<div class="lrow tx-row tx-w">
+  <span class="muted tx-n">{{ w.index }}</span>
+  {% if term_on %}<a class="tx-win" href="/term/{{ sid_url }}?w={{ w.id | urlid }}" data-title="{{ session.name }} &middot; {{ w.index }}: {{ w.name }}" title="Open terminal for window {{ w.index }}: {{ w.name }}">{{ wico() }}<strong>{{ w.name }}</strong></a>
+  {% else %}<span class="tx-win">{{ wico() }}<strong>{{ w.name }}</strong></span>{% endif %}
+  <span class="mono muted c-pane">{{ p.id }}</span>
+  <span class="mono muted c-cmd" title="{{ p.command }}">{{ p.command }}</span>
+  <span class="muted c-path">{% if r.project %}<a href="/p/{{ r.project | urlencode }}" title="Open project {{ r.project }}"><svg class="tx-ico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M1.75 2.5A1.75 1.75 0 0 0 0 4.25v7.5C0 12.72.78 13.5 1.75 13.5h12.5c.97 0 1.75-.78 1.75-1.75v-6.5c0-.97-.78-1.75-1.75-1.75H7.5L6.2 2.8a1.75 1.75 0 0 0-1.24-.3z"/></svg><span>{{ p.cwd }}</span></a>{% else %}<span title="{{ p.cwd }}">{{ p.cwd }}</span>{% endif %}</span>
+  <span class="tx-ag"{% if a %} data-kind="{{ a.kind.value }}"{% endif %}>{% if a %}<span class="dot dot-{{ a.state.value }}" title="{{ a.state.value }}"></span><span class="sr-only">{{ a.state.value }}</span><a href="/a/{{ a.id }}" class="tx-agent" data-kind="{{ a.kind.value }}" title="Open chat: {{ a.id }}">{{ agent_name(a) }}</a>{% else %}<span class="muted">&ndash;</span>{% endif %}</span>
+</div>
+{% else %}<p class="muted">This session has no windows.</p>{% endfor %}
+</div>

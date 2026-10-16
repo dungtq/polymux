@@ -1,0 +1,16 @@
+{#- The content of #pj-tmux (project/_tab_tmux.html; also out of band in _project_live.html): the heading with the count
+    and Close all, then the sessions table (the tmux page's columns, no sort). v = dt_project(), v.sessions. -#}
+{%- import "parts/_table.html" as tb -%}{%- from "_tmux_session_rows.html" import sess_row -%}
+{%- set ss = v.sessions -%}
+<h2 class="p-h2">tmux sessions <span class="c">{{ ss.rows | length }}</span><span class="sp"></span>
+  {%- if ss.closable %}<button class="x-btn sm danger" type="button" data-pj-closeall="{{ v.name }}" data-pj-closeall-n="{{ ss.closable }}" title="Close every unprotected tmux session of {{ v.name }} (type the project name)">Close all</button>{% endif -%}
+</h2>
+{% call tb.table("pj-tmux", "tmux sessions of " ~ v.name, cls="tm-list", list="pj-tmux", keys={"enter": "det", "o": "menu:term"},
+                 labels={"enter": "Show the windows", "o": "Open the terminal in a tab"}) %}
+  {{ tb.gh(ss.cols) }}
+  {%- for s in ss.rows %}{{ sess_row(s, table="pj-tmux", cur=loop.first) }}{% endfor %}
+  {% if not ss.rows %}{% call tb.empty() %}No tmux session holds a pane of {{ v.name }}. <a href="/tmux">All tmux sessions</a>{% endcall %}{% endif %}
+{% endcall %}
+{%- if ss.rows %}
+{{ tb.hints([("J K", "move"), ("Enter", "windows"), ("O", "terminal tab")]) }}
+{%- endif %}

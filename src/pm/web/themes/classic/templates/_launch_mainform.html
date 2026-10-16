@@ -1,0 +1,31 @@
+{# The launch <form> (POST /p/<name>/launch), included by launch.html and _launch_form.html.
+   Reads: base, csrf, embed, from_inbox, launch_projects, project, kinds, launch_data, review_text. -#}
+{% from "_launch_macros.html" import launch_opts, branch_block, template_block with context -%}
+{% from "_composer_macros.html" import composer with context -%}
+<form class="card stack{% if embed %} launch-compact{% endif %}" method="post" action="{{ base }}/launch" hx-post="{{ base }}/launch" hx-target="#flash" hx-swap="innerHTML" data-submit-lock="Launching&hellip;">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if from_inbox %}<label class="f-project"><span class="lbl">Project</span>
+    <select data-project-pick aria-label="Project">{% for n in launch_projects %}<option value="{{ n }}"{% if n == project.name %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>{% endif %}
+  <label class="f-agent"><span class="lbl">Agent</span>
+    <select name="kind" data-kind="{{ kinds[0] if kinds else 'other' }}">{% for k in kinds %}<option value="{{ k }}" data-kind="{{ k }}">{{ k }}</option>{% endfor %}</select></label>
+  {{ launch_opts() }}
+  {% if not embed %}{{ branch_block() }}{{ template_block() }}{% endif %}
+  {# the shared composer, inside this form (no form of its own): Ctrl/Cmd+Enter = Launch, Enter is a newline #}
+  <div class="f-prompt"><span class="lbl">Prompt</span>
+    {{ composer("launch", field="prompt", send="form", flow=true, features=["attach", "paste"], maxlength=8000, label="Prompt",
+                upload=base ~ "/image", atfiles=base ~ "/atfiles", slash=(launch_data.slash or {}).get(kinds[0] if kinds else "", []),
+                placeholder=("Optional. Paste or drop files (their paths are added), @ for files, / for /plan or /advisor", "Optional prompt")) }}
+    {% if review_text %}<details class="dispatch-opts"><summary>Prompt preview</summary><pre class="dispatch-prompt">{{ review_text }}</pre></details>{% endif %}
+  </div>
+  {% if embed %}
+  <details class="more-opts">
+    <summary>More options</summary>
+    <div class="more-body">{{ branch_block() }}{{ template_block() }}</div>
+  </details>
+  {% endif %}
+  <div class="actions launch-actions">
+    <button type="submit" class="primary" name="open" value="1" data-launch-open title="Launch and open the agent (Ctrl+Enter in the prompt)">Launch</button>
+    <button type="submit" class="secondary" data-launch-stay>{{ "Launch, stay here" if from_inbox else "Launch, stay on project" }}</button>
+    <a class="button secondary" href="{{ base }}" data-launch-cancel>Cancel</a>
+  </div>
+</form>

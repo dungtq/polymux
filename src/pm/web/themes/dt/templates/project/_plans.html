@@ -1,0 +1,26 @@
+{#- dt project view, Plans tab (PRD §6.4): the newest plans of the project (core plans summary: name, source, mtime)
+    as a grid table; a row opens the plan in the reader aside (js/project.js: pm7.pj.reader, the plan page with
+    embed=1 in a frame), ⋯ / O opens the plan page. "All N plans" and "New plan" go to the core's plans page
+    (/p/<name>/plans, rendered in the dt shell). View model: ProjectView.plans (PlanRow), plans_total. -#}
+{%- import "parts/_table.html" as tb -%}
+<div class="p-tools">
+  <span class="note">{{ v.plans_total }} plan{{ 's' if v.plans_total != 1 }}</span>
+  <span class="sp"></span>
+  <a class="x-btn sm" href="{{ v.base }}/plans">All plans</a>
+  <a class="x-btn sm" href="{{ v.base }}/plans#new">New plan</a>
+</div>
+{% call tb.table("pj-plans", "Plans of " ~ v.name, cls="pj-plans", list="pj-plans", keys={"enter": "event:pj:plan", "o": "href"},
+                 labels={"enter": "Read in the reader aside", "o": "Open the plan page"}) %}
+  {{ tb.gh([{"label": "Plan"}, {"label": "Source", "cls": "hide-s"}, {"label": "Updated", "num": true}, {"sr": "Actions"}]) }}
+  {%- for p in v.plans %}
+  {% call tb.row(p.name ~ ":" ~ p.src, href=p.href, cur=loop.first, title=p.name ~ ".md · " ~ p.label, attrs={"data-pj-plan": p.reader}) %}
+    {% call tb.name(p.name ~ ".md") %}{% endcall %}
+    {% call tb.cell("muted hide-s") %}{{ p.label }}{% endcall %}
+    {{ tb.end(p.age, since=p.since) }}
+    {% call tb.meta() %}{{ p.label }}{% endcall %}
+    {% call tb.acts() %}<a class="x-ib sm keep" href="{{ p.href }}" title="Open the plan page" aria-label="Open {{ p.name }}.md as a page"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#open"/></svg></a>{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {% if not v.plans %}{% call tb.empty() %}No plans yet. <a href="{{ v.base }}/plans#new">Write one</a>{% endcall %}{% endif %}
+{% endcall %}
+{{ tb.foot(v.plans | length, v.plans_total, more_href=v.base ~ "/plans", noun="plans") }}

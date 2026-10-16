@@ -1,0 +1,6 @@
+{% if files %}
+<ul class="dirty-files mono small">
+{% for code, path in files %}<li><span class="dcode">{{ code }}</span> {{ path }}</li>{% endfor %}
+</ul>
+{% if total > files | length %}<p class="small muted">+{{ total - files | length }} more</p>{% endif %}
+{% else %}<p class="small muted">Clean.</p>{% endif %}

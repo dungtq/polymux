@@ -1,0 +1,62 @@
+{#- dt override of the core's _project_files.html (GET /p/<name>/files?path=&raw=&diff=, ctx tree, base, project_name):
+    the project view's Files tab body (PRD §6.4), loaded into [data-pj-fbody] by js/project.js; every link is
+    a[data-pj-in] (loads in place, keeps the path in the URL hash). View model: dt_files() (pm.web.dt.files).
+    Layout .pj-fw: the project tree (nav.pj-ft, only the folders on the path open; hidden on phones, where the listing
+    and the breadcrumb are the way around) · the main column: breadcrumb (nav.pj-fcr, 36px targets; 44px on touch) then
+    a directory as one grid table (parts/_table.html: Name · Git · Size · Modified · Created; ".." first below the root;
+    J/K, ↵ = its link) or a file view. The file view (meta line, Rendered / Raw, Changes / File, Markdown, code, diff)
+    is still classic markup in its own .x-cl box, styled by the classic filespane.css (README A5). -#}
+{%- import "parts/_table.html" as tb -%}
+{%- set fv = dt_files(tree, base, project_name) -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set fb = base ~ "/files?path=" -%}
+{%- set cur = tree.parts | join("/") -%}
+{%- macro icon(name) -%}<svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ name }}"/></svg>{%- endmacro -%}
+{%- macro branch(items) -%}
+<ul>{% for n in items %}<li><a class="pj-ftn{{ ' dir' if n.dir }}" href="{{ n.href }}" data-pj-in{% if n.cur %} aria-current="page"{% endif %}>{{ icon(n.icon) }}<span>{{ n.name }}</span></a>
+  {%- if n.children %}{{ branch(n.children) }}{% endif %}</li>{% endfor %}</ul>
+{%- endmacro -%}
+<div class="pj-fw">
+<nav class="pj-ft" aria-label="Project tree">
+  <a class="pj-ftn dir" href="{{ base }}/files" data-pj-in{% if fv.root_cur %} aria-current="page"{% endif %}>{{ icon("folder") }}<span>{{ project_name }}</span></a>
+  {{ branch(fv.tree) }}
+</nav>
+<div class="pj-fm">
+<nav class="pj-fcr" aria-label="Path">
+  {%- for c in fv.crumbs %}{% if not loop.first %}<span class="sep" aria-hidden="true">/</span>{% endif %}
+  {%- if c.href %}<a href="{{ c.href }}" data-pj-in{% if loop.last %} aria-current="page"{% endif %}>{{ c.label }}</a>{% else %}<b aria-current="page">{{ c.label }}</b>{% endif %}
+  {%- endfor -%}
+</nav>
+{%- if tree.kind == "dir" %}
+{% call tb.table("pj-files", "Files in " ~ (fv.path or project_name), cls="pj-fl", list="pj-files",
+                 keys={"enter": "a[data-pj-in]"}, labels={"enter": "Open"}) %}
+  {{ tb.gh([{"label": "Name"}, {"label": "Git", "title": "git status"}, {"label": "Size", "num": true, "cls": "hide-s"},
+            {"label": "Modified", "num": true}, {"label": "Created", "num": true, "cls": "hide-n"}]) }}
+  {%- for r in fv.rows %}
+  {% call tb.row(r.id, cls="pj-fr k-" ~ r.kind, cur=loop.first, title=r.title) %}
+    <span class="gc-nm" role="cell">{{ icon(r.icon) }}{% if r.href %}<a class="nm" href="{{ r.href }}" data-pj-in>{{ r.name }}</a>{% else %}<span class="nm muted">{{ r.name }}</span>{% endif %}</span>
+    {% call tb.cell(r.git_cls) %}{% if r.git %}<span title="{{ r.git_title }}">{{ r.git }}</span><span class="vh"> {{ r.git_title }}</span>{% endif %}{% endcall %}
+    {% call tb.cell("muted hide-s", num=true) %}{{ r.size }}{% endcall %}
+    {{ tb.end(r.modified, since=r.mtime) }}
+    {% call tb.cell("muted hide-n", num=true) %}{{ r.created }}{% endcall %}
+    {% call tb.meta() %}{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {% if not fv.rows %}{{ tb.empty("This folder is empty.") }}{% endif %}
+{% endcall %}
+{%- if fv.more %}<p class="p-foot">{{ fv.more }} more not listed.</p>{% endif %}
+{%- elif tree.binary %}
+{% call tb.table("pj-note", "File", cls="pj-note") %}{{ tb.empty("Binary file, " ~ fv.size ~ ": not shown.") }}{% endcall %}
+{%- else %}
+<div class="pj-fv x-cl">
+<p class="small muted pj-meta">Created {% if tree.btime %}<span title="{{ tree.btime | ts }}">{{ tree.btime | ago }}</span>{% else %}-{% endif %} &middot; Modified {% if tree.mtime %}<span title="{{ tree.mtime | ts }}">{{ tree.mtime | ago }}</span>{% else %}-{% endif %} &middot; {{ fv.size }} &middot; {{ tree.lines }} line{{ "" if tree.lines == 1 else "s" }} &middot; {{ tree.lang }}{% if tree.truncated %} &middot; <span class="warn">cut at 256 KB</span>{% endif %}</p>
+{%- if tree.is_md or tree.has_diff %}<p class="small pj-toggles">
+{%- if tree.is_md %}<span class="pj-toggle" role="group" aria-label="Markdown view"><a href="{{ fb }}{{ cur | urlencode }}" data-pj-in{% if not tree.raw %} class="is-cur" aria-current="true"{% endif %}>Rendered</a> <a href="{{ fb }}{{ cur | urlencode }}&amp;raw=1" data-pj-in{% if tree.raw %} class="is-cur" aria-current="true"{% endif %}>Raw</a></span>{% endif %}
+{%- if tree.has_diff %} <span class="pj-toggle" role="group" aria-label="Diff view"><a href="{{ fb }}{{ cur | urlencode }}&amp;diff=1" data-pj-in{% if tree.diff %} class="is-cur" aria-current="true"{% endif %}>Changes</a> <a href="{{ fb }}{{ cur | urlencode }}{% if tree.raw %}&amp;raw=1{% endif %}" data-pj-in{% if not tree.diff %} class="is-cur" aria-current="true"{% endif %}>File</a></span>{% endif %}</p>{% endif %}
+{%- if tree.body_kind == "diff" %}<pre class="pj-diff mono small">{{ tree.body | safe }}</pre>{% if tree.diff_cut %}<p class="small muted"><span class="warn">diff cut</span></p>{% endif %}
+{%- elif tree.body_kind == "md" %}<div class="pj-md markdown-body md">{{ tree.body | safe }}{% if not tree.body %}<p class="muted">Empty file.</p>{% endif %}</div>
+{%- else %}<pre class="pj-file mono small"><code class="pj-code">{{ tree.body | safe }}</code></pre>{% endif %}
+</div>
+{%- endif %}
+</div>
+</div>

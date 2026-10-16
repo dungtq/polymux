@@ -1,0 +1,18 @@
+❯ please refactor the parser
+
+● Read(src/parser.py)
+  ⎿  Read 120 lines (ctrl+o to expand)
+
+● Bash(pytest -q)
+  ⎿  12 passed in 0.4s
+     all green
+
+● Now writing the new streaming parser, almost done
+  with the second half.
+
+✻ Cogitating… (12s · esc to interrupt)
+
+╭──────────────────────────────╮
+│ >                            │
+╰──────────────────────────────╯
+  ? for shortcuts

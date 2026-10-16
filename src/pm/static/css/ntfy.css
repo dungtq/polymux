@@ -1,0 +1,60 @@
+/* ntfy mirror panel (Inbox + project page). */
+.ntfy-panel { margin: var(--s2) 0; }
+.ntfy-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) 10px; }
+.ntfy-title { margin: 0; font-size: var(--fs-m); margin-right: auto; }
+.ntfy-count { font-weight: 400; color: var(--muted); font-size: var(--fs-s); }
+.ntfy-unread { font-size: var(--fs-s); color: var(--accent); }
+.ntfy-warn { color: var(--waiting); margin: var(--s1) 0; }
+.ntfy-list { border-top: 1px solid var(--line); margin-top: 6px; }
+.ntfy-row { border-bottom: 1px solid var(--line); }
+.ntfy-row > summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 var(--s2); align-items: center; padding: var(--s1) var(--s2) var(--s1) 22px; position: relative; min-height: var(--row-h); list-style: none; font-size: var(--fs-s); }
+.ntfy-row > summary::-webkit-details-marker { display: none; }
+.ntfy-row > summary::before { content: ""; position: absolute; left: var(--s2); top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: transparent; }
+.ntfy-row[data-unread] > summary::before { background: var(--accent); }
+.ntfy-row[data-unread] > summary .ntfy-t { font-weight: 600; }
+.ntfy-row[open] > summary { background: var(--hover); }
+.ntfy-row.v5-active > summary, .ntfy-row.v5-active > summary:hover { background: var(--accent-soft); }
+.ntfy-stamp { font-variant-numeric: tabular-nums; }
+.ntfy-ago { color: var(--muted); }
+.ntfy-time { white-space: nowrap; }
+.ntfy-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-self: end; color: var(--muted); }
+.ntfy-tag:empty { display: none; }
+.ntfy-t { grid-column: 1 / -1; font-weight: 400; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; font-size: var(--fs-s); }
+.ntfy-detail { padding: 2px var(--s2) var(--s2) 22px; }
+.ntfy-msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ntfy-meta { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: var(--s1); }
+.ntfy-chip-proj { display: inline; color: var(--muted); }
+.ntfy-prio { display: inline; font-size: var(--fs-s); }
+.ntfy-prio.p4, .ntfy-prio.p5 { color: var(--waiting); }
+@media (max-width: 719px) {
+  .ntfy-t { grid-column: 2; grid-row: 1; }
+  .ntfy-tag, .ntfy-stamp { display: none; }
+}
+@media (min-width: 720px) {
+  .ntfy-row > summary { grid-template-columns: 15em 18em minmax(0, 1fr); }
+  .ntfy-tag { justify-self: start; grid-column: 2; grid-row: 1; max-width: 18em; }
+  .ntfy-t { grid-column: 3; grid-row: 1; }
+}
+
+/* clicking the agent id opens the recap here (ntfy.js); hidden otherwise */
+a.ntfy-agent { cursor: pointer; }
+a.ntfy-agent:hover { text-decoration: underline; }
+a.ntfy-agent:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ntfy-row > summary { cursor: pointer; }
+.ntfy-recap { display: none; margin-bottom: var(--s1); padding-bottom: var(--s1); border-bottom: 1px solid var(--line); }
+.ntfy-row[data-recap-open] .ntfy-recap { display: block; }
+
+/* /ntfy (scope all): one list under a period tab bar (ended.js), Show select + count in the footer */
+.tabs.tabs-seg.ntfy-tabs { display: flex; margin: var(--s2) 0 0; overflow-x: auto; }   /* look: tabs.css .tabs-seg; behaviour: pm.tabs (tabs.js) + ended.js */
+.tabs-seg.ntfy-tabs .tab { flex: 0 0 auto; padding: 0 12px; }
+.ntfy-foot { margin-top: var(--s2); }
+#ntfy-markread[hidden] { display: none; }
+/* rows with no agent owner: blue edge (user-requested; docs/UI-RULES.md "Row states"); the open summary repeats it so its fill does not cover it */
+.ntfy-pg .ntfy-row:not([data-kind]), .ntfy-pg .ntfy-row:not([data-kind]) > summary { box-shadow: inset 3px 0 0 var(--ico-dir); }
+
+/* pinned block above the tab bar (/ntfy scope all): same rows as the list, not part of the tabbed list (ended.js) */
+.ntfy-pins { margin: var(--s2) 0; }
+.ntfy-pins-h { margin: 0 0 var(--s1); font-weight: 600; }
+.ntfy-pin { display: inline-flex; margin: 0; }
+.ntfy-pin .ntfy-pinbtn { min-height: 0; padding: 0 var(--s2); }
+@media (pointer: coarse) { .ntfy-pin .ntfy-pinbtn { min-height: var(--ctl-h); } }

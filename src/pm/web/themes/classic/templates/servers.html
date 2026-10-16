@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Servers{% endblock %}
+{% block content %}
+<h1>Servers</h1>
+<div id="servers-panel" hx-get="/servers/panel?t={{ tab }}{% if ct == 'bad' %}&amp;ct=bad{% endif %}{% if tab == 'resources' %}&amp;s={{ rs }}{% endif %}" hx-trigger="every 10s, vms-changed from:body delay:1s, res-changed from:body delay:1s" hx-swap="innerHTML" data-nodiff>
+{% include "_servers.html" %}
+</div>
+{% if tab == 'vms' %}
+<section class="srv-card vm-card" aria-labelledby="srv-h-vms">
+  <div class="vm-head"><h2 id="srv-h-vms">VMs</h2>
+    <button type="button" class="small" hx-get="/servers/vms" hx-target="#vms-panel" hx-swap="innerHTML">Refresh</button></div>
+  <div id="vms-panel" hx-get="/servers/vms" hx-trigger="vms-changed from:body" hx-swap="innerHTML" data-nodiff>
+{% include "_vms.html" %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

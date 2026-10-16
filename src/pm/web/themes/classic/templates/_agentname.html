@@ -1,0 +1,40 @@
+{# The one way to show an agent: "[dot] <agent-id> [model pill]" (e.g. claude-14fb00 + outlined sonnet-5-5).
+   agent: a live Agent, an ended record, or anything with id/kind (+ transcript, state). The pill is the short model
+   name; the kind (claude, codex ...) stands in only when the model is unknown. No separate kind pill, no label,
+   no tmux window name. `link` makes the id an <a> (leave it unset inside a row that is already a link);
+   `rx` makes the id the recap toggle of an agent-table row (rowx.js); `model` overrides the transcript lookup (precomputed in Python); `dot` adds the status dot; `show_id=False` renders the pill alone (page headers that print the id themselves). #}
+{% macro agent_name(agent, link=None, model=None, dot=False, show_id=True, rx=False) -%}
+{%- set k = (agent.kind.value if agent.kind.value is defined else agent.kind) or '' -%}
+{%- set m = model if model is not none else ((agent.transcript | pill_model) if agent.transcript else '') -%}
+{%- set st = agent.state.value if (agent.state is defined and agent.state.value is defined) else '' -%}
+{%- if dot and st %}<span class="dot dot-{{ st }}" title="{{ st }}"></span><span class="sr-only">{{ st }}</span>{% endif -%}
+{%- if link %}<a class="aname-l" href="{{ link }}" data-kind="{{ k }}">{% endif -%}
+{% if show_id %}<strong class="aname"{% if rx %} data-rx role="button" tabindex="0" aria-expanded="false" title="Show / hide the recap"{% elif st %} title="{{ st }}"{% endif %}>{{ agent.id }}</strong>{% endif %}
+{%- if link %}</a>{% endif -%}
+{%- if m %}<span class="kpill kp-model" data-kind="{{ k }}" title="model: {{ m }}">{{ m }}</span>
+{%- elif k %}<span class="kpill kp-{{ k }}" data-kind="{{ k }}" title="program: {{ k }}">{{ k | replace("-agent", "") }}</span>{% endif -%}
+{%- endmacro %}
+{# The one agent header: "[>_] <agent id> [model pill] [Ended]" for the agent page (mode live / ended, an h1), the Builder
+   chat pane (builder, inline) and the chat aside (aside: the empty head drawer.js fills; agent unused).
+   pill: the short model, computed in Python (chatctx.composer_ctx head_pill = agents.head.live_pill: the same model as the
+   composer placeholder and Model picker); unset: the transcript's model, else the kind. One pill look: .kpill.kp-model
+   (kind colour); the ended state word is .kpill.at-ended. data-model = the pill text (drawer.js reads it); live and builder
+   give the pill id="agent-pill" (chat.js follows the pm:composer event of a model switch and the live state). #}
+{% macro agent_head(agent, mode, pill=None) -%}
+{%- from "_macros.html" import wico -%}
+{%- if mode == 'aside' -%}
+<span class="dot dot-idle" id="vc-dot"></span><span class="vc-ico" id="vc-ico" hidden>{{ wico() }}</span><strong class="vc-title" id="vc-title"></strong><span class="kpill kp-model vc-model" id="vc-model" hidden></span><span class="vc-kind" id="vc-kind"></span>
+{%- else -%}
+{%- set k = (agent.kind.value if agent.kind.value is defined else agent.kind) or '' -%}
+{%- set m = pill if pill else ((agent.transcript | pill_model) if agent.transcript else '') or k | replace("-agent", "") -%}
+{%- set ended = mode == 'ended' -%}
+{%- set st = 'ended' if ended else (agent.state.value if (agent.state is defined and agent.state.value is defined) else '') -%}
+{%- set tag = 'span' if mode == 'builder' else 'h1' -%}
+<{{ tag }} class="agent-title{% if mode == 'builder' %} at-in{% endif %}" title="{{ agent.id }} {{ m }}{% if ended %} (ended){% endif %}" data-model="{{ m }}">
+{%- if mode != 'builder' %}<span class="at-ico">{{ wico() }}</span>{% endif -%}
+<{{ 'strong' if mode == 'builder' else 'span' }} class="at-base">{{ agent.id }}</{{ 'strong' if mode == 'builder' else 'span' }}>
+{%- if m %}<span class="kpill kp-model"{% if not ended %} id="agent-pill"{% endif %} data-kind="{{ k }}" title="{{ st or 'model' }}" aria-label="{{ m }}{% if st and not ended %}, {{ st }}{% endif %}">{{ m }}</span>{% endif -%}
+{%- if ended %}<span class="kpill at-ended" title="ended">Ended</span>{% endif -%}
+</{{ tag }}>
+{%- endif -%}
+{%- endmacro %}

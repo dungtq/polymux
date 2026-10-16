@@ -1,0 +1,53 @@
+{#- dt issue reader (PRD.md §6.5 "issue reader for a row"): the body of dialog#bl-rd (backlog/_dlg_issue.html). Served
+    by the core's GET /p/{n}/issues/{num} through the dt _issue_detail.html (ctx d, it, pname, csrf, send); view
+    model dt_backlog("reader"). Title, state + meta (#N, the project and Close are the dialog frame's fixed head, never
+    repeated here), actions (Mark done / Reopen, Dispatch, Copy pmctl command, Open project, Edit, Delete, the
+    project's running agents with a draft about the issue), the Edit form (title + Markdown body, hidden until Edit; it
+    takes the body's place), body (Markdown, the core's safe HTML), images, notes, Add note. js/backlog-reader.js runs
+    [data-bl-rda], the Edit form (POST .../edit), Delete (typed confirm "#N", POST .../delete) and the note form (POSTs
+    with CSRF, toast after OK, then reloads this body and the lists). -#}
+{%- set r = dt_backlog("reader") -%}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+{%- if r %}
+<article class="bl-rd" data-bl-rd data-bl-p="{{ r.project }}" data-bl-n="{{ r.num }}" data-bl-done="{{ '1' if r.done else '0' }}">
+<h2 id="bl-rd-t" class="bl-rdt">{{ r.title_html | safe }}</h2>
+<p class="bl-rdm"><span class="chip bl-st{{ ' bl-ok' if r.done }}">{{ 'Done' if r.done else 'Open' }}</span> <span id="bl-rd-m">{{ r.meta }}</span></p>
+<div class="bl-rda">
+  <button class="x-btn sm" type="button" data-bl-rda="{{ 'reopen' if r.done else 'done' }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ 'refresh' if r.done else 'check' }}"/></svg>{{ 'Reopen' if r.done else 'Mark done' }}</button>
+  {%- if not r.done %}
+  <button class="x-btn sm" type="button" data-bl-rda="dispatch" title="Start a new agent on this issue"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}send"/></svg>Dispatch</button>
+  {%- endif %}
+  <button class="x-btn sm" type="button" data-bl-rda="copy" data-bl-copy="{{ r.pmctl }}" title="{{ r.pmctl }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}copy"/></svg>Copy pmctl command</button>
+  <a class="x-btn sm" href="/p/{{ r.project | urlencode }}#issues"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}folder"/></svg>Open project</a>
+  <button class="x-btn sm" type="button" data-bl-rda="edit" aria-expanded="false" aria-controls="bl-ed"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}edit"/></svg>Edit</button>
+  <button class="x-btn sm danger" type="button" data-bl-rda="delete" title="Delete #{{ r.num }} with its notes and images"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}trash"/></svg>Delete</button>
+</div>
+<p class="bl-alert" role="alert" data-bl-rderr hidden></p>
+{%- if r.send %}
+<p class="bl-send"><span class="muted">Write to an agent of {{ r.project }} (a draft, not sent):</span>
+  {%- for a in r.send %} <a href="{{ a.href }}" title="Open {{ a.id }} with a draft about #{{ r.num }}"><i class="dot {{ a.state }}" aria-hidden="true"></i><span class="vh">{{ a.state }}</span> {{ a.label }}</a>{% endfor %}</p>
+{%- endif %}
+<form class="bl-f bl-editf" id="bl-ed" data-bl-editform novalidate hidden>
+  <label class="bl-fl"><span>Title</span><input class="x-in" type="text" name="title" value="{{ r.title_raw }}" maxlength="500" required autocomplete="off" spellcheck="true"></label>
+  <label class="bl-fl"><span>Description <span class="muted">(Markdown)</span></span><textarea class="bl-ta" name="body" rows="10">{{ r.body }}</textarea></label>
+  <p class="bl-alert" role="alert" data-bl-ferr hidden></p>
+  <div class="ft"><button class="x-btn" type="button" data-bl-rda="cancel">Cancel</button><button class="x-btn pri" type="submit">Save</button></div>
+</form>
+<div class="bl-prose" data-bl-rdbodyv>{% if r.body_html %}{{ r.body_html | safe }}{% else %}<p class="muted">No description.</p>{% endif %}</div>
+{%- if r.images %}
+<div class="bl-rdimg">{% for im in r.images %}<a href="{{ im.url }}" target="_blank" rel="noopener" title="{{ im.label }}"><img src="{{ im.url }}" alt="Image {{ loop.index }} of issue #{{ r.num }}: {{ im.label }}" loading="lazy"></a>{% endfor %}</div>
+{%- endif %}
+<h3 class="bl-nh">Notes <span class="muted">{{ r.notes | length }}</span></h3>
+{%- if r.notes %}
+<ol class="bl-notes">{% for n in r.notes %}<li><p class="bl-nm"><b>{{ n.author }}</b> <span class="muted" title="{{ n.when }}">{{ n.age }} ago</span></p><div class="bl-prose">{{ n.html | safe }}</div></li>{% endfor %}</ol>
+{%- endif %}
+<form class="bl-f bl-notef" data-bl-noteform novalidate>
+  <label class="vh" for="bl-note-in">New note</label>
+  <textarea class="bl-ta" id="bl-note-in" name="body" rows="3" placeholder="Add a note (Markdown)" required></textarea>
+  <p class="bl-alert" role="alert" data-bl-ferr hidden></p>
+  <div class="ft"><button class="x-btn" type="submit">Add note</button></div>
+</form>
+</article>
+{%- else %}
+<p class="bl-alert" role="alert" id="bl-rd-m">The issue could not be shown.</p>
+{%- endif %}

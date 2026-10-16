@@ -1,0 +1,159 @@
+/* dt Launch dialog (PRD.md §6.12, LAYOUT.md §5 "Launch", DESIGN.md §6.11; prefix l-): a --launch-w (760px,
+   README A10) modal with the title row and project picker,
+   flat tabs New agent | From TODO, a scrolling body (running line, agent cards 5 per row, model + effort, permissions,
+   where it runs, prompt) and a foot (remembered note, Launch in background, the one green Launch). Phones: full screen,
+   cards 2 per row, one column. Markup: shell/_launch.html, _launch_form.html; behaviour: js/launch.js,
+   js/launch-prompt.js. Tokens only; selectors carry the element where classic globals (button, input, textarea,
+   fieldset) would win while shell/_classic.html is loaded. */
+
+/* ---------- frame ---------- */
+dialog.l-dlg{width:min(var(--launch-w),calc(100vw - var(--s6)));max-width:none;
+  max-height:calc(100dvh - max(var(--s5),6vh) - var(--s5));margin:max(var(--s5),6vh) auto auto;padding:0;
+  background:var(--page);color:var(--fg);border:1px solid var(--ctl-line);border-radius:var(--r-dlg);
+  box-shadow:var(--shadow-dlg);overflow:hidden;overscroll-behavior:contain}
+dialog.l-dlg::backdrop{background:var(--scrim)}
+dialog.l-dlg[open]{display:flex;flex-direction:column}
+.l-body,.l-form{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;margin:0}
+.l-wait{margin:0;padding:var(--s5);color:var(--muted);font-size:var(--fs-m)}
+.l-hd{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;min-width:0;
+  padding:var(--s3) var(--s2) var(--s1) var(--s4)}
+.l-hd h2{flex:0 1 auto;min-width:0;margin:0;overflow:hidden;font-size:var(--fs-l);font-weight:600;
+  text-overflow:ellipsis;white-space:nowrap}
+.l-hd select.l-proj{flex:0 1 auto;min-width:0;max-width:var(--field-w);font-weight:600}
+.l-dlg .p-tabs.l-tabs{flex:0 0 auto;margin:var(--s1) var(--s4) 0}
+.l-dlg .p-tabpanel{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+.l-bd{padding:var(--s1) var(--s4) var(--s2)}
+
+/* ---------- running agents: one warning line, the list on demand ---------- */
+.l-run{margin:var(--s2) 0 0;border:1px solid var(--waiting);border-radius:var(--r);background:var(--waiting-soft);
+  font-size:var(--fs-ui)}
+.l-run>summary{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);list-style:none;cursor:pointer}
+.l-run>summary::-webkit-details-marker{display:none}
+.l-run>summary>svg.i{width:var(--icon-sm);height:var(--icon-sm);color:var(--waiting)}
+.l-run .t{flex:1 1 auto;min-width:0}
+.l-runs{flex:0 0 auto;color:var(--accent);font-size:var(--fs-s)}
+.l-runs::after{content:"Show"}
+.l-run[open] .l-runs::after{content:"Hide"}
+.l-runl{display:flex;flex-wrap:wrap;gap:var(--s1);padding:0 var(--s3) var(--s2)}
+.l-runl a.chip.k{gap:var(--s1);height:var(--tag-h);color:var(--fg);text-decoration:none}
+.l-runl a.chip.k:hover{background:var(--hover)}
+
+/* ---------- sections ---------- */
+.l-sec{padding:var(--s3) 0;border-bottom:1px solid var(--line2)}
+.l-bd>.l-sec:last-child{border-bottom:0}
+.l-lab{display:block;margin:0 0 var(--s2);padding:0;font-size:var(--fs-ui);font-weight:600}
+.l-lab .muted{font-weight:400}
+.l-lab .p-swl{font-weight:600}
+.l-two{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s4);align-items:start}
+.l-help{margin:var(--s2) 0 0;color:var(--muted);font-size:var(--fs-s)}
+.l-help.warn{color:var(--waiting-fg)}
+.l-fld{display:flex;align-items:center;gap:var(--s2);margin:var(--s2) 0 0;font-size:var(--fs-ui)}
+.l-fld>span{flex:0 0 auto;color:var(--muted)}
+.l-fld input.x-in{flex:1 1 auto;min-width:0}
+
+/* agent cards: kind colour on the top edge; the checked card is filled, ringed and ticked (never colour alone) */
+.l-ags{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s2)}
+.l-ag{position:relative;display:flex;flex-direction:column;gap:2px;min-width:0;margin:0;padding:var(--s2) var(--s3);
+  border:1px solid var(--line);border-top:3px solid var(--k);border-radius:var(--r);background:var(--page);
+  color:var(--fg);cursor:pointer}
+.l-ag input{position:absolute;opacity:0;pointer-events:none}
+.l-ag b{overflow:hidden;font-size:var(--fs-ui);font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.l-ag small{overflow:hidden;color:var(--muted);font-size:var(--fs-xs);text-overflow:ellipsis;white-space:nowrap}
+.l-ag:hover{background:var(--hover)}
+.l-ag:has(input:checked){background:var(--accent-soft);border-color:var(--accent);border-top-color:var(--k);
+  box-shadow:inset 0 0 0 1px var(--accent)}
+.l-ag:has(input:checked)::after{content:"✓";position:absolute;top:var(--s1);right:var(--s2);color:var(--accent);
+  font-size:var(--fs-s);font-weight:600}
+.l-ag:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+
+/* model picker: a button, the list opens in place (filter + options) */
+.l-dlg button.l-model{display:flex;align-items:center;gap:var(--s2);width:100%;height:var(--ctl-h);min-height:0;
+  padding:0 var(--s3);border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
+  font:inherit;font-size:var(--fs-ui);font-weight:400;text-align:left;cursor:pointer}
+.l-dlg button.l-model:hover{background:var(--hover)}
+.l-model svg.i{width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.l-model b{flex:0 1 auto;min-width:0;overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.l-model small{flex:1 1 auto;min-width:0;overflow:hidden;color:var(--muted);font-size:var(--fs-s);
+  text-overflow:ellipsis;white-space:nowrap}
+.l-mlist{margin:var(--s1) 0 0;padding:var(--s1);border:1px solid var(--ctl-line);border-radius:var(--r);
+  background:var(--page)}
+.l-mlist .p-fbox{min-width:0;margin:0 0 var(--s1)}
+.l-mopts{max-height:calc(var(--row-menu-h) * 7);overflow:auto;overscroll-behavior:contain}
+.l-dlg .l-mopts button{display:flex;align-items:center;gap:var(--s2);width:100%;height:auto;
+  min-height:var(--row-menu-h);padding:0 var(--s2);border:0;border-radius:var(--r);background:none;color:var(--fg);
+  font:inherit;font-size:var(--fs-ui);font-weight:400;text-align:left;cursor:pointer}
+.l-dlg .l-mopts button:hover{background:var(--hover)}
+.l-dlg .l-mopts button[aria-selected=true]{background:var(--accent-soft)}
+.l-mopts button[aria-selected=true] b{font-weight:600}
+.l-mopts b{font-weight:500}
+.l-mopts small{margin-left:auto;overflow:hidden;color:var(--muted);font-family:var(--font-mono);font-size:var(--fs-xs);
+  text-overflow:ellipsis;white-space:nowrap}
+
+/* permissions: segments; bypass in red, its "I understand" box */
+.l-modes>button.red{color:var(--failed-fg)}
+.l-modes>button.red[aria-pressed=true]{background:var(--failed-soft)}
+.l-ok{display:flex;align-items:flex-start;gap:var(--s2);margin:var(--s2) 0 0;padding:var(--s2) var(--s3);
+  border:1px solid var(--failed);border-radius:var(--r);background:var(--failed-soft);color:var(--failed-fg);
+  font-size:var(--fs-ui);cursor:pointer}
+.l-ok input{flex:0 0 auto;margin:2px 0 0}
+
+/* where it runs */
+.l-where{display:flex;align-items:center;gap:var(--s2);margin:0;font-size:var(--fs-ui)}
+.l-where svg.i,.l-br svg.i{width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.l-br{display:flex;align-items:center;gap:var(--s2)}
+.l-br input.x-in:not([type=checkbox]){width:var(--field-w-sm);font-family:var(--font-mono)}
+
+/* prompt: templates, the box (textarea, attachment chips .chip.att in parts.css, clip), the @ list */
+.l-tpl{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s2);margin:0 0 var(--s2)}
+.l-pbox{position:relative;border:1px solid var(--ctl-line);border-radius:var(--r-pop);background:var(--page)}
+.l-pbox:focus-within{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.l-pbox.drop{border-style:dashed;border-color:var(--accent);background:var(--accent-soft)}
+.l-dlg .l-pbox textarea{display:block;width:100%;min-height:var(--prompt-min-h);max-height:var(--prompt-max-h);margin:0;
+  padding:var(--s2) var(--s3) var(--s1);border:0;border-radius:var(--r-pop);background:none;color:var(--fg);
+  font:inherit;font-size:var(--fs-in);line-height:1.45;resize:vertical;outline:0;box-shadow:none}
+.l-prow{display:flex;align-items:center;gap:var(--s1);min-height:var(--ib-sm);padding:0 var(--s1) var(--s1) var(--s2)}
+.l-chips{display:flex;flex-wrap:wrap;gap:var(--s1);min-width:0}
+.l-at{position:absolute;z-index:var(--z-local);top:100%;left:var(--s2);right:var(--s2);
+  max-height:calc(var(--row-menu-h) * 7);margin-top:var(--s1);padding:var(--s1) 0;overflow:auto;background:var(--page);
+  border:1px solid var(--ctl-line);border-radius:var(--r-pop);box-shadow:var(--shadow-menu)}
+.l-ato{display:flex;align-items:center;gap:var(--s2);min-height:var(--row-menu-h);padding:0 var(--s3);
+  font-size:var(--fs-ui);cursor:pointer}
+.l-ato svg.i{width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.l-ato:hover{background:var(--hover)}
+.l-ato[aria-selected=true]{background:var(--accent-soft)}
+
+/* From TODO */
+.l-todo{margin:var(--s2) 0 0;padding:0;list-style:none}
+.l-ti{display:flex;align-items:center;gap:var(--s3);min-height:var(--row-h);padding:var(--s1) 0;
+  border-bottom:1px solid var(--line2);font-size:var(--fs-ui)}
+.l-tt{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.l-ti.busy .l-tt{color:var(--muted)}
+.l-tb{flex:0 0 auto;color:var(--muted);font-size:var(--fs-s)}
+.l-tnone{padding:var(--s3) 0;color:var(--muted)}
+
+/* ---------- foot: what is remembered, background, the green Launch ---------- */
+.l-err{flex:0 0 auto;margin:0;padding:var(--s2) var(--s4) 0;color:var(--failed-fg);font-size:var(--fs-ui)}
+.l-ft{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;padding:var(--s3) var(--s3) var(--s3) var(--s4);
+  border-top:1px solid var(--line)}
+.l-rem{display:inline-flex;align-items:center;gap:var(--s2);min-width:0;color:var(--muted);font-size:var(--fs-s)}
+.l-rem svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+.l-ft .x-btn kbd{margin-left:var(--s1);border-color:currentColor;background:transparent;color:inherit;opacity:.8}
+
+/* ---------- phones: full screen, two cards per row, one column ---------- */
+@media (max-width:699px){
+  dialog.l-dlg{width:100vw;height:100dvh;max-height:none;margin:0;padding-top:env(safe-area-inset-top);border:0;
+    border-radius:0}
+  .l-hd{padding:var(--s3) var(--s3) var(--s1)}  /* same inset left and right: the × and its focus ring fit */
+  .l-hd h2{flex:0 0 auto}  /* the title stays whole; the project select takes what is left */
+  .l-hd select.l-proj{flex:1 1 0;max-width:none}
+  .l-hd>.sp{display:none}
+  .l-dlg .p-tabs.l-tabs{margin:var(--s1) 0 0;padding:0 var(--s1)}
+  .l-bd{padding:var(--s1) var(--s3) var(--s2)}
+  .l-ags{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .l-two{grid-template-columns:minmax(0,1fr)}
+  .l-br input.x-in:not([type=checkbox]){width:100%}
+  .l-rem{display:none}
+  .l-ft{padding:var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom))}
+  .l-ft .x-btn{flex:1 1 auto;height:var(--ib);padding:0 var(--s2)}
+  .l-ft .x-btn kbd{display:none}
+}

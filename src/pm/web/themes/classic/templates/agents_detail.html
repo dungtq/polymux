@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_agents_macros.html" import tabs, dash %}{% from "_macros.html" import dot, page_head %}
+{% block title %}{{ (title ~ " - ") if title }}{{ agent.label or agent.name }} - Agents{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/agents-page.css">
+<div class="pg-agents">
+<div class="ag-split">
+<div class="ag-left">
+{{ page_head("Agents", stats) }}
+{{ tabs(tab_items, "installed", "Agents sections") }}
+{% include "_agents_installed.html" %}</div>
+<div class="ag-right">
+<div class="ag-hd">
+{% set ag_title %}{{ dot("running", "installed") if agent.installed else dot("idle", "not installed") }} {{ agent.label or agent.name }}{% endset %}
+{% call page_head(ag_title, agent.name ~ " · " ~ ("installed" if agent.installed else "not installed")) %}
+<a class="ag-lib" href="/agents?t=library&amp;a={{ agent.name | urlencode }}">In library</a><a class="ag-close" href="/agents" title="All agents (close details)" aria-label="All agents: close details">&times;</a>{% endcall %}
+<ul class="ag-meta">
+<li><span class="muted">Version</span><span class="ag-mv" title="{{ agent.version }}">{{ dash(agent.version) }}</span></li>
+<li><span class="muted">Binary</span><span class="mono ag-mv" title="{{ agent.binary }}">{{ dash(agent.binary) }}</span></li>
+<li><span class="muted">Config dir</span><span class="mono ag-mv" title="{{ agent.config_dir }}">{{ dash(agent.config_dir) }}</span></li>
+<li><span class="muted">Rules file</span><span class="mono ag-mv" title="{{ agent.rules_file }}">{{ dash(agent.rules_file) }}</span></li>
+<li><span class="muted">Skills dir</span><span class="mono ag-mv" title="{{ agent.skills_dir }}">{{ dash(agent.skills_dir) }}</span></li>
+<li><span class="muted">MCP config</span><span class="mono ag-mv" title="{{ agent.mcp_config or 'no MCP config found' }}">{{ agent.mcp_config or "no MCP config found" }}</span></li>
+</ul>
+<div id="ag-auth" class="ag-auth" hx-get="{{ base }}/auth" hx-trigger="load" hx-swap="outerHTML"><div class="ag-auth-line"><span class="muted ag-auth-k">Auth</span><span class="muted ag-auth-st">Checking&hellip;</span></div></div>
+{% set items = [("skills", "Skills (" ~ counts.skills ~ ")", base ~ "?s=skills"), ("rules", "Rules (" ~ counts.rules ~ ")", base ~ "?s=rules"), ("mcp", "MCP (" ~ counts.mcp ~ ")", base ~ "?s=mcp"), ("scripts", "Scripts (" ~ counts.scripts ~ ")", base ~ "?s=scripts")] %}
+{{ tabs(items, tab, "Sections of " ~ (agent.label or agent.name)) }}
+</div>
+{% if mode %}{% include "_agents_mode.html" %}{% else %}{% include "_agents_d_" ~ tab ~ ".html" %}{% endif %}
+</div>
+</div>
+</div>
+{% endblock %}

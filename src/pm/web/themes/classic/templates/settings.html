@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/settings.css">
+<script src="/static/js/theme.js" defer></script>
+<script src="/static/js/fonts.js" defer></script>
+<script src="/static/js/copy.js" defer></script>
+<script src="/static/js/servers.js" defer></script>
+<h1>Settings</h1>
+<div class="set-layout">
+<nav class="set-nav" aria-label="Settings sections">
+  <a href="#appearance">Appearance</a>
+  <a href="#access">Access</a>
+  <a href="#ssh">SSH</a>
+  <a href="#servers">Servers</a>
+  <a href="#git">Git</a>
+  <a href="#agents">Agents</a>
+  <a href="#composer">Composer</a>
+  <a href="#qchat-settings">Quick chat</a>
+</nav>
+<div class="set-body">
+<section id="appearance" class="set-section">
+<h2 class="set-h">Appearance</h2>
+<h3>Theme</h3>
+<div class="card set-sec">
+  <p class="small muted">Stored in this browser only.</p>
+  <div class="set-seg" role="group" aria-label="Theme">
+    {% for t in ['auto', 'light', 'dark'] %}<button type="button" class="set-chip" data-theme-set="{{ t }}">{{ t }}</button>{% endfor %}
+  </div>
+</div>
+<h3>Fonts</h3>
+<div class="card set-sec">
+  <p class="small muted">Stored in this browser only. Applies at once. Custom: type an installed family name.</p>
+  <div id="fonts-form" class="set-grid">
+    {% macro fam(name, label, extra) %}
+    <label class="small">{{ label }}
+      <input name="{{ name }}" list="fam-{{ name }}" autocomplete="off" spellcheck="false" maxlength="60">
+      <datalist id="fam-{{ name }}">{% if extra %}<option value="same">{% endif %}<option value="system"><option value="sans"><option value="serif"><option value="mono"></datalist></label>
+    {% endmacro %}
+    {{ fam('ui', 'Interface font', false) }}
+    {{ fam('chat', 'Chat font (same = interface)', true) }}
+    {{ fam('mono', 'Code / monospace font', false) }}
+    <label class="small">Interface size (%) <input type="number" name="uiScale" min="70" max="160" step="5"></label>
+    <label class="small">Chat text size (px, 0 = follow interface) <input type="number" name="chatSize" min="0" max="32" step="1"></label>
+    <label class="small">Compose box text size (px, 0 = default) <input type="number" name="composeSize" min="0" max="32" step="1"></label>
+    <p><button type="button" data-fonts-reset>Reset fonts</button></p>
+  </div>
+</div>
+<h3>Layout</h3>
+<div class="card set-sec">
+  <div class="set-row"><span>Layout</span><span class="small muted" data-layout-reset-msg>Sidebar and chat widths, saved in this browser.</span><button type="button" data-layout-reset>Reset to default</button></div>
+</div>
+</section>
+<div id="settings-panel" hx-get="/settings/panel" hx-trigger="load, passkey-registered from:body" hx-swap="outerHTML"><p class="small muted">Loading...</p></div>
+</div>
+</div>
+{% endblock %}

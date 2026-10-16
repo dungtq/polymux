@@ -1,0 +1,17 @@
+{#- Select (DESIGN.md §6.6): 30px (touch 40px), native control and arrow. Contract: docs/themes/dt/PARTS.md §8.
+    {% import "parts/_select.html" as psel %}
+
+    psel.select(name, options, value=none, label="", disabled=false, attrs=none, cls="")
+      options  list of (value, text) pairs or {"value", "text", "disabled"}; the one equal to `value` is selected
+      label    aria-label (controls rows have no visible label: put it in the option text, "Group: state")
+      attrs    extra attributes (hx-get, hx-target, hx-trigger "change", data-*), xmlattr-escaped. -#}
+
+{%- macro select(name, options, value=none, label="", disabled=false, attrs=none, cls="") -%}
+<select class="sel{{ ' ' ~ cls if cls }}" name="{{ name }}" aria-label="{{ label }}"{% if disabled %} disabled{% endif %}{{ (attrs or {}) | xmlattr }}>
+  {%- for o in options %}
+  {%- if o is mapping %}{% set v = o.value %}{% set t = o.get("text", o.value) %}{% set off = o.get("disabled") %}
+  {%- else %}{% set v = o[0] %}{% set t = o[1] %}{% set off = false %}{% endif %}
+  <option value="{{ v }}"{% if value is not none and v | string == value | string %} selected{% endif %}{% if off %} disabled{% endif %}>{{ t }}</option>
+  {%- endfor %}
+</select>
+{%- endmacro -%}

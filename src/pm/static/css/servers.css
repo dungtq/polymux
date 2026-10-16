@@ -1,0 +1,72 @@
+/* Servers dashboard. */
+.srv-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--s3); }
+@media (min-width: 900px) { .srv-grid { grid-template-columns: 1fr 1fr; } .srv-wide { grid-column: 1 / -1; } }
+.srv-card { min-width: 0; }
+.srv-card h2, .vm-card h2 { font-size: var(--fs-m); margin: 2px 0 var(--s1); }
+.srv-stamp { margin: 0 0 var(--s1); }
+.srv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; padding: 3px 0; font-size: var(--fs-s); border-top: 1px solid var(--line2); min-width: 0; }
+.srv-row:first-of-type { border-top: 0; }
+.srv-k { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.srv-v { flex: 2 1 200px; min-width: 0; overflow-wrap: anywhere; }
+/* level bars (host metrics and summary tiles): the one copy; ok = --lvl-ok, warn / crit below */
+.srv-bar { flex: 0 0 auto; width: 100%; height: 3px; appearance: none; border: 0; border-radius: 0; background: var(--line); overflow: hidden; }
+.srv-bar::-webkit-progress-bar { border-radius: 0; background: var(--line); }
+.srv-bar::-webkit-progress-value { border-radius: 0; background: var(--lvl-ok); }
+.srv-bar::-moz-progress-bar { background: var(--lvl-ok); }
+.srv-bar.lvl-warn::-webkit-progress-value { background: var(--waiting); }
+.srv-bar.lvl-warn::-moz-progress-bar { background: var(--waiting); }
+.srv-bar.lvl-crit::-webkit-progress-value { background: var(--failed); }
+.srv-bar.lvl-crit::-moz-progress-bar { background: var(--failed); }
+.srv-row.lvl-warn .srv-v, .lvl-warn.srv-stale { color: var(--waiting); }
+.srv-row.lvl-crit .srv-v, span.lvl-crit { color: var(--failed); }
+.srv-row.lvl-ok .srv-v .badge { color: var(--fg); }
+.srv-row.lvl-crit .srv-v .badge { color: var(--failed); }
+.ct-bad .srv-k { color: var(--failed); }
+.ct-down .srv-k { color: var(--waiting); }
+.ct-done { color: var(--muted); }
+.srv-chips { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--s1); }
+.srv-stale { margin-left: 6px; }
+/* summary strip (Overview and Resources): label / value pairs under a hairline, no tile fills. The only copy of the
+   .sum-* tiles and their lvl-ok / lvl-warn / lvl-crit / lvl-na states (chrome.css and data.css hold none). */
+.sum-strip { margin: 0 0 var(--s2); }
+.sum-head { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s1); }
+.sum-title { font-size: 1rem; font-weight: 600; }
+/* overall badge: state dot + word, no pill fill */
+.sum-badge { box-sizing: border-box; display: inline-flex; align-items: center; position: relative; min-height: var(--pill-h); height: var(--pill-h);
+  padding: 0 0 0 14px; border: 0; border-radius: var(--r-pill); background: none; color: var(--fg); font-size: .75rem; font-weight: 400;
+  line-height: 1; white-space: nowrap; }
+.sum-badge::before { content: ""; position: absolute; left: 0; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--lvl-ok); }
+.sum-badge.lvl-ok { color: var(--ok-fg); }
+.sum-badge.lvl-warn { color: var(--waiting); }
+.sum-badge.lvl-crit { color: var(--failed); }
+.sum-badge.lvl-warn::before { background: var(--waiting); }
+.sum-badge.lvl-crit::before { background: var(--failed); }
+.sum-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2) var(--s3); }
+@media (min-width: 700px) { .sum-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.sum-tile { display: flex; flex-direction: column; min-width: 0; padding: var(--s1) 0; border-top: 1px solid var(--line); }
+.sum-tile.lvl-na { opacity: .6; }
+.sum-tile .srv-bar, .sum-tile progress { width: 100%; display: block; margin: 4px 0; }
+.sum-label { font-size: var(--fs-s); color: var(--muted); }
+.sum-value { font-size: 1rem; line-height: 1.25; font-weight: 600; overflow-wrap: anywhere; }
+.sum-tile.lvl-ok .sum-value { color: var(--fg); }
+.sum-tile.lvl-warn .sum-value { color: var(--waiting); }
+.sum-tile.lvl-crit .sum-value { color: var(--failed); }
+.sum-detail { font-size: var(--fs-s); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: anywhere; }
+/* phone: everything is 400 there (chrome.css); the badge word and the values stay 500 */
+@media (max-width: 699px) { .sum-badge, .sum-value { font-weight: 500 !important; } }
+.srv-filter { margin: var(--s1) 0; }
+/* VMs */
+.vm-card { margin-top: var(--s2); }
+.vm-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.vm-sub { font-size: var(--fs-m); margin: 10px 0 2px; }
+.vm-row.vm-run .srv-k { color: var(--running); }
+.vm-disk { display: inline-block; margin-right: 10px; overflow-wrap: anywhere; }
+.vm-acts { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--s2); }
+.vm-more { flex: 1 1 100%; }
+.vm-more summary { display: inline-block; min-height: var(--chip-h); line-height: var(--chip-h); color: var(--muted); }
+.vm-typed { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s2); padding: var(--s1) 0; }
+.vm-typed input { max-width: 100%; }
+/* Overview / Services / VMs tabs: plain links, server-selected (aria-current="page"); look: tabs.css .tabs-seg */
+.srv-tabn { font-size: .75rem; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.srv-stamp { margin-top: 0; }
+@media (max-width: 699px) { .tabs-seg .tab.srv-tab { flex: 1 1 auto; } }

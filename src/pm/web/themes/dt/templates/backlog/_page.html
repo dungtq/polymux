@@ -1,0 +1,23 @@
+{#- dt Backlog page frame (included by backlog.html; `bl` = dt_backlog()). The whole page body is the component
+    (#bl-issues or #bl-todo: head, tabs, controls row, bulk bar, table, foot, hints), so a swap keeps the counts in the
+    head, tabs and segments true; the dialogs (Add issue, issue reader, Add task) sit outside it, so a live refresh
+    never closes one. Page CSS / JS: css/backlog.css, js/backlog.js. -#}
+{% extends "base.html" %}
+{% block title %}Backlog{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/backlog.css">
+<script src="/static/t/dt/js/backlog.js" defer></script>
+<script src="/static/t/dt/js/backlog-reader.js" defer></script>
+{% endblock %}
+{% block content %}
+{%- if not bl %}
+<p class="bl-alert" role="alert">The Backlog could not be shown. Reload the page; the server log has the error.</p>
+{%- elif edit is defined and edit %}
+<p class="bl-alert" role="alert">The whole-file BACKLOG.md editor is not in this theme yet. Open it in the classic UI:
+  <a href="/backlog?p={{ project | urlencode }}&amp;edit=1&amp;ui=classic">edit {{ project }} (classic)</a>.</p>
+{%- else %}
+{%- include "backlog/_issues.html" if bl.st.tab == "issues" else "backlog/_todo.html" %}
+{%- include "backlog/_dlg_issue.html" %}
+{%- include "backlog/_dlg_task.html" %}
+{%- endif %}
+{% endblock %}

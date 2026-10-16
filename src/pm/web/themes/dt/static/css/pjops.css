@@ -1,0 +1,114 @@
+/* dt project view, operations tabs: Git, Stack, VMs (docs/themes/dt/PRD.md §6.4; DESIGN.md §6.8, §6.21; LAYOUT.md §5).
+   Markup: templates/project/_tab_{git,stack,vms}.html, _project_vms.html; js/pjgit.js, pjstack.js, pjvms.js build
+   the Git and Stack content with the grid table markup of parts/_table.html (table.css). This file sets only the
+   tables' column templates (--g-cols*) and the pj- cell looks: section headings, the guard line, stage boxes, the
+   commit bar, the diff / log boxes, the snapshot list. Tokens only (V7-UI-2). Selectors carry an element or a second
+   class where classic globals (h2, pre, input, ul, loaded by shell/_classic.html) would otherwise win. */
+
+/* ---------- section: headings between the lists, busy while an action runs ---------- */
+.pj-ops{min-width:0}
+.pj-ops[aria-busy=true] :is(.pj-btns,.pj-commit,.gc-act,.gc-sw,.p-dacts){opacity:.55;pointer-events:none}
+.pj-ops[aria-busy=true]{cursor:progress}
+.pj-ops .pj-load{margin:var(--s3) 0;color:var(--muted);font-size:var(--fs-ui)}
+.pj-ops h3.pj-h3{margin:var(--s3) 0 var(--s1);padding:0;border:0;font-size:var(--fs-ui);font-weight:600}
+/* state words: colour + the word itself, never colour alone */
+.pj-ops :is(.p-tools,.pj-guard,.p-det) .ok{color:var(--ok-fg)}
+.pj-ops :is(.p-tools,.pj-guard,.p-det) .warn{color:var(--waiting)}
+.pj-ops :is(.p-tools,.pj-guard,.p-det) .bad{color:var(--failed)}
+.pj-ops .chip.warn{border-color:var(--waiting);color:var(--waiting)}
+
+/* ---------- controls row: branch / compose chip, status note, the tab's buttons at the right ---------- */
+.pj-ops .p-tools .chip{gap:var(--s1);height:var(--tag-h);font-size:var(--fs-s);color:var(--fg)}
+.pj-ops .p-tools .chip svg.i{width:var(--icon-xs);height:var(--icon-xs);color:var(--muted)}
+.pj-ops .p-tools .chip>span{min-width:0;max-width:calc(var(--tab-w) * 1.5);overflow:hidden;text-overflow:ellipsis}
+.pj-ops .p-tools>.note{min-width:0}
+.pj-btns{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:var(--s2)}
+.pj-ops a.pj-url{font-size:var(--fs-ui)}
+
+/* ---------- guard line: what blocks or needs a look (behind, diverged, clash, merge, detached) ---------- */
+.pj-guard{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);margin:0 0 var(--s2);
+  padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:var(--r);background:var(--waiting-soft);
+  color:var(--fg);font-size:var(--fs-ui)}
+.pj-guard.bad{background:var(--failed-soft)}
+.pj-guard.note{background:var(--subtle);color:var(--muted)}
+.pj-guard>svg.i{width:var(--icon-sm);height:var(--icon-sm);color:var(--waiting)}
+.pj-guard.bad>svg.i{color:var(--failed)}
+.pj-guard>.t{flex:1 1 calc(var(--tab-w) * 2);min-width:0;overflow-wrap:anywhere}
+.pj-guard>.a{display:flex;gap:var(--s2);margin-left:auto}
+
+/* ---------- Git: changes (stage box · code · file · state · actions) ---------- */
+.pj-chg{--g-cols:var(--ib-sm) fit-content(3rem) minmax(0,1fr) fit-content(9rem) auto;
+  --g-cols-n:var(--ib-sm) fit-content(3rem) minmax(0,1fr) auto}
+.pj-ck{display:inline-flex;align-items:center;justify-content:center;width:var(--ib-sm);height:var(--ib-sm);margin:0;
+  border-radius:var(--r-xs);cursor:pointer}
+.pj-ck:hover{background:var(--hover)}
+.pj-ck input[type=checkbox]{width:var(--icon-sm);height:var(--icon-sm);margin:0;accent-color:var(--accent);
+  cursor:pointer}
+.pj-ck:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
+.pj-ck input:focus-visible{outline:0}
+.p-gh>.gc-sw{display:flex;justify-content:flex-end;overflow:visible}
+.pj-xy{font-weight:600}
+.pj-xy.m{color:var(--gs-m)}
+.pj-xy.a{color:var(--gs-a)}
+.pj-xy.u{color:var(--gs-u)}
+.pj-xy.del,.pj-xy.bad{color:var(--failed)}
+
+/* commit bar under the changes: message (flexible) · Commit · Stash (not green: the head has the page's green) */
+.pj-commit{display:flex;align-items:center;gap:var(--s2);margin:var(--s2) 0 0}
+.pj-commit input.x-in{flex:1 1 auto;min-width:0;width:auto}
+
+/* ---------- Git: stash, branches, commits ---------- */
+.pj-st{--g-cols:fit-content(7rem) minmax(0,1fr) auto auto}
+.pj-brs{--g-cols:minmax(8rem,1fr) fit-content(14rem) fit-content(6rem) minmax(0,1.4fr) auto auto;
+  --g-cols-n:minmax(8rem,1fr) fit-content(6rem) auto auto;
+  --g-cols-s:minmax(8rem,1fr) auto auto}
+.pj-ab{display:flex;gap:var(--s2);font-variant-numeric:tabular-nums}
+.pj-cm{--g-cols:fit-content(6rem) minmax(0,1fr) fit-content(10rem) auto;
+  --g-cols-n:fit-content(6rem) minmax(0,1fr) auto}
+.pj-cm .gc-nm,.pj-st .gc-nm{font-weight:400}
+
+/* ---------- diff and log boxes (row details) ---------- */
+.pj-ops pre:is(.pj-diff,.pj-log){display:block;max-height:calc(var(--row-h) * 9);margin:0 0 var(--s2);
+  padding:var(--s2) 0;overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--page);
+  color:var(--fg);font-family:var(--font-mono);font-size:var(--fs-s);line-height:1.5;white-space:pre;tab-size:4}
+.pj-ops pre.pj-log{padding:var(--s2) var(--s3);white-space:pre-wrap;overflow-wrap:anywhere}
+.pj-diff>span{display:block;min-width:max-content;padding:0 var(--s3)}
+.pj-diff>.df-add{background:var(--df-add-bg);color:var(--df-add-fg)}
+.pj-diff>.df-del{background:var(--df-del-bg);color:var(--df-del-fg)}
+.pj-diff>.df-hunk{background:var(--df-hunk-bg);color:var(--df-hunk-fg)}
+.pj-diff>.df-meta{color:var(--muted)}
+
+/* ---------- Stack: services (dot · service · image · ports · health · logs) ---------- */
+.pj-svc{--g-cols:var(--dot) minmax(8rem,1fr) minmax(0,1.3fr) fit-content(14rem) fit-content(8rem) auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) fit-content(14rem) auto;
+  --g-cols-s:var(--dot) minmax(8rem,1fr) auto}
+
+/* ---------- VMs: dot · VM · vCPU · RAM · disk · state · actions; details: console, snapshots ---------- */
+.pj-vm{--g-cols:var(--dot) minmax(8rem,1fr) fit-content(4rem) fit-content(6rem) fit-content(7rem) fit-content(8rem)
+  auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) fit-content(7rem) auto;
+  --g-cols-s:var(--dot) minmax(8rem,1fr) auto}
+.pj-ops .pj-vlive .p-kv{margin-bottom:var(--s1)}
+.pj-ops code.pj-url{font-family:var(--font-mono);font-size:var(--fs-s);overflow-wrap:anywhere}
+.pj-ops .pj-note{margin:0 0 var(--s2);font-size:var(--fs-s)}
+.pj-ops ul.pj-snaps{display:flex;flex-direction:column;margin:0 0 var(--s2);padding:0;list-style:none}
+.pj-snaps>li{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);min-height:var(--row-h);margin:0;
+  padding:0;border-top:1px solid var(--line2)}
+.pj-snaps>li:first-child{border-top:0}
+.pj-snaps .nm{min-width:0;overflow:hidden;font-size:var(--fs-s);text-overflow:ellipsis;white-space:nowrap}
+.pj-snaps .muted{font-size:var(--fs-s)}
+
+/* ---------- phone (< 700px): the gc-sw stage box sits in line 1's end slot (table.css); buttons get touch size,
+   the controls row's buttons take a row of their own ---------- */
+@media (max-width:699px){
+  .pj-ops .p-tools>.pj-btns{flex:1 1 100%;justify-content:flex-start}
+  .pj-ops .p-tools>.sp{display:none}
+  .pj-ops .x-btn.sm{height:var(--ib);font-size:var(--fs-ui)}
+  .pj-ck{width:var(--ib);height:var(--ib)}
+  .pj-commit{flex-wrap:wrap}
+  .pj-commit input.x-in{flex:1 1 100%}
+  .pj-guard>.a{margin-left:0}
+}
+@media (pointer:coarse){
+  .pj-ck{width:var(--ib);height:var(--ib)}
+}

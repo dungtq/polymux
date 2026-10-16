@@ -1,0 +1,14 @@
+{% from "_filterbox.html" import filterbox %}
+{% from "_limitbar.html" import showsel %}
+<section class="ag-sec" aria-label="Skills, rules and scripts">
+<form class="pctl ag-ctl" action="/agents" method="get" role="search" data-filter-live data-filter-target="#ag-lib">
+<input type="hidden" name="t" value="library">{% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+{{ filterbox(q, label="Filter skills, rules and scripts") }}
+<label class="sel"><span class="muted">Type</span><select name="type" data-nav aria-label="Type"><option value="">All</option>{% for t in types %}<option value="{{ t }}"{% if t == typ %} selected{% endif %}>{{ t | capitalize }}</option>{% endfor %}</select></label>
+<label class="sel"><span class="muted">Agent</span><select name="a" data-nav aria-label="Agent"><option value="">All</option>{% for v, l in agent_opts %}<option value="{{ v }}"{% if v == a %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+{{ showsel(limit_links) }}<noscript><button type="submit" class="small">Go</button></noscript>
+</form>
+<div id="ag-lib" hx-get="{{ self_url }}" hx-trigger="pm:refresh" hx-swap="innerHTML" data-nodiff>
+{% include "_agents_lib_list.html" %}
+</div>
+</section>

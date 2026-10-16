@@ -1,0 +1,89 @@
+{#- dt Audit › Activity component (PRD.md §6.10): div#au-act = controls row · one table with day bands · foot ·
+    key hints. Rendered inside audit.html and, alone, as the core's answer to every htmx GET /audit (the filter box,
+    the result segments, the Attempts switch + category form, Grouped / Raw, Newer / Load older, Only this action,
+    Show the raw entries): each swaps #au-act (outerHTML). Such an answer also carries the page head (#au-head: stats
+    line, Export CSV with the new filters): #au-act's hx-select / hx-select-oob (inherited by every control inside)
+    take #au-act for the swap and #au-head out of band; js/audit.js copies data-au-count into the tab's count.
+    View model dt_audit("act") (pm.web.dt.audit): URL state, segments, rows (folded runs in Grouped), details. -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_switch.html" as psw -%}{%- import "parts/_select.html" as psel -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pmenu -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set av = dt_audit("act") -%}
+{%- macro hx(href, push=true) -%}
+href="{{ href }}" hx-get="{{ href }}" hx-target="#au-act" hx-swap="outerHTML"{% if push %} hx-push-url="true"{% endif %}
+{%- endmacro -%}
+{%- if av %}
+{%- if av.swap %}{{ ph.head("Audit", stats=av.stats, id="au-head", actions=[av.export]) }}{% endif %}
+<div class="au-act" id="au-act" data-au-tab="activity" data-au-count="{{ "{:,}".format(av.counts.get('all', 0)) }}" hx-select="#au-act" hx-select-oob="#au-head">
+{% call ph.tools("au-tools") %}
+  {{ pf.fbox("audit", value=av.st.q, placeholder="Filter action, target, detail, client", label="Filter the audit log",
+             get="/audit", target="#au-act") }}
+  {{ ps.seg(av.segs, label="Result", target="#au-act") }}
+  <span class="sp"></span>
+  <span class="p-seg au-view" role="group" aria-label="View">
+    {%- for v in av.views %}<button type="button" aria-pressed="{{ 'true' if v.on else 'false' }}" title="{{ v.title }}" hx-get="{{ v.href }}" hx-target="#au-act" hx-swap="outerHTML" hx-push-url="true">{{ v.label }}</button>{% endfor -%}
+  </span>
+  <form class="au-ctl" action="/audit" method="get" hx-get="{{ av.ctl_url }}" hx-trigger="change" hx-target="#au-act" hx-swap="outerHTML" hx-push-url="true">
+    {{ psw.switch("attempts", on=av.st.attempts, label="Attempts", count=av.hidden,
+                  attrs={"title": "Show the line pm writes before each change (hidden while its outcome follows)"}) }}
+    {{ psel.select("cat", av.cats, value=av.st.cat, label="Category") }}
+  </form>
+{% endcall %}
+{% call tb.table("audit", "Audit log", cls="au-list", list="audit", id="au-list", keys={"enter": "det"},
+                 labels={"enter": "Show or hide the entry's details"}) %}
+  {{ tb.gh([{"sr": "Result"}, {"label": "Action"}, {"label": "Target", "cls": "hide-s"},
+            {"label": "Detail", "cls": "hide-n"}, {"label": "Time", "num": true}, {"sr": "Actions"}]) }}
+  {%- set first = namespace(on=true) %}
+  {%- for d in av.days %}
+  {% call tb.group(d.key, d.label, count=d.n, note=d.note, cls=d.cls) %}
+    {%- for r in d.rows %}
+    {% call tb.row(r.id, cls="au-row" ~ (" au-hid" if r.hidden else ""), cur=first.on, title=r.span or none) %}
+      {{ tb.dot(r.dot, title=r.word) }}
+      {% call tb.name(r.action) %}
+        {%- if r.n > 1 %}<span class="au-n" title="{{ r.n }} entries in a row, folded: {{ r.span }}">×{{ r.n }}</span>{% endif -%}
+        {%- if r.result in ("refused", "failed") %}<span class="chip au-r bad">{{ r.result }}</span>{% endif -%}
+        {%- if r.hidden %}<span class="chip au-r" title="An attempt whose outcome follows (Attempts switch)">attempt</span>{% endif -%}
+      {% endcall %}
+      {% call tb.cell("hide-s mono au-tg") %}
+        {%- if r.link %}<a href="{{ r.link.href }}" title="{{ r.link.title }}">{{ r.link.text }}</a>
+        {%- elif r.target %}<span title="{{ r.target }}">{{ r.target }}</span>
+        {%- else %}<span class="muted" title="No target">–</span>{% endif -%}
+      {% endcall %}
+      {% call tb.cell("hide-n mono muted au-dt") %}<span title="{{ r.detail }}">{{ r.detail }}</span>{% endcall %}
+      {{ tb.end(r.time) }}
+      {% call tb.meta() %}{{ r.meta }}{% endcall %}
+      {% call tb.acts() %}{{ tb.det_btn("audit", r.id, label=r.action) }}{{ pmenu.menu(r.menu, label="Actions for " ~ r.action ~ " at " ~ r.time) }}{% endcall %}
+    {% endcall %}
+    {% call tb.det("audit", r.id, label=r.action ~ " at " ~ r.time) %}
+      {{ tb.kv(r.kv) }}
+      {%- if r.raw %}
+      <ol class="au-raw" aria-label="The {{ r.n }} raw entries">
+        {%- for x in r.raw %}<li><span class="au-rt">{{ x.t }}</span> <span class="{{ x.cls }}">{{ x.r }}</span> {{ x.d }}</li>{% endfor -%}
+      </ol>
+      {%- endif %}
+      {% call tb.dacts() %}
+        {%- if r.raw_href %}<a class="x-btn sm" {{ hx(r.raw_href) }}><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}list"/></svg>Show the {{ r.n }} raw entries</a>{% endif %}
+        <button class="x-btn sm" type="button" data-au-run="copy"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}copy"/></svg>Copy as JSON</button>
+        <a class="x-btn sm" {{ hx(r.only_href) }} title="Filter the log by this action"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}filter"/></svg>Only {{ r.action }}</a>
+        {%- if r.link %}<span class="sp"></span><a class="x-btn sm" href="{{ r.link.href }}" title="{{ r.link.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}open"/></svg>Open {{ r.link.text }}</a>{% endif %}
+      {% endcall %}
+    {% endcall %}
+    {%- set first.on = false %}
+    {%- endfor %}
+  {% endcall %}
+  {%- endfor %}
+  {%- if av.empty %}
+  {% call tb.empty() %}{{ av.empty }}{% if av.clear %} <a {{ hx(av.clear) }}>{{ "Clear the filters" if av.st.filtered else "Back to the newest" }}</a>{% endif %}{% endcall %}
+  {%- endif %}
+{% endcall %}
+{{ tb.foot(text=("Showing " ~ av.first ~ "–" ~ av.last ~ " of " ~ "{:,}".format(av.total) ~ ("+" if av.truncated else ""))
+           if av.total else none, newer=av.newer, older=av.older,
+           older_label="Load older (" ~ "{:,}".format(av.older_n or 0) ~ " more)", notes=av.notes, target="#au-act",
+           push=false) }}
+{{ tb.hints([("J K", "move"), ("Enter", "details"), ("/", "filter")]) }}
+</div>
+{%- else %}
+<div class="au-act" id="au-act"><p class="au-alert" role="alert">The audit log could not be shown. Reload the page; the
+  server log has the error.</p></div>
+{%- endif %}

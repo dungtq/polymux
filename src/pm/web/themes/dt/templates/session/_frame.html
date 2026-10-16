@@ -1,0 +1,91 @@
+{#- Session tab frame (PRD §6.3, LAYOUT.md §5 "Session tab", DESIGN.md §6.3, §6.17-6.20): the one 44px header of
+    the agent page (live), the ended page and the Builder, plus the panel wrapper. README A5: M2 ports the FRAME only;
+    the chat items (#ci, #chat, #sa-live, #ci-pending), the composer (composer() of _composer_macros.html), the reader
+    / canvas (_mdpane.html) and the Pane / Sub-agents / Terminal contents keep their classic markup and classic JS,
+    which shell/_classic.html loads for the page flag `classic_page` (V7-ISO-10).
+    Import with context: {% import "session/_frame.html" as sf with context %}.
+
+    sf.assets()                         page CSS + JS ({% block page_head %})
+    sf.head(mode, a, kind, state, pill, tabs=[], bld=none, menu=[], meta="", embed=false)
+      mode   live | ended | builder;  a = the agent (id, project, cwd);  kind = agent kind word;  state = state word
+      pill   short model name ("" = none);  tabs = pt.tabs items (shown when more than one);  bld = Builder toggle
+             {"href", "on"} or none;  menu = parts/_menu.html items;  meta = sf.meta_line(...) markup;
+             embed = the aside iframe: a minimal line only (view, Aa, ⋯)
+      kind, state, tabs, bld and menu come from the view model dt_session(mode, RESUMABLE) (pm.web.dt.session:
+      the first sub-tab from ?st=, the ⋯ items of a live agent / an ended record, the Builder toggle).
+    pane   the tmux pane id for the hidden classic hook span.agent-head[data-mode][data-agent] (agentmode.js reloads
+           the page when live / ended flips; chat-compact.js reads its data-kind); Builder has #builder[data-mode].
+    Header line, left to right: state dot (+ word, #agent-state: classic chat.js / slash.js / composer.js read it),
+    name (h1, truncated from the left so the unique suffix stays, L-4), model pill (#agent-pill: chat.js follows a
+    model switch), meta (project · tmux · folder · origin; folds first), flat tabs, then Detail | Compact and Aa (Chat
+    only), Builder, ⋯, move to the aside. Phone: the top bar shows the title; this line keeps tabs, Builder and ⋯.
+    Hooks for js/session.js: section.c-sess[data-agent][data-c-mode], [data-c-dot], [data-c-term], [data-c-font],
+    [data-c-toaside], .c-chat[data-ci-scroll], [data-c-jump]; menu events c:continue c:usage c:btw. -#}
+{%- import "parts/_tabs.html" as pt -%}
+{%- import "parts/_menu.html" as pmn -%}
+
+{%- macro icon(name) -%}
+<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ name }}"/></svg>
+{%- endmacro -%}
+
+{%- macro assets() -%}
+<link rel="stylesheet" href="/static/t/dt/css/session.css">
+<script src="/static/t/dt/js/session.js" defer></script>
+{%- endmacro -%}
+
+{#- project · tmux link (a terminal tab) · folder · Fork from / Continued from -#}
+{%- macro meta_line(a, project_name, tmux_id, tmux_label, cwd_link, orig) -%}
+<span class="c-meta" data-c-meta>
+{%- if project_name %}<a href="/p/{{ project_name | urlencode }}" title="Project {{ project_name }}">{{ project_name }}</a>{% endif -%}
+{%- if tmux_label %}{% if project_name %}<span class="c-ms" aria-hidden="true">·</span>{% endif -%}
+{%- if tmux_id and terminal_enabled is defined and terminal_enabled %}<a class="mono" href="/term/{{ tmux_id | urlid }}" data-c-term="{{ tmux_id }}" title="Open the read-only terminal of tmux {{ tmux_label }} as a tab">{{ tmux_label }}</a>
+{%- else %}<span class="mono" title="tmux {{ tmux_label }}">{{ tmux_label }}</span>{% endif %}{% endif -%}
+{%- if a.cwd %}<span class="c-ms" aria-hidden="true">·</span>
+{%- if cwd_link %}<a class="mono" href="{{ cwd_link }}" rel="noopener" title="Open {{ a.cwd }}">{{ a.cwd }}</a>
+{%- else %}<span class="mono" title="{{ a.cwd }}">{{ a.cwd }}</span>{% endif %}{% endif -%}
+{%- if orig %}<span class="c-ms" aria-hidden="true">·</span><span>{{ orig.label }} <a class="mono" href="/a/{{ orig.agent_id }}">{{ orig.agent_id }}</a></span>{% endif -%}
+</span>
+{%- endmacro -%}
+
+{%- macro head(mode, a, kind, state, pill, tabs=[], bld=none, menu=[], meta="", pane="", embed=false) -%}
+<header class="c-hd{% if embed %} min{% endif %}" data-kind="{{ kind }}">
+  {%- if mode != 'builder' %}<span class="agent-head" data-mode="{{ 'ended' if mode == 'ended' else 'live' }}" data-agent="{{ a.id }}" data-kind="{{ kind }}" data-pane="{{ pane }}" hidden></span>{% endif %}
+  <span id="agent-state" class="vh"><span class="badge st-{{ state }}">{{ state }}</span></span>
+  {%- if not embed %}
+  <span class="c-id">
+    <i class="dot {{ state }}" data-c-dot title="{{ state }}" aria-hidden="true"></i>
+    <h1 class="c-nm sfx" title="{{ a.id }}"><bdi>{{ a.id }}</bdi></h1>
+    {%- if pill %}<span class="chip k c-pill"{% if mode != 'ended' %} id="agent-pill"{% endif %} data-kind="{{ kind }}" title="model: {{ pill }}">{{ pill }}</span>{% endif %}
+    {%- if mode == 'ended' %}<span class="chip c-ended" title="Not running: read-only record">Ended</span>{% endif %}
+  </span>
+  {{ meta }}
+  {%- if tabs | length > 1 %}{{ pt.tabs(tabs, "Session views", cls="c-tabs") }}{% endif %}
+  {%- endif %}
+  <span class="sp"></span>
+  <span class="c-chatonly">
+    <span class="p-seg c-view" role="group" aria-label="Chat view"><button type="button" data-chat-view="detail" aria-pressed="false" title="Every reply and tool group as its own item">Detail</button><button type="button" data-chat-view="compact" aria-pressed="true" title="Working notes in one block, the final reply on its own">Compact</button></span>
+    <button class="x-ib c-aa" type="button" data-c-font aria-haspopup="menu" aria-expanded="false" aria-label="Chat text size" title="Chat text size">Aa</button>
+  </span>
+  {%- if bld and not embed %}
+  <a class="x-btn sm c-bbtn{% if bld.on %} on{% endif %}" href="{{ bld.href }}" aria-label="{{ 'Leave Builder' if bld.on else 'Builder' }}" title="{{ 'Leave Builder: full chat' if bld.on else 'Builder: chat + live preview' }}"{% if bld.on %} aria-current="page"{% endif %}>{{ icon('panel') }}<span class="lb">Builder</span></a>
+  {%- endif %}
+  {%- if menu %}{{ pmn.menu(menu, label="More actions for " ~ a.id, cls="c-more") }}{% endif %}
+  {%- if not embed %}
+  <button class="x-ib c-toaside" type="button" data-c-toaside aria-label="Move to the chat aside" title="Move to the chat aside" data-k-title="mod+shift+L">{{ icon('side-r') }}</button>
+  {%- endif %}
+</header>
+{%- endmacro -%}
+
+{#- the chat column: one scroller (classic chatlog.js follows [data-ci-scroll]) holding the message column (cap 880px,
+    centred) and the jump buttons; the composer is pinned under it by the caller -#}
+{%- macro chat_col() -%}
+<div class="c-chatw">
+  <div class="c-chat" data-ci-scroll>
+    <div class="c-msgs x-cl">{{ caller() }}</div>
+  </div>
+  <div class="c-jump" role="group" aria-label="Scroll the chat">
+    <button class="x-ib sm" type="button" data-c-jump="top" aria-label="Jump to top" title="Jump to top" hidden>{{ icon('up') }}</button>
+    <button class="x-ib sm" type="button" data-c-jump="bottom" aria-label="Jump to bottom" title="Jump to bottom" hidden>{{ icon('down') }}</button>
+  </div>
+</div>
+{%- endmacro -%}

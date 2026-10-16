@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>pm - sign in</title>
+<style>
+:root{--bg:#fff;--page:#f6f8fa;--fg:#1f2328;--muted:#59636e;--card:#f6f8fa;--line:#d1d9e0;--accent:#1a7f37;--on-accent:#fff;--failed:#d1242f}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--page:#010409;--fg:#f0f6fc;--muted:#9198a1;--card:#151b23;--line:#3d444d;--accent:#238636;--on-accent:#fff;--failed:#f85149}}
+*{box-sizing:border-box}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;margin:0;padding:16px;background:var(--page);color:var(--fg)}
+main{max-width:22rem;margin:0 auto;padding:24px;background:var(--bg);border:1px solid var(--line);border-radius:6px}
+h1{font-size:1.3rem;margin:8px 0 12px}
+label{color:var(--muted)}
+input,button{font:inherit;width:100%;min-height:40px;padding:.5rem .7rem;margin:.4rem 0;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+input:focus-visible,button:focus-visible{outline:2px solid #0969da;outline-offset:1px}
+input:focus-visible{outline-offset:0;border-color:#0969da}
+button{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600;cursor:pointer}
+button.secondary{background:transparent;color:var(--fg);border-color:var(--line);font-weight:500}
+button.secondary:hover{background:var(--card)}
+.err:empty{display:none}
+.err{color:var(--failed)}
+</style>
+</head>
+<body>
+<main>
+<h1>pm</h1>
+{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/login">
+<input type="hidden" name="next" value="{{ next }}">
+<label for="token">Token</label>
+<input id="token" name="token" type="password" autocomplete="current-password" autofocus required>
+<button type="submit">Sign in</button>
+</form>
+{% if has_passkeys %}
+<button type="button" class="secondary" id="passkey-login" data-next="{{ next }}">Sign in with passkey</button>
+<p id="passkey-msg" class="err" role="alert"></p>
+<script src="/static/js/login-passkey.js"></script>
+{% endif %}
+</main>
+</body>
+</html>

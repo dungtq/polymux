@@ -1,0 +1,307 @@
+/* Nav chrome: account dropdown, quick chat popup, agent head and tabs, global search, sidebar badges. Icons: icons.css. Tokens only. */
+/* account dropdown (top right) */
+.acct{position:relative;display:inline-flex}
+.acct-sum{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.acct-sum::-webkit-details-marker{display:none}
+.acct-sum:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.acct[open]>.acct-sum{color:var(--head-fg)}
+.acct-car{opacity:.7}
+.acct-pop{position:absolute;right:0;top:calc(100% + 4px);display:flex;flex-direction:column;min-width:200px}  /* look: .pop (popup.css); phones: bottom sheet */
+.acct-pop form{margin:0;display:block}
+.acct .acct-it .hi{color:var(--muted)}
+@media (max-width:699px){.acct .acct-it{min-height:44px}}  /* the phone sheet: tap-sized rows (.pop-item: 32px) */
+.topbar .acct-pop .tl{display:inline}
+.topbar .acct-sum .tl{display:none}
+@media (min-width:1000px){.topbar .acct-sum .tl{display:inline}}
+/* quick chat popup (top-right panel, opened from the top bar) */
+/* centred by inset + margin, never a transform: a transformed panel would hold the fixed pm.popover layers inside it */
+.qchat{position:fixed;z-index:var(--z-panel);inset:0;margin:auto;width:min(max(420px,48vw),860px,calc(100vw - 24px));height:min(max(500px,80dvh),960px,calc(100dvh - 48px));display:flex;flex-direction:column;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:var(--pop-r);box-shadow:var(--pop-shadow)}
+.qchat[hidden]{display:none}
+.qc-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.qc-t{font-size:var(--fs-m);flex:1 1 auto;min-width:0}
+.qc-model{max-width:9em}
+.qc-log{flex:1 1 auto;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.qc-m{white-space:pre-wrap;overflow-wrap:anywhere;padding:6px 10px;border-radius:8px;max-width:92%;font-size:var(--fs-m)}
+.qc-u{align-self:flex-end;background:var(--accent-soft)}
+.qc-a{align-self:flex-start;background:var(--subtle);border:1px solid var(--line)}
+.qc-err{align-self:flex-start;color:var(--failed);border:1px solid var(--failed)}
+.qc-note{margin:0;padding:6px 12px;border-top:1px solid var(--line);line-height:1.35}
+.qc-note code{font-size:.9em}
+.qc-foot{padding:8px 10px 6px;border-top:1px solid var(--line)}
+.qc-foot [hidden]{display:none}
+.qc-mrow{display:flex;align-items:center;gap:6px;padding:2px 4px 0}
+.qc-mrow select{min-height:28px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-s);cursor:pointer;border-radius:6px}
+.qc-mrow select:hover{color:var(--fg);background:var(--hover)}
+.qc-head{cursor:grab;touch-action:none;user-select:none}
+.qchat.qc-drag .qc-head{cursor:grabbing}
+.qchat.qc-pos,.qchat.qc-full{margin:0;bottom:auto}
+.qchat.qc-full{top:calc(var(--top-h) + 6px);left:12px;right:12px;width:auto;height:calc(100dvh - var(--top-h) - 18px)}
+.qchat.qc-full .qc-head{cursor:default}
+.qchat.qc-full .qc-log{padding:14px max(14px,calc((100% - 860px)/2))}
+.qchat.qc-full .qc-m{max-width:100%}
+.qc-a.md{white-space:normal}
+.qc-a.md>:first-child{margin-top:0}.qc-a.md>:last-child{margin-bottom:0}
+.qc-step{align-self:stretch;font-size:.75rem}
+.qc-step>summary{display:flex;align-items:center;gap:6px;min-height:24px;cursor:pointer;min-width:0;list-style:none}
+.qc-step>summary::-webkit-details-marker{display:none}
+.qc-step .st-l{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.qc-step .tchip{height:18px}
+.qc-res{margin:2px 0 4px;padding:6px 10px;max-height:40vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:6px;font-size:.75rem}
+.qc-res.qc-err{border-color:var(--failed)}
+@media (max-width:559px){.qchat.qc-full{height:calc(100dvh - var(--tab-h,60px));top:0;left:0;right:0}.qchat{margin:0;bottom:auto;top:0;right:0;left:0;width:auto;height:calc(100dvh - var(--tab-h,60px));border-radius:0;border-width:0 0 1px}}
+/* inbox: git status per project */
+/* agent page: Sub-agents tab (same radio-tab mechanism as Chat / Pane / Terminal) */
+.tabpanel-sub{display:none}
+#tab-sub:checked ~ .tabpanel-sub{display:block}
+#tab-sub:checked ~ .tabpanel-chat,#tab-sub:checked ~ .tabpanel-pane,#tab-sub:checked ~ .tabpanel-term{display:none}
+.qc-t{white-space:nowrap}
+.qc-model{width:auto;min-width:0;padding:0 6px}
+@media (max-width:559px){.qc-head{flex-wrap:nowrap}.qc-head .qc-t{flex:1 1 auto}}
+
+/* ---- 2026-10-10 UI wave ---- */
+/* project page tmux rows: expand / collapse the window list per row (projview.js keeps the state across live refreshes) */
+.pg-project .sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pg-project .sec-h{margin:24px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+.pg-project .sec-h h2{margin:0;padding:0;border:0}
+/* the next section's own hairline closes the list: no double line (the empty-looking box) */
+.pg-project .list:has(+h2)>:last-child,.pg-project .list:has(+.sec-h)>:last-child{border-bottom:0}
+/* one hairline between sections, no blank band above it (root cause of the "second line" / "empty space" reports:
+   the previous block's last bottom border plus a 24px margin above the next section's own border-top).
+   The section separator is the only line; it follows the previous block's last row after 8px. */
+.pg-project .list+h2,.pg-project .list+.sec-h,.pg-project #proj-live>.sec-h:first-child{margin-top:8px}
+.pg-project .list:has(+h2),.pg-project .list:has(+.sec-h){margin-bottom:0}
+/* 2026-10-12 one hairline per boundary: a block's own bottom/top line and the next section's border-top never stack */
+.inbox-head~.filterbar{margin-top:12px;padding-top:0;border-top:0}
+.pg-project .pj-main>.filterbar{margin:16px 0 0;padding-top:0;border-top:0}
+.pg-project .pj-main>.filterbar+.ssewrap #proj-live>.sec-h:first-child{margin-top:12px}
+.pg-project .list:has(+.rx-head)>:last-child,.pg-project .list:has(+details)>:last-child,.pg-project details:has(+h2) .list>:last-child{border-bottom:0}
+.pg-project .list+.rx-head,.pg-project .list+details>summary,.pg-project details+h2{margin-top:8px}
+.pg-project .list:has(+.rx-head),.pg-project .list:has(+details){margin-bottom:0}
+.pg-project .pj-main:has(>.pj-tabbar) #proj-live>.sec-h:first-child,.pg-project .pj-pane>h2:first-child{margin-top:16px;padding-top:0;border-top:0}
+.pg-project .ntfy-panel{margin-bottom:0}
+.pg-project .ntfy-list{border-top:0}
+.pg-project .ntfy-row{border-bottom:0;border-top:1px solid var(--line)}
+.pg-project .sec-act,.pg-project .srow-act{display:inline-flex;align-items:center;gap:6px}
+.pg-project .sec-act:empty,.pg-project .srow-act:empty{display:none}
+.pg-project .srow-act{grid-area:act;justify-self:end}
+.srow-tg{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:22px;height:22px;margin:0 4px 0 -4px;padding:0;border:0;border-radius:6px;background:none;color:var(--muted);cursor:pointer;vertical-align:middle}
+.pg-project .srow[data-sid]{cursor:pointer}
+.srow-tg:hover{background:var(--hover);color:var(--fg)}
+.srow-tg:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.srow-tg svg{transition:transform .12s}
+.srow[data-open] .srow-tg svg{transform:rotate(90deg)}
+.pg-project .srow:not([data-open]) .c-wins{display:none}
+.pg-project .srow[data-open] .c-nw{display:none}
+.pg-project .srow .c-nw{font-weight:400;white-space:nowrap}
+@media (pointer:coarse){.srow-tg{width:36px;height:36px}}
+
+/* sidebar foot + Menu dropdown: the same three groups (Manage, Service, Account), see _acct.html */
+.vs-grp{display:flex;flex-direction:column}
+.vs-grp+.vs-grp{margin-top:2px}
+.vs-gh,.acct-gh{margin:0;padding:6px 12px 2px;font-size:.6875rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);line-height:1.3}
+.acct-grp+.acct-grp{margin-top:4px;padding-top:2px;border-top:1px solid var(--line2)}
+.acct .acct-it.on{background:var(--accent-soft)}
+/* Agents and Servers left the top tab bar on desktop (sidebar foot / Menu); Servers stays in the phone bottom nav */
+@media (min-width:700px) and (pointer:fine){.tabbar a.t-phone{display:none}}
+
+/* chat-topnav: sticky agent bar (title, tabs, jump + zoom) on the full page; same tabs/zoom/jump in the drawer header */
+.vc-jump,.vc-zb,.vc-zv{box-sizing:border-box;height:32px;border:0;border-radius:var(--ctl-radius,6px);background:none;color:var(--muted);cursor:pointer;font:inherit}
+.vc-head .vc-jump,.ah-tools .vc-jump,.vc-zb{display:inline-grid;place-items:center;width:32px;padding:0}
+/* Jump to top / bottom: a vertical pair on the right edge (thumb reach), not in the nav row. Full page: fixed to the viewport; aside: inside it */
+.jump-rail{position:fixed;right:28px;top:55%;z-index:20;display:flex;flex-direction:column;gap:6px;opacity:0;pointer-events:none;transition:opacity .2s}
+.v5-chat .jump-rail{position:absolute;right:28px;top:50%;z-index:5}
+.jump-rail.is-on,.jump-rail:focus-within{opacity:1;pointer-events:auto}
+.jump-rail .vc-jump[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.jump-rail{transition:none}}
+.jump-rail .vc-jump{display:inline-grid;place-items:center;width:36px;height:36px;padding:0;background:var(--bg);border:1px solid var(--line);color:var(--fg);opacity:.92}
+.jump-rail .vc-jump:hover{background:var(--hover);opacity:1}
+body.embed .jump-rail,.v5-embed .jump-rail{display:none}
+@media (pointer:coarse),(max-width:699px){.jump-rail .vc-jump{width:44px;height:44px}}
+.vc-jump:hover,.vc-zb:hover,.vc-zv:hover{background:var(--hover);color:var(--fg)}
+.vc-jump:active,.vc-zb:active{background:var(--accent-soft)}
+.vc-jump:focus-visible,.vc-zb:focus-visible,.vc-zv:focus-visible,.vc-tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.zoomctl{display:inline-flex;align-items:center;gap:0;margin-left:6px;padding-left:6px;border-left:1px solid var(--line)}
+.zoomctl button{margin:0!important;border-radius:var(--ctl-radius,6px)!important}
+.vc-zv{min-width:3.2em;padding:0 4px;font-size:.75rem;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;justify-content:center}
+.ah-tools,.vc-tools{margin-left:auto;display:inline-flex;align-items:center;gap:2px;flex:0 0 auto}
+.vc-tools{margin-left:0}
+.vc-acts{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
+.vc-acts[hidden]{display:none}
+.vc-acts .vc-act{height:var(--vh-ctl,28px);min-height:var(--vh-ctl,28px);padding:0 10px;font-size:.75rem}
+.zoomctl[hidden]{display:none}
+.v5-chat{container:vc/inline-size}
+.vc-tabs{display:flex;align-items:center;gap:2px;min-width:0;margin:0 auto;flex:0 0 auto;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.vc-tabs::-webkit-scrollbar{display:none}
+.vc-tabs[hidden]{display:none}
+.vc-tabs[hidden] ~ .vc-sp{flex:1 1 auto}
+.vc-tab{height:32px;padding:0 10px}   /* look: tabs.css (.tab) */
+/* full page: the agent head is the sticky bar; tabs sit in the empty middle, tools right */
+body:not(.embed) .agent-head[data-agent]{position:sticky;top:0;z-index:30;background:var(--bg);margin-top:0;padding-bottom:4px;border-bottom:1px solid var(--line);flex-wrap:nowrap}
+.agent-head[data-agent] .tabs{align-items:center;flex:0 1 auto;margin:0 auto;border:0}
+.agent-head[data-agent] .tab{height:32px;min-height:32px;padding:0 10px}
+.agent-head[data-agent] h1.agent-title{flex:0 1 auto}
+@media (min-width:700px) and (pointer:fine){body:not(.embed) .agent-head[data-agent]{top:var(--top-h,44px)}}
+/* embed: the drawer header carries tabs, zoom and jump */
+.v5-embed .agent-head[data-agent] .tabs,.v5-embed .agent-head[data-agent] .ah-tools,body.embed .agent-head[data-agent] .tabs,body.embed .agent-head[data-agent] .ah-tools{display:none}
+body.embed .agent-head[data-agent]{position:static}
+/* ended record: Resume / Fork sit in the one head (right of the pill); in the aside drawer.js mirrors them into the aside header */
+.agent-head[data-agent] .agent-actions ~ .ah-tools,.agent-head[data-agent] .tabs ~ .ah-tools{margin-left:0}
+.agent-head[data-agent] .agent-actions{flex:0 0 auto}
+.agent-head[data-agent] .resume-why{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.v5-embed .agent-head[data-agent] .agent-actions,body.embed .agent-head[data-agent] .agent-actions{display:none}
+.v5-embed .agent-head[data-mode="ended"]{display:none}
+@media (max-width:699px),(pointer:coarse){
+  .vc-jump,.vc-zb,.vc-zv,.vc-tab,.agent-head[data-agent] .tab{height:40px;min-height:40px}
+  .vc-zb{width:40px}
+}
+@media (max-width:699px){
+  body:not(.embed) .agent-head[data-agent]{flex-wrap:wrap;row-gap:0}
+  .agent-head[data-agent] h1.agent-title{flex:1 1 calc(100% - 100px);order:1}
+  .agent-head[data-agent] .ah-tools{display:contents}
+  .agent-head[data-agent] .ah-tools .zoomctl{margin-left:auto}
+  .agent-head[data-agent] .tabs{order:3;flex:1 1 0;margin:0}
+  .agent-head[data-agent] .agent-actions{order:2;flex:0 0 auto;margin-left:0}
+  .agent-head[data-agent] .zoomctl{order:4;margin-left:4px;padding-left:4px}
+  .agent-head[data-agent] .vc-zv{display:none}
+}
+/* /chat-topnav */
+@media (min-width:700px){.chatsplit:not(.has-md) .chatmain{max-width:910px;margin-left:auto;margin-right:auto}}
+body.embed .chatsplit .chatmain{max-width:none}
+
+/* search */
+.gsearch{position:fixed;top:0;left:50%;transform:translateX(-50%);width:min(440px,30vw);height:var(--top-h,48px);display:flex;align-items:center;z-index:45}
+.gsearch .gs-tgl{display:none}
+.gsearch .gs-in{width:100%;height:30px;box-sizing:border-box;padding:0 10px;border:1px solid var(--line);border-radius:var(--ctl-radius,6px);background:var(--page);color:var(--fg);font:inherit;font-size:var(--fs-m,14px)}
+.gsearch .gs-in:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.gs-list{position:absolute;top:calc(100% - 6px);left:0;right:0;max-height:70vh;overflow:auto;background:var(--page);border:1px solid var(--line);border-radius:var(--box-r,6px);padding:4px 0}
+.gs-list[hidden]{display:none}
+.gs-gh{margin:0;padding:6px 12px 2px;font-size:.6875rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.gs-grp+.gs-grp{border-top:1px solid var(--line2,var(--line));margin-top:4px}
+.gs-hit{display:flex;align-items:center;gap:8px;padding:5px 12px;color:var(--fg);min-width:0;white-space:nowrap}
+.gs-hit:hover,.gs-hit.on{background:var(--hover);text-decoration:none}
+.gs-hit.on{background:var(--accent-soft)}
+.gs-hit .hi{flex:none;color:var(--muted)}
+.gs-n{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.gs-s{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-s)}
+.gs-c .gs-s{flex:1 1 auto}
+.gs-none{margin:0;padding:8px 12px}
+@media (max-width:1100px) and (min-width:700px) and (pointer:coarse){.gsearch{width:min(300px,24vw)}}
+/* desktop header (fine pointer): the Inbox..Audit tabs sit at the left (end ~640px, room for the unread badge), the buttons at the right.
+   Search starts after the tabs; <1400px it is an icon at the end of the tab cell; <1000px no room, / and Ctrl+K still open it */
+/* truly centred in the viewport; tabs end ~640px so the box needs 100vw-1300px of width (>=240px from 1540px up) */
+@media (min-width:1540px) and (pointer:fine){.gsearch{left:50%;transform:translateX(-50%);width:min(440px,calc(100vw - 1300px))}}
+@media (min-width:700px) and (max-width:1539px) and (pointer:fine){
+  .gsearch{position:static;transform:none;width:auto;height:auto;grid-column:2;grid-row:1;justify-self:end}
+  .gsearch .gs-tgl{display:inline-flex}
+  .gsearch .gs-in{display:none}
+  .gsearch.open{position:fixed;left:0;right:0;top:0;height:var(--top-h,48px);padding:0 8px;background:var(--head)}
+  .gsearch.open .gs-tgl{display:none}
+  .gsearch.open .gs-in{display:block}
+  .gs-list{left:8px;right:8px}
+}
+@media (min-width:700px) and (max-width:999px) and (pointer:fine){.gsearch:not(.open){display:none}}
+@media (max-width:699px){
+  .gsearch{position:static;transform:none;width:auto;height:auto;margin-left:auto}
+  .gsearch .gs-tgl{display:inline-flex}
+  .gsearch .gs-in{display:none}
+  .gsearch.open{position:fixed;left:0;right:0;top:0;transform:none;width:auto;height:var(--top-h,48px);padding:0 8px;background:var(--head)}
+  .gsearch.open .gs-tgl{display:none}
+  .gsearch.open .gs-in{display:block;height:36px;font-size:16px}
+  .gs-list{left:8px;right:8px}
+}
+
+/* newproj-tmux */
+.newproj .pmdlg-in{display:flex;flex-direction:column;gap:4px}
+.newproj .np-chk{display:flex;align-items:center;gap:8px;margin:6px 0}
+.newproj .flash-inline:empty{display:none}
+.pg-project .srow-act form.inline,.pg-project .sec-act form.inline{margin:0}
+/* /newproj-tmux */
+
+/* sidebar-badges */
+.vs-ub{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 6px;box-sizing:border-box;border:1px solid var(--line);border-radius:var(--r-pill);font-size:.6875rem;font-weight:500;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.vs-ub[hidden]{display:none}
+[data-badge-kind] .vs-n{flex:0 1 auto}
+[data-badge-kind] .vs-ub{margin-left:6px}
+[data-badge-kind] .vs-c{margin-left:auto;padding-left:8px}
+.vs-foot-tg{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;box-sizing:border-box;min-height:28px;padding:4px 12px;border:0;background:none;color:var(--muted);font:inherit;font-size:.6875rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;text-align:left;cursor:pointer}
+.vs-foot-tg:hover{color:var(--fg);background:var(--hover)}
+.vs-foot-tg:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.vs-foot-tg .vs-chev{flex:none;transition:transform .15s}
+.vs-foot-c .vs-foot-tg .vs-chev{transform:rotate(-90deg)}
+.vs-foot-c .vs-foot-body{display:none}
+@media (prefers-reduced-motion:reduce){.vs-foot-tg .vs-chev{transition:none}}
+/* /sidebar-badges */
+/* md-place */
+@media (min-width:900px) and (pointer:fine){body:not(.embed) .chatsplit.has-md .mdpane{--md-top:calc(var(--top-h,44px) + 56px)}}
+@media (min-width:900px) and (pointer:coarse){body:not(.embed) .chatsplit.has-md .mdpane{--md-top:56px}}
+/* collapsed session row = ONE line: no second (windows) grid track, no row gap */
+.pg-project .srow:not([data-open]){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main act";grid-template-rows:auto;grid-auto-rows:0;row-gap:0;align-items:center;align-content:start}
+.pg-project .srow:not([data-open]) .c-wins{display:none!important}
+
+/* phones: the jump pair sits above the composer, hidden while the keyboard is open */
+@media (pointer:coarse),(max-width:699px){
+  .jump-rail{top:auto;bottom:calc(var(--msgbar-h,130px) + var(--tab-h) + env(safe-area-inset-bottom) + 8px)}
+  .v5-chat .jump-rail{bottom:auto;top:50%}
+  body.kbd .jump-rail{display:none}
+}
+@media (pointer:coarse),(max-width:699px){
+  body.msgbar-hidden .jump-rail{bottom:calc(var(--tab-h) + env(safe-area-inset-bottom) + 8px)}
+  .v5-chat .jump-rail,body.msgbar-hidden .v5-chat .jump-rail{bottom:auto}
+}
+
+/* ntfy rows (Inbox + project): [project] | agent | title | age | full date. Normal weight everywhere. */
+.ntfy-list .ntfy-row>summary{display:grid;grid-template-columns:8em 20em minmax(0,1fr) 6em 11.5em;grid-template-areas:"proj ag t ago stamp";gap:0 12px;align-items:center}
+.ntfy-list .ntfy-row>summary>*{grid-row:1;min-width:0}
+.ntfy-proj{grid-area:proj;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.ntfy-proj:empty{display:block}
+.ntfy-ag{grid-area:ag;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ntfy-list .ntfy-row>summary .ntfy-t{grid-area:t}
+.ntfy-list .ntfy-row>summary .ntfy-ago{grid-area:ago;white-space:nowrap;text-align:right}
+.ntfy-list .ntfy-row>summary .ntfy-stamp{grid-area:stamp;display:block;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pg-project .ntfy-list .ntfy-row>summary{grid-template-columns:20em minmax(0,1fr) 6em 11.5em;grid-template-areas:"ag t ago stamp"}
+.ntfy-list .ntfy-row>summary strong{font-weight:400}
+.ntfy-list .ntfy-row[data-unread]>summary .ntfy-t{font-weight:600}
+.ntfy-list{container:ntl/inline-size}
+@container ntl (max-width:959px){
+  .ntfy-list .ntfy-row>summary .ntfy-stamp{display:none}
+  .ntfy-list .ntfy-row>summary{grid-template-columns:7em 16em minmax(0,1fr) 6em;grid-template-areas:"proj ag t ago"}
+  .pg-project .ntfy-list .ntfy-row>summary{grid-template-columns:16em minmax(0,1fr) 6em;grid-template-areas:"ag t ago"}
+}
+@container ntl (max-width:639px){
+  .ntfy-proj{display:none}
+  .ntfy-list .ntfy-row>summary,.pg-project .ntfy-list .ntfy-row>summary{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ag t ago"}
+  .ntfy-ag:empty{display:none}
+}
+
+/* project page Agents / Idle / Ended: same ladder as the Inbox, driven by the list width (docs pane open or not):
+   dot Agent Last message Age | + tmux | + cpu/mem | + Started */
+@media (min-width:720px){
+  .pg-project .list .arow{grid-template-columns:14px minmax(0,15em) minmax(0,1fr) 5.5em;grid-template-areas:"dot main msg age"}  /* Agent may give way to the pin slot in a narrow list */
+  .pg-project .list .arow .c-proj,.pg-project .list .arow .c-start,.pg-project .list .arow .c-res{display:none}
+  .pg-project .list .arow .c-msg{display:block;grid-area:msg;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pg-project .list .arow .c-dot{grid-area:dot}.pg-project .list .arow .c-main{grid-area:main}.pg-project .list .arow .c-age{grid-area:age;text-align:right}
+  .pg-project .list .arow .c-proj{grid-area:proj}.pg-project .list .arow .c-start{grid-area:start;text-align:right}.pg-project .list .arow .c-res{grid-area:res}
+  @container lst (min-width:620px){
+    .pg-project .list .arow{grid-template-columns:14px 15em minmax(0,1fr) 6em 6.5em;grid-template-areas:"dot main msg proj age"}
+    .pg-project .list .arow .c-proj{display:block}
+  }
+  @container lst (min-width:780px){
+    .pg-project .list .arow{grid-template-columns:14px 15em minmax(0,1fr) 6em 6.5em 8em;grid-template-areas:"dot main msg proj age res"}
+    .pg-project .list .arow .c-res{display:block}
+  }
+  @container lst (min-width:940px){
+    .pg-project .list .arow{grid-template-columns:14px 15em minmax(0,1fr) 6em 6.5em 9em 8em;grid-template-areas:"dot main msg proj age start res"}
+    .pg-project .list .arow .c-start{display:block}
+  }
+}
+/* phone (<720): the Inbox phone set with its header band: dot Agent Last message Age */
+@media (max-width:719px){
+  .pg-project .list .lhead.arow{display:grid;align-items:center;gap:0 10px;padding-left:var(--s2)}  /* base.css sets these from 700px only; the right edge stays the pin slot (.has-pin) */
+  .pg-project .list .arow{grid-template-columns:14px minmax(7em,10em) minmax(0,1fr) 5.5em;grid-template-areas:"dot main msg age"}
+  .pg-project .list .arow .c-msg{display:block;grid-area:msg;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pg-project .list .arow .c-proj,.pg-project .list .arow .c-start,.pg-project .list .arow .c-res{display:none}
+}
+
+/* phone / narrow list: no model pill (agent id only), same as the Inbox tables */
+@container ntl (max-width:639px){.ntfy-list .kpill{display:none}}
+@media (max-width:719px){.pg-project .arow .kpill{display:none}}

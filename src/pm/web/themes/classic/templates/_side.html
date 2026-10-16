@@ -1,0 +1,101 @@
+{% from "_macros.html" import kpill, dot, count_pill %}
+{% from "_agentname.html" import agent_name %}
+{% from "_filterbox.html" import filterbox %}
+{# v5 sidebar (server-rendered; the current row is decided here, never by JS). Context: sidebar (models.Sidebar). #}
+{# bottom of every sidebar: Manage (Agents, Servers), Service (reload), Account (theme, settings, log out); same groups as the top-right Menu (_acct.html) #}
+{% from "_acct.html" import acct_groups with context %}
+{% macro side_foot() %}
+  <div class="vs-foot" role="group" aria-label="Manage, service and account">
+    <button type="button" class="vs-foot-tg" aria-expanded="true" aria-controls="vs-foot-body" title="Collapse Manage, Service and Account"><span>Collapse</span><svg class="vs-chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div class="vs-foot-body" id="vs-foot-body">{{ acct_groups("side") }}</div>
+  </div>
+{% endmacro %}
+{# Projects list lives inside the global menu: project pages pass it as `sidebar`, section pages as `side_projects` (both models.Sidebar). #}
+{% set proj = sidebar if (sidebar and sidebar.label == "Projects") else side_projects %}
+{% if not sidebar or proj %}
+{# section navigation: current section decided here via `nav` (project pages: none, their project row is marked instead) #}
+{# project list: open on Projects / a project page, collapsed elsewhere (server-rendered, so no flash); a manual toggle is kept per tab for the same kind of page #}
+{% set popen = nav == "projects" or (sidebar and sidebar.label == "Projects") %}
+{% set iopen = nav == "inbox" and not sidebar %}
+{# section links: NAV (web/render.py), the entries with side=True #}
+<aside class="v5-side vs-nav{{ '' if popen else ' vs-pclosed' }}{{ '' if iopen else ' vs-iclosed' }}" id="v5side" aria-label="Sections" data-label="Menu">
+  <div class="vs-head">
+    <button type="button" class="vs-toggle" aria-expanded="true" aria-controls="v5side" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+  </div>
+  <nav class="vs-list" id="v5menu" aria-label="Sections">
+    {% for i in NAV if i.side %}{% set key, href, label = i.key, i.href, i.label %}{% set on = key == nav and not sidebar and not (key == "inbox" and inbox_view) %}
+    {% if key == "projects" and proj %}<div class="vs-rw"><a class="vs-row{{ ' on' if on }}" href="{{ href }}"{% if on %} aria-current="page"{% endif %} data-p="{{ key }}"><span class="vs-sp"></span><span class="vs-n">{{ label }}</span></a><button type="button" class="vs-pt" aria-expanded="{{ 'true' if popen else 'false' }}" aria-controls="vs-proj" aria-label="{{ 'Collapse' if popen else 'Expand' }} project list" title="{{ 'Collapse' if popen else 'Expand' }} project list"><svg class="vs-chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+    <div class="vs-proj" id="vs-proj">
+      <div class="vs-list" id="v5list" role="list" aria-label="Projects" data-badge-kind="projects" data-dot-kind="projects">
+        {# live projects only (tmux session, pane or agent) + the current one + any with unread; the rest sit behind "All projects" #}
+        {% for r in proj.rows %}{% set pon = r.key == proj.current %}{% if r.live or pon or r.unread %}
+        <a class="vs-row vs-prow{{ ' on' if pon }}" href="{{ r.href }}"{% if pon %} aria-current="page"{% endif %} data-p="{{ r.key }}">
+          {% if r.dot %}{{ dot(r.dot) }}{% else %}<span class="vs-ps"></span>{% endif %}
+          <span class="vs-n">{{ r.name }}</span>{{ count_pill(r.unread, "vs-ub", "Unread ntfy messages", "ub") }}{% if r.count %}<span class="vs-c">{{ r.count }}</span>{% endif %}
+        </a>
+        {% endif %}{% endfor %}
+        <a class="vs-row vs-prow vs-allp" href="/p"><span class="vs-ps"></span><span class="vs-n">All projects &rarr;</span></a>
+        <p class="vs-empty" hidden>No match.</p>
+      </div>
+    </div>
+    {% elif key == "inbox" %}<div class="vs-rw"><a class="vs-row{{ ' on' if on }}" href="{{ href }}"{% if on %} aria-current="page"{% endif %} data-p="{{ key }}"><span class="vs-sp"></span><span class="vs-n">{{ label }}</span></a><button type="button" class="vs-pt vs-it" aria-expanded="{{ 'true' if iopen else 'false' }}" aria-controls="vs-isub" aria-label="{{ 'Collapse' if iopen else 'Expand' }} Inbox views" title="{{ 'Collapse' if iopen else 'Expand' }} Inbox views"><svg class="vs-chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+    {% else %}
+    <a class="vs-row{{ ' on' if on }}" href="{{ href }}"{% if on %} aria-current="page"{% endif %} data-p="{{ key }}"><span class="vs-sp"></span><span class="vs-n">{{ label }}</span></a>
+    {% endif %}
+    {% if key == "inbox" %}<div class="vs-isub" id="vs-isub">{% for vk, vl in [("active", "Active"), ("idle", "Idle"), ("ended", "Ended")] %}{% set von = nav == "inbox" and not sidebar and inbox_view == vk %}
+    <a class="vs-row vs-sub{{ ' on' if von }}" href="/?view={{ vk }}"{% if von %} aria-current="page"{% endif %} data-v="{{ vk }}"><span class="vs-sp"></span><span class="vs-n">{{ vl }}</span></a>{% endfor %}</div>{% endif %}
+    {% endfor %}
+  </nav>
+  {{ side_foot() }}
+</aside>
+{% else %}
+{% set sl = sidebar.label %}
+<aside class="v5-side{{ ' ts-side' if sidebar.tmux }}" id="v5side" aria-label="{{ 'tmux session and history' if sidebar.tmux else sl }}" data-label="{{ sl }}">
+  <div class="vs-head">
+    {% if sidebar.proj_dir %}<div class="vs-pdir ico-dir" title="Project directory: {{ sidebar.proj_dir }}"><span class="vs-pdn"><bdi>{{ sidebar.proj_dir }}</bdi></span></div>{% endif %}
+    {% if not sidebar.tmux %}<span class="vs-t">{{ sidebar.title or sl }}</span>{% endif %}
+    {% if sidebar.all_href and not sidebar.tmux %}<a class="vs-all" href="{{ sidebar.all_href }}">{{ sidebar.all_label }}</a>{% endif %}
+    <button type="button" class="vs-toggle" aria-expanded="true" aria-controls="v5side" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+  </div>
+  {{ filterbox(scope="#v5side", cls="vs-filter", label=sidebar.filter_label) }}
+{% if sidebar.tmux %}
+  <link rel="stylesheet" href="/static/css/side-tmux.css">
+  <section class="ts-sec ts-tmux" aria-label="tmux"><h2 class="ts-h">ACTIVE<span class="ts-hs">{{ sidebar.tree | length }} in tmux</span></h2>
+  <nav class="vs-list ts-body" id="v5list" aria-label="live agents of this project, with their tmux session" data-dot-kind="agents" data-dot-agent="{{ sidebar.current }}">
+    {% for n in sidebar.tree %}
+    <a class="vs-row {{ 'ts-pane' if n.pane else 'ts-win' }}{{ ' on' if n.on }}" href="{{ n.href }}"{% if n.on %} aria-current="page"{% endif %} title="{{ n.title }}"{% if n.agent %} data-a="{{ n.name }}"{% endif %}{% if n.kind %} data-kind="{{ n.kind }}"{% endif %} data-q="{{ [n.name, n.kind, n.model, n.tag] | select | join(' ') | lower }}">
+      {% if n.dot %}{{ dot(n.dot) }}{% else %}<span class="vs-sp"></span>{% endif %}
+      <span class="ts-num{{ ' ts-pid' if n.pane }}">{{ n.num }}</span>{% if n.agent %}<span class="vs-n vs-agn">{{ agent_name({"id": n.name, "kind": n.kind}, model=n.model) }}</span>{% else %}<span class="vs-n">{{ n.name }}</span>{% if n.kind %}<span class="ts-kp">{{ kpill(n.kind) }}</span>{% endif %}{% endif %}{% if n.tag %}<span class="vs-c">{{ n.tag }}</span>{% endif %}
+    </a>
+    {% else %}<p class="ts-none">No live agents.</p>{% endfor %}
+  </nav></section>
+  <section class="ts-sec ts-histsec" aria-label="History"><h2 class="ts-h">HISTORY<span class="ts-hs">ended{% if sidebar.proj %} &middot; {{ sidebar.proj }}{% endif %}</span></h2>
+  <nav class="vs-list ts-body" aria-label="Ended agents of this project">
+    {% for h in sidebar.hist %}{% set on = h.id == sidebar.current %}
+    <div class="vs-row ts-hist{{ ' on' if on }}" data-n="{{ h.id }}" data-kind="{{ h.kind }}" data-q="{{ [h.id, h.kind, h.model] | select | join(' ') | lower }}"><a class="ts-hl" href="/a/{{ h.id | urlencode }}"{% if on %} aria-current="page"{% endif %} title="{{ h.id }} ({{ h.kind }}) - ended, ran {{ h.dur or 'n/a' }}"><span class="vs-n vs-agn">{{ agent_name({"id": h.id, "kind": h.kind}, model=h.model) }}</span><span class="vs-c ts-ago">{{ h.ended | ago }}</span>{% if h.dur %}<span class="vs-c ts-dur">{{ h.dur }}</span>{% endif %}</a>{% if h.resume %}<a class="ts-res" href="/a/{{ h.id | urlencode }}" title="Open to resume this session in a new tmux window (claude --resume)" aria-label="Resume {{ h.id }}">Resume</a>{% endif %}</div>
+    {% else %}<p class="ts-none">No ended agents here.</p>{% endfor %}
+    {% if sidebar.hist_total > sidebar.hist | length %}<p class="ts-none">+{{ sidebar.hist_total - sidebar.hist | length }} older</p>{% endif %}
+    <p class="vs-empty" data-fnone hidden>No match.</p>
+  </nav></section>
+  {{ side_foot() }}
+</aside>
+{% else %}
+  <nav class="vs-list" id="v5list" aria-label="{{ sl }}"{% if sidebar.rows and sidebar.label == "Projects" %} data-badge-kind="projects" data-dot-kind="projects"{% endif %}>
+    {% for r in sidebar.rows %}{% set on = r.key == sidebar.current %}
+    <a class="vs-row{{ ' on' if on }}" href="{{ r.href }}"{% if on %} aria-current="page"{% endif %} data-p="{{ r.key }}" data-q="{{ [r.name, r.key] | select | join(' ') | lower }}">
+      {% if r.dot %}{{ dot(r.dot) }}{% else %}<span class="vs-sp"></span>{% endif %}
+      <span class="vs-n">{{ r.name }}</span>{{ count_pill(r.unread, "vs-ub", "Unread ntfy messages", "ub") }}{% if r.count %}<span class="vs-c">{{ r.count }}</span>{% endif %}
+    </a>
+    {% endfor %}
+    <p class="vs-empty" data-fnone hidden>No match.</p>
+  </nav>
+  {{ side_foot() }}
+</aside>
+{% endif %}
+{% endif %}
+{# Settings popup (sidebar "Settings" link, not on /settings itself): the panel is fetched on open, so its ids never clash with a settings page #}
+{% if nav != "settings" and not embed %}{% from "_popup.html" import dialog, dlg_foot %}{% set set_head %}<a class="small" href="/settings">Open full settings page</a>{% endset %}{% call dialog("settings-dialog", "Settings", size="wide", head=set_head) %}
+  <link rel="stylesheet" href="/static/css/settings.css">
+  <div class="pmdlg-body" id="settings-dlg-body" hx-get="/settings/panel" hx-trigger="click from:#vs-settings-open" hx-swap="innerHTML"><p class="small muted">Loading...</p></div>
+  {{ dlg_foot("Close") }}
+{% endcall %}{% endif %}

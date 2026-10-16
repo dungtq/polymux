@@ -1,0 +1,26 @@
+{#- dt Agents › agent › Scripts: controls (filter, client mode · New script) · table Name · Purpose · Kind · Path · ⋯
+    (Edit…, Copy path, Remove… typed; scripts in ~/.agents/hooks only). View model: dt_agents("detail"). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set dv = dt_agents("detail") -%}
+{% call ph.tools() %}
+  {{ pf.fbox("agents-sc", placeholder="Filter scripts", label="Filter scripts", rows="#a-sc") }}
+  <span class="sp"></span>
+  <button class="x-btn sm" type="button" data-a-open="a-new"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#plus"/></svg>New script</button>
+{% endcall %}
+{% call tb.table("agents-sc", "Scripts of " ~ dv.label, cls="a-sct", list="agents-sc", id="a-sc") %}
+  {{ tb.gh(dv.cols, sort=dv.sort) }}
+  {%- for r in dv.items %}
+  {% call tb.row(r.id, cur=loop.first, q=r.q, title=r.cells[1], attrs=r.attrs) %}
+    {% call tb.name(r.name) %}{% endcall %}
+    {% call tb.cell("muted") %}<span title="{{ r.desc }}">{{ r.desc or "–" }}</span>{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.cells[0] }}{% endcall %}
+    {% call tb.cell("hide-n mono muted") %}<span title="{{ r.cells[1] }}">{{ r.cells[1] }}</span>{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- else %}
+  {{ tb.empty("No scripts used by " ~ dv.label ~ ". New script adds one to ~/.agents/hooks.") }}
+  {%- endfor %}
+  {{ tb.empty("No script matches the filter.", fnone=true) }}
+{% endcall %}

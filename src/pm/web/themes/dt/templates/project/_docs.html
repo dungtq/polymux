@@ -1,0 +1,22 @@
+{#- dt project view, Docs tab (PRD §6.4): the project's fixed documents README · CHANGELOG · FEATURES · CLAUDE · AGENTS
+    (those that exist; hidden ones in the project settings left out) as a view toggle (.p-seg role=group, buttons with
+    aria-pressed: PARTS.md §4) over the core's fragment GET /p/<name>/view/<key> (dt _project_doc.html: a document in
+    its own .x-cl box, README A5, or the shared empty-state box). View model: v.docs (pm.web.dt.project.Docs):
+    README first, else the first document that exists. html = the core already rendered it; lazy = not known yet:
+    js/project.js loads the choices in order (skipping data-pj-miss) when the tab first shows and keeps the first
+    found; neither: no document at all, an empty-state box. A click loads another one ([data-pj-doc]). Skills
+    ([data-pj-list], hidden by the project setting "skills") is a list, not a document (dt _project_skills.html): never
+    the first one; #view=skills and #skill=<scope>/<src>/<name> open it (js/project.js). -#}
+{%- import "parts/_table.html" as tb -%}
+{%- set dv = v.docs -%}
+<div class="p-tools pj-doctools">
+  <span class="p-seg" role="group" aria-label="Document">
+    {%- for d in dv.items %}<button type="button" data-pj-doc="{{ d.href }}" aria-pressed="{{ 'true' if d.cur else 'false' }}" title="{{ d.label }}.md"{% if d.miss %} data-pj-miss{% endif %}{% if d.list %} data-pj-list{% endif %}>{{ d.label }}</button>{% endfor -%}
+  </span>
+</div>
+<div class="pj-docb" data-pj-docb aria-live="polite"{% if dv.lazy %} data-pj-lazy{% endif %}>
+  {%- if dv.html %}{{ dv.html | safe }}
+  {%- elif dv.lazy %}<p class="muted">Loading the document&hellip;</p>
+  {%- else %}{% call tb.table("pj-note", "Documents", cls="pj-note") %}{{ tb.empty("No README.md or CHANGELOG.md in " ~ v.name ~ " yet.") }}{% endcall %}
+  {%- endif -%}
+</div>

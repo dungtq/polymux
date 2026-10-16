@@ -1,0 +1,153 @@
+/* dt session tab frame (PRD §6.3, LAYOUT.md §5, DESIGN.md §6.3, §6.17-6.20): header line (.c-hd), panels (.c-pn),
+   chat column (.c-col: scroller .c-chat with the message column .c-msgs, composer slot .c-comp), side panel slot
+   (#mdpane in .c-split), Builder mode (.c-bld). Markup: templates/session/_frame.html, agent.html, agent_ended.html,
+   builder.html. Tokens only. Part 2 (end of file) places the classic chat / composer / reader markup that M2 keeps
+   (README A5); it goes away with the c-/k- port. Sizes: --chat-cap, --bld-chat-w, --side-float-max (tokens.css, A8).
+   The phone bottom nav is off on agent pages (body.c-page): tokens.css part 3 and shell.css, next to x-sessview. */
+
+/* ---------- page: main does not scroll, the chat column does ---------- */
+html body.x>.x-main:has(>.x-page>.c-sess){display:flex;flex-direction:column;overflow:hidden}
+html body.x.x-embed>.x-main:has(>.x-page>.c-sess){height:100vh;height:100dvh}
+html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 auto;min-height:0;max-width:none;
+  padding:0}
+.c-sess{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0}
+
+/* ---------- header: one 44px line (state, name, model, meta, tabs | view, Aa, Builder, ⋯, to aside) ---------- */
+.c-hd{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto;min-width:0;height:calc(var(--ib) + var(--s3));
+  padding:0 var(--s2) 0 var(--s5);border-bottom:1px solid var(--line2);background:var(--page);white-space:nowrap}
+.c-hd.min{height:calc(var(--ib) + var(--s2));padding:0 var(--s2) 0 var(--s3)}
+.c-id{display:flex;align-items:center;gap:var(--s2);flex:0 1 auto;min-width:0}
+/* the name is the last thing to truncate and keeps its unique suffix (L-4: .sfx cuts from the left) */
+.c-hd h1.c-nm{display:block;flex:0 1 auto;width:auto;min-width:8ch;margin:0;padding:0;border:0;color:var(--fg);
+  font-size:var(--fs-m);font-weight:600;line-height:1.3}
+.c-hd .chip{flex:0 0 auto}
+.c-ended{color:var(--muted)}
+/* meta folds first: a huge shrink factor takes the room from it before the name gives any */
+.c-meta{display:flex;align-items:center;gap:var(--s1);flex:0 1000 auto;min-width:0;overflow:hidden;
+  color:var(--muted);font-size:var(--fs-ui)}
+.c-meta>:is(a,span){flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.c-meta>.c-ms{flex:0 0 auto;overflow:visible}
+.c-meta a{color:var(--muted);text-decoration:none}
+.c-meta a:hover{color:var(--accent);text-decoration:none}
+.c-meta .mono{font-size:var(--fs-s)}
+
+/* session sub-tabs: the shared flat tabs (parts.css .p-tabs) sitting in the header line; the selected underline is
+   the agent-kind colour in a session (DESIGN §6.3) and lies on the header's hairline */
+.c-hd .c-tabs{align-self:stretch;flex:0 0 auto;margin:0 0 0 var(--s2);border-bottom:0;overflow:visible}
+.c-hd .c-tabs [role=tab]{height:auto;padding:0 var(--s2);font-size:var(--fs-ui)}
+.c-hd .c-tabs [role=tab][aria-selected=true]::after{bottom:-1px;background:var(--k,var(--accent))}
+.c-hd .c-tabs .c{color:var(--st-run);font-size:var(--fs-xs);font-weight:600}
+
+/* Detail | Compact (the shared .p-seg with buttons; classic chat-compact.js keeps aria-pressed) and Aa: only while the
+   Chat tab shows */
+.c-chatonly{display:flex;align-items:center;gap:var(--s1);flex:0 0 auto}
+.c-sess:has(.c-radio:not(#tab-chat):checked) .c-chatonly{display:none}
+.c-hd .c-view{flex:0 0 auto}
+.c-hd .c-aa{font-weight:600}
+.c-hd .c-aa[aria-expanded=true]{background:var(--hover);color:var(--fg)}
+.c-bbtn.on{border-color:var(--accent);background:var(--accent-soft);color:var(--fg)}
+
+/* ---------- body: panels (Chat, Sub-agents, Pane, Terminal) ---------- */
+.c-body{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0}
+.c-pn{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0}
+.c-pn-pad{overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5) var(--s5)}
+.g-bar{display:flex;justify-content:flex-end;margin:0 0 var(--s2)}
+.c-term{flex:1 1 auto;width:100%;min-height:0;border:0;background:var(--pane-bg)}
+.c-tfoot{flex:0 0 auto;margin:0;padding:var(--s1) var(--s5);border-top:1px solid var(--line2);color:var(--muted);
+  font-size:var(--fs-s)}
+
+/* chat column | divider | side panel (reader, canvas): docked when main is wider than 1000px, else floating */
+.c-split{position:relative;display:flex;flex:1 1 auto;min-width:0;min-height:0}
+.c-col{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0}
+.c-chatw{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+.c-chat{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5) var(--s2)}
+.c-chat:focus{outline:0}
+.c-msgs{max-width:var(--chat-cap);margin:0 auto}
+.c-comp{flex:0 0 auto;padding:0 var(--s5) var(--s3)}
+.c-jump{position:absolute;right:var(--s4);bottom:var(--s2);z-index:var(--z-local);display:flex;flex-direction:column;
+  gap:var(--s1)}
+.c-jump .x-ib{border:1px solid var(--line);background:var(--page);box-shadow:var(--shadow-menu)}
+.c-jump .x-ib:hover{background:var(--hover)}
+.c-endinfo{margin:0 0 var(--s3);padding:0 0 var(--s2);border-bottom:1px solid var(--line2);color:var(--muted);
+  font-size:var(--fs-ui)}
+.c-endnote{margin:0 0 var(--s1)}
+.c-endinfo .ended-meta{margin:0 0 var(--s1)}
+
+/* ---------- Builder mode: chat (440px default, resizable) | preview ---------- */
+.c-bld #builder{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+
+/* ---------- narrower main ---------- */
+@container pg (max-width:1180px){
+  .c-bbtn .lb{display:none}
+}
+@container pg (max-width:1000px){
+  .c-hd .c-meta{display:none}
+}
+@container pg (max-width:760px){
+  .c-hd .c-view{display:none}
+}
+
+/* ---------- phone: the top bar shows the title; this line keeps the sub-tabs, Builder and ⋯ (LAYOUT §6) ---------- */
+@media (max-width:699px){
+  /* the line is the tab strip: tabs 44px on touch (DESIGN §6.3, = .p-tabs), plus the hairline */
+  .c-hd{gap:var(--s1);height:auto;padding:0 var(--s1) 0 0}
+  .c-hd>:is(.c-id,.c-meta,.c-chatonly,.c-toaside,.sp){display:none}
+  .c-hd .c-tabs{flex:1 1 auto;min-width:0;margin:0;overflow-x:auto;
+    mask-image:linear-gradient(to left,transparent,var(--fg) var(--s4))}
+  .c-hd .c-tabs [role=tab]{height:calc(var(--ib) + var(--s1));padding:0 var(--s3);font-size:var(--fs-m)}
+  .c-hd.min>.c-chatonly{display:flex}
+  /* Builder: an icon button as large as ⋯ (40px touch target) */
+  .c-hd .c-bbtn{width:var(--ib);height:var(--ib);padding:0}
+  .c-hd .c-bbtn svg.i{width:var(--icon);height:var(--icon)}
+  .c-hd.min>.sp,.c-hd:not(:has(.c-tabs))>.sp{display:block}
+  .c-chat{padding:var(--s3) var(--s3) var(--s2)}
+  .c-comp{padding:0 var(--s2) calc(var(--s2) + env(safe-area-inset-bottom))}
+  .c-pn-pad{padding:var(--s3) var(--s3) var(--s4)}
+  .c-jump{right:var(--s2)}
+}
+
+/* =====================================================================================================
+   Part 2. Classic content inside the frame (README A5, V7-ISO-10): the classic chat items, composer, reader /
+   canvas pane, keypad and Builder body keep their markup and JS until the c-/k- port; these rules only place
+   them in the frame. Delete together with the classic markup.
+   ===================================================================================================== */
+
+/* composer(…, flow=true): pinned under the chat, as wide as the message column, no grey strip */
+.c-comp>.composer--flow{max-height:none}
+.c-col>.c-comp>.composer--flow{max-width:var(--chat-cap);margin:0 auto;padding:var(--s2) 0 0;border-top:0;
+  background:none;overflow:visible}
+/* its New Chat / Fork / Builder / Exit buttons live in the header (⋯, Builder); kept in the DOM as the ⋯ menu's
+   click targets (classic newchat.js) */
+.c-sess .composer .cstat .agent-actions,.c-sess .composer .mrow .mb-act{display:none}
+/* the aside iframe shows the Chat only: the Keys button would flip to a Pane tab that is not there */
+.c-sess.embed .composer [data-keys]{display:none}
+
+/* reader / canvas (#mdpane): docked as a grid column with the classic divider (.cs-div: 1px hairline, accent on
+   hover and drag), full height of the split instead of sticky under a window scroll; floating over the chat when
+   main is 1000px or narrower; under 900px window width classic chat-md.js opens it full screen (.is-full).
+   `html body` beats classic chat.css `body:not(.embed) .chatsplit.has-md > .mdpane:not(.is-full)` */
+.c-sess .c-split.has-md{grid-template-rows:minmax(0,1fr);align-items:stretch}
+html body .c-sess .c-split.has-md>.mdpane:not(.is-full){position:relative;top:auto;align-self:stretch;display:flex;
+  flex-direction:column;height:auto;min-height:0;max-height:none;margin:0;padding:0 var(--s3);border-top:0;
+  background:var(--page);overflow:hidden}
+.c-sess .c-split.has-md>.mdpane:not(.is-full)>.mdpane-b{flex:1 1 auto;min-height:0;max-height:none;overflow:auto}
+@container pg (max-width:1000px){
+  .c-sess .c-split.chatsplit.has-md{display:flex}
+  .c-sess .c-split>.cs-div{display:none}
+  html body .c-sess .c-split.has-md>.mdpane:not(.is-full){position:absolute;top:0;right:0;bottom:0;
+    z-index:var(--z-local);width:min(100%,var(--side-float-max));border-left:1px solid var(--line);
+    box-shadow:var(--shadow-side)}
+}
+
+/* Pane tab: the keypad and tools under the pane text */
+.c-sess .tabpanel-pane .g-tools{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s2)}
+
+/* Builder body: no box around the split (the frame is the box), chat 440px until dragged (builder.js --bld-left).
+   Only the default width changes: the columns' minimums, the 9px divider track and the narrow-window columns stay
+   classic builder.css's (its grid-template-columns reads --bld-left) */
+.c-sess .bld-split{--bld-left:var(--bld-chat-w);border:0;border-radius:0}
+.c-bld .bld-tabs{display:none;margin:0}
+@media (max-width:699px){
+  .c-sess .bld-split{display:block}
+  .c-bld .bld-tabs{display:flex}
+}

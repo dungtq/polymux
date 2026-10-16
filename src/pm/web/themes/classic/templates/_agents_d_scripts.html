@@ -1,0 +1,17 @@
+{% from "_agents_macros.html" import hc, dash, editlinks, newform %}
+<section class="ag-view" aria-label="Scripts">
+{{ newform(csrf, "script_create", agent.name, "scripts", "script") }}
+<div class="list ag-table" role="list">
+<div class="hrow arow-sc ag-head" role="presentation">{{ hc(cols["c-nm"], "c-nm") }}{{ hc(cols["c-ty"], "c-ty") }}{{ hc(cols["c-ds"], "c-ds") }}{{ hc(cols["c-ud"], "c-ud") }}{{ hc(cols["c-pa"], "c-pa") }}<span class="c-ac"></span></div>
+{% for s in rows %}
+<div class="lrow arow-sc" role="listitem">
+<span class="c-nm" title="{{ s.name }}"><strong>{{ s.name }}</strong></span>
+<span class="c-ty muted">{{ s.kind }}</span>
+<span class="c-ds" title="{{ s.purpose }}">{{ dash(s.purpose) }}</span>
+<span class="c-ud muted" title="{{ s.used_by | join(', ') }}">{{ s.used_by | join(", ") if s.used_by else "–" }}</span>
+<span class="c-pa mono muted" title="{{ s.path }}">{{ dash(s.path) }}</span>
+<span class="c-ac">{% if s.path in can_edit %}{{ editlinks(base, "script", s.name) }}{% endif %}</span>
+</div>
+{% else %}<p class="muted ag-empty">No scripts used by this agent.</p>{% endfor %}
+</div>
+</section>

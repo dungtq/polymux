@@ -1,0 +1,65 @@
+{#- dt project view (PRD.md §6.4 "Project view", LAYOUT.md §5): overrides the classic project.html. Layout
+    .pj-lay = project sidebar (project/_sidebar.html; 260px, 220px under 1100px, collapsible >= 900px with ⌘⇧B and
+    remembered in the cookie pm_v7_pjnav, off-canvas under 900px) · main (.pj-main, cap --pj-cap, container pj) ·
+    reader aside (#pj-reader: a grid column >= 1560px, else an overlay; js/project.js pm7.pj.reader).
+    Main, in the page skeleton's order (LAYOUT §4): head (project/_head.html) · tiles (project/_tiles.html) · flat tabs
+    (parts/_tabs.html, button tabs) · one panel per tab.
+    Tab panel contract (docs/themes/dt/PARTS.md §14): this file renders every panel as
+      <section class="pj-tab" id="pj-t-<key>" role="tabpanel" data-pj-tab="<key>" data-pj-base="/p/<name>" hidden>
+    (hidden unless it is the first tab: ?tab=<key>, else Agents) and includes the tab's partial inside it. Partials of
+    other areas: project/_tab_git.html, _tab_stack.html, _tab_vms.html (Git / Stack / VMs), _tab_todo.html,
+    _tab_issues.html (Backlog), _tab_tmux.html (the project's tmux sessions, live through #pj-agents' fragment); a
+    missing one shows a placeholder line. js/project.js shows one panel at a time and
+    fires pm7:pj-tab {key} on document when a panel becomes visible (also once for the first one), so partials load
+    their data lazily; the URL hash keeps the tab (#tab=<key>).
+    Agents tab: #pj-agents (live: GET /p/<name>/live = dt _project_live.html on the stream's agent / inbox events,
+    pm:refresh, pm7:refresh; no timed poll). Page CSS / JS: css/inbox.css + js/inbox.js (the agent rows),
+    css/project.css, js/project.js, js/pjsettings.js (Settings and Git remotes in the reader aside). View model: dt_project() (pm.web.dt.project). Classic CSS / JS for the Files
+    and Docs fragments: shell/_classic.html, flag classic_page = "project". -#}
+{% extends "base.html" %}
+{% set classic_page = "project" %}
+{% import "parts/_tabs.html" as pt %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/inbox.css">
+<link rel="stylesheet" href="/static/t/dt/css/project.css">
+<script src="/static/t/dt/js/inbox.js" defer></script>
+<script src="/static/t/dt/js/project.js" defer></script>
+<script src="/static/t/dt/js/pjsettings.js" defer></script>
+{% endblock %}
+{% block content %}
+{%- set v = dt_project() -%}
+{%- if v %}
+<div class="pj-lay{{ ' navc' if v.navc }}" id="pj-lay" data-pj="{{ v.name }}" data-pj-base="{{ v.base }}">
+{% include "project/_sidebar.html" %}
+<div class="pj-main" id="pj-main">
+{% include "project/_head.html" %}
+{% include "project/_tiles.html" %}
+{{ pt.tabs(v.tabs, "Project " ~ v.name) }}
+{%- for t in v.tabs %}
+<section class="pj-tab" id="pj-t-{{ t.key }}" role="tabpanel" aria-labelledby="p-tab-{{ t.key }}" data-pj-tab="{{ t.key }}" data-pj-base="{{ v.base }}"{% if not t.cur %} hidden{% endif %}>
+{%- if t.key == "agents" %}
+<div id="pj-agents" class="pj-agents" data-i-rows hx-get="{{ v.base }}/live" hx-trigger="pm:agent_state from:document, pm:agent_added from:document, pm:agent_removed from:document, pm:inbox from:document, pm:refresh from:document, pm7:refresh" hx-swap="innerHTML" hx-sync="this:queue last">{% include "project/_agents.html" %}</div>
+{%- elif t.key == "files" %}{% include "project/_files.html" %}
+{%- elif t.key == "plans" %}{% include "project/_plans.html" %}
+{%- elif t.key == "docs" %}{% include "project/_docs.html" %}
+{%- else %}
+{%- set body %}{% include "project/_tab_" ~ t.key ~ ".html" ignore missing %}{% endset %}
+{%- if body | trim %}{{ body }}{% else %}<p class="p-empty pj-ph">The {{ t.label }} tab is not built yet.</p>{% endif %}
+{%- endif %}
+</section>
+{%- endfor %}
+</div>
+<aside class="pj-fa" id="pj-reader" aria-label="Reader" hidden>
+  <div class="pj-fah">
+    <b class="ell" data-pj-rt>Reader</b><span class="sp"></span>
+    <a class="x-ib sm" data-pj-ropen href="{{ v.base }}" title="Open as a page" aria-label="Open as a page"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#open"/></svg></a>
+    <button class="x-ib sm" type="button" data-pj-rclose aria-label="Close the reader" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#x"/></svg></button>
+  </div>
+  <div class="pj-fab" data-pj-rbody></div>
+</aside>
+</div>
+{%- else %}
+<p class="p-empty">The project view could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+{% endblock %}

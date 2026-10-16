@@ -1,0 +1,63 @@
+{#- dt Agents › Usage (PRD §6.8 "Usage"): period segments (7 days · 30 days · All, ?r=) · totals (meters) · two columns
+    when the page column is >= 1100px: By day (bars, share of new tokens; height classes h0-h20 from the view model) and
+    By model (share bar) | Claude plan limits (meters with level colours, from the status line) and Top sessions (each
+    links to its pm record). View model: dt_agents("usage") (pm.web.dt.agents_usage). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_seg.html" as ps -%}{%- import "parts/_meter.html" as pmt -%}
+{%- import "parts/_table.html" as tb -%}
+{%- set u = dt_agents("usage") -%}
+{%- if u %}
+{% call ph.tools() %}{{ ps.seg(u.segs, label="Period") }}<span class="note">{{ u.note or "Claude Code transcripts, sub-agents included" }}</span>{% endcall %}
+{%- if u.empty %}
+{% call tb.table("agents-use", "Usage") %}{{ tb.empty("No Claude transcripts with usage in this period. Pick a longer period.") }}{% endcall %}
+{%- else %}
+{{ pmt.meters(u.totals, label="Totals") }}
+{%- endif %}
+<div class="a-cols">
+{%- if not u.empty %}
+<section class="a-col" aria-labelledby="a-h-day">
+  <h2 class="p-h2" id="a-h-day">By day <span class="c">share of new tokens</span></h2>
+  <div class="a-chart" role="img" aria-label="Share of new tokens per day, {{ u.bars | length }} days">
+    {%- for b in u.bars %}<div class="b" title="{{ b.title }}"><i class="h{{ b.h }}"></i><span>{{ b.label }}</span></div>{% endfor -%}
+  </div>
+  <h2 class="p-h2">By model</h2>
+  {% call tb.table("agents-models", "Usage by model", cls="a-modt") %}
+    {{ tb.gh([{"label": "Model"}, {"label": "Share"}, {"label": "Replies", "num": true, "cls": "hide-s"}, {"label": "Out", "num": true}]) }}
+    {%- for m in u.models %}
+    {% call tb.row(m.name) %}
+      {% call tb.name(m.name) %}{% endcall %}
+      {% call tb.cell() %}{{ pmt.bar(m.pct, inline=true, label=m.name ~ " " ~ m.share) }}<span class="a-pct">{{ m.share }}</span>{% endcall %}
+      {% call tb.cell("hide-s", num=true) %}{{ m.replies }}{% endcall %}
+      {% call tb.cell("gc-end", num=true) %}{{ m.out }}{% endcall %}
+      {% call tb.meta() %}{{ m.share }} · {{ m.replies }} replies{% endcall %}
+    {% endcall %}
+    {%- endfor %}
+  {% endcall %}
+</section>
+{%- endif %}
+<section class="a-col" aria-labelledby="a-h-lim">
+  <h2 class="p-h2" id="a-h-lim">Claude plan limits <span class="c">from the status line</span></h2>
+  {%- if u.limits %}
+  {{ pmt.meters(u.limits, label="Claude plan limits", cls="a-lims") }}
+  {%- else %}
+  {% call tb.table("agents-lims", "Claude plan limits") %}{{ tb.empty("No plan limits recorded yet: Claude Code's status line writes them while a session runs.") }}{% endcall %}
+  {%- endif %}
+  {%- if u.top %}
+  <h2 class="p-h2">Top sessions</h2>
+  {% call tb.table("agents-top", "Top sessions", cls="a-topt", list="agents-top") %}
+    {{ tb.gh([{"label": "Session"}, {"label": "Share", "num": true}, {"label": "Replies", "num": true, "cls": "hide-s"}, {"label": "Span", "num": true}]) }}
+    {%- for t in u.top %}
+    {% call tb.row(t.id, href=t.href, cur=loop.first, title=t.cwd) %}
+      {% call tb.name(t.label, href=t.href) %}{% if t.sid %}<span class="mono muted">{{ t.sid }}</span>{% endif %}{% endcall %}
+      {% call tb.cell(num=true) %}{{ t.share }}{% endcall %}
+      {% call tb.cell("hide-s", num=true) %}{{ t.replies }}{% endcall %}
+      {% call tb.cell("gc-end", num=true) %}{{ t.span }}{% endcall %}
+      {% call tb.meta() %}{{ t.share }} · {{ t.replies }} replies{% endcall %}
+    {% endcall %}
+    {%- endfor %}
+  {% endcall %}
+  {%- endif %}
+</section>
+</div>
+{%- else %}
+<p class="p-empty">Usage could not be read. Reload the page; the error is in pm's log.</p>
+{%- endif %}

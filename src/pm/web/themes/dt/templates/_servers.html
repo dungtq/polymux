@@ -1,0 +1,12 @@
+{#- dt Servers panel (PRD.md §6.9): the content of #sv-panel in servers.html, and the fragment of the core's
+    GET /servers/panel (the 10 s refresh, README A21; ctx as servers.html without vm). Overrides the core's
+    _servers.html for the dt theme. The fragment also refreshes the head's stats line (#sv-head-stats, an htmx
+    out-of-band swap). Overview: servers/_overview.html; Services: servers/_services.html; Resources: _resources.html;
+    VMs: nothing here (#sv-vms, _vms.html). View model: dt_servers() (pm.web.dt.servers). -#}
+{%- import "parts/_head.html" as ph -%}
+{%- set v = dt_servers() -%}
+{%- if v.fragment and v.stats %}<div hx-swap-oob="innerHTML:#sv-head-stats">{{ ph.stats(v.stats) }}</div>{% endif %}
+{%- if v.tab == "overview" and v.ov %}{% include "servers/_overview.html" %}
+{%- elif v.tab == "services" and v.sv %}{% include "servers/_services.html" %}
+{%- elif v.tab == "resources" and v.res %}{% include "_resources.html" %}
+{%- endif %}

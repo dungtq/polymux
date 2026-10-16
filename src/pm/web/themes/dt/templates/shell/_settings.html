@@ -1,0 +1,19 @@
+{#- The Settings popup frame (docs/themes/dt/PRD.md §6.11, LAYOUT.md §5 Settings, DESIGN.md §7, README A23; prefix sp-),
+    included by base.html (not in embed, not on the Settings page itself: block settings_popup, emptied by
+    settings.html, so the page's ids never exist twice). js/settings-popup.js opens it (pm7.settings.open(id): ⌘,, the
+    sidebar foot's Settings [data-sp-open], the search command) and loads the core's GET /settings/panel?s=<id> (the dt
+    _settings_panel.html, the same body as the page) into [data-sp-body]; js/settings.js runs on it as on the page
+    (pm7.settings.init). Modal (showModal, layers.js: Esc, backdrop, focus trap and return); --sp-w × --sp-h, full
+    screen on phones. "Open as page" follows the section shown (/settings?s=<id>). -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<dialog id="sp-dlg" class="sp-dlg" aria-labelledby="sp-dlg-t">
+  <div class="sp-hd">
+    <svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}sliders"/></svg>
+    <h2 id="sp-dlg-t">Settings</h2>
+    <span class="sp-note">Changes save as you make them</span>
+    <span class="sp"></span>
+    <a class="x-btn sm sp-page" href="/settings" data-sp-page><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}expand"/></svg><span class="lb">Open as page</span></a>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  <div class="sp-bd" data-sp-body><p class="sp-wait">Loading…</p></div>
+</dialog>

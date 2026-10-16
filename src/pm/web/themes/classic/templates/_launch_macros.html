@@ -1,0 +1,38 @@
+{# Launch form controls shared by launch.html (main + dispatch forms) and _launch_mainform.html.
+   Import "with context": they read embed and launch_data. #}
+{% macro launch_opts() %}
+  <div class="launch-opts" data-launch-opts>
+    <label class="f-model"><span class="lbl">Model</span>
+      <input type="search" data-model-search placeholder="{{ "Filter" if embed else "Filter models (e.g. opus, gpt-6, grok)" }}" autocomplete="off" autocapitalize="off" aria-label="Filter models">
+      <select name="model_choice" data-model-select aria-label="Model"></select></label>
+    <p class="muted small f-count" data-model-count></p>
+    <label class="f-variant" data-variant-row hidden><span class="lbl">Variant</span>
+      <select name="variant" data-variant-select></select></label>
+    <label class="f-custom" data-model-custom hidden><span class="lbl">Custom model id</span>
+      <input name="model" maxlength="100" autocomplete="off" autocapitalize="off" placeholder="model id as the agent expects it"></label>
+    <label class="f-effort" data-effort-row hidden><span class="lbl">Reasoning effort</span>
+      <select name="effort" data-effort-select></select></label>
+    <label class="f-mode"><span class="lbl" data-mode-label>Permission mode</span>
+      <select name="permission_mode" data-mode-select></select></label>
+    <label class="f-extra" data-extra-row hidden><span class="lbl" data-extra-label>Option</span>
+      <select name="permission_extra" data-extra-select></select></label>
+    <p class="muted small mode-help" data-mode-help></p>
+    <div class="bypass-warn" data-bypass-warn role="alert" hidden>
+      <p><b>Bypass: every permission check is switched off.</b>
+        The agent can edit or delete any file and run any command as your user, with network access,
+        and it will not ask first. Use it only in a project you can restore from git.</p>
+      <label class="check"><input type="checkbox" name="confirm_bypass" value="1" data-bypass-confirm disabled> I understand, run without permission prompts</label>
+    </div>
+  </div>
+{% endmacro %}
+{% macro branch_block() %}
+  <label class="f-branch">Worktree branch (optional)
+    <input name="branch" maxlength="80" autocomplete="off" autocapitalize="off" placeholder="feature/x" list="branch-list" data-branch></label>
+  <datalist id="branch-list"></datalist>
+  <p class="muted small f-hint" data-branch-hint>Empty: the agent runs in the project directory.</p>
+{% endmacro %}
+{% macro template_block() %}
+  <label class="f-tpl">Prompt template
+    <select data-template aria-label="Prompt template"><option value="">(none)</option>
+      {% for t in launch_data.templates %}<option value="{{ loop.index0 }}">{{ t.name }}</option>{% endfor %}</select></label>
+{% endmacro %}

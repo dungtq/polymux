@@ -1,0 +1,17 @@
+{# GET /a/<id>/items (web/routes/chatitems.py), merged into #ci / #ci-pending by static/js/chat-items.js.
+   mode: full (newest page + Full Transcript + Load older + outbox), poll (new/changed items since a rev
+   cursor + outbox), older (the page before a seq + Load older). Blocks come from pm.web.chatctx.blocks(). #}
+{% from "_ci_macros.html" import block, ob_bubble with context %}
+{% if mode == "full" and transcript %}<p class="chat-full small"><a href="{{ transcript }}" rel="noopener">Full Transcript</a></p>
+{% endif %}
+{% if mode != "poll" %}<div class="ci-more">{% if more %}<button type="button" class="small" data-ci-older="{{ oldest }}" title="Show older messages">Load older</button>{% endif %}</div>
+{% endif %}
+<div class="ci-items">{% for b in blocks %}
+{{ block(b) }}{% endfor %}
+</div>
+{% if outbox is not none %}<div class="ci-obs">{% for m in outbox %}
+{{ ob_bubble(m) }}{% endfor %}
+</div>
+{% endif %}
+{% if mode == "full" and not blocks and not outbox %}<p class="chat-empty muted ci-empty">{% if ended %}No transcript was found for this agent.{% else %}No messages yet.{% endif %}</p>
+{% endif %}

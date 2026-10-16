@@ -1,0 +1,203 @@
+<div id="settings-panel" class="set-panel">
+{% if notice %}<p class="set-notice" role="status">{{ notice }}</p>{% endif %}
+<section id="access" class="set-section">
+<h2 class="set-h">Access</h2>
+{% if require_unlock %}
+<h3>Unlock</h3>
+<div class="card set-sec">
+  {% if locked %}<p>Session is locked. Use the unlock form or a passkey.</p>
+  {% else %}<p class="ok">Session is unlocked.</p>{% endif %}
+  {% if not provisioned %}
+  <form method="post" action="/unlock/provision" hx-post="/unlock/provision" hx-target="#flash" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Set up TOTP</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+<h3>Passkey login</h3>
+<div class="card set-sec">
+  <p class="small muted">Log in with the token first, then enrol this device; later you can sign in with the passkey instead of the token.</p>
+  <div class="set-row">
+    <label class="small set-main">Name <input id="passkey-name" maxlength="40" autocomplete="off" placeholder="phone"></label>
+    <button type="button" data-passkey="register" data-target="flash">Register passkey</button>
+    {% if require_unlock %}<button type="button" data-passkey="auth" data-target="flash">Test passkey unlock</button>{% endif %}
+  </div>
+</div>
+<h3>Passkeys</h3>
+<div class="card set-sec">
+  {% for k in passkeys %}
+  <form class="set-row" hx-post="/settings/passkeys/revoke" hx-target="#settings-panel" hx-swap="outerHTML" hx-confirm="Remove passkey {{ k.name }}?">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ k.id }}">
+    <span class="set-main"><b>{{ k.name or 'passkey' }}</b> <span class="small muted">added {{ k.created | date }}</span></span>
+    <button type="submit">Remove</button>
+  </form>
+  {% else %}<p class="small muted">No passkeys registered.</p>{% endfor %}
+</div>
+<h3>Sessions</h3>
+<div class="card set-sec">
+  {% macro srow(s) %}
+  <form class="set-row" hx-post="/settings/sessions/revoke" hx-target="#settings-panel" hx-swap="outerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="h" value="{{ s.h }}">
+    <span class="set-main"><span class="mono">{{ s.client or '?' }}</span>
+      {% if s.current %}<span class="badge ok">this session</span>{% endif %}
+      <span class="small muted">created {{ s.created | dt }}, last seen {{ s.last_seen | dt }}</span></span>
+    {% if s.current %}<label class="small set-check set-confirm"><input type="checkbox" name="confirm" value="1"> Confirm log out of this session</label>{% endif %}
+    <button type="submit"{% if not s.current %} class="set-quiet"{% endif %}>{{ 'Log out' if s.current else 'Revoke' }}</button>
+  </form>
+{% endmacro %}
+  {% for s in sessions if s.current %}{{ srow(s) }}{% endfor %}
+  {% set others = sessions | rejectattr('current') | list %}
+  {% if others %}
+  <details class="set-more"><summary>{{ others | length }} other session{{ '' if others | length == 1 else 's' }}</summary>
+  {% for s in others %}{{ srow(s) }}{% endfor %}
+  </details>
+  {% endif %}
+</div>
+</section>
+
+<section id="ssh" class="set-section">
+<h2 class="set-h">SSH</h2>
+<h3>pm key</h3>
+<div class="card set-sec">
+  {% if pm_key %}
+  <div class="set-row">
+    <span class="set-main set-line"><b class="mono">{{ pm_key.name }}</b> <span class="small muted">{{ pm_key.type }}</span> <span class="small mono" title="{{ pm_key.fingerprint }}">{{ pm_key.fingerprint }}</span></span>
+  </div>
+  <div class="set-row">
+    <input id="pm-pubkey" class="mono set-pub" readonly value="{{ pm_key.line }}" aria-label="pm public key" spellcheck="false">
+    <button type="button" data-copy-text="{{ pm_key.line }}">Copy</button>
+  </div>
+  <p class="small muted">Add this public key as a deploy key (or to authorized_keys) on the server. The private key stays in the pm state directory (mode 0600) and is never shown.</p>
+  {% else %}
+  <form class="set-row" method="post" action="/settings/ssh/keygen" hx-post="/settings/ssh/keygen" hx-target="#settings-panel" hx-swap="outerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <span class="set-main set-line">No pm key yet. Generates an ed25519 key without passphrase (pm runs unattended); never overwrites.</span>
+    <button type="submit">Generate key</button>
+  </form>
+  {% endif %}
+</div>
+<h3>Keys in ~/.ssh <span class="small muted">read-only, not managed by pm</span></h3>
+<div class="card set-sec">
+  {% for k in user_keys %}
+  <div class="set-row">
+    <span class="set-main set-line"><b class="mono">{{ k.name }}</b> <span class="small muted">{{ k.type }}</span> <span class="small mono" title="{{ k.fingerprint }}">{{ k.fingerprint }}</span></span>
+    <button type="button" data-copy-text="{{ k.line }}">Copy</button>
+  </div>
+  {% else %}<p class="small muted">No public keys found.</p>{% endfor %}
+</div>
+</section>
+
+<section id="servers" class="set-section">
+<h2 class="set-h">Servers</h2>
+<div class="card set-sec">
+  {% for s in servers %}
+  <div class="set-row">
+    <span class="set-main set-line"><b>{{ s.name }}</b> <span class="mono small">{{ s.user }}@{{ s.host }}{% if s.port != 22 %}:{{ s.port }}{% endif %}</span>
+      {% if s.hostkey_fp %}<span class="small muted mono" title="{{ s.hostkey_fp }}">{{ s.hostkey_fp[:19] }}</span>{% else %}<span class="small muted">host key not pinned</span>{% endif %}
+      {% if s.last_test %}<span class="small muted" title="last test">{{ srv_results.get(s.last_test.reason, s.last_test.reason) }}</span>{% endif %}</span>
+    {% if not s.hostkey_fp %}
+    <form class="set-inline" hx-post="/settings/servers/{{ s.id }}/pin" hx-target="#settings-panel" hx-swap="outerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="fp" value="">
+      <button type="button" data-hk-scan="/settings/servers/{{ s.id }}/scan" data-hk-name="{{ s.name }}">Pin host key</button>
+    </form>
+    {% endif %}
+    <form class="set-inline" hx-post="/settings/servers/{{ s.id }}/test" hx-target="#settings-panel" hx-swap="outerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit"{% if not s.hostkey_fp or not pm_key %} disabled{% endif %}>Test</button>
+    </form>
+    <form class="set-inline" hx-post="/settings/servers/{{ s.id }}/remove" hx-target="#settings-panel" hx-swap="outerHTML" hx-confirm="Remove server {{ s.name }}? Its pinned host key is dropped; nothing changes on the server.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="danger">Remove</button>
+    </form>
+  </div>
+  {% if s.hostkey_fp and pm_key %}
+  <form class="set-row set-srv-install" method="post" action="/settings/servers/{{ s.id }}/install" hx-post="/settings/servers/{{ s.id }}/install" hx-target="#settings-panel" hx-swap="outerHTML" autocomplete="off" hx-confirm="Install the pm key on {{ s.name }} using this one-time password? The password is not stored.">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <span class="set-main small muted">Install key, one-time login:</span>
+    <input name="user" value="{{ s.user }}" aria-label="One-time user" maxlength="32" autocomplete="off" spellcheck="false" class="set-w-user">
+    <input name="password" type="password" aria-label="One-time password" maxlength="256" autocomplete="off" required class="set-w-pw">
+    <button type="submit">Install key</button>
+  </form>
+  {% endif %}
+  {% else %}<p class="small muted">No servers yet.</p>{% endfor %}
+  <form class="set-row set-srv-add" method="post" action="/settings/servers/add" hx-post="/settings/servers/add" hx-target="#settings-panel" hx-swap="outerHTML" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="name" placeholder="name" aria-label="Server name" maxlength="40" required class="set-w-name">
+    <input name="host" placeholder="host or IP" aria-label="Host" maxlength="253" required spellcheck="false" class="set-w-host">
+    <input name="port" placeholder="22" aria-label="Port" inputmode="numeric" maxlength="5" class="set-w-port">
+    <input name="user" placeholder="user" aria-label="User" maxlength="32" required spellcheck="false" class="set-w-user">
+    <button type="submit">Add server</button>
+  </form>
+  <p class="small muted">pm connects only to servers listed here, with its own key and a pinned host key (confirm the fingerprint when pinning). Passwords are used once for Install key and never stored, logged or audited.</p>
+</div>
+</section>
+
+<section id="git" class="set-section">
+<h2 class="set-h">Git</h2>
+<div class="card set-sec">
+  <div class="set-row"><span class="set-main set-line">Default remote</span><span class="mono">{{ gitdev }}</span></div>
+  <div class="set-row"><span class="set-main set-line">Allowed remote hosts</span><span class="mono">{{ git_hosts | join(', ') }}</span></div>
+  <p class="small muted">pm pushes only to <span class="mono">{{ gitdev }}</span>; other remotes are never fetched or pushed by pm. Remotes are edited on each project page. Hosts are set with <span class="mono">git_allowed_hosts</span> in pm.toml.</p>
+</div>
+</section>
+
+<section id="agents" class="set-section">
+<form method="post" action="/settings/prefs" hx-post="/settings/prefs" hx-target="#settings-panel" hx-swap="outerHTML">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<h2 class="set-h">Agents</h2>
+<h3>Default launch options</h3>
+<div class="card set-sec set-grid">
+  <p class="small muted">Stored for the launch form (served at <span class="mono">/api/prefs</span>).</p>
+  <label class="small">Agent
+    <select name="launch_agent"><option value="">(none)</option>
+    {% for a in agents %}<option value="{{ a }}"{% if prefs.launch.agent == a %} selected{% endif %}>{{ a }}</option>{% endfor %}</select></label>
+  <label class="small">Model <input name="launch_model" maxlength="80" value="{{ prefs.launch.model }}" autocomplete="off"></label>
+  <label class="small">Permission mode <input name="launch_mode" maxlength="80" value="{{ prefs.launch.mode }}" autocomplete="off"></label>
+</div>
+<h3>Notify rules</h3>
+<div class="card set-sec set-grid">
+  {% for key, label in notify_rules %}
+  <label class="small set-check"><input type="checkbox" name="notify_{{ key }}" value="1"{% if prefs.notify[key] %} checked{% endif %}> {{ label }}</label>
+  {% endfor %}
+</div>
+<p><button type="submit" class="primary">Save preferences</button></p>
+</form>
+<div hx-get="/settings/autoexit" hx-trigger="load" hx-swap="outerHTML"></div>
+</section>
+
+<section id="composer" class="set-section">
+<form method="post" action="/settings/composer" hx-post="/settings/composer" hx-target="#settings-panel" hx-swap="outerHTML">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<h2 class="set-h">Composer</h2>
+<div class="card set-sec set-grid">
+  <label class="small">Paste as attachment above N lines (0 = off)
+    <input type="number" name="paste_lines" min="0" max="500" value="{{ composer.paste_lines }}"></label>
+  <label class="small">Allowed upload file types
+    <input name="exts" maxlength="600" value="{{ composer.exts | join(', ') }}" autocomplete="off" spellcheck="false"></label>
+  <p class="small muted">Comma or space separated extensions, no dots. Executables and scripts are always refused.</p>
+  <div class="small" role="radiogroup" aria-label="Send with">Send with
+    {% for key, label, hint in [('enter', 'Enter', 'Shift+Enter = new line'), ('mod-enter', 'Ctrl+Enter (Cmd+Enter on Mac)', 'Enter = new line')] %}
+    <label class="small set-check"><input type="radio" name="send_key" value="{{ key }}"{% if composer.send_key == key %} checked{% endif %}> {{ label }} <span class="muted">{{ hint }}</span></label>
+    {% endfor %}
+  </div>
+</div>
+<p><button type="submit" class="primary">Save composer</button></p>
+</form>
+</section>
+
+<section id="qchat-settings" class="set-section" hx-get="/settings/qchat" hx-trigger="load" hx-swap="outerHTML">
+<h2 class="set-h">Quick chat</h2><p class="small muted">Loading...</p>
+</section>
+{% if ui_themes | length > 1 %}
+<section id="ui-theme" class="set-section">
+<h2 class="set-h">UI theme</h2>
+<div class="card set-sec">
+  <form method="get" action="/settings">
+    <label class="small">Theme <select name="ui">{% for name, label in ui_themes %}<option value="{{ name }}"{% if name == ui_theme %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Apply</button>
+  </form>
+  <p class="small muted">Kept in this browser only (cookie <span class="mono">pm_ui</span>); other browsers keep their own. The default is <span class="mono">theme</span> in pm.toml.</p>
+</div>
+</section>
+{% endif %}
+{% if plugin_sections %}{{ plugin_sections|safe }}{% endif %}
+</div>

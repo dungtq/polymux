@@ -1,0 +1,44 @@
+{% from "_macros.html" import stop_button, rx_all %}
+{% from "_agentrow.html" import agent_row, ended_list, group_label, INBOX_COLS %}
+{% from "_limitbar.html" import limitbar, showsel %}
+{% from "_filterbox.html" import filterbox %}
+{% from "_sortbar.html" import hc %}
+{% macro row(a) %}{{ agent_row(a, INBOX_COLS, inbox_meta[a.id], (agent_ntfy or {}).get(a.id), csrf, now) }}{% endmacro %}
+{% macro nh() %}<div class="nhead has-pin" role="presentation" title="Pinned sessions first, then Running and Needs attention; sort applies within each group"><span class="n-dot"></span>{{ hc(cols.proj, "n-proj") }}{{ hc(cols.main, "n-main") }}<span class="hcell n-msg">Last message</span><span class="hcell n-tmux">tmux</span>{{ hc(cols.age, "n-age") }}{% if cols.start %}{{ hc(cols.start, "n-start") }}{% else %}<span class="n-start"></span>{% endif %}{{ hc(cols.res, "n-res") }}</div>{% endmacro %}
+{% set sp = stats.split(" \u00b7 ", 1) %}
+<div class="inbox-head"><div class="inbox-title"><h1>{{ sp[0] }}</h1>{% if sp | length > 1 %}<p class="inbox-stats muted">{{ sp[1] }}</p>{% endif %}</div><span class="head-actions"><a class="button launch-btn" href="{{ launch_href }}">Launch</a> {{ stop_button("all", stop_agents) }}</span></div>
+{% for e in errors %}<p class="badge bad">{{ e }}</p>{% endfor %}
+<form class="filterbar" id="inbox-filter" method="get" action="/" role="search" data-keep data-filter-live data-filter-target="#inbox">
+  {{ filterbox(q) }}
+  {% for k, v in q_hidden %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {{ showsel(limit_links) }}
+</form>
+{% set top = sections | rejectattr("key", "equalto", "idle") | list %}
+{% set idle = sections | selectattr("key", "equalto", "idle") | first %}
+{% set pin = top | selectattr("key", "equalto", "pinned") | first %}
+{% set rest = top | rejectattr("key", "equalto", "pinned") | list %}
+{% if top and inbox_view in ("", "active") %}
+{# one list for Pinned and the active rows: a row that is pinned or unpinned moves inside the same parent, so the live
+   morph (nodiff.js) keeps it and its open recap #}
+<div class="ntable" data-key="t-active">{{ nh() }}
+<div class="nlist" role="list" data-key="l-active">
+{% if pin %}{{ group_label("pinned", "Pinned", pin.agents) }}{% for a in pin.agents %}{{ row(a) }}{% endfor %}
+{% if rest %}{{ group_label("active", "Active", rest | map(attribute="agents") | sum(start=[])) }}{% endif %}{% endif %}
+{% for sec in rest %}{% for a in sec.agents %}{{ row(a) }}{% endfor %}{% endfor %}
+</div>
+</div>
+{% endif %}
+{% if idle and idle.total and inbox_view in ("", "idle") %}
+<section class="inbox-sec sec-idle" aria-labelledby="sec-idle" data-key="sec-idle">
+  <details class="idle-fold" data-key="idle-fold" open>
+    <summary class="ended-head" id="sec-idle"><h2>Idle ({% if idle.agents | length < idle.total %}{{ idle.agents | length }} of {% endif %}{{ idle.total }})</h2>{{ rx_all() }}<span class="fold-tog small" aria-hidden="true"><span class="ft-open">Expand</span><span class="ft-close">Collapse</span></span></summary>
+    {{ nh() }}
+    <div class="nlist nlist-idle" role="list" data-key="l-idle">
+    {% for a in idle.agents %}{{ row(a) }}{% endfor %}
+    </div>
+  </details>
+</section>
+{% endif %}
+{% if not inbox_view or inbox_view == "ended" %}{{ ended_list(ended, ended_total, csrf, ended_ntfy, models=ended_models) }}{% endif %}
+{% if inbox_view == "idle" and not (idle and idle.total) %}<p class="muted">No idle agents.</p>{% elif inbox_view == "ended" and not ended %}<p class="muted">No ended sessions.</p>{% elif inbox_view == "active" and not top %}<p class="muted">No active agents.</p>{% elif not agents %}{% if q %}<p class="muted">No agents match &ldquo;{{ q }}&rdquo;.</p>{% else %}<p class="muted">No agents running.</p>{% endif %}{% endif %}
+{{ limitbar(limit_links, limit_shown, limit_total, limit_path, keep_all) }}

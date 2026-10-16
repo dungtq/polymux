@@ -1,0 +1,15 @@
+<section id="autoexit-sec" class="set-sec-wrap">
+<form method="post" action="/settings/autoexit" hx-post="/settings/autoexit" hx-target="#autoexit-sec" hx-swap="outerHTML">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<h3>Auto-exit idle agents</h3>
+{% if notice %}<p class="set-notice" role="status">{{ notice }}</p>{% endif %}
+<div class="card set-sec set-grid">
+  <label class="small">Exit Claude agents idle for more than (hours, 0 = off)
+    <input type="number" name="hours" min="0" max="8760" step="any" value="{{ hours }}"></label>
+  <p class="small muted">Checked every few minutes against real activity (not pm restarts). Only idle, resumable sessions in tmux sessions matching the <code>autoexit_sessions</code> allow-list (default all sessions, never <code>pm*</code>) are exited; the window is closed only when it holds nothing but the left-over shell. Each exit is audited, no ntfy. Resume from the ended agent page.</p>
+</div>
+<p><button type="submit" class="primary">Save</button>
+<button type="button" hx-get="/settings/autoexit/preview" hx-target="#autoexit-preview" hx-swap="innerHTML">Preview (dry run)</button></p>
+<div id="autoexit-preview" aria-live="polite"></div>
+</form>
+</section>

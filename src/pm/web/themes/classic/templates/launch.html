@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_macros.html" import stop_button, stop_panel, agid %}
+{% from "_agentname.html" import agent_name %}
+{% from "_launch_macros.html" import launch_opts with context %}
+{% block title %}Launch {{ project.name }}{% endblock %}
+{% block flash %}{% endblock %}
+{% block content %}
+<div id="launch-data" hidden data-json="{{ launch_data | tojson | forceescape }}"></div>
+{% set base = "/p/" ~ (project.name | urlencode) %}
+<link rel="stylesheet" href="/static/css/launch.css">
+<script src="/static/js/launch.js" defer></script>
+<script src="/static/js/atfiles.js" defer></script>
+{% if not embed %}<h1>Launch in <a href="{{ base }}">{{ project.name }}</a></h1>{% endif %}
+{% if running %}
+{% if embed %}
+<details class="running-line" role="status">
+  <summary><span class="rl-warn">{{ running | length }} agent{{ "s" if running | length != 1 }} already running here</span>
+    <span class="muted">&middot; same files unless you use a worktree branch</span></summary>
+  <ul>{% for a in running %}<li><a href="/a/{{ a.id }}" data-kind="{{ a.kind.value }}">{{ agent_name(a) }}</a>
+    <span class="muted">{{ a.state.value }}{% if a.window_name %} &middot; {{ a.window_name }}{% endif %}</span></li>{% endfor %}</ul>
+</details>
+{% else %}
+<div class="running-strip card" role="status">
+  <p><b>{{ running | length }} agent{{ "s" if running | length != 1 }} already running in this project.</b>
+    Launching another one works in the same files unless you use a worktree branch.</p>
+  <ul>{% for a in running %}<li><a href="/a/{{ a.id }}" data-kind="{{ a.kind.value }}">{{ agent_name(a) }}</a>
+    <span class="muted small">{{ a.state.value }}{% if a.window_name %} &middot; {{ a.window_name }}{% endif %}</span></li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% endif %}
+<div id="flash" class="flash-inline" role="status" aria-live="polite"></div>
+{% include "_launch_mainform.html" %}
+
+{% if embed %}<details class="lp-extra"><summary>TODO items ({{ items | length }}) and stop agents</summary>{% endif %}
+{% if not embed %}<h2>Open TODO items</h2>{% endif %}
+{% for i, item, prompt, busy in items %}
+{% if busy %}
+<div class="card dispatch dispatch-busy">
+  <div title="{{ item }}">{{ item }}</div>
+  <p class="muted small">In progress: dispatched to <a href="/a/{{ busy }}">{{ agid(busy) }}</a>. Stop that agent to dispatch it again.</p>
+</div>
+{% else %}
+<form class="card dispatch" method="post" action="{{ base }}/dispatch" hx-post="{{ base }}/dispatch" hx-target="#flash" hx-swap="innerHTML" data-submit-lock="Dispatching&hellip;">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="index" value="{{ i }}">
+  <div title="{{ item }}">{{ item }}</div>
+  <div class="row">
+    <select name="kind" aria-label="Agent" data-kind="{{ kinds[0] if kinds else 'other' }}">{% for k in kinds %}<option value="{{ k }}" data-kind="{{ k }}">{{ k }}</option>{% endfor %}</select>
+    <button type="submit" name="open" value="1">Dispatch</button>
+  </div>
+  <details class="dispatch-opts"><summary>Prompt preview</summary><pre class="dispatch-prompt">{{ prompt }}</pre></details>
+  <details class="dispatch-opts"><summary>Options</summary>{{ launch_opts() }}</details>
+</form>
+{% endif %}
+{% else %}<p class="muted">No open items.</p>{% endfor %}
+
+{% if embed %}<div class="lp-stop"><span class="muted">Stop: interrupts every agent in this project</span> {{ stop_button("project:" ~ project.name, stop_agents) }}</div>
+{% else %}<h2>Stop agents</h2>
+<p class="muted small">Separate from launching: interrupts every agent running in this project.</p>
+<div class="actions stop-away">{{ stop_button("project:" ~ project.name, stop_agents) }}</div>{% endif %}
+{{ stop_panel(csrf, "project:" ~ project.name, stop_agents, project.name) }}
+{% if embed %}</details>{% endif %}
+{% endblock %}

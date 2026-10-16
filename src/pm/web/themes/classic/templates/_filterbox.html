@@ -1,0 +1,6 @@
+{# The one list filter box (static/js filter box: [data-filter] hides rows by [data-frow][data-q]; a form[data-filter-live][data-filter-target] also sends ?q= to the
+   server). The clear button is the input's next sibling. Name-type text only: rows build data-q from names, never message bodies.
+   scope = a selector (the sidebar: "#v5side"): that box has its own query and filters only the [data-q] rows inside the scope
+   (rows hidden with the hidden attribute, [data-fnone] shown when nothing matches); it is not part of the page's one query.
+   cls = extra class on the .fbox wrapper; label = the input's aria-label. #}
+{% macro filterbox(q="", scope="", cls="", label="Filter") %}<span class="fbox{{ ' ' ~ cls if cls }}"><input type="search"{% if not scope %} name="q"{% endif %} data-filter{% if scope %} data-filter-scope="{{ scope }}"{% endif %} value="{{ q }}" placeholder="Filter..." aria-label="{{ label }}" maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"><button type="button" class="fbox-x" aria-label="Clear filter" tabindex="-1">&times;</button></span>{% endmacro %}

@@ -1,0 +1,18 @@
+{#- Switch (DESIGN.md §6.6). Contract: docs/themes/dt/PARTS.md §8.
+    {% import "parts/_switch.html" as psw %}
+
+    psw.switch(name, on=false, label="", count=none, hide_label=false, disabled=false, why=none, attrs=none, cls="")
+      Renders label.p-swl > button.sw[role=switch][aria-checked] + input[type=hidden][name=<name>] ("1" on, "0" off)
+      + the label text (+ count .c). The label element names the switch (hide_label: the text is screen-reader only).
+      A click (or Space / Enter: it is a button) flips aria-checked and the hidden value in js/parts.js, then fires a
+      bubbling `change` event from the hidden input: an enclosing htmx form (hx-trigger "change") or a page script
+      reacts. attrs = extra attributes on the button (xmlattr). disabled: .55 opacity and `why` as the title. -#}
+
+{%- macro switch(name, on=false, label="", count=none, hide_label=false, disabled=false, why=none, attrs=none, cls="") -%}
+<label class="p-swl{{ ' ' ~ cls if cls }}"{% if disabled and why %} title="{{ why }}"{% endif %}>
+  <button class="sw" type="button" role="switch" aria-checked="{{ 'true' if on else 'false' }}" data-p-sw="{{ name }}"{% if disabled %} disabled{% endif %}{{ (attrs or {}) | xmlattr }}></button>
+  {%- if name %}<input type="hidden" name="{{ name }}" value="{{ '1' if on else '0' }}">{% endif %}
+  <span{% if hide_label %} class="vh"{% endif %}>{{ label }}</span>
+  {%- if count is not none %}<span class="c">{{ count }}</span>{% endif %}
+</label>
+{%- endmacro -%}

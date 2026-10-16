@@ -1,0 +1,23 @@
+.aud-filter { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin: 6px 0; }
+.aud-filter input[type=search] { flex: 1 1 160px; min-width: 0; }
+@media (max-width: 700px) { .aud-filter .fbox { flex: 1 1 100%; } }  /* phone: the filter box on its own full-width line (UI-RULES) */
+.aud-meta { margin: var(--s1) 0; }
+.aud-time { white-space: nowrap; }
+.aud-action, .aud-target, .aud td.mono { overflow-wrap: anywhere; }
+.aud-detail { overflow-wrap: anywhere; word-break: break-all; max-width: 28em; }
+.aud-kv { display: inline-block; margin-right: 6px; }
+.aud-pair { opacity: .7; }
+.aud-pager { display: flex; gap: var(--s3); align-items: center; justify-content: center; margin: var(--s3) 0; }
+@media (max-width: 640px) {
+  /* one line per entry: time, action, target (ellipsis), result; client and detail hidden */
+  .aud thead, .aud td[data-l="client"], .aud td[data-l="detail"] { display: none; }
+  .aud, .aud tbody { display: block; width: 100%; }
+  .aud tr { display: flex; gap: var(--s2); align-items: baseline; border-bottom: 1px solid var(--line); padding: 6px 0; }
+  .aud td { display: block; border: 0; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .aud td[data-l="time"] { flex: 0 0 auto; }
+  .aud td[data-l="action"] { flex: 0 1 auto; }
+  .aud td[data-l="target"] { flex: 1 1 0; min-width: 0; color: var(--muted); }
+  .aud td[data-l="result"] { flex: 0 0 auto; }
+  .aud td:empty { display: none; }
+  .aud tr.aud-empty td { white-space: normal; }
+}

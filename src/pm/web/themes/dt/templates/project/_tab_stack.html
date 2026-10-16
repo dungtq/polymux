@@ -1,0 +1,10 @@
+{#- dt project view, Stack tab (docs/themes/dt/PRD.md §6.4): included by project.html inside its tab panel
+    (section.pj-tab[data-pj-tab=stack], hidden until the tab is chosen; the frame fires pm7:pj-tab {key: "stack"} on document
+    when it shows it). The content is rendered by
+    js/pjstack.js from GET /p/<name>/stack (lazy: on first show). Needs ctx `project`. Look: css/pjops.css. -#}
+<div class="pj-ops" data-pjops="stack" data-pj-base="/p/{{ project.name | urlencode }}" data-pj-name="{{ project.name }}">
+<link rel="stylesheet" href="/static/t/dt/css/pjops.css">
+<script src="/static/t/dt/js/pjops.js" defer></script>
+<script src="/static/t/dt/js/pjstack.js" defer></script>
+<div data-pjs-body></div>
+</div>

@@ -1,0 +1,143 @@
+{
+  "project": "fixproj",
+  "agents": [
+    {
+      "key": "running",
+      "kind": "claude",
+      "status": "busy",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "transcript": "transcripts/running.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Running agent"
+    },
+    {
+      "key": "idle",
+      "kind": "claude",
+      "status": "idle",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-000000000002",
+      "transcript": "transcripts/idle.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Idle agent"
+    },
+    {
+      "key": "waiting",
+      "kind": "claude",
+      "status": "waiting",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-000000000003",
+      "transcript": "transcripts/waiting.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Waiting for approval"
+    },
+    {
+      "key": "failed",
+      "kind": "claude",
+      "status": "failed",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-000000000004",
+      "transcript": "transcripts/failed.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Failed agent"
+    },
+    {
+      "key": "ended_sid",
+      "kind": "claude",
+      "status": "idle",
+      "live": false,
+      "uuid": "00000000-0000-4000-8000-000000000005",
+      "transcript": "transcripts/ended_sid.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Ended with session id"
+    },
+    {
+      "key": "ended_nosid",
+      "kind": "claude",
+      "status": "idle",
+      "live": false,
+      "uuid": null,
+      "transcript": null,
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Ended without session id"
+    },
+    {
+      "key": "ended_auto",
+      "kind": "claude",
+      "status": "idle",
+      "live": false,
+      "uuid": "00000000-0000-4000-8000-000000000007",
+      "transcript": "transcripts/ended_auto.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Ended by auto-exit",
+      "autoexit": "auto"
+    },
+    {
+      "key": "highctx",
+      "kind": "claude",
+      "status": "busy",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-000000000008",
+      "transcript": "transcripts/highctx.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "High context (85%)"
+    },
+    {
+      "key": "lowctx",
+      "kind": "claude",
+      "status": "idle",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-000000000009",
+      "transcript": "transcripts/lowctx.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Low context (5%)"
+    },
+    {
+      "key": "longnames",
+      "kind": "claude",
+      "status": "idle",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-00000000000a",
+      "transcript": "transcripts/longnames.jsonl",
+      "cwd": "{PROJECTS}/fixproj-with-a-very-long-name-for-layout-and-overflow-tests",
+      "label": "An extraordinarily long agent label that keeps going on and on to exercise truncation in every list and header row of the interface",
+      "project": "fixproj-with-a-very-long-name-for-layout-and-overflow-tests",
+      "window": "agent-claude-with-an-exceptionally-long-tmux-window-name-for-layout-checks",
+      "tmux_session": "dev-longnames-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "key": "protected",
+      "kind": "claude",
+      "status": "idle",
+      "live": true,
+      "uuid": "00000000-0000-4000-8000-00000000000b",
+      "transcript": "transcripts/protected.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Protected session agent",
+      "protected": true,
+      "tmux_session": "dev-protected"
+    },
+    {
+      "key": "ended_manual",
+      "kind": "claude",
+      "status": "idle",
+      "live": false,
+      "uuid": "00000000-0000-4000-8000-00000000000c",
+      "transcript": "transcripts/ended_manual.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Ended by manual exit",
+      "autoexit": "manual"
+    },
+    {
+      "key": "ended_oldmodel",
+      "kind": "claude",
+      "status": "idle",
+      "live": false,
+      "uuid": "00000000-0000-4000-8000-00000000000d",
+      "transcript": "transcripts/ended_oldmodel.jsonl",
+      "cwd": "{PROJECTS}/fixproj",
+      "label": "Ended, model only in transcript",
+      "autoexit": "auto_nomodel"
+    }
+  ]
+}

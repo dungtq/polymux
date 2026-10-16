@@ -1,0 +1,29 @@
+{#- dt theme (pm v7) Audit page (PRD.md §6.10, LAYOUT.md §5 Audit): head · tabs Activity / Client errors ·
+    the current tab's component. The core's GET /audit renders this name for a page load (?tab=errors paints the
+    Client errors tab first, server-side); its htmx requests get _audit_list.html alone. View model:
+    dt_audit("page") (pm.web.dt.audit): stats line, head actions (Export CSV on Activity, Clear all on Client
+    errors), tabs (links). The components: _audit_list.html (#au-act) and _client_errors.html (#au-ce); their live
+    swaps send the head's stats line and the Export link out of band. Read-only page: the only POSTs are Clear all
+    (client error log) and Save as pm issue (js/audit.js). -#}
+{% extends "base.html" %}
+{%- import "parts/_head.html" as ph -%}
+{%- import "parts/_tabs.html" as pt -%}
+{% block title %}Audit{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/audit.css">
+<script src="/static/t/dt/js/audit.js" defer></script>
+{% endblock %}
+{% block content %}
+{%- set pg = dt_audit("page") %}
+{%- if not pg %}
+<p class="au-alert" role="alert">The Audit page could not be shown. Reload the page; the server log has the error.</p>
+{%- else %}
+{{ ph.head("Audit", stats=pg.stats, id="au-head", actions=pg.actions) }}
+{{ pt.tabs(pg.tabs, "Audit") }}
+{%- if pg.tab == "errors" %}
+{% include "_client_errors.html" %}
+{%- else %}
+{% include "_audit_list.html" %}
+{%- endif %}
+{%- endif %}
+{% endblock %}

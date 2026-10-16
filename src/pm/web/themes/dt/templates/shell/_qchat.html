@@ -1,0 +1,43 @@
+{#- Quick chat panel (PRD.md §6.12, LAYOUT.md §5 "Quick chat", DESIGN.md §7 "Panel"), included by base.html
+    (not in embed). js/qchat.js drives it (pm7.qchat.open / close / toggle; key Q; the top-bar icon after the brand;
+    the phone sidebar drawer's Quick chat row): a 720 × 640 panel under its icon, the page stays usable (no scrim,
+    no outside click); Expand docks it right of the sidebar with the tabs visible; phones: full screen.
+    Data only through /qchat/*: options, convs (?q=), convs/<id>, export, rename, delete, send (SSE, js/qstream.js).
+    Hooks: [data-q-*]; the list, the messages and the chip labels are built by qchat.js. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<section id="q-panel" class="q-pop" role="dialog" aria-modal="false" aria-labelledby="q-title" data-q-panel hidden>
+  <div class="q-hd">
+    <button class="x-ib" type="button" data-q-side aria-pressed="true" aria-controls="q-side" aria-label="Conversations" title="Conversations"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}clock"/></svg></button>
+    <b class="q-title ell" id="q-title" data-q-title>New conversation</b>
+    <span class="q-btw" data-q-btw hidden><a class="chip k" href="/"></a></span>
+    <span class="sp"></span>
+    <button class="x-ib" type="button" data-q-new aria-label="New conversation" title="New conversation"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg></button>
+    <button class="x-ib" type="button" data-q-more aria-haspopup="menu" aria-expanded="false" aria-label="Conversation actions" title="Rename, copy, delete" hidden><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}more"/></svg></button>
+    <button class="x-ib q-dockb" type="button" data-q-dock aria-pressed="false" aria-label="Expand over the page" title="Expand over the page"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}expand"/></svg></button>
+    <button class="x-ib" type="button" data-q-close aria-label="Close Quick chat" title="Close Quick chat" data-k-title="Q"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  <div class="q-bd">
+    <nav class="q-side" id="q-side" aria-label="Conversations" data-q-sidebar>
+      <div class="p-fbox" role="search"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}search"/></svg><input type="search" data-q-search placeholder="Search history" aria-label="Search history" autocomplete="off" spellcheck="false"></div>
+      <div class="q-list" data-q-list></div>
+    </nav>
+    <div class="q-main">
+      <div class="q-msgs" data-q-log aria-live="polite"></div>
+      <form class="q-comp" data-q-form autocomplete="off">
+        <div class="q-box">
+          <textarea rows="2" maxlength="8000" data-q-input aria-label="Message" placeholder="Message · Enter sends, Shift+Enter new line"></textarea>
+          <div class="q-row">
+            <button type="button" class="q-chip" data-q-chip="model" aria-haspopup="menu" aria-expanded="false" title="Model"></button>
+            <button type="button" class="q-chip" data-q-chip="mode" aria-haspopup="menu" aria-expanded="false" title="Tools and folder"></button>
+            <button type="button" class="q-chip" data-q-chip="mcp" aria-haspopup="menu" aria-expanded="false" title="MCP servers"></button>
+            <button type="button" class="q-chip" data-q-chip="skills" aria-haspopup="menu" aria-expanded="false" title="Skills"></button>
+            <span class="q-chip off" data-q-btwchip title="btw answers use the agent’s chat as context and never get tools" hidden>no tools · btw</span>
+            <span class="sp"></span>
+            <button type="submit" class="q-send" data-q-send aria-label="Send" title="Send (Enter)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}up"/></svg></button>
+          </div>
+        </div>
+        <p class="q-note" data-q-note></p>
+      </form>
+    </div>
+  </div>
+</section>

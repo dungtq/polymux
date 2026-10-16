@@ -1,0 +1,7 @@
+<div class="ag-tools"><a class="button small" href="{{ base }}?s=rules&amp;validate=1">Validate</a>
+<details class="ag-new"><summary class="button small">Sync...</summary>
+<form method="post" action="/agents/review" class="ag-form">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="rules_sync"><input type="hidden" name="ctx_agent" value="{{ agent.name }}"><input type="hidden" name="ctx_tab" value="rules">
+<label><span class="muted">Source</span><select name="source" aria-label="Source rules file">{% for k, l in sync_sources %}<option value="{{ k }}"{% if k == "canonical" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+<fieldset class="ag-targets"><legend class="muted">Targets (symlink to the source)</legend>{% for k, l, cur in sync_targets %}<label class="ag-chk"><input type="checkbox" name="targets" value="{{ k }}"{% if cur %} checked{% endif %}> {{ l }}</label>{% else %}<span class="muted">No installed agent has a rules file.</span>{% endfor %}</fieldset>
+<div class="ag-fbtn"><button type="submit">Review</button></div></form></details></div>

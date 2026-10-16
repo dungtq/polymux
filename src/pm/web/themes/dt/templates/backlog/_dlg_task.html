@@ -1,0 +1,22 @@
+{#- dt Backlog: Add task (DESIGN.md §6.11), a real form. Submit (js/backlog.js): POST /p/{n}/todo/add (text,
+    section; CSRF through pm7.fetch; the core answers 303 to the project on success), then the toast and the TODO
+    component's refresh. 409 = the project is not a tracker project (TODO.md only): the dialog says so and shows the
+    `pmctl --project <p> todo add [--section "<s>"] "<text>"` line to copy ([data-bl-tfall], hidden until then).
+    Other errors stay in the form ([data-bl-ferr], the server's message). Included by backlog/_page.html and
+    project/_tab_todo.html (once per page). Project options come from the opener's component (data-bl-projects). -#}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+<dialog id="bl-addt" class="x-dlg bl-dlg" aria-labelledby="bl-addt-t">
+<form class="bl-f" data-bl-taskform novalidate>
+  <div class="x-dh"><h2 id="bl-addt-t">Add task</h2><span class="sp"></span>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}x"/></svg></button></div>
+  <label class="bl-fl" data-bl-fprow><span>Project</span><select class="sel" name="project" data-bl-fproj required></select></label>
+  <label class="bl-fl"><span>Section <span class="muted">(optional, e.g. P9 Mock v7)</span></span><input class="x-in" type="text" name="section" maxlength="200" autocomplete="off"></label>
+  <label class="bl-fl"><span>Task</span><input class="x-in" type="text" name="text" maxlength="2000" required autocomplete="off" spellcheck="true"></label>
+  <div class="bl-tfall" data-bl-tfall hidden>
+    <p class="bl-note" data-bl-tnote></p>
+    <label class="bl-fl"><span>Command</span><input class="x-in mono" type="text" name="cmd" readonly data-bl-cmd></label>
+  </div>
+  <p class="bl-alert" role="alert" data-bl-ferr hidden></p>
+  <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn" type="button" data-bl-tcopy hidden><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}copy"/></svg>Copy command</button><button class="x-btn pri" type="submit" data-bl-fok>Add task</button></div>
+</form>
+</dialog>

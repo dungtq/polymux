@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_head %}
+{% from "_sortbar.html" import filtersel %}
+{% from "_filterbox.html" import filterbox %}
+{% from "_limitbar.html" import showsel %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/projects.css">
+<div class="pg-projects">
+{% call page_head("Projects", stats, short=true) %}<span class="head-actions"><button type="button" class="small" data-dlg-open="newproj-dialog" title="Create a new project directory">New project</button></span>{% endcall %}
+<form class="filterbar pctl" method="get" action="/p" role="search" data-filter-live data-filter-target="#plist">
+  {{ filterbox(q) }}
+  {% for k, v in keep_sort %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {{ filtersel(filter_opts, filter_cur) }}
+  {{ showsel(limit_links) }}
+</form>
+<div id="plist" hx-get="{{ self_url }}" hx-trigger="pm:refresh" hx-swap="innerHTML" data-nodiff>
+{% include "_projects_list.html" %}
+</div>
+</div>
+{% from "_popup.html" import dialog, dlg_foot %}{% call dialog("newproj-dialog", "New project", cls="newproj") %}
+  <form method="post" action="/p/new" hx-post="/p/new" hx-target="#np-flash" hx-swap="innerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="small pmdlg-in">Name<input type="text" name="name" required maxlength="64" pattern="[A-Za-z0-9_\-][A-Za-z0-9._\-]*" autocomplete="off" spellcheck="false" aria-label="Project name" placeholder="my-project"></label>
+    <p class="small muted">Created under the projects root. Letters, digits, . _ - only; no leading dot.</p>
+    <label class="small np-chk"><input type="checkbox" name="git_init" value="1"> Run git init</label>
+    <label class="small np-chk"><input type="checkbox" name="readme" value="1"> Add an initial README.md</label>
+    <div id="np-flash" class="flash-inline" role="status" aria-live="polite"></div>
+    {% call dlg_foot() %}<button type="submit" class="small">Create</button>{% endcall %}
+  </form>
+{% endcall %}
+<script src="/static/js/lists.js" defer></script>
+{% endblock %}

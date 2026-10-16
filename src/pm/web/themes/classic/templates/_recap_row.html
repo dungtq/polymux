@@ -1,0 +1,4 @@
+{% if rc.away %}<div class="rx-t"><strong class="rx-k">Recap</strong><div class="md">{{ away_html | safe }}</div></div>
+{% elif rc.reply %}<div class="rx-t"><strong class="rx-k">Last reply</strong><div class="md">{{ reply_html | safe }}</div></div>
+{% else %}<p class="rx-t muted">No recap available.</p>{% endif %}
+{% if rc.tools or rc.duration %}<p class="rx-m small">{% if rc.exact %}<strong>{{ rc.tools }}</strong> tool call{{ '' if rc.tools == 1 else 's' }}{% endif %}{% if rc.duration %}{% if rc.exact %} &middot; {% endif %}<strong>{{ dur(rc.duration) }}</strong>{% endif %}</p>{% endif %}

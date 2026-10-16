@@ -1,0 +1,120 @@
+{#- Settings › Security: Access (passkeys: register with classic passkey.js, remove; sign-ins: Log out / Revoke /
+    Revoke all others; require_unlock from pm.toml), SSH keys (pm's key: generate, copy; ~/.ssh: read-only) and
+    Remote servers (add → scan → compare the fingerprint → pin, Test, Install pm key with a one-time password that is
+    never stored, Re-pin with the server's name typed, Remove: js/settings-servers.js and ⋯ items). Rows and ⋯ items
+    come from dt_settings() (pm.web.dt.settings). Context: s (the section), sv (Page). -#}
+{%- import "settings/_ui.html" as su %}{% import "parts/_table.html" as tb %}{% import "parts/_menu.html" as pm %}
+{%- if s.id == "access" %}
+{% call su.grp("Passkeys", "all", s.label, q="register remove") %}
+  {% call su.box() %}
+  {% call su.row("Register this device", "Sign in with the token once, then use the passkey here.", "Passkeys", s.label) %}
+    <input class="x-in s-w" id="passkey-name" maxlength="40" autocomplete="off" placeholder="device name, e.g. phone" aria-label="Passkey name">
+    <button class="x-btn sm" type="button" data-passkey="register" data-target="s-pk-msg"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#plus"/></svg>Register passkey</button>
+    <span id="s-pk-msg" class="s-msg" role="status" aria-live="polite"></span>
+  {% endcall %}
+  {% endcall %}
+  {% call tb.table("s-passkeys", "Passkeys", cls="s-keys") %}
+    {%- for k in sv.passkeys %}
+    {% call tb.row(k.id) %}
+      {{ tb.dot("running", "Registered") }}
+      {% call tb.name(k.name) %}{% endcall %}
+      {{ tb.end("added " ~ (k.created | date)) }}
+      {% call tb.meta() %}added {{ k.created | date }}{% endcall %}
+      {% call tb.acts() %}{{ pm.menu(k.menu, label="Actions for passkey " ~ k.name) }}{% endcall %}
+    {% endcall %}
+    {%- else %}
+    {{ tb.empty("No passkeys yet. Register this device above.") }}
+    {%- endfor %}
+  {% endcall %}
+{% endcall %}
+{% call su.grp("Sign-ins", "all", s.label, acts=[sv.acts.revoke_others] if sv.sessions | length > 1 else none, q="sessions log out revoke") %}
+  {% call tb.table("s-sessions", "Signed-in browsers", cls="s-sess") %}
+    {{ tb.gh([{"sr": "State"}, {"label": "Client"}, {"label": "Signed in", "cls": "hide-n"}, {"label": "Last seen", "num": true}, {"sr": "Actions"}]) }}
+    {%- for r in sv.sessions %}
+    {% call tb.row(r.h[:12]) %}
+      {{ tb.dot("running" if r.current else "idle", "This session" if r.current else "Signed in") }}
+      {% call tb.name(r.client) %}{% if r.current %}<span class="chip">this session</span>{% endif %}{% endcall %}
+      {% call tb.cell("muted hide-n") %}{{ r.created | dt }}{% endcall %}
+      {{ tb.end(r.last_seen | dt) }}
+      {% call tb.meta() %}since {{ r.created | dt }}{% endcall %}
+      {% call tb.acts() %}{{ pm.menu(r.menu, label=("Actions for this session" if r.current else "Actions for " ~ r.client)) }}{% endcall %}
+    {% endcall %}
+    {%- endfor %}
+  {% endcall %}
+{% endcall %}
+{% call su.grp("Unlock for changes", "file", s.label) %}{% call su.box() %}
+  {% call su.row("Require unlock (TOTP or passkey) before changes", "Off: one user on this host, login is token or passkey. Set require_unlock = true in pm.toml to turn it on.", "Unlock", s.label) %}
+    {{ su.ro("on" if sv.require_unlock else "off") }}
+  {% endcall %}
+{% endcall %}{% endcall %}
+
+{%- elif s.id == "ssh" %}
+{% call su.grp("pm key", "all", s.label) %}{% call su.box() %}
+  {%- if sv.pm_key %}
+  {% call su.row(sv.pm_key.name, sv.pm_key.type ~ " · " ~ sv.pm_key.fingerprint, "pm key public", s.label, wide=true) %}
+    <input class="x-in mono s-pub" readonly value="{{ sv.pm_key.line }}" aria-label="pm public key" spellcheck="false">
+    {{ su.act(sv.pm_key_menu[0]) }}
+  {% endcall %}
+  {%- else %}
+  {% call su.row("No pm key yet", "Generates an ed25519 key without a passphrase (pm runs unattended). Never overwrites a key.", "pm key", s.label) %}
+    {{ su.act(sv.acts.keygen) }}
+  {% endcall %}
+  {%- endif %}
+{% endcall %}{% endcall %}
+{% call su.grp("Keys in ~/.ssh", "file", s.label, note="pm only reads this folder (public keys).", q="user keys") %}
+  {% call tb.table("s-ukeys", "Keys in ~/.ssh", cls="s-ukeys") %}
+    {%- for k in sv.user_keys %}
+    {% call tb.row(k.name) %}
+      {{ tb.dot("idle", "Read-only") }}
+      {% call tb.name(k.name) %}{% endcall %}
+      {% call tb.cell("muted mono hide-s") %}{{ k.fingerprint }}{% endcall %}
+      {{ tb.end(k.type) }}
+      {% call tb.meta() %}{{ k.type }} · {{ k.fingerprint }}{% endcall %}
+      {% call tb.acts() %}{{ pm.menu(sv.key_menus[k.name], label="Actions for " ~ k.name) }}{% endcall %}
+    {% endcall %}
+    {%- else %}
+    {{ tb.empty("No public keys found.") }}
+    {%- endfor %}
+  {% endcall %}
+{% endcall %}
+
+{%- elif s.id == "servers" %}
+{% call su.grp("Servers", "all", s.label, q="remote hosts add pin test install key") %}
+  <p class="s-gtools"><button class="x-btn sm" type="button" data-s-addsrv aria-expanded="false" aria-controls="s-srv-add"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#plus"/></svg>Add server</button></p>
+  {% call tb.table("s-servers", "Remote servers", cls="s-srv") %}
+    {{ tb.gh([{"sr": "State"}, {"label": "Name"}, {"label": "Address"}, {"label": "Host key", "cls": "hide-n"}, {"label": "Status", "num": true}, {"sr": "Actions"}]) }}
+    {%- for r in sv.servers %}
+    {% call tb.row(r.id, attrs={"data-s-srv-name": r.name, "data-s-srv-user": r.user, "data-s-srv-addr": r.addr, "data-s-srv-fp": r.fp}) %}
+      {{ tb.dot(r.state, r.word) }}
+      {% call tb.name(r.name) %}{% endcall %}
+      {% call tb.cell("muted mono") %}{{ r.addr }}{% endcall %}
+      {% call tb.cell("muted mono hide-n") %}{{ r.fp[:19] if r.fp else "—" }}{% endcall %}
+      {{ tb.end(r.word) }}
+      {% call tb.meta() %}{{ r.addr }} · {{ r.word }}{% endcall %}
+      {% call tb.acts() %}{% if not r.pinned %}<button class="x-btn sm" type="button" data-s-pin>Pin host key</button>{% endif %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+    {% endcall %}
+    {%- else %}
+    {{ tb.empty("No servers yet. Add one: pm scans its host key and you compare and pin it.") }}
+    {%- endfor %}
+  {% endcall %}
+  <form class="s-add" id="s-srv-add" method="post" action="/settings/servers/add" data-s-submit data-s-what="Server" autocomplete="off" hidden>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input class="x-in" name="name" placeholder="name" aria-label="Server name" maxlength="40" required spellcheck="false">
+    <input class="x-in" name="host" placeholder="host or IP" aria-label="Host" maxlength="253" required spellcheck="false">
+    <input class="x-in s-port" name="port" placeholder="22" aria-label="Port" inputmode="numeric" maxlength="5">
+    <input class="x-in" name="user" placeholder="user" aria-label="User" maxlength="32" required spellcheck="false">
+    <button class="x-btn sm pri" type="submit">Add and scan host key</button>
+    <p class="s-note">Next: pm shows the host key fingerprint; you compare it and pin it. Nothing is trusted before that.</p>
+  </form>
+{% endcall %}
+<dialog id="s-install" class="x-dlg s-dlg" aria-labelledby="s-install-t">
+  <form method="post" action="" data-s-installform autocomplete="off">
+    <h2 id="s-install-t">Install pm's key</h2>
+    <p class="bd" data-s-install-body></p>
+    <label class="x-dlg-l">User<input class="x-in mono" type="text" name="user" maxlength="32" autocomplete="off" spellcheck="false" required></label>
+    <label class="x-dlg-l">Password<input class="x-in" type="password" name="password" maxlength="256" autocomplete="off" required></label>
+    <p class="x-dlg-hint">Used for this one login to add pm's public key to authorized_keys. Never stored, logged or audited.</p>
+    <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit">Install key</button></div>
+  </form>
+</dialog>
+{%- endif %}

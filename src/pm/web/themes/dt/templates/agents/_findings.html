@@ -1,0 +1,33 @@
+{#- dt Agents › Findings (PRD §6.8 "Findings tab"; ?t=findings, the core's ctx view): what each fix does · filter
+    (client mode) · one table with a band per kind (Security · Rules · Skills not linked · Stale index · Broken shims ·
+    Notes; Notes folded): dot (warning / info) · finding · agent · Fix. Fix (button[data-a-run] = its plan) and the band's
+    "Fix all N" ([data-a-fixall]) run js/agents.js: POST /agents/review → a dialog listing the exact file operations →
+    Apply (POST /agents/apply with the token; backups kept; a 409 says the files changed and reviews again).
+    View model: dt_agents("findings") (pm.web.dt.agents_usage). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_table.html" as tb -%}
+{%- set fd = dt_agents("findings") -%}
+{%- if fd %}
+<p class="a-status muted">Each fix is planned first: you see the exact file operations, then Apply makes them and keeps a backup of every file it changes. pm never touches ~/.cfg or ~/.agents-git.</p>
+{% call ph.tools() %}{{ pf.fbox("agents-find", placeholder="Filter findings", label="Filter findings", rows="#a-find") }}{% endcall %}
+{% call tb.table("agents-find", "Findings", cls="a-findt", list="agents-find", id="a-find") %}
+  {{ tb.gh([{"sr": "Level"}, {"label": "Finding"}, {"label": "Agent", "cls": "hide-s"}, {"sr": "Fix"}]) }}
+  {%- for g in fd.groups %}
+  {% call tb.group(g.key, g.label, count=g.rows | length, open=g.key != "notes", cls=g.tone, actions=g.actions) %}
+    {%- for r in g.rows %}
+    {% call tb.row(r.id, cls="a-frow", q=r.text ~ " " ~ r.agent, title=r.text) %}
+      {{ tb.dot("waiting" if r.warn else "idle", "warning" if r.warn else "info") }}
+      {% call tb.name(r.text) %}{% endcall %}
+      {% call tb.cell("hide-s") %}{% if r.agent %}<span class="chip k" data-kind="{{ r.kind }}" title="{{ r.agent }}">{{ r.agent_label }}</span>{% endif %}{% endcall %}
+      {% call tb.meta() %}{{ r.agent_label }}{% endcall %}
+      {% call tb.acts() %}{% if r.fix %}<button class="x-btn sm keep" type="button" data-a-run="{{ r.fix }}">{{ r.fix_label }}</button>{% endif %}{% endcall %}
+    {% endcall %}
+    {%- endfor %}
+  {% endcall %}
+  {%- else %}
+  {{ tb.empty("No findings: every agent's rules, skills, MCP configs and scripts look right.") }}
+  {%- endfor %}
+  {{ tb.empty("No finding matches the filter.", fnone=true) }}
+{% endcall %}
+{%- else %}
+<p class="p-empty">The findings could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}

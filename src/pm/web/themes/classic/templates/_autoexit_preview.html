@@ -1,0 +1,7 @@
+{% from "_agentname.html" import agent_name %}{% if secs == 0 %}<p class="small muted">Auto-exit is off; nothing would be exited.</p>
+{% else %}
+<p class="small muted">{{ cands | length }} of {{ idle_all }} idle agent{{ '' if idle_all == 1 else 's' }} would be exited now (limit {{ human(secs) }}). Nothing was changed.</p>
+{% for c in cands %}
+<div class="set-row"><span class="set-main"><a href="/a/{{ c.agent.id }}" data-kind="{{ c.agent.kind.value }}">{{ agent_name(c.agent) }}</a> <span class="small muted">{{ c.agent.project or '' }}{% if c.window %} &middot; {{ c.window }}{% endif %} &middot; idle {{ human(c.idle_s) }}</span></span></div>
+{% endfor %}
+{% endif %}

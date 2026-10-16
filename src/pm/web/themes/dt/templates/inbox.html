@@ -1,0 +1,15 @@
+{#- dt Inbox page (PRD.md §6.2): the shell's home page. The list lives in #inbox (templates/_inbox.html). Live
+    (V7-CODE-7, no timed poll): it reloads on the stream's agent and inbox events, on pm:refresh / pm7:refresh (a ⋯
+    item's "refresh"; dt live.js also sends pm:refresh after the stream reopened); the ages tick with ticker.js
+    (data-since). data-nodiff (classic nodiff.js, loaded by shell/_classic.html until dt has its own) morphs the answer
+    in place instead of replacing it; no whitespace around the include, so the page and the fragment have the same
+    nodes (the morph matches unkeyed nodes by position). Page CSS / JS: css/inbox.css, js/inbox.js. -#}
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/inbox.css">
+<script src="/static/t/dt/js/inbox.js" defer></script>
+{% endblock %}
+{% block content %}
+<div id="inbox" class="i-page" hx-get="{{ sort_url }}" hx-trigger="pm:agent_state from:document, pm:agent_added from:document, pm:agent_removed from:document, pm:inbox from:document, pm:refresh, pm7:refresh" hx-swap="innerHTML" data-nodiff>{% include "_inbox.html" %}</div>
+{% endblock %}

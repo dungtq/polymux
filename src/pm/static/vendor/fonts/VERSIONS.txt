@@ -1,0 +1,12 @@
+SymbolsNerdFontMono-Regular.woff2
+  Font:    Symbols Nerd Font Mono (symbols-only), Nerd Fonts v3.5.1
+  Source:  https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/NerdFontsSymbolsOnly.zip
+           (zip sha256 fdca3682534f6f65e1ccb2345b0362ccf67d9b8eca7c8025330946e93e2473bc)
+           member SymbolsNerdFontMono-Regular.ttf (2610012 bytes)
+  Convert: fontTools TTFont(...).flavor = "woff2" (lossless, no subsetting)
+  sha256:  8cb43a08f45ffa201fbf66375ea532cf55b297fef82aadb81074a23b1cdc23cd (1229576 bytes)
+  Licence: MIT (Copyright (c) 2014 Ryan L McIntyre) for the font patcher and glyph
+           collection; the bundled icon sets keep their own open licences (Font Awesome
+           OFL/CC-BY, Powerline, Seti-UI, Devicons, Material Design Icons Apache-2.0, ...).
+           See LICENSE in this directory and https://github.com/ryanoasis/nerd-fonts/blob/master/LICENSE
+LICENSE  MIT text shipped in NerdFontsSymbolsOnly.zip

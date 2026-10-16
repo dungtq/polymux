@@ -1,0 +1,46 @@
+{#- dt theme (pm v7) Notifications page (PRD.md §6.7, LAYOUT.md §4-5): ONE page for agent and system messages. GET /ntfy
+    (nav "ntfy", Source All) and GET /notifications (nav "notifications": notifications.html extends this file, Source
+    System for that load) render it; the core hands ntfy_html (= _ntfy.html for scope all / system). Page state:
+    dt_ntfy("page") (pm.web.dt.ntfy): Source / Unread / Period / q from the URL, the segments, the periods.
+    Skeleton: head (stats line filled by js/notifs.js from the rows; Mark all read, hidden while nothing is unread)
+    · controls row (filter box · Source segments with counts · Unread only switch · period select) · the list
+    (#n-panel) · key hints.
+    Live (V7-CODE-7, no timed poll): #n-panel reloads /ntfy/panel?scope=all on the stream's inbox event (a new ntfy
+    message, a read / unread / pin change), on pm:refresh / pm7:refresh (a ⋯ item's "refresh") and on pm7:resync
+    (the stream reopened); on /notifications also at load, since the first list is the system scope. The ages tick
+    with ticker.js (data-since).
+    Page state is in the URL (?src= all|agent|system|pinned, ?un=1, ?per=<period>, ?q=) and on .n-pg (data-n-src,
+    data-n-un, data-n-per): css/notifs.css hides rows from the first paint, js/notifs.js switches without a reload,
+    keeps the URL in step (replaceState) and remembers the view (pm.v7.notifs.*) for both URLs. ?open=<key> opens
+    that row (the bell's links).
+    css/notifs.css and js/notifs.js are loaded by base.html with the shell (the bell needs them on every page). -#}
+{% extends "base.html" %}
+{% import "parts/_head.html" as ph %}
+{% import "parts/_seg.html" as ps %}
+{% import "parts/_filter.html" as pf %}
+{% import "parts/_switch.html" as psw %}
+{% import "parts/_select.html" as psel %}
+{% import "parts/_table.html" as tb %}
+{% block title %}Notifications{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block content %}
+{%- set pg = dt_ntfy("page") -%}
+{%- if pg %}
+<div class="n-pg" data-n-src="{{ pg.src }}" data-n-per="{{ pg.per }}" data-n-dsrc="{{ pg.dsrc }}" data-n-dper="{{ pg.dper }}"{% if pg.un %} data-n-un="1"{% endif %}>
+{{ ph.head("Notifications", stats="Agent and system messages", id="n-head",
+           actions=[{"label": "Mark all read", "icon": "check", "title": "Mark every message read",
+                     "attrs": {"data-n-readall": ""}}]) }}
+{% call ph.tools() %}
+  {{ pf.fbox("notifs", value=pg.q, placeholder="Filter title, project, agent", label="Filter notifications",
+             rows="#n-list") }}
+  {{ ps.seg(pg.segs, label="Source") }}
+  {{ psw.switch("un", on=pg.un, label="Unread only") }}
+  <span class="sp"></span>
+  {{ psel.select("per", pg.periods, value=pg.per, label="Period") }}
+{% endcall %}
+<div id="n-panel" class="n-panel" hx-get="/ntfy/panel?scope=all" hx-trigger="{{ 'load, ' if pg.system }}pm:inbox from:document throttle:2s, pm:refresh from:document, pm7:refresh, pm7:resync from:document" hx-swap="innerHTML">{{ ntfy_html | safe }}</div>
+{{ tb.hints([("J K", "move"), ("Enter", "chat"), ("O", "tab"), ("X", "details"), ("E", "read"), ("P", "pin"),
+             ("/", "filter")]) }}
+</div>
+{%- endif %}
+{% endblock %}

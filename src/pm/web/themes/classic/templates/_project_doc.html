@@ -1,0 +1,8 @@
+{# Right-hand pane body of the project page: one read-only document, a notice or the dirty file list. #}
+{% if dirty %}
+{% include "_dirty.html" %}
+{% elif error %}<p class="muted pj-note">{{ error }}</p>
+{% else %}
+<p class="small muted pj-meta pj-meta-zoom"><span class="mono">{{ doc.name }}</span> &middot; {{ doc.size }} bytes{% if doc.mtime %} &middot; <span title="{{ doc.mtime | ts }}">{{ doc.mtime | ago }}</span>{% endif %}{% if doc.truncated %} &middot; <span class="warn">cut at 256 KB</span>{% endif %}<span class="pj-zoom">{% include "_mdzoom.html" %}</span></p>
+<article class="pj-doc md">{{ html | safe }}{% if not html %}<p class="muted">Empty file.</p>{% endif %}</article>
+{% endif %}

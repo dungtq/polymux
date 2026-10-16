@@ -1,0 +1,122 @@
+{#- dt session tab in Builder mode (PRD §6.3 "Builder = a mode of the tab", LAYOUT.md §5): the session frame
+    (session/_frame.html; Builder toggle on, the tabs link back to the agent page) over the classic Builder body: chat +
+    composer left (resizable, default 440px), the sandboxed preview right (CONDUCT V7-SEC-8), Chat | Preview tabs on
+    phones. The preview toolbar, files list, API view and the chat pane keep their classic markup and JS (README A5;
+    shell/_classic.html flag classic_page = "builder": builder.js, builder-screen.js, builder-api.js, ...).
+    View model: core route web/routes/builder.py builder_page (`base` = the preview's signed base URL, not /a/<id>);
+    tabs, ⋯ and the Builder toggle from dt_session("builder"). -#}
+{% extends "base.html" %}
+{% set classic_page = "builder" %}
+{% from "_composer_macros.html" import composer, continue_template, RESUMABLE with context %}
+{% import "session/_frame.html" as sf with context %}
+{% set aid = "/a/" ~ agent.id %}
+{% set ready = state == "ready" %}
+{% block title %}Builder {{ agent.id }}{% endblock %}
+{% block bodyclass %}c-page bld-page{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}{{ sf.assets() }}{% endblock %}
+{% block content %}
+{%- set s = dt_session("builder", RESUMABLE) -%}
+{%- if s %}
+{%- set pill = head_pill | default('') if live else ((rec.transcript | pill_model) if rec and rec.transcript else '') -%}
+{%- set tsid = agent.session_id if (live and agent.session_id is defined) else none -%}
+<section class="c-sess c-bld" data-agent="{{ agent.id }}" data-kind="{{ s.kind }}" data-c-mode="builder" data-menu-scope aria-label="Builder {{ agent.id }}">
+{{ sf.head("builder", agent, s.kind, s.state, pill, tabs=s.tabs, menu=s.menu, bld=s.bld,
+           meta=sf.meta_line(agent, pname, tsid, (agent | tmux_win) if live else "", none, none)) }}
+<div class="c-body">
+<div id="builder" class="c-pn" data-base="{{ base }}" data-entry="{{ entry or '' }}" data-state="{{ state }}"
+     data-mtime-url="{{ mtime_url }}" data-files-url="{{ files_url }}" data-agent="{{ agent.id }}"
+     data-frame-hosts="{{ frame_hosts | join(' ') }}" data-mode="{{ 'live' if live else 'ended' }}"
+     data-api-url="{{ api_url }}" data-view="page">
+<input type="radio" name="bt" id="bt-chat" class="bld-sr" checked>
+<input type="radio" name="bt" id="bt-prev" class="bld-sr">
+<div class="p-tabs bld-tabs" role="tablist" aria-label="Builder panes"><label for="bt-chat" class="p-tab" role="tab" aria-selected="true">Chat</label><label for="bt-prev" class="p-tab" role="tab" aria-selected="false">Preview</label></div>
+
+<div class="bld-split">
+  <section class="bld-pane bld-chat" aria-label="Agent chat">
+    <div class="bld-msgs x-cl" id="bld-msgs" data-ci-scroll{% if live %} data-live{% endif %}>
+      <section id="ci" class="ci" aria-label="Conversation" data-agent="{{ agent.id }}"{% if not live %} data-ended{% endif %}><p class="muted">Loading&hellip;</p></section>
+      {% if live %}<div id="chat" class="chat" hx-get="{{ aid }}/chat" hx-trigger="load, every 2s, pm:agent_state from:document, pm:inbox from:document, pm:refresh" hx-swap="outerHTML swap:0ms settle:0ms" hx-sync="this:replace"></div>{% endif %}
+      {% if s.kind == 'claude' %}<div id="sa-live" class="sa-live" hx-get="{{ aid }}/subagents?running=1" hx-trigger="load, every 4s, pm:agent_state from:document" hx-swap="innerHTML" hx-sync="this:replace" data-nodiff></div>{% endif %}
+      <div id="ci-pending" class="ci-pending" aria-label="Your messages not in the transcript yet" aria-live="polite"></div>
+    </div>
+    <div class="c-comp x-cl">{% if live %}{{ composer("builder") }}{% elif s.can_act %}{{ composer("ended", rec=rec, flow=true, draft_key=aid ~ "/builder") }}{% else %}<div class="bld-foot">Ended session. <a href="{{ aid }}">Open it</a></div>{% endif %}</div>
+  </section>
+
+  <div class="bld-div" role="separator" aria-orientation="vertical" aria-label="Resize panes" aria-valuenow="38" aria-valuemin="20" aria-valuemax="70" tabindex="0"></div>
+
+  <section class="bld-pane bld-prev" aria-label="Preview">
+    <div class="bld-tb">
+      <span class="cv-seg bld-view" id="bld-view" role="group" aria-label="Preview view"><button type="button" data-bld-view="page" aria-pressed="true" title="The page in the project folder">Page</button><button type="button" data-bld-view="api" aria-pressed="false" title="Try the project's API: endpoints from openapi.json or mocks/">API</button></span>
+      <button type="button" class="bb" id="bld-reload" aria-label="Reload preview" title="Reload preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      <a class="bb" id="bld-open" href="{{ base }}{{ entry or '' }}" target="_blank" rel="noopener" aria-label="Open in new tab" title="Open in new tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+      <select class="bld-size" id="bld-size" aria-label="Preview screen size" title="Screen size of the preview (the page is laid out at the real size, then scaled to fit)">
+        <option value="fit" data-w="0" data-h="0">Fit pane</option>
+        <optgroup label="Desktop">
+          <option value="mbp14" data-w="1512" data-h="982">MacBook Pro 14&Prime; &middot; 1512&times;982</option>
+          <option value="dell27" data-w="2560" data-h="1440">Dell 27&Prime; &middot; 2560&times;1440</option>
+          <option value="dell34h" data-w="1720" data-h="1440">Dell 34&Prime; &frac12; &middot; 1720&times;1440</option>
+          <option value="dell34t" data-w="2293" data-h="1440">Dell 34&Prime; &frac23; &middot; 2293&times;1440</option>
+        </optgroup>
+        <optgroup label="Tablet">
+          <option value="tab" data-w="768" data-h="1024">Tablet &middot; 768&times;1024</option>
+        </optgroup>
+        <optgroup label="Phone">
+          <option value="ip17pm" data-w="440" data-h="956">iPhone 17 Pro Max &middot; 440&times;956</option>
+          <option value="ip17p" data-w="402" data-h="874">iPhone 17 Pro &middot; 402&times;874</option>
+          <option value="ipair" data-w="420" data-h="912">iPhone Air &middot; 420&times;912</option>
+          <option value="ipse" data-w="375" data-h="667">iPhone SE &middot; 375&times;667</option>
+        </optgroup>
+      </select>
+      <select class="bld-zoom" id="bld-zoom" aria-label="Zoom" title="Zoom of the preview (Ctrl/Cmd + wheel over it)" hidden>
+        <option value="fit">Fit</option>
+        <option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option>
+        <option value="125">125%</option><option value="150">150%</option><option value="200">200%</option>
+      </select>
+      <select class="bld-src" id="bld-src" aria-label="Preview source" title="Static files: a page from the project folder. URL: an https page on the allowed list (setting builder_frame_hosts)">
+        <option value="files">Static files</option>
+        <option value="url">URL</option>
+      </select>
+      <form class="bld-path" id="bld-pathform" action="#"><input type="text" id="bld-path" value="/{{ entry or '' }}" aria-label="Preview path or allowed URL" title="A path in the project, or an https URL on the allowed list" spellcheck="false" autocomplete="off"{% if not base %} disabled{% endif %}></form>
+      <datalist id="bld-hosts">{% for h in frame_hosts %}<option value="{{ h }}/">{% endfor %}</datalist>
+      <button type="button" class="bb bld-apionly" id="bld-api-reload" aria-label="Reload endpoints" title="Read the OpenAPI / mock files again"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      <select class="bld-target bld-apionly" id="bld-target" aria-label="Send requests to" title="Mock: replies from the spec examples and mock files. 127.0.0.1:port: the project's dev server (ports in the setting builder_api_ports)"><option value="mock">Mock</option></select>
+      <span class="bld-apisrc bld-apionly" id="bld-apisrc"></span>
+      <span class="bld-st" id="bld-st" role="status"><span class="dot {{ 'dot-running' if ready else 'dot-idle' }}" id="bld-stdot"></span><span class="tx" id="bld-sttx">{{ "Loading" if ready else "No page" }}</span></span>
+    </div>
+    <details class="bld-files" id="bld-files">
+      <summary>Files <span class="cnt" id="bld-cnt">0</span></summary>
+      <ul id="bld-list"></ul>
+    </details>
+    <div class="bld-stage" id="bld-stage">
+      {% if ready %}<iframe class="bld-frame" id="builder-frame" title="Preview of /{{ entry }}" sandbox="allow-scripts allow-forms allow-popups-to-escape-sandbox" src="{{ base }}{{ entry }}"></iframe>{% endif %}
+      <div class="bld-note" id="bld-empty"{% if ready %} hidden{% endif %}><h2>{% if base %}No index.html found{% else %}No folder to preview{% endif %}</h2>{% if base %}<p>Nothing to preview in <code>{{ root_name }}</code>.</p><p>Ask the agent to create <code>index.html</code>, or type another path above.</p>{% else %}<p>This agent has no working directory or project folder.</p>{% endif %}</div>
+    </div>
+    <div class="bld-api" id="bld-api" hidden>
+      <div class="bld-note" id="bld-apinote"><h2>No API found</h2><p>Ask the agent to add <code>openapi.json</code> (or <code>.yaml</code>) or mock replies in <code>mocks/*.json</code>.</p></div>
+      <ul class="bld-eps" id="bld-eps" aria-label="Endpoints" hidden></ul>
+      <div class="bld-work" id="bld-work" hidden>
+        <form class="bld-req" id="bld-req" action="#" aria-label="Test request">
+          <div class="bld-line"><select id="bld-m" aria-label="Method">{% for m in ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS") %}<option>{{ m }}</option>{% endfor %}</select><input type="text" id="bld-rpath" aria-label="Path" placeholder="/path" spellcheck="false" autocomplete="off"><button type="submit" class="primary" id="bld-send">Send</button></div>
+          <label class="bld-fld">Query<input type="text" id="bld-q" placeholder="a=1&amp;b=2" spellcheck="false" autocomplete="off"></label>
+          <label class="bld-fld">Headers<textarea id="bld-h" rows="2" placeholder="Name: value (one per line)" spellcheck="false"></textarea></label>
+          <label class="bld-fld">Body<textarea id="bld-b" rows="5" spellcheck="false"></textarea></label>
+          <label class="bld-fld bld-mockst">Mock reply<select id="bld-rs" aria-label="Mock reply status"></select></label>
+        </form>
+        <section class="bld-res" id="bld-res" aria-label="Response" hidden>
+          <div class="bld-resh" role="status"><span class="dot dot-idle" id="bld-resdot"></span><span id="bld-restx"></span></div>
+          <details class="bld-resheaders"><summary>Headers <span class="cnt" id="bld-reshn">0</span></summary><pre id="bld-resha"></pre></details>
+          <pre class="bld-resb" id="bld-resb" tabindex="0" aria-label="Response body"></pre>
+        </section>
+      </div>
+    </div>
+  </section>
+</div>
+</div>
+</div>
+</section>
+{% if live %}{{ continue_template() }}{% endif %}
+{%- else %}
+<p class="p-empty">The session tab could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+{% endblock %}

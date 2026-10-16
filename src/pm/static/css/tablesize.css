@@ -1,0 +1,15 @@
+/* Resizable Markdown table columns (static/js/tablesize.js). At rest the column edge is the existing 1px
+   hairline (th border); hover / drag on the edge shows a 3px accent line (docs/UI-RULES.md "Resize handles"). */
+:is(.md,.pj-md) th{position:relative}
+:is(.md,.pj-md) th.ts-hot{cursor:col-resize}
+:is(.md,.pj-md) th.ts-hot::after{content:"";position:absolute;top:0;bottom:0;right:-2px;width:3px;background:var(--accent);z-index:1;pointer-events:none}
+:is(.md,.pj-md) table.ts-drag,:is(.md,.pj-md) table.ts-drag *{cursor:col-resize;user-select:none;-webkit-user-select:none}
+/* fixed layout after the first drag: a narrowed column wraps its text (code too) instead of spilling over */
+:is(.md,.pj-md) table.ts-fixed :is(th,td){overflow:hidden}
+:is(.md,.pj-md) table.ts-fixed th{text-overflow:ellipsis}
+:is(.md,.pj-md) table.ts-fixed td{overflow-wrap:anywhere}
+:is(.md,.pj-md) table.ts-fixed td code{white-space:normal;overflow-wrap:anywhere}
+/* touch: a sideways drag on the header row resizes; vertical page scroll still works from it */
+@media (pointer:coarse){:is(.md,.pj-md) th{touch-action:pan-y}}
+/* a resized table narrower than the reply: the bordered scroll wrapper hugs it instead of leaving an empty band */
+:is(.md,.pj-md) .md-table:has(>table.ts-fixed){width:fit-content}

@@ -1,0 +1,57 @@
+{% from "_macros.html" import agid, agtitle, count_pill, empty, notice %}{% from "_filterbox.html" import filterbox %}{% from "_limitbar.html" import limitbar %}{% from "_agentname.html" import agent_name %}<div class="ntfy-inner{% if scope == 'all' %} ntfy-pg{% endif %}" data-poll="{{ base }}"{% if scope == 'all' %} data-unread="{{ unread }}"{% endif %}>
+{% macro pinform(r, pinned) %}<form class="inline ntfy-pin" method="post" action="/ntfy/{{ 'unpin' if pinned else 'pin' }}" hx-post="/ntfy/{{ 'unpin' if pinned else 'pin' }}" hx-swap="none"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ r.item.id }}"><button type="submit" class="small ntfy-pinbtn">{{ 'Unpin' if pinned else 'Pin' }}</button></form>{% endmacro %}
+{% macro row(r, more, pin=false) %}{% set i = r.item %}
+  <details class="ntfy-row{% if more %} e-more{% endif %}"{% if r.owner %} data-kind="{{ r.owner.kind }}"{% endif %}{% if r.unread %} data-unread{% endif %} data-id="{{ r.key }}" data-key="{{ r.key }}" data-q="{{ r.q }}"{% if r.p %} data-p="{{ r.p }}"{% endif %}>
+    <summary>
+      <span class="ntfy-proj">{% if r.tag_label %}<span class="ico-dir {% if r.tag_proj %}ntfy-chip-proj{% else %}muted mono{% endif %}" title="{{ r.tag_raw }}">{{ r.tag_label }}</span>{% endif %}</span>
+      <span class="ntfy-ag">{% if r.owner %}<a class="ntfy-agent" role="button" aria-expanded="false" href="/a/{{ r.owner.agent_id|urlencode }}" data-kind="{{ r.owner.kind }}" title="{{ r.owner.label }}{% if r.owner.pane %} · tmux pane {{ r.owner.pane }}{% endif %}{% if not r.owner.live %} · ended{% endif %}">{{ agent_name({"id": r.owner.agent_id, "kind": r.owner.kind, "transcript": r.owner.transcript}) }}</a>{% endif %}</span>
+      <span class="ntfy-t">{% if i.priority != 3 %}<span class="ntfy-prio p{{ i.priority }}" title="priority {{ i.priority }}">P{{ i.priority }}</span> {% endif %}{{ agtitle(r.title) if r.title else "(no title)" }}{% if r.n > 1 %} <span class="ntfy-count" title="{{ r.n }} notifications merged">&times;{{ r.n }}</span>{% endif %}</span>
+      <span class="ntfy-ago muted small">{{ r.ago }}</span>
+      <span class="ntfy-stamp muted small" title="{{ r.abs }}">{{ r.stamp }}</span>
+    </summary>
+    <div class="ntfy-detail">
+      {% if r.owner %}<div class="ntfy-recap n-recap" data-keep data-recap="/a/{{ r.owner.agent_id|urlencode }}/recap-row"></div>{% endif %}
+      {% if i.message %}<div class="ntfy-msg">{{ i.message }}</div>{% endif %}
+      <div class="ntfy-meta muted small">
+        <span>{{ r.abs }}</span>
+        {% if i.priority != 3 %}<span>priority {{ i.priority }}</span>{% endif %}
+        {% if r.proj_name %}<a href="/p/{{ r.proj_name|urlencode }}">{{ r.proj_name }}</a>{% endif %}
+        {% if r.owner %}<span>agent <a href="/a/{{ r.owner.agent_id|urlencode }}" data-kind="{{ r.owner.kind }}" title="{{ r.owner.agent_id }}">{{ agent_name({"id": r.owner.agent_id, "kind": r.owner.kind, "transcript": r.owner.transcript}) }}</a>{% if r.owner.pane %} · pane <span class="mono">{{ r.owner.pane }}</span>{% endif %}</span>{% endif %}
+        {% for t in i.tags %}<span class="mono ntfy-tg">{{ t }}</span>{% endfor %}
+        {% if r.click %}<a href="{{ r.click }}" rel="noopener noreferrer">open</a>{% endif %}
+        {% if r.owner and r.proj_name %}<a class="button small" href="/p/{{ r.proj_name|urlencode }}/launch?review={{ r.owner.agent_id|urlencode }}" title="Start a new read-only reviewer agent for this agent's changes">Review</a>{% endif %}
+        {% if scope == "all" %}{{ pinform(r, pin or r.pinned) }}{% endif %}
+      </div>
+    </div>
+  </details>
+{% endmacro %}
+{% if scope != "all" %}<div class="ntfy-head">
+  <h3 class="ntfy-title">{{ "System messages" if scope == "system" else "ntfy" }}{% if unread %} {{ count_pill(unread, "ntfy-unread", suffix=" unread") }}{% endif %}</h3>
+  <div class="ntfy-ctl">
+    {% if unread %}<form class="inline" method="post" action="{{ '/inbox/read-system' if scope == 'system' else '/inbox/read-all' }}" hx-post="{{ '/inbox/read-system' if scope == 'system' else '/inbox/read-all' }}" hx-swap="none"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="ntfy-mark">Mark all read</button></form>{% endif %}
+    <span class="ntfy-tools" id="ntfy-tools-{{ scope }}" hx-preserve="true">
+      {{ filterbox() }}
+      <button type="button" class="small ntfy-toggle" aria-pressed="false"{% if rows|length <= visible %} hidden{% endif %}>Expand</button>
+    </span>
+  </div>
+</div>{% endif %}
+{% if not ok %}{{ notice("warn", "ntfy unreachable" ~ (" (showing cached)" if rows else ""), "ntfy-warn small") }}{% endif %}
+{% if scope == "all" and pins %}
+<section class="ntfy-pins ntfy-list" aria-label="Pinned messages">
+<h3 class="ntfy-pins-h small muted">Pinned</h3>
+{% for r in pins %}{{ row(r, false, true) }}{% endfor %}
+</section>
+{% endif %}
+{% if rows %}
+{% if scope == "all" %}
+<div class="tabs ntfy-tabs tabs-seg" role="tablist" aria-label="Period" data-tabs-key="pm.ntfy.tab">{% for k, label in tabs %}<button type="button" class="tab ntfy-tab" role="tab" data-tab="{{ k }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ label }}</button>{% endfor %}</div>
+{% endif %}
+<div class="ntfy-list">
+{% for r in rows %}{{ row(r, scope != "all" and loop.index > visible) }}{% endfor %}
+</div>
+{% if scope == "all" %}
+{% set show_links = [] %}{% for c in counts %}{% set _ = show_links.append({"key": c, "label": c, "active": c == visible}) %}{% endfor %}{% set _ = show_links.append({"key": "all", "label": "All", "active": false}) %}
+{{ limitbar(show_links, none, none, none, cls="ntfy-foot", id="ntfy-foot-all", sel="ntfy-n", count="ntfy-shown") }}
+{% endif %}
+{% else %}{{ empty("No " ~ ("system" if scope == "system" else "ntfy") ~ " messages" ~ (" in the last period" if ok else "") ~ ".") }}{% endif %}
+</div>

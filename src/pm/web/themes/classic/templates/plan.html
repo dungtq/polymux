@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ plan }}.md - {{ project.name }}{% endblock %}
+{% block flash %}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/plans.css">
+<div class="pg-project pg-plans">
+<h1 class="pl-title"><a href="{{ base }}/plans"{% if embed %} target="_top"{% endif %}>Plans</a> / <span class="mono">{{ plan }}.md</span></h1>
+<p class="small muted"><a href="{{ base }}"{% if embed %} target="_top"{% endif %}>{{ project.name }}</a> &middot; {{ label }}{% if readonly %} &middot; read-only{% endif %}{% if mtime %} &middot; {{ size }} bytes &middot; <span title="{{ mtime | ts }}">{{ mtime | ago }}</span>{% endif %}</p>
+{% if error %}<p class="pl-err" role="alert">{{ error }}</p>{% endif %}
+{% if notice %}<p class="pl-ok small" role="status">Plan {{ notice }}.</p>{% endif %}
+{% if edit %}
+{% if diff %}
+<div class="bl-conflict">
+  <p class="small muted">Differences: <span class="bl-d-del">- current file</span> / <span class="bl-d-add">+ your text</span>. The token below is the current version; saving again overwrites it with your text.</p>
+  <pre class="bl-diff" tabindex="0">{{ diff }}</pre>
+</div>
+{% endif %}
+<form class="pl-form" method="post" action="{{ base }}/plans/{{ plan | urlencode }}/save">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="src" value="{{ src }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <label class="small muted" for="pl-text">{{ label }}: {{ plan }}.md (max {{ max_kb }} KB)</label>
+  <textarea id="pl-text" name="text" rows="24" spellcheck="false">{{ text }}</textarea>
+  <div class="pl-acts"><button type="submit" class="primary">Save</button><a class="button" href="{{ base }}/plans/{{ plan | urlencode }}{{ qs }}">Cancel</a></div>
+</form>
+{% elif embed %}
+<div class="pl-acts">
+  {% include "_mdzoom.html" %}
+  <a class="button" href="{{ base }}/plans?embed=1">All plans</a>
+  {% if not readonly %}<a class="button" href="{{ base }}/plans/{{ plan | urlencode }}?edit=1{% if qs %}&amp;{{ qs[1:] }}{% endif %}" target="_top">Edit</a>{% endif %}
+</div>
+<article id="plan-doc" class="plan-doc md">{{ html | safe }}{% if not html %}<p class="muted">Empty plan.</p>{% endif %}</article>
+{% else %}
+<div class="pl-acts">
+  {% include "_mdzoom.html" %}
+  {% if not readonly %}<a class="button small" href="{{ base }}/plans/{{ plan | urlencode }}?edit=1{% if qs %}&amp;{{ qs[1:] }}{% endif %}">Edit</a>{% endif %}
+  <button type="button" class="small" data-plan-full aria-pressed="false" title="Full screen (Esc to leave)">Full screen</button>
+</div>
+<article id="plan-doc" class="plan-doc md">{{ html | safe }}{% if not html %}<p class="muted">Empty plan.</p>{% endif %}</article>
+{% if not readonly %}<details class="pl-more">
+  <summary class="small">Rename or delete</summary>
+  <form class="pl-inline" method="post" action="{{ base }}/plans/{{ plan | urlencode }}/rename">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="src" value="{{ src }}">
+    <label class="small muted" for="pl-new">New name</label>
+    <input id="pl-new" name="new_name" value="{{ plan }}" maxlength="68" required autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button type="submit">Rename</button>
+  </form>
+  <form class="pl-inline" method="post" action="{{ base }}/plans/{{ plan | urlencode }}/delete" data-confirm="Delete {{ plan }}.md? This cannot be undone." hx-confirm="Delete {{ plan }}.md? This cannot be undone.">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="src" value="{{ src }}">
+    <label class="small"><input type="checkbox" name="confirm" value="1" required> Yes, delete {{ plan }}.md</label>
+    <button type="submit" class="danger">Delete</button>
+  </form>
+</details>{% endif %}
+<script src="/static/js/plans.js" defer></script>
+{% endif %}
+</div>
+{% endblock %}

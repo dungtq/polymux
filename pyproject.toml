@@ -1,0 +1,65 @@
+[project]
+name = "polymux"
+version = "0.1.0"
+description = "Control plane for projects, git, tmux sessions and coding agents on one Linux host"
+authors = [
+    { name = "dungtq", email = "11043299+dungtq@users.noreply.github.com" }
+]
+license = "MIT"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.142.2",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.6",
+    "markdown-it-py>=4.2.0",
+    "pygments>=2.21.0",
+    "pyotp>=2.10.0",
+    "python-multipart>=0.0.32",
+    "pyyaml>=6.0.3",
+    "uvicorn[standard]>=0.54.0",
+    "webauthn>=3.0.1",
+]
+
+[project.scripts]
+pm = "pm:main"
+polymux = "pm:main"
+pmctl = "pm.projects.tracker.cli:main"
+
+[project.entry-points."pm.plugins"]
+dt = "pm.web.dt:plugin"
+
+[build-system]
+requires = ["uv_build>=0.12.21,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "playwright>=1.63.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = '-m "not ui"'
+markers = ["ui: Playwright UI suite against the dev instance on port 8105 (uv run pytest -m ui)"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4","E7","E9","F","I","UP","B"]
+ignore = ["B008","E701","E702","E731","E741","B905","UP031"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pm"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F811","F401","B017","B011"]
+
+[tool.uv.build-backend]
+module-name = "pm"  # dist "polymux", import package and CLI stay `pm`

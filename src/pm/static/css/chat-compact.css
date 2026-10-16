@@ -1,0 +1,88 @@
+/* Chat view Compact (docs/HANDOFF-chat-compact.md, mock docs/mock/chatsync/compact.html): per turn one
+   working-notes block (the in-between replies as a bulleted list + one folded tool total), then the final
+   reply with its own folded total. DOM built by chat-compact.js; every view rule is scoped under
+   .ci[data-cv="compact"], so Detail stays as chat-items.css draws it. Tokens only; light + dark via tokens.
+   Linked right after chat-items.css: selectors that must beat agent.css / shell.css carry more classes. */
+
+/* ---- view toggle (span.cv-seg.ci-view; base look in chrome.css): a small flat segmented control, exactly as high as the
+   zoom / close buttons beside it (--vh-ctl: drawer header in shell.css, agent head and builder here) ---- */
+.agent-head[data-agent], .bld-ph { --vh-ctl: 32px; }
+@media (pointer: coarse), (max-width: 699px) { .agent-head[data-agent], .bld-ph { --vh-ctl: 40px; } }
+.cv-seg.ci-view { box-sizing: border-box; flex: none; align-self: center; height: var(--vh-ctl, 32px); margin-left: 6px; }
+.cv-seg.ci-view button { height: 100%; min-height: 0; padding: 0 8px; font-size: .75rem; line-height: 1; white-space: nowrap; }
+.vc-tools .cv-seg.ci-view { margin-right: 6px; }                       /* + the 2px tools gap = 8px to the text size */
+.bld-ph .cv-seg.ci-view { margin-left: auto; }
+@container vc (max-width: 719px) { .vc-head .cv-seg.ci-view { height: min(var(--vh-ctl), 32px); margin-left: 0; } }   /* row 2: small, still a 32px touch target */
+@media (pointer: coarse), (max-width: 699px) {
+  .bld-ph:has(.ci-view) { flex: none; min-height: 52px; padding-top: 6px; padding-bottom: 6px; }   /* the column flex shrank it to 40px */
+}
+/* phone agent head: title / tabs or Resume|Fork / toggle + text size together, right-aligned */
+@media (max-width: 699px) {
+  .agent-head[data-agent]:has(.ci-view) :is(.tabs, .agent-actions) { flex: 1 0 100%; }
+  .agent-head[data-agent] .cv-seg.ci-view { order: 4; margin-left: auto; }
+  .agent-head[data-agent] .cv-seg.ci-view ~ .zoomctl { margin-left: 8px; padding-left: 0; border-left: 0; }
+}
+
+/* ---- working-notes block: quieter than a reply (half tint, muted head, smaller text, kind bar at 45 %) ---- */
+.ci[data-cv="compact"] .ci-cn {
+  min-width: 0; margin: 6px 0; padding: 8px 14px;
+  border: 1px solid var(--bub-asst-bd); border-left: 3px solid color-mix(in srgb, var(--k, var(--k-other)) 45%, var(--line));
+  border-radius: 12px; background: color-mix(in srgb, var(--bub-asst-bg) 55%, var(--bg));
+}
+.ci[data-cv="compact"] .ci-cn-h { display: flex; align-items: center; gap: 4px; min-height: 24px; font-size: var(--fs-s); color: var(--muted); white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
+.ci[data-cv="compact"] .ci-cn-h strong { font-weight: 500; color: var(--muted); }
+.ci[data-cv="compact"] .ci-cn-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ci[data-cv="compact"] .ci-cn-h .ci-took { flex: none; }
+.ci[data-cv="compact"] .ci-cn-h .ci-took:empty { display: none; }
+/* tools only (no reply in the block): no header, no empty list, no rule above the total */
+.ci[data-cv="compact"] .ci-cn:not(:has(.ci-cn-li)) > :is(.ci-cn-h, .ci-cn-list) { display: none; }
+.ci[data-cv="compact"] .ci-cn:not(:has(.ci-cn-li)) > .ci-cnt { margin-top: 0; padding-top: 0; border-top: 0; }
+
+.ci[data-cv="compact"] .ci-cn-list { margin: 2px 0 0; padding-left: 1.1em; list-style: disc; color: var(--fg); }
+.ci[data-cv="compact"] .ci-cn-li { margin: 3px 0; padding-left: 2px; min-width: 0; }
+.ci[data-cv="compact"] .ci-cn-li::marker { color: var(--muted); }
+/* the real reply article inside a bullet: no bubble chrome, no header */
+.ci[data-cv="compact"] .ci-cn-li > .ci-text.chat-bubble { width: auto; max-width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.ci[data-cv="compact"] .ci-cn-li > .ci-text > .chat-meta { display: none; }
+.ci[data-cv="compact"] .ci-cn-li .chat-text { font-size: calc(var(--chat-size, 1em) * .93); line-height: 1.45; }
+.ci[data-cv="compact"] .ci-cn-li .md :is(p, h1, h2, h3, h4, h5, h6) { margin: 0; }
+.ci[data-cv="compact"] .ci-cn-li .md :is(h1, h2, h3, h4, h5, h6) { font-size: 1em; font-weight: 600; }
+.ci[data-cv="compact"] .ci-cn-li .md * + :is(p, h1, h2, h3, h4, h5, h6) { margin-top: 2px; }
+.ci[data-cv="compact"] .ci-cn-li .md :is(ul, ol) { margin: 2px 0; padding-left: 1.2em; }
+.ci[data-cv="compact"] .ci-cn-li .md :is(pre, blockquote, table) { margin: 4px 0; }
+.ci[data-cv="compact"] .ci-cn-li .md > :last-child { margin-bottom: 0; }
+
+/* ---- folded tool total at the bottom of a block (notes or final reply); summary reuses .ci-tg-h ---- */
+.ci[data-cv="compact"] .ci-cnt { min-width: 0; margin-top: 6px; padding-top: 2px; border-top: 1px solid var(--line2); }
+/* one line while it fits; wraps (chips too) instead of clipping when it does not, at any width */
+.ci[data-cv="compact"] .ci-cnt > .ci-tg-h { margin-left: -2px; flex-wrap: wrap; white-space: normal; overflow: visible; row-gap: 4px; }
+.ci[data-cv="compact"] .ci-cnt > .ci-tg-h .ci-chips { flex: 0 1 auto; flex-wrap: wrap; row-gap: 4px; overflow: visible; max-width: 100%; }
+.ci[data-cv="compact"] .ci-cnt > .ci-tg-h .ci-chips .tchip { max-width: 100%; }
+.ci[data-cv="compact"] .ci-cnt[open] > .ci-tg-h .ci-car { transform: rotate(90deg); }
+.ci[data-cv="compact"] .ci-cnt-rows { margin: 2px 0 4px; min-width: 0; }
+.ci[data-cv="compact"] .ci-final > .ci-cnt { margin-top: var(--s2); }
+
+/* inner groups (kept open by JS): flush, their summary is only a small "after: <reply>" label */
+.ci[data-cv="compact"] .ci-cnt .ci-tg { margin: 0; padding: 0; border-left: 0; }
+.ci[data-cv="compact"] .ci-cnt .ci-tg .ci-rows { margin: 0 0 2px; }
+.ci[data-cv="compact"] .ci-cnt .ci-tg > .ci-tg-h { display: block; min-height: 0; margin: 6px 0 1px; padding: 0; font-size: .6875rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; pointer-events: none; }
+.ci[data-cv="compact"] .ci-cnt .ci-tg:first-child > .ci-tg-h { margin-top: 2px; }
+.ci[data-cv="compact"] .ci-cnt .ci-tg > .ci-tg-h > * { display: none; }
+.ci[data-cv="compact"] .ci-cnt .ci-tg > .ci-tg-h::before { content: "after: " attr(data-after); }
+.ci[data-cv="compact"] .ci-cnt .ci-tg > .ci-tg-h:not([data-after]),
+.ci[data-cv="compact"] .ci-cnt .ci-tg > .ci-tg-h[data-after=""],
+.ci[data-cv="compact"] .ci-cnt.ci-cnt-one .ci-tg > .ci-tg-h { display: none; }
+
+/* ---- final reply and turn end ---- */
+.ci[data-cv="compact"] .ci-final .chat-meta .ci-took { color: var(--muted); white-space: nowrap; flex: none; }
+.ci[data-cv="compact"] .ci-end { display: none; }
+
+/* ---- touch and phone ---- */
+@media (pointer: coarse) {
+  .ci[data-cv="compact"] .ci-cnt > .ci-tg-h { min-height: 40px; }
+}
+@media (max-width: 559px) {
+  .ci[data-cv="compact"] .ci-cn { padding: 8px 10px; }
+  .ci[data-cv="compact"] .ci-final .chat-meta { flex-wrap: wrap; white-space: normal; row-gap: 4px; min-width: 0; }
+  .ci[data-cv="compact"] .ci-final .chat-meta .ci-aid { display: none; }   /* room for "took" + Canvas on one row */
+}

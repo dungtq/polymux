@@ -1,0 +1,28 @@
+{#- dt Agents page (PRD.md §6.8, LAYOUT.md §4-5 "Agents"): head (stats, Re-scan) · tabs Installed · Library ·
+    MCP servers · Usage · Findings (server sections, ?t=) · the section. View models: dt_agents(...) (pm.web.dt.agents,
+    agents_library, agents_usage); the core route agentspage.agents_overview gives the context (view = the asked
+    section; findings keeps section "installed"). #a-page is replaced from a fresh render after a change
+    (js/agents.js). Page CSS / JS: css/agents.css, js/agents.js. -#}
+{% extends "base.html" %}
+{% block title %}Agents{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/agents.css">
+<script src="/static/t/dt/js/agents.js" defer></script>
+{% endblock %}
+{% block content %}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_tabs.html" as pt -%}
+{%- set f = dt_agents("frame") -%}
+<div id="a-page" class="a-page" data-a-view="{{ f.view if f else '' }}">
+{%- if f %}
+{{ ph.head("Agents", stats=f.stats, actions=f.actions) }}
+{{ pt.tabs(f.tabs, "Agents sections") }}
+{%- if f.view == "library" %}{% include "_agents_library.html" %}
+{%- elif f.view == "mcp" %}{% include "_agents_mcp.html" %}
+{%- elif f.view == "usage" %}{% include "_agents_usage.html" %}
+{%- elif f.view == "findings" %}{% include "agents/_findings.html" %}
+{%- else %}{% include "_agents_installed.html" %}{% endif %}
+{%- else %}
+<p class="p-empty">The Agents page could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,393 @@
+/* v5 shell: optional left sidebar (project / tmux session / agent lists) + right-hand drawer (chat or terminal).
+   Loaded after chrome/rows/data/agent.css. Tokens only, no hex. Pages without a sidebar keep their v4 position: .v5-shell is
+   display:contents until a drawer opens. Sidebar markup: templates/_side.html; drawer: _drawer.html. */
+/* --chat-f = drawer share of the space right of the sidebar (main | chat), 0.5 = 50/50 on every page; drawer.js sets it.
+   --side-now = the sidebar width actually shown (0 when hidden, 44px when collapsed); --room = space for main + drawer */
+.v5-shell{--room:100%}
+.v5-shell.has-side{--room:calc(100% - var(--side-now))}
+body.chat-open .v5-shell{max-width:none;border-left:0;border-right:0}
+
+/* ---- shell: [sidebar] [main] [chat] ---- */
+.v5-shell:not(.has-side){display:contents}
+body.chat-open .v5-shell:not(.has-side),.v5-shell.has-side{display:flex;align-items:flex-start;background:var(--page);min-height:calc(100vh - var(--top-h))}
+.v5-shell.has-side>main{flex:1 1 0;min-width:0;max-width:none;margin:0;border:0;min-height:calc(100vh - var(--top-h))}
+body.chat-open .v5-shell:not(.has-side)>main{flex:1 1 0;min-width:0;max-width:none;margin:0;border-left:0;min-height:calc(100vh - var(--top-h))}
+body.chat-open .v5-shell>main{max-width:none}
+/* drawer open on a page without sidebar: list | chat = 50/50, edge to edge (no max-width, gutters or side borders) */
+body.chat-open .v5-shell:not(.has-side){max-width:none;width:100%;margin:0;border-left:0;border-right:0;background:none}
+body.chat-open .v5-shell:not(.has-side)>main{border-right:0;border-left:0}
+.v5-shell.has-side>main{border-left:0}
+/* sidebar pages fill the window edge to edge: shell is full width, no max-width, margin or side borders (no body-background gutters) */
+.v5-shell.has-side{width:100%;margin:0}
+
+/* ---- sidebar ---- */
+.v5-side{flex:0 0 var(--side-w);width:var(--side-w);box-sizing:border-box;position:sticky;top:var(--top-h);height:calc(100vh - var(--top-h));overflow:auto;background:var(--subtle);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.vs-head{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px;font-size:var(--fs-s);font-weight:600;color:var(--colh)}
+.vs-head a{font-weight:400;font-size:.75rem;color:var(--accent);text-decoration:none}
+.vs-head a:hover{text-decoration:underline}
+/* the sidebar's own filter box (filterbox(scope="#v5side", cls="vs-filter")): the .fbox wrapper keeps the old box's place */
+.vs-filter{flex:0 0 auto;margin:0 12px 8px;width:calc(100% - 24px);box-sizing:border-box}
+.vs-filter input[type=search]{box-sizing:border-box;height:var(--ctl-h);min-height:var(--ctl-h);padding-left:var(--ctl-pad);font-size:var(--ctl-font);color:var(--fg);background:var(--bg);border:1px solid var(--ctl-line);border-radius:var(--ctl-radius)}
+.vs-filter input[type=search]:focus{outline:0;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.vs-list{display:flex;flex-direction:column;padding-bottom:16px}
+.vs-row{display:flex;align-items:center;gap:8px;min-height:32px;padding:4px 12px 4px 10px;border-left:2px solid transparent;color:var(--fg);text-decoration:none;white-space:nowrap}
+.vs-row:hover{background:var(--hover)}
+.vs-row.on{background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
+.vs-row .dot,.vs-row .vs-sp{flex:0 0 8px;width:8px;height:8px}
+.vs-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.vs-c{flex:0 0 auto;font-size:.75rem;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.vs-row[hidden]{display:none}
+.vs-empty{padding:8px 12px;color:var(--muted);font-size:var(--fs-s)}
+.v5-sidebtn{display:none}
+
+/* ---- chat drawer (right) ---- */
+.v5-chat{flex:0 0 calc(var(--room) * var(--chat-f));min-width:280px;max-width:80%;box-sizing:border-box;position:sticky;top:var(--top-h);height:calc(100vh - var(--top-h));display:none;flex-direction:column;background:var(--page);border-left:1px solid var(--line)}
+body.chat-open .v5-chat{display:flex}
+.vc-head{--vh-ctl:28px;flex:0 0 auto;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 8px 0 12px;background:var(--subtle);border-bottom:1px solid var(--line)}
+.vc-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.vc-kind{font-size:.75rem;color:var(--muted)}
+.vc-sp{flex:0 0 0}
+.vc-head .dot{flex:0 0 8px}
+.vc-full{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--vh-ctl);padding:0 10px;border:1px solid var(--ctl-line);border-radius:var(--ctl-radius);background:var(--subtle);color:var(--fg);font-size:var(--fs-s);text-decoration:none;white-space:nowrap}
+.vc-full:hover{background:var(--hover)}
+.vc-jump{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--ctl-radius);background:none;color:var(--muted);cursor:pointer}
+.vc-jump:hover{background:var(--hover);color:var(--fg)}
+.vc-jump:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.vc-full svg,.vc-close svg,.vc-jump svg{flex:0 0 auto}
+.vc-close{box-sizing:border-box;display:inline-grid;place-items:center;width:var(--vh-ctl);height:var(--vh-ctl);min-width:0;min-height:0;padding:0;border:0;border-radius:var(--ctl-radius);background:none;color:var(--muted);cursor:pointer}
+.vc-close:hover{background:var(--hover);color:var(--fg)}
+/* header layout (one --vh-ctl = zoom / close / Open full / toggle height). Wide: one row. Narrow drawer (container vc, the
+   drawer is resizable): row 1 dot · id · model pill … Open full · ×; row 2 tabs or Resume|Fork left, Detail|Compact (+ text size) right */
+.vc-head .vc-zb,.vc-head .vc-zv{height:var(--vh-ctl);min-height:0;min-width:0}
+.vc-head .vc-zb{width:var(--vh-ctl)}
+@container vc (max-width:899px){
+  .vc-full .vcf-t,.vc-head .vc-zv{display:none}
+  .vc-full{width:var(--vh-ctl);padding:0;border:0;background:none;color:var(--muted)}
+  .vc-full:hover{color:var(--fg)}
+}
+@container vc (max-width:719px){
+  .vc-head{flex-wrap:wrap;gap:0 4px;padding-top:4px}
+  .vc-head .vc-title{flex:0 10 auto;min-width:4em}
+  .vc-head .vc-model{flex:0 1 auto;max-width:none}
+  .vc-head .vc-sp{order:1;flex:1 1 0}
+  .vc-head .vc-acts{order:6;margin:0 0 4px}
+  .vc-head .vc-full{order:3}
+  .vc-head .vc-close{order:4}
+  .vc-head::after{content:"";order:5;flex:0 0 100%;height:0}
+  .vc-head .vc-tabs{order:6;flex:1 1 0;min-width:0;margin:0;align-self:flex-end}
+  .vc-head .vc-tab{padding:0 7px}
+  .vc-head .vc-tools{order:7;margin:0 0 4px auto}
+  .vc-head:has(.vc-tabs[hidden]):has(.vc-acts[hidden])::after{display:none}   /* terminal: nothing for row 2 */
+  .vc-head:has(.vc-tabs[hidden]):has(.vc-acts[hidden]) .vc-tools{order:2;margin:0}
+}
+@container vc (max-width:480px){
+  .vc-head .zoomctl{display:none}
+  .vc-head .vc-acts{gap:4px}
+  .vc-head .vc-acts .vc-act{padding:0 8px}
+}
+.vc-frame{flex:1 1 auto;width:100%;min-height:0;border:0;background:var(--page);color-scheme:light dark}
+.lrow.v5-active,a.arow.v5-active,.tx-row.v5-active,.nrow.v5-active,.nrow.v5-active:hover{background:var(--accent-soft)}
+
+/* ---- embed mode: agent.html inside the drawer ---- */
+.v5-embed .topbar,.v5-embed .tabbar,.v5-embed .moresheet,.v5-embed .agent-head h1,.v5-embed .agent-head .agent-kind{display:none}
+.v5-embed body{background:var(--page)}
+.v5-embed main{border:0;margin:0;padding:8px 12px 0;min-height:0;max-width:none}
+.v5-embed .agent-head{margin:0 0 4px;padding:0;border:0}
+.v5-embed .agent-meta{margin:0 0 6px}
+.v5-embed .chatsplit{display:block}
+.v5-embed #mdpane,.v5-embed .mdpane{display:none}
+
+/* ---- md file popup beside the drawer ---- */
+.v5-md{position:absolute;z-index:45;top:var(--md-top,48px);left:8px;right:8px;height:calc(100% - var(--md-top,48px) - var(--md-bottom,8px));display:flex;flex-direction:column;box-sizing:border-box;padding:0 var(--s3);background:var(--bg);border:1px solid var(--line);border-radius:var(--ctl-radius);box-shadow:0 8px 24px rgb(0 0 0/.18)}
+.v5-md[hidden]{display:none}
+.v5-md .mdpane-b{flex:1 1 auto;max-height:none;min-height:0}
+.v5-md.is-full{inset:0;top:0;right:0;width:auto;height:auto;max-height:none;z-index:60;border:0;border-radius:0;box-shadow:none}
+@media (max-width:699px){.v5-md{inset:0;top:0;right:0;width:auto;height:auto;max-height:none;z-index:60;border:0;border-radius:0;box-shadow:none}}
+
+/* ---- narrower screens ---- */
+@media (max-width:1279px){body.chat-open .v5-side{display:none}body.chat-open{--side-now:0px}}
+@media (max-width:899px){
+  .v5-side{position:fixed;left:0;top:var(--top-h);bottom:0;height:auto;z-index:30;transform:translateX(-101%);visibility:hidden;transition:transform .15s}
+  body.side-open .v5-side{transform:none;visibility:visible}
+  body.side-open::after{content:"";position:fixed;inset:var(--top-h) 0 0 0;z-index:25;background:var(--scrim)}
+  body.side-open .v5-side{z-index:31}
+  .v5-sidebtn{display:inline-flex;align-items:center;gap:6px;height:var(--ctl-h);padding:0 var(--ctl-pad);margin:8px 0 0;border:1px solid var(--ctl-line);border-radius:var(--ctl-radius);background:var(--subtle);color:var(--fg);font-size:var(--ctl-font);cursor:pointer}
+  body.chat-open .v5-side{display:flex}
+}
+@media (max-width:699px){
+  .v5-shell{border-left:0;border-right:0}
+  .v5-chat{position:fixed;inset:0;top:var(--vvt,0);width:auto;height:var(--vvh,auto);min-width:0;max-width:none;z-index:50;border-left:0}
+  .v5-side{top:0;z-index:51}
+  .vc-head{min-height:52px}
+  body.chat-open{overflow:hidden}
+  /* the aside is a full-screen overlay on phones: never let the page behind show through gaps (iOS keyboard / accessory bar) */
+  body.chat-open{background:var(--page)}
+  body.chat-open main,body.chat-open .topbar,body.chat-open .tabbar,body.chat-open .jump-rail.pg-rail{visibility:hidden}
+  .vc-jump{min-height:40px;width:40px}
+}
+@media (max-width:699px),(pointer:coarse){.vc-head{--vh-ctl:40px}}
+@media (prefers-reduced-motion:reduce){.v5-side{transition:none}}
+
+/* ---- shell is a grid child of body (base.css: body grid, header row 1, main row 2) ---- */
+@media (min-width:700px) and (pointer:fine){body>.v5-shell{grid-column:1/-1;grid-row:2;width:100%;justify-self:center}}
+
+/* ---- lists follow the width of the content column, not the window (sidebar / drawer take space) ---- */
+@media (min-width:900px){.v5-shell.has-side>main{container-type:inline-size;container-name:pg}}
+@media (min-width:700px){body.chat-open .v5-shell>main{container-type:inline-size;container-name:pg}}
+/* chat aside open: the window does not scroll; the page column and the aside each scroll on their own (jump rail: jumprail.js) */
+@media (min-width:700px){
+  html:has(body.chat-open){overflow:hidden}
+  body.chat-open .v5-shell>main{height:calc(100vh - var(--top-h));min-height:0;overflow-y:auto;overscroll-behavior:contain}
+}
+/* no sidebar column (720-899): the content column is ~the window, so use the narrow template without a container query */
+@media (min-width:720px) and (max-width:899px){
+  .pg-project .arow .c-start,.pg-project .lhead.arow .c-start,.pg-project .arow .c-msg,.pg-project .lhead.arow .c-msg{display:none}
+  .pg-project .arow,.pg-project .lhead.arow{grid-template-columns:14px minmax(0,1fr) 12em 10em 8em;grid-template-areas:"dot main proj age res"}
+  .pg-project .srow{grid-template-columns:14px minmax(0,1fr) 12em 10em 8em;grid-template-areas:"main main proj age ."}
+}
+@media (min-width:720px){
+  /* the Agents / Ended grids follow the width of their own list (the docs pane takes part of the page column), not of <main>. */
+  .pg-project .list{container:lst/inline-size}
+  /* 7 columns need ~930px plus the msg column; below 1040px use the 5-column set (never run under the row action slot) */
+  @container lst (max-width:1039px){
+    .pg-project .arow .c-start,.pg-project .lhead.arow .c-start,.pg-project .arow .c-msg,.pg-project .lhead.arow .c-msg{display:none}
+    .pg-project .arow,.pg-project .lhead.arow{grid-template-columns:14px minmax(0,1fr) 12em 10em 8em;grid-template-areas:"dot main proj age res"}
+  }
+  @container lst (max-width:639px){
+    .pg-project .arow .c-proj,.pg-project .lhead.arow .c-proj{display:none}
+    .pg-project .arow,.pg-project .lhead.arow{grid-template-columns:14px minmax(0,1fr) 9em 8em;grid-template-areas:"dot main age res"}
+  }
+  @container lst (max-width:519px){
+    .pg-project .arow .c-res,.pg-project .lhead.arow .c-res{display:none}
+    .pg-project .arow,.pg-project .lhead.arow{grid-template-columns:14px minmax(0,1fr) 9em;grid-template-areas:"dot main age"}
+  }
+}
+
+/* ---- embed: one compact head row ---- */
+.v5-embed .agent-head{flex-wrap:nowrap}
+.v5-embed .agent-head .agent-actions{flex:0 1 auto;margin-left:auto}
+.v5-embed .agent-head .agent-actions .button,.v5-embed .agent-head .agent-actions button{height:28px;min-height:28px;padding:0 10px}
+@container pg (max-width:799px){
+  .ntfy-full{display:none}.ntfy-short{display:inline}
+  .ntfy-tag{display:none}
+}
+@media (min-width:720px){@container pg (max-width:799px){.ntfy-row>summary{grid-template-columns:11em minmax(0,1fr)}.ntfy-t{grid-column:2}}}
+@media (max-width:699px){body.side-open::after{inset:0}}
+
+/* ---- sidebar expand / collapse (desktop; phones use the slide-in) ---- */
+.vs-head{gap:8px;justify-content:flex-start}
+.vs-nav .vs-head{justify-content:flex-end}
+.vs-t{flex:1 1 auto}
+.vs-toggle{flex:0 0 auto;display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--ctl-radius);background:none;color:var(--muted);cursor:pointer}
+.vs-toggle:hover{background:var(--hover);color:var(--fg)}
+@media (min-width:900px){
+  .v5-side{transition:flex-basis .15s,width .15s}
+  .side-collapsed{--side-now:44px}
+  .side-collapsed .v5-side{flex-basis:44px;width:44px;overflow:hidden}
+  .side-collapsed .vs-head,.side-collapsed .vs-nav .vs-head{padding:12px 8px 8px;justify-content:center}
+  .side-collapsed .vs-t,.side-collapsed .vs-pdir,.side-collapsed .vs-all,.side-collapsed .vs-filter,.side-collapsed .vs-list{display:none}
+}
+@media (max-width:899px){.vs-toggle{display:none}.vs-grip{display:none}.vs-nav .vs-head{display:none}}
+
+/* ---- sidebar resize handle (desktop; JS-injected sibling after the aside; width set via --side-user from side-init.js / side.js) ---- */
+@media (min-width:900px){
+  .vs-grip{position:sticky;top:var(--top-h);height:calc(100vh - var(--top-h));flex:0 0 8px;width:8px;margin:0 -4px;z-index:6;outline:0}
+  .vs-grip::before{content:"";position:absolute;top:0;bottom:0;left:0;width:8px;cursor:col-resize}
+  .vs-grip::after{content:"";position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .1s;pointer-events:none}
+  .vs-grip:hover::after,.vs-grip.drag::after{background:var(--accent)}
+  .vs-grip:focus-visible::after{background:var(--accent);left:2px;width:3px}
+  .side-collapsed .vs-grip{display:none}
+  body.vs-dragging{cursor:col-resize;user-select:none}
+  body.vs-dragging .v5-side{transition:none}
+  body.vs-dragging iframe{pointer-events:none}
+}
+
+/* pages without a sidebar: main behaves exactly as in v4 until the chat drawer opens */
+@media (min-width:700px) and (pointer:fine){
+  body:not(.chat-open) .v5-shell:not(.has-side)>main{grid-column:1/-1;grid-row:2;width:100%;max-width:960px;justify-self:center;margin:0 auto}
+}
+
+/* ---- tmux: session sidebar + window/pane/agent table ---- */
+.tx-list{--tx-agent:17em}
+.tx-row,.tx-head{display:grid;align-items:center;column-gap:12px;padding:0 12px;min-height:36px;white-space:nowrap}
+.tx-row{border-bottom:1px solid var(--line2);color:var(--fg);text-decoration:none}
+.tx-row>*{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tx-row:hover{background:var(--hover)}
+.tx-w{grid-template-columns:2em 11em 5em 7em minmax(0,1fr) var(--tx-agent)}
+.tx-s{grid-template-columns:minmax(0,1fr) 12em 16em 7em}
+.tx-head .hcell{display:flex;align-items:center;gap:4px}
+.tx-head.tx-w .c-n{justify-content:flex-end}
+.tx-n{text-align:right;font-variant-numeric:tabular-nums}
+.tx-win{color:var(--accent);text-decoration:none}
+.tx-win:hover strong{text-decoration:underline}
+.tx-win strong{font-weight:600}
+/* one colour set everywhere: hover = --hover, selected (open in the drawer) = --accent-soft; nothing else is filled */
+.tx-row.v5-active:hover{background:var(--accent-soft)}
+.c-path a,.c-path>span,.c-path{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.c-path span{overflow:hidden;text-overflow:ellipsis}
+.c-path a{color:var(--muted);text-decoration:none}
+.c-path a:hover{color:var(--accent);text-decoration:underline}
+.tx-ico{flex:0 0 auto;color:var(--ico-dir)}
+.tx-ag{display:flex;align-items:center;gap:8px}
+.tx-ag .dot{flex:0 0 8px}
+.tx-agent{color:var(--fg);text-decoration:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tx-agent strong{font-weight:500}
+.tx-agent:hover{color:var(--accent);text-decoration:underline}
+.tx-ag .kind{flex:0 0 auto}
+.tx-r{text-align:right}
+.tx-s .c-agents{overflow:hidden}
+.tx-view[hidden]{display:none}
+.tx-view .phead{margin-top:12px}
+.tx-view .head-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+@media (min-width:700px){
+  @container pg (max-width:859px){.tx-w{grid-template-columns:2em 10em 5em minmax(0,1fr) 15em}.tx-w .c-cmd{display:none}}
+  @container pg (max-width:679px){.tx-w{grid-template-columns:2em 10em minmax(0,1fr) 15em}.tx-w .c-pane{display:none}.tx-s{grid-template-columns:minmax(0,1fr) 10em 6em}.tx-s .c-agents{display:none}}
+  @container pg (max-width:539px){.tx-w{grid-template-columns:2em minmax(0,1fr) 14em}.tx-w .c-path{display:none}}
+}
+@media (max-width:699px){
+  .tx-w{grid-template-columns:2em minmax(0,1fr) minmax(0,12em)}
+  .tx-w .c-pane,.tx-w .c-cmd,.tx-w .c-path{display:none}
+  .tx-s{grid-template-columns:minmax(0,1fr) 7em}.tx-s .c-agents,.tx-s>.muted:nth-child(2){display:none}
+  .tx-row{min-height:44px}
+}
+.tx-s .stamp{display:none}
+
+/* embed: terminal page inside the drawer */
+.v5-embed .termpage main{padding:8px 12px;max-width:none}
+.v5-embed .term{display:flex;flex-direction:column;height:calc(100vh - 16px)}
+.v5-embed .term-back{display:none}
+.v5-embed .term-head .term-name{font-size:.9375rem}
+.v5-embed .termpage .term-scroll{height:auto;flex:1 1 auto}
+.vc-kind{white-space:nowrap;flex:0 0 auto}
+.vc-kind:empty{display:none}
+.vc-ico{flex:0 0 auto;display:inline-flex;color:var(--muted)}
+.vc-ico[hidden]{display:none}
+@media (max-width:699px){.vc-kind,.vc-full,.agent-actions .button.bld-link,.agent-head .agent-actions .button.bld-link,.cstat .agent-actions .button.bld-link{display:none}}
+
+
+/* tmux overview: the session name is a link to /tmux/{id} (the row keeps its accordion + kill controls) */
+.pg-tmux .sess-link{color:inherit;text-decoration:none}
+.pg-tmux .sess-link:hover{color:var(--accent);text-decoration:underline}
+
+/* terminal inside the drawer: the drawer head already has Open full / close */
+.v5-embed .term-back{display:none}
+
+/* ---- drawer resize handle (left edge, desktop); width saved by drawer.js ---- */
+.vc-resize{display:none}
+@media (min-width:700px) and (pointer:fine){
+  .vc-resize{display:block;position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:5;touch-action:none}
+  .vc-resize::after{content:"";position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .1s;pointer-events:none}
+  .vc-resize:hover::after,.vc-resize.on::after{background:var(--accent)}
+  body.vc-dragging{cursor:col-resize;user-select:none}
+  body.vc-dragging .vc-frame,body.vc-dragging iframe{pointer-events:none}
+}
+
+/* ---- sticky header: sidebar / drawer stick at --top-h, so the header must stay pinned or a --top-h gap opens when scrolling ---- */
+@media (min-width:700px) and (pointer:fine){
+  html:not(.v5-embed) body{grid-template-rows:var(--top-h) auto}
+  html:not(.v5-embed) body::before,html:not(.v5-embed) .topbar .brand,html:not(.v5-embed) .topbar>span,html:not(.v5-embed) .tabbar{grid-row:1/3;align-self:start;position:sticky;top:0;height:var(--top-h);z-index:40;display:flex;align-items:center;box-sizing:border-box}
+  html:not(.v5-embed) body::before{z-index:39}
+}
+
+/* ---- launch popup (launchpop.js): a pmDialog frame dialog (popup.css .pmdlg-frame) around /p/<name>/launch?embed=1 ---- */
+dialog.pmdlg.launchpop{width:min(640px,96vw);height:min(760px,92vh);max-height:none}
+.lp-proj{margin:0 auto 0 8px;color:var(--muted);font-weight:400}  /* a class, not style=: innerHTML style attributes break the CSP */
+.v5-embed main{max-width:none}
+
+/* ---- stable header across page loads (2026-10-09): no jump when switching tabs ---- */
+/* a classic scrollbar on tall pages (servers) but not short ones shrank the viewport 15px and shifted the right-hand topbar buttons */
+html{scrollbar-gutter:stable}
+@media (min-width:700px) and (pointer:fine){html{overflow-y:scroll}}
+/* desktop tab links: the active one was bolder (wider), so every link after it moved; keep one weight, the underline marks the page.
+   The inbox badge appears/changes after load and on every read/click: take it out of flow so Inbox (and the tabs after it) never resize. */
+@media (min-width:700px) and (pointer:fine){
+  .tabbar a.on{font-weight:inherit}
+  .tabbar a[href="/"]{position:relative}
+  /* fixed slot to the right of the label (reserved even at count 0) holds the badge, so it never overlaps "Inbox" and never changes widths */
+  .tabbar a[href="/"]{padding-right:36px;box-sizing:border-box}
+  .tabbar a[href="/"] .tabbadge{position:absolute;top:50%;right:4px;transform:translateY(-50%);margin:0;line-height:16px;min-width:16px;padding:0 5px;font-size:.6875rem;text-align:center;pointer-events:none}
+}
+
+/* drawer header: raw agent id and the one model pill (.kpill.kp-model, agent_head mode aside); one line, truncate when narrow */
+.vc-title{flex:0 1 auto;min-width:5.5em}
+.vc-head .vc-model{flex:0 3 auto;min-width:0;max-width:11em;margin:0;overflow:hidden;text-overflow:ellipsis}
+.vc-head .vc-model[hidden]{display:none}
+
+/* project page tmux rows: session | all windows (wrap, never cut) | attached; phone: windows under the name */
+.pg-project .srow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main act" "wins wins";align-items:baseline;row-gap:2px;line-height:1.45}
+.pg-project .srow .c-main{grid-area:main}
+.pg-project .srow .c-att{font-weight:400;white-space:nowrap}
+.pg-project .srow .c-wins{grid-area:wins;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 14px;align-items:baseline;min-width:0;overflow:hidden;white-space:nowrap}
+.pg-project .srow .swin{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden;white-space:nowrap}
+.pg-project .srow .swin .widx{flex:none;min-width:1.6em;font-variant-numeric:tabular-nums}
+.pg-project .srow .swin .wn{color:var(--fg);min-width:0;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+.pg-project .list:has(>.srow){container-type:inline-size;container-name:srow}
+@container srow (min-width:480px){.pg-project .srow .c-wins{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container srow (min-width:720px){
+  .pg-project .srow{grid-template-columns:minmax(24em,32em) minmax(0,1fr) auto;grid-template-areas:"main wins act"}
+}
+
+/* agent kind colour = WHO (docs/mock/v5/pages/agent-colors.html); state dots/badges keep WHAT. Tokens: tokens.css --k-*. */
+.vc-head[data-kind]{box-shadow:inset 0 3px 0 var(--k)}
+.agent-head[data-kind] .at-ico{color:var(--k)}
+.agent-head[data-kind] .agent-kind{color:var(--k)}
+.chat-bubble.role-assistant[data-kind]{border-left:3px solid var(--k)}
+.chat-bubble.role-assistant[data-kind] .chat-meta strong{color:var(--k)}
+.tx-ag[data-kind] .aname{color:var(--k)}
+.ntfy-agent[data-kind]{padding-left:6px}
+body:not(.embed) .agent-head[data-kind]{border-top:3px solid var(--k);padding-top:6px}
+/* agent ids / links that carry data-kind outside rows (ntfy, audit, launch lists, library): kind colour = who */
+.agid[data-kind],a[data-kind]:not(.lrow):not(.nrow):not(.hist-row):not(.vs-row):not(.tx-agent):not(.ntfy-agent):not(.kpill){color:var(--k)}
+/* assistant name = the model id (lowercase as stored); user bubble is half the page */
+.chat-bubble.role-assistant .chat-meta strong{text-transform:none}
+@media (min-width:700px){.chat-bubble.role-user{width:50%;max-width:none;box-sizing:border-box}}
+.c-agents .kpill{margin-left:0}
+
+/* ---- nav sidebar (pages without a contextual list) + sidebar foot (theme, settings, reload, log out) ---- */
+.vs-sub{padding-left:28px;min-height:28px;font-size:var(--fs-s);color:var(--muted)}
+.vs-sub:hover{color:var(--fg)}
+.vs-foot{flex:0 0 auto;margin-top:auto;display:flex;flex-direction:column;padding:6px 0;border-top:1px solid var(--line)}
+.vs-foot form{display:block;margin:0}
+.vs-fb{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;box-sizing:border-box;min-height:32px;padding:4px 12px 4px 10px;border:0;border-left:2px solid transparent;border-radius:0;background:none;color:var(--fg);font:inherit;font-size:var(--fs-s);text-align:left;text-decoration:none;cursor:pointer}
+.vs-fb:hover{background:var(--hover);text-decoration:none}
+.vs-fb.on{background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
+.vs-fb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.vs-fb .hi{flex:0 0 16px;color:var(--muted)}
+.vs-foot .i-sun{display:none}
+:root[data-theme="dark"] .vs-foot .i-sun{display:inline}:root[data-theme="dark"] .vs-foot .i-moon{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme]) .vs-foot .i-sun{display:inline}:root:not([data-theme]) .vs-foot .i-moon{display:none}}
+.side-collapsed .vs-foot,.side-collapsed .vs-sub,.side-collapsed .vs-isub,.side-collapsed .vs-proj,.side-collapsed .vs-pt{display:none}
+.vs-rw{position:relative;display:flex}
+.vs-rw>.vs-row{flex:1 1 auto;min-width:0;padding-right:36px}
+.vs-pt{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--ctl-radius);background:none;color:var(--muted);cursor:pointer}
+.vs-pt:hover{background:var(--hover);color:var(--fg)}
+.vs-pt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.vs-pt .vs-chev{transition:transform .15s}
+.vs-pclosed .vs-pt:not(.vs-it) .vs-chev{transform:rotate(-90deg)}
+.vs-pclosed .vs-proj{display:none}
+/* Inbox views fold: server renders .vs-iclosed off the Inbox pages; side-init.js html.ib-0 / ib-1 = this tab's manual override pre-paint */
+.vs-iclosed .vs-isub,html.ib-0 .vs-isub{display:none}
+.vs-iclosed .vs-it .vs-chev,html.ib-0 .vs-it .vs-chev{transform:rotate(-90deg)}
+html.ib-1:not(.side-collapsed) .vs-iclosed .vs-isub{display:block}
+html.ib-1 .vs-iclosed .vs-it .vs-chev{transform:none}
+.vs-allp{color:var(--muted);font-size:var(--fs-sm,12px)}
+.vs-proj{padding:2px 0 6px 18px}
+/* pre-paint manual override from side-init.js (dropped by side.js once the aside carries the state) */
+html.pj-1:not(.side-collapsed) .vs-pclosed .vs-proj{display:block}
+html.pj-0 .vs-proj{display:none}
+html.pj-1 .vs-pclosed .vs-pt:not(.vs-it) .vs-chev{transform:none}
+html.pj-0 .vs-pt:not(.vs-it) .vs-chev{transform:rotate(-90deg)}
+.vs-prow{padding-left:10px}
+.vs-ps{flex:0 0 8px;width:8px;height:8px}
+.vs-proj .vs-list{padding-bottom:0}
+@media (prefers-reduced-motion:reduce){.vs-pt .vs-chev{transition:none}}
+.v5-side:not(.ts-side) .vs-list{flex:0 0 auto}
+@media (max-width:899px){.vs-fb{min-height:var(--ctl-h)}.vs-sub{min-height:var(--ctl-h)}}
+.topbar .tb-stop:hover{color:var(--failed)}
+@media (max-width:559px){.topbar .toplink,.topbar .linkbtn{width:38px;min-width:0;padding:0}}
+
+/* scroll chaining (2026-10-11): every independently scrolling region keeps its wheel/touch scroll to itself, so the page behind
+   (and the parent page of the embedded chat) does not move at its top/bottom. The framed chat page's own root scroller included. */
+html.v5-embed,html.v5-embed body,.v5-chat,.v5-side,.v5-md,.v5-md .mdpane-b,.mdpane-b,.ts-body,.dirty-files,.stop-targets,.slash-list,
+.composer .tokbar .stats-panel,.pj-doc pre,.pj-body pre,.moresheet,dialog.pmdlg,.pmdlg,.term-scroll,
+.term-screen,.term-hist,.pane,.pg-plans .plan-doc,.vc-tabs,.tabs{overscroll-behavior:contain}

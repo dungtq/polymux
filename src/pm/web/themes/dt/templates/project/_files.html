@@ -1,0 +1,10 @@
+{#- dt project view, Files tab (PRD §6.4): the core's read-only browser fragment GET /p/<name>/files?path=&raw=&diff=
+    (dt _project_files.html: tree, breadcrumb, the listing as a grid table, the file views), loaded into .pj-fbody the
+    first time the tab shows (js/project.js on pm7:pj-tab {key: "files"}). Links inside it (a[data-pj-in]) load in
+    place and keep the path in the URL hash (#tab=files&path=...). At the root the project README follows the listing
+    (GET /p/<name>/view/readme = dt _project_doc.html, loaded once; hidden when there is none). The classic parts of
+    both fragments (file view, the rendered README) carry their own .x-cl box (PARTS.md §1). -#}
+<div class="pj-files" data-pj-files="{{ v.base }}/files" data-pj-readme="{{ v.base }}/view/readme">
+  <div class="pj-fbody" data-pj-fbody aria-live="polite"><p class="muted">Loading the files&hellip;</p></div>
+  <section class="pj-freadme" data-pj-freadme aria-label="README" hidden></section>
+</div>

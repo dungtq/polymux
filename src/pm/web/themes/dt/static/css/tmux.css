@@ -1,0 +1,53 @@
+/* dt tmux page (PRD.md §6.6, LAYOUT.md §5; prefix tm-, never t-: DESIGN §2): the sessions table's and the
+   windows table's column templates and the page's own cell looks. Markup: templates/tmux.html, _tmux_list.html,
+   _tmux_session_rows.html; parts: css/parts.css, css/table.css; dialog frame: css/layers.css (.x-dlg). Tokens only.
+   Columns (one track per cell, in cell order):
+     sessions  dot · Session · Windows · Clients (hide-n) · Agents (hide-s) · Active · actions
+     windows   dot · Window · Pane (hide-n) · Command · Path (hide-n) · Agent (hide-s) · actions
+   L-6: the Session / Window name is the flexible column and keeps its minimum; Clients, Pane and Path drop at a
+   760px page column, Agents at 520px. */
+
+/* ---------- column templates ---------- */
+.tm-list{--g-cols:var(--dot) minmax(9rem,1.4fr) auto auto minmax(8rem,1fr) auto auto;
+  --g-cols-n:var(--dot) minmax(8rem,1.4fr) auto minmax(7rem,1fr) auto auto;
+  --g-cols-s:var(--dot) minmax(7rem,1fr) auto auto auto}
+.tm-wins{--g-cols:var(--dot) minmax(8rem,1fr) auto fit-content(10rem) minmax(0,1.5fr) minmax(7rem,1fr) auto;
+  --g-cols-n:var(--dot) minmax(8rem,1fr) fit-content(8rem) minmax(7rem,1fr) auto;
+  --g-cols-s:var(--dot) minmax(6rem,1fr) fit-content(6rem) auto}
+
+/* ---------- head, errors ---------- */
+.tm-errs{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);margin:0 0 var(--s3);color:var(--failed);
+  font-size:var(--fs-ui)}
+
+/* ---------- session name: lock (protected / pm's own) after the name, so every name starts in the same place;
+   pm chip ---------- */
+.tm-lock{display:inline-flex;flex:0 0 auto;color:var(--muted)}
+.tm-lock>svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+
+/* ---------- agents cell: first agent (dot + id, opens the chat aside) and "+N" ---------- */
+.tm-ags{display:flex;align-items:center;gap:var(--s2);min-width:0}
+.tm-ag{display:inline-flex;align-items:center;gap:var(--s2);min-width:0;overflow:hidden;color:var(--fg);
+  text-overflow:ellipsis;white-space:nowrap}
+.tm-ag:hover{color:var(--accent)}
+.tm-more{flex:0 0 auto;font-variant-numeric:tabular-nums}
+
+/* ---------- windows (row details): a nested grid table, then the note ---------- */
+.p-det .tm-wins{margin:0}
+.tm-wi{flex:0 0 var(--s4);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.tm-w .gc-nm>.chip{font-weight:400}
+.tm-path{direction:rtl;text-align:left}
+.tm-path>span{unicode-bidi:plaintext}
+.tm-note{gap:var(--s1) var(--s2)}
+.tm-note>svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+.tm-note code{font-size:var(--fs-xs);overflow-wrap:anywhere}
+
+/* ---------- New session dialog (frame: .x-dlg) ---------- */
+.tm-new .tm-hint{color:var(--muted);font-size:var(--fs-s)}
+.tm-err{margin:var(--s2) 0 0;color:var(--failed);font-size:var(--fs-ui)}
+
+/* ---------- phone (< 700px): two-line rows (table.css); the windows table sits in the details, framed ---------- */
+@media (max-width:699px){
+  .p-det .tm-wins{margin:0;border:1px solid var(--line);border-radius:var(--r)}
+  .tm-wins .p-gr{padding-left:var(--s3)}
+  .tm-note>span[aria-hidden]{display:none}
+}

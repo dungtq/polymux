@@ -1,0 +1,16 @@
+{# Chat chrome shared by the agent page (live, ended) and the chat aside (_drawer.html): the jump rail, the chat text size
+   control and the head tools (Detail|Compact + text size). Behaviour: jumprail.js / drawer.js (rail), chat-items.js (zoom). #}
+{% from "_chatview.html" import chatview %}
+{# Floating Jump to top / bottom rail. top_id/bottom_id: the aside's own buttons (drawer.js binds #vc-top / #vc-bottom);
+   unset: the page's buttons (data-page-jump, jumprail.js). #}
+{% macro jump_rail(top_id=None, bottom_id=None) -%}
+<div class="jump-rail" role="group" aria-label="Scroll the chat"><button type="button" class="vc-jump"{% if top_id %} id="{{ top_id }}"{% else %} data-page-jump="top"{% endif %} title="Jump to top" aria-label="Jump to top"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h14M6 19l6-6 6 6M6 12.5l6-6 6 6"/></svg></button><button type="button" class="vc-jump"{% if bottom_id %} id="{{ bottom_id }}"{% else %} data-page-jump="bottom"{% endif %} title="Jump to bottom" aria-label="Jump to bottom"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5h14M6 11l6 6 6-6M6 4.5l6 6 6-6"/></svg></button></div>
+{%- endmacro %}
+{# Chat text size: smaller / reset (auto) / larger (data-chat-zoom). id: the aside's (drawer.js hides it for a terminal). #}
+{% macro zoomctl(id=None) -%}
+<span class="zoomctl"{% if id %} id="{{ id }}"{% endif %} role="group" aria-label="Chat text size"><button type="button" class="vc-zb" data-chat-zoom="-1" title="Smaller chat text" aria-label="Smaller chat text"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 19l6-12 6 12M8.5 14.5h7"/></svg></button><button type="button" class="vc-zv" data-chat-zoom="0" title="Chat text size (click to reset)" aria-label="Reset chat text size"><span data-chat-zoom-val>auto</span></button><button type="button" class="vc-zb" data-chat-zoom="1" title="Larger chat text" aria-label="Larger chat text"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20L12 3l9 17M6.5 14h11"/></svg></button></span>
+{%- endmacro %}
+{# Head tools of the agent page: Detail|Compact, then the text size. #}
+{% macro jumpzoom() -%}
+{{ chatview() }}{{ zoomctl() }}
+{%- endmacro %}

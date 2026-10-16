@@ -1,0 +1,49 @@
+{#- dt Backlog: the TODO component (PRD.md §6.5), on the Backlog page and the project view's TODO tab
+    (project/_tab_todo.html, scope=project). `bl` = dt_backlog(). One table: tick · task · project · section
+    (Group: none) · # (only when some listed task has a tracker number: bl.todo_nums; else .bl-nonum) · Dispatch + ⋯; bands per project (page scope, Group: project) with a band per section inside (the
+    project scope: section bands only). The filter box is client-side over the rows (data-p-q: #, task, project,
+    section). Rows: data-row-id "<project>:t<num>" (tracker) | "<project>:l<line>" (TODO.md); data-bl-line /
+    data-bl-text = what POST /p/{n}/todo/toggle checks; data-bl-ix = the open-item index of POST /p/{n}/dispatch (and
+    pm7.launch.open({project, todo})). js/backlog.js: tick (button[data-bl-tick], E, event bl:tick), Dispatch. -#}
+{%- import "backlog/_bar.html" as bb with context -%}
+{%- import "parts/_table.html" as tb -%}
+{%- import "parts/_menu.html" as pm -%}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+{%- set flat = bl.st.scope == "page" and bl.st.group == "none" -%}
+{%- macro trow(r) -%}
+{% call tb.row(r.id, cls="bl-row bl-trow" ~ (" bl-done" if r.done else ""), q=r.q, title=r.text, attrs=r.attrs) %}
+<span class="gc-dot bl-tickc" role="cell"><button class="bl-tick{{ ' on' if r.done }}" type="button" role="checkbox" aria-checked="{{ 'true' if r.done else 'false' }}" data-bl-tick aria-label="{{ 'Reopen' if r.done else 'Tick' }}: {{ r.text | truncate(60, true, '…') }}" title="{{ 'Reopen' if r.done else 'Tick (done)' }}">{% if r.done %}<svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}check"/></svg>{% endif %}</button></span>
+<span class="gc-nm" role="cell"><span class="nm bl-t">{{ r.html | safe }}</span></span>
+{%- if flat %}{% call tb.cell("hide-n muted") %}{{ r.project }} · {{ r.section }}{% endcall %}{% endif %}
+{%- if bl.todo_nums %}<span class="gc-end" role="cell">{% if r.num %}#{{ r.num }}{% endif %}</span>{% endif %}
+{% call tb.meta() %}{{ r.meta }}{% endcall %}
+{% call tb.acts() %}
+  {%- if r.index is not none %}<button class="x-btn sm" type="button" data-bl-run="dispatch" title="Start an agent on this task"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}send"/></svg><span class="bl-lb">Dispatch</span></button>{% endif %}
+  {{- pm.menu(r.menu, label="Actions for " ~ (r.text | truncate(40, true, "…"))) }}
+{% endcall %}
+{% endcall %}
+{%- endmacro -%}
+{%- macro sections(g) -%}
+{%- for s in g.sections %}
+{% call tb.group(s.key, s.heading, note=s.note, cls="bl-sec") %}{% for r in s.items %}{{ trow(r) }}{% endfor %}{% endcall %}
+{%- endfor %}
+{%- endmacro -%}
+{% call bb.root("bl-todo") %}
+{{ bb.top() }}
+{{ bb.tools() }}
+{% call tb.table("bl-todo-" ~ bl.st.scope, "TODO tasks", cls="bl-td" ~ (" bl-flat" if flat else "") ~ ("" if bl.todo_nums else " bl-nonum"), list="bl-todo",
+                 keys={"e": "event:bl:tick"}, labels={"e": "Tick / reopen"}) %}
+{{ tb.gh([{"sr": "Done"}, {"label": "Task"}] + ([{"label": "Project · section", "cls": "hide-n"}] if flat else [])
+         + ([{"label": "#", "num": true}] if bl.todo_nums else []) + [{"sr": "Actions"}]) }}
+{%- for g in bl.todo %}
+{%- if flat %}{% for s in g.sections %}{% for r in s.items %}{{ trow(r) }}{% endfor %}{% endfor %}
+{%- elif bl.st.scope == "project" %}{{ sections(g) }}
+{%- else %}
+{% call tb.group(g.key, g.name, count=g.note) %}{{ sections(g) }}{% endcall %}
+{%- endif %}
+{%- endfor %}
+{{ bb.empty() }}
+{{ tb.empty("No task matches.", fnone=true) }}
+{% endcall %}
+{{ bb.foot("tasks") }}
+{% endcall %}

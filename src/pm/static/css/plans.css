@@ -1,0 +1,41 @@
+/* Plans pages (list, view, edit). Uses v4 tokens only. */
+.pg-plans .pl-row{display:grid;grid-template-columns:minmax(0,1fr) 10em 6em 8em;gap:12px;align-items:center;min-height:var(--ctl-h)}
+.pg-plans .pl-row>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-plans .pl-s,.pg-plans .pl-a{text-align:right}
+.pg-plans .pl-empty{padding:12px 0}
+.pg-plans .pl-form{display:flex;flex-direction:column;gap:8px;max-width:60em}
+.pg-plans .pl-form textarea{width:100%;font-family:var(--mono,ui-monospace,monospace);font-size:var(--fs-s,13px);min-height:12em;resize:vertical}
+.pg-plans .pl-acts{display:flex;gap:8px;align-items:center;margin:8px 0}
+.pg-plans .pl-err{color:var(--failed);margin:8px 0}
+.pg-plans .pl-ok{color:var(--running);margin:8px 0}
+.pg-plans .plan-doc{border:1px solid var(--line);border-radius:var(--box-r);padding:12px 16px;background:var(--bg);overflow-wrap:anywhere}
+.pg-plans .plan-doc pre{overflow:auto}
+.pg-plans .plan-doc.is-full{position:fixed;inset:0;z-index:60;border-radius:0;border:0;padding:52px max(16px,calc((100vw - 60em)/2)) 24px;overflow:auto}
+html.plan-full{overflow:hidden}
+.pg-plans .pl-more{margin-top:16px}
+.pg-plans .pl-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.pg-plans .pl-inline input[name=new_name]{min-width:16em}
+@media (max-width:699px){
+  .pg-plans .pl-row{grid-template-columns:minmax(0,1fr) 5em}
+  .pg-plans .pl-s,.pg-plans .pl-l{display:none}
+  .pg-plans .pl-inline input[name=new_name]{min-width:0;flex:1}
+}
+html.plan-full [data-plan-full]{position:fixed;top:10px;right:14px;z-index:61}
+/* plan in the right-hand drawer (project page, ?embed=1): the drawer head already names it */
+.v5-embed .pg-plans .pl-title{display:none}
+.v5-embed .pg-plans .plan-doc{border:0;padding:0 0 16px;background:none}
+.pg-plans li.v5-active{background:var(--accent-soft)}
+.pj-planview[hidden]{display:none}
+.pj-planview iframe{width:100%;border:0;display:block;margin-top:6px;background:var(--page)}
+#pj-p-plans [hidden]{display:none!important}
+dialog.plans-dlg{width:min(860px,calc(100vw - 24px));height:min(82vh,900px);padding:0;overflow:hidden;position:relative}
+dialog.plans-dlg[open]{display:block}
+dialog.plans-dlg iframe{width:100%;height:100%;border:0;display:block;background:var(--page)}
+.plans-dlg-x{position:absolute;top:8px;right:12px;z-index:1}
+.v5-embed .pg-plans{padding-top:30px}
+/* text size: same control and saved size as the markdown viewer (fonts.js mdSize -> --md-size); sits at the right of the action row */
+.pg-plans .plan-doc{font-size:var(--md-size,inherit)}
+.pg-plans .pl-acts .zoomctl{order:2;margin:0 0 0 auto;padding:0;border:0}
+.pg-plans .pl-acts .zoomctl+*{order:1}
+.pg-plans .pl-acts .vc-zb,.pg-plans .pl-acts .vc-zv{height:28px}
+.pg-plans .pl-acts .vc-zb{width:28px;padding:0}

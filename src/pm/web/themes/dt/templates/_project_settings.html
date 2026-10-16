@@ -1,0 +1,49 @@
+{#- dt override of the core's project settings panel (GET /p/<name>/settings/panel; the answer of POST
+    /p/<name>/settings and /settings/links: the same panel with flash "Saved." or "Refused: ..."). Context: project,
+    csrf, base, ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, git_html (the dt
+    _git_remotes.html), flash. Opened in the project view's reader aside by the head's Settings button or #settings
+    (js/pjsettings.js; css/project.css .pjs). Three blocks: Show (the components; a hidden one leaves the project
+    view: tabs, Docs choices, the tmux tab), Default branch + VM names, Git remotes (the remotes panel), Workspace
+    (linked projects: the links row under the head; one per row, the full name, wrapped on phones). Forms post with pm7.fetch (no htmx), the flash decides the toast
+    (data-pjs-flash ok | bad; screen-reader only, the toast shows it); a save that changes what the page shows reloads
+    it and reopens this panel. Labels of the components: dt_project("panels") (pm.web.dt.project.Panels). -#}
+{%- set panels = dt_project("panels") -%}
+{%- set labels = panels.labels if panels else {} -%}
+{%- set ok = flash == "Saved." -%}
+<div id="pj-settings" class="pjs" data-pjs="{{ base }}">
+{%- if flash %}
+<p class="vh" role="status" data-pjs-flash="{{ 'ok' if ok else 'bad' }}">{{ flash }}</p>
+{%- endif %}
+<form class="pjs-form" method="post" action="{{ base }}/settings" data-pjs-form="settings">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2 class="p-h2">Show <span class="note">parts of the project view</span></h2>
+  <div class="pjs-grid">
+    {%- for c in components %}
+    <label class="p-chk"><input type="checkbox" name="show" value="{{ c }}"{% if c not in ps.hidden %} checked{% endif %}><span>{{ labels.get(c, c) }}</span></label>
+    {%- endfor %}
+  </div>
+  <label class="pjs-l" for="pjs-branch">Default branch</label>
+  <input id="pjs-branch" class="x-in mono" name="default_branch" value="{{ ps.default_branch }}" maxlength="100" placeholder="auto" autocomplete="off" spellcheck="false" aria-describedby="pjs-branch-h">
+  <p class="pjs-hint" id="pjs-branch-h">Empty: the repository's own default.</p>
+  <label class="pjs-l" for="pjs-vms">VM names</label>
+  <textarea id="pjs-vms" class="x-in mono" name="vms" rows="3" maxlength="1400" placeholder="lab-*" autocomplete="off" spellcheck="false" aria-describedby="pjs-vms-h">{{ ps.vms | join("\n") }}</textarea>
+  <p class="pjs-hint" id="pjs-vms-h">One VM name pattern per line (* and ? allowed). The VMs tab lists only matching VMs.</p>
+  <div class="pjs-ft"><button class="x-btn" type="submit">Save</button></div>
+</form>
+<h2 class="p-h2">Git remotes</h2>
+{{ git_html | safe }}
+<h2 class="p-h2">Workspace <span class="note">linked projects get a link under the head</span></h2>
+{%- if choices %}
+<form class="pjs-form" method="post" action="{{ base }}/settings/links" data-pjs-form="links">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="pjs-grid pjs-links">
+    {%- for n in choices %}
+    <label class="p-chk"><input type="checkbox" name="link" value="{{ n }}"{% if n in ps.links %} checked{% endif %}><span class="mono ell" title="{{ n }}">{{ n }}</span></label>
+    {%- endfor %}
+  </div>
+  <div class="pjs-ft"><button class="x-btn" type="submit">Save links</button></div>
+</form>
+{%- else %}
+<p class="pjs-hint">No other projects.</p>
+{%- endif %}
+</div>

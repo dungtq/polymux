@@ -1,0 +1,39 @@
+{#- dt Servers › Resources (PRD §6.9): summary meters, then ONE table (the group chosen in the controls row: Programs,
+    tmux sessions, Containers, VMs), sorted by a header click, top 10 + "Show all". Programs: ⋯ Stop all / Kill all
+    (typed program name) and the processes in the row details, each with its own ⋯ (Stop / Kill typed with the pid,
+    Pause / Resume). Overrides the core's _resources.html (included by _servers.html; v = dt_servers()). -#}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}{%- import "parts/_meter.html" as pmt -%}
+{%- set r = v.res %}
+{{ pmt.meters(r.meters, label="Resource summary") }}
+{% call tb.table("sv-res-" ~ r.group, r.title, cls="sv-res", list="sv-res" if r.rows else none,
+                 keys={"enter": "det"} if r.group == "programs" else none,
+                 labels={"enter": "Processes"} if r.group == "programs" else none) %}
+  {%- if r.rows %}{{ tb.gh(r.cols, sort=r.sort) }}{% endif %}
+  {%- for x in r.rows %}
+  {% call tb.row(x.name, cur=loop.first, q=x.name, title=x.name ~ ": " ~ x.meta) %}
+    {% call tb.name(x.name) %}{% endcall %}
+    {% call tb.cell("hide-s muted", num=true) %}{{ x.n }}{% endcall %}
+    {% call tb.cell("hide-s", num=true) %}{{ x.cpu }}{% endcall %}
+    <span class="gc-end" role="cell">{{ x.ram }}{{ pmt.bar(x.share, inline=true) }}</span>
+    {% call tb.meta() %}{{ x.meta }}{% endcall %}
+    {% call tb.acts() %}
+      {%- if x.procs %}{{ tb.det_btn("sv-res-" ~ r.group, x.name, label=x.name) }}{% endif -%}
+      {{ pm.menu(x.menu, label="Actions for " ~ x.name) }}
+    {% endcall %}
+  {% endcall %}
+  {%- if x.procs %}
+  {% call tb.det("sv-res-" ~ r.group, x.name, label=x.name) %}
+    <ul class="sv-procs" aria-label="Processes of {{ x.name }}">
+      {%- for p in x.procs %}
+      <li><span class="mono">{{ p.pid }}</span><span class="d muted" title="{{ p.desc }}">{% if p.paused %}<span class="chip warn">paused</span> {% endif %}{{ p.desc }}</span><span class="num">{{ p.cpu }}</span><span class="num muted">{{ p.ram }}</span>{{ pm.menu(p.menu, label="Actions for pid " ~ p.pid) }}</li>
+      {%- endfor %}
+    </ul>
+    {%- if x.more > 0 %}<p class="sv-note">The {{ x.procs | length }} largest of {{ x.procs | length + x.more }} processes; Stop all / Kill all in ⋯ reach every one.</p>{% endif %}
+  {% endcall %}
+  {%- endif %}
+  {%- endfor %}
+  {%- if not r.rows %}{{ tb.empty(r.text) }}{% endif %}
+  {{ tb.empty("Nothing matches the filter.", fnone=true) }}
+{% endcall %}
+{{ tb.foot(r.shown, r.total, more_href=r.all_href, noun=r.title | lower) }}
+<p class="p-foot">{{ r.foot }}</p>

@@ -1,0 +1,31 @@
+{# "Show" dropdown (10/20/50/All) bound to the surrounding GET form via name=n; lists.js submits on change.
+   sel = a class for a browser-side Show (no name, no data-nav: the page's script applies it, e.g. ntfy's "ntfy-n"). #}
+{% macro showsel(links, sel="") %}
+<label class="sel sel-show"><span class="muted">Show</span>
+  {% if sel %}<select class="{{ sel }}" aria-label="Rows shown">{% else %}<select name="n" data-nav aria-label="Rows to show">{% endif %}{% for l in links %}<option value="{{ l.key }}"{% if l.active %} selected{% endif %}>{{ l.label }}</option>{% endfor %}</select></label>
+{% endmacro %}
+
+{# Bottom copy of the Show control: its own GET form (keeps q/sort/f as hidden inputs) + "showing X of Y".
+   Without a path it is the browser-side variant (ntfy): a <footer> kept across refreshes (hx-preserve, needs id), the
+   count line left empty for the page's script (count = its extra class) and showsel(links, sel). #}
+{% macro limitbar(links, shown, total, path, hidden=[], cls="", id="", sel="", count="") %}
+{% if path %}<form class="showbar" method="get" action="{{ path }}">
+  {% for k, v in hidden %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <span class="limitcount muted small">showing {{ shown }} of {{ total }}</span>
+  {{ showsel(links) }}<noscript><button type="submit" class="small">Go</button></noscript>
+</form>{% else %}<footer class="showbar {{ cls }}" id="{{ id }}" hx-preserve="true">
+  <span class="limitcount {{ count }} muted small" aria-live="polite"></span>
+  {{ showsel(links, sel) }}
+</footer>{% endif %}
+{% endmacro %}
+
+{# Newer / older pager under a long table (Audit, Client errors). newer / older = the page URL, or empty (shown
+   disabled). target set: the links fetch with htmx into it (outerHTML) instead of navigating. #}
+{% macro pager(page, newer, older, label="Pages", target="") %}
+<div class="aud-pager" role="group" aria-label="{{ label }}">
+  {{ _pglink(newer, "&larr; newer" | safe, target) }}
+  <span class="small muted">page {{ page }}</span>
+  {{ _pglink(older, "older &rarr;" | safe, target) }}
+</div>
+{% endmacro %}
+{% macro _pglink(url, text, target) %}{% if not url %}<span class="aud-chip off">{{ text }}</span>{% elif target %}<a class="aud-chip" href="#" hx-get="{{ url }}" hx-target="{{ target }}" hx-swap="outerHTML">{{ text }}</a>{% else %}<a class="aud-chip" href="{{ url }}">{{ text }}</a>{% endif %}{% endmacro %}

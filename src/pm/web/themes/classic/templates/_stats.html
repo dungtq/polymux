@@ -1,0 +1,54 @@
+{% if st %}
+{% set limited = (not st.exact) or (st.total + st.cache_read == 0) %}
+{% set src = {'claude': 'Claude', 'devin': 'Devin', 'cursor-agent': 'Cursor', 'antigravity': 'Antigravity'}.get(st.source, st.source) %}
+{# One-line token bar right above the composer box (composer.css .tokbar): context % + thin bar, context used / window,
+   total tokens, turns, plan limits. Less important parts drop at narrow widths (composer.css). #}
+{% set ns = namespace(first=true) %}
+{# Compact right after the meter when the context is getting full. Plain htmx buttons inside <summary>
+   (a <form> is not allowed there; a click on a button does not fold the details). #}
+{% set ts_act = (st.ctx or st.pct_hint >= 0) and st.level == 'red' %}
+<summary class="stats-sum lvl-{{ st.level }}" title="Token statistics: click for details"><span class="ts-dot" aria-hidden="true"></span>{% if st.ctx or st.pct_hint >= 0 %}<span class="ts-ctx">context {{ st.pct }}%</span><progress class="ts-bar" max="100" value="{{ st.pct }}" aria-hidden="true"></progress>{% if ts_act %}{% if compact_cmd %}<span class="ts-act"><button type="button" class="small" hx-post="/a/{{ agent.id }}/message" hx-vals='{{ {"csrf": csrf, "text": compact_cmd, "confirm": "1"} | tojson }}' hx-target="[data-cmp-flash]" hx-swap="innerHTML" hx-confirm="Send {{ compact_cmd }} to {{ agent.label or agent.id }}?" title="Send {{ compact_cmd }} to free context (keeps a summary)">Compact</button></span>{% endif %}{% endif %}{% if st.ctx %}<span class="ts-i ts-abs"><span class="ts-sep" aria-hidden="true">&middot;</span>{{ human(st.ctx) }} / {{ human(st.window) }}</span>{% endif %}{% set ns.first = false %}{% endif %}{% if not limited %}<span class="ts-i ts-tok">{% if not ns.first %}<span class="ts-sep" aria-hidden="true">&middot;</span>{% endif %}{{ human(st.total) }} tokens</span>{% set ns.first = false %}{% endif %}{% if st.turns %}<span class="ts-i ts-turns">{% if not ns.first %}<span class="ts-sep" aria-hidden="true">&middot;</span>{% endif %}{{ st.turns }} turns</span>{% set ns.first = false %}{% endif %}{% for w in lim if w.tag %}<span class="ts-lim lvl-{{ w.level }}" title="{{ w.name }}: {{ w.pct }}% used{% if w.reset == 'reset' %}, window has reset{% elif w.reset %}, resets {{ w.reset }}{% if w.abs %} ({{ w.abs }}){% endif %}{% endif %}">{% if not (ns.first and loop.first) %}<span class="ts-sep ts-lsep" aria-hidden="true">&middot;</span>{% endif %}<span class="tl-l">{{ "5h" if w.tag == "5" else w.tag }}</span><span class="tl-x" aria-hidden="true">/</span><span class="tl-p">{{ w.pct }}%</span></span>{% endfor %}</summary>
+<div class="stats-panel">
+  <h2 class="stats-h">Token statistics <span class="muted">{{ src }}{% if not limited %}, main chat only, sub-agents excluded{% endif %}</span></h2>
+  {% if st.ctx or st.pct_hint >= 0 %}
+  <div class="stats-ctx lvl-{{ st.level }}">
+    <p class="stats-line"><strong>{% if st.ctx %}Context window: {{ human(st.ctx) }} of {{ human(st.window) }} used ({{ st.pct }}%){% else %}Context window: {{ st.pct }}% used{% endif %}</strong></p>
+    <progress class="stats-bar" max="100" value="{{ st.pct }}">{{ st.pct }}%</progress>
+    <p class="stats-note">{% if st.level == 'red' %}Nearly full. Run /compact or start a fresh chat soon, or the agent will lose earlier context and quality drops.{% elif st.level == 'warn' %}Getting full. Plan to /compact soon, ideally at a natural stopping point.{% else %}Plenty of room left.{% endif %}</p>
+    {% if st.level in ('red', 'warn') %}
+    {% if compact_cmd %}<form class="stats-act" method="post" action="/a/{{ agent.id }}/message" hx-post="/a/{{ agent.id }}/message" hx-target="[data-cmp-flash]" hx-swap="innerHTML" hx-confirm="Compact {{ agent.label or agent.id }} now? It sends {{ compact_cmd }}.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="text" value="{{ compact_cmd }}"><input type="hidden" name="confirm" value="1">
+      <button type="submit" class="small{% if st.level == 'red' %} primary{% endif %}" title="Send {{ compact_cmd }} to free context">Compact</button>
+    </form>
+    {% elif st.level == 'red' and agent.kind.value == 'antigravity' %}<p class="stats-note">Antigravity has no compact command: start a new chat (drops context) or use Fork.</p>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+  <dl class="stats-grid">
+    {% if st.turns or not limited %}<dt>Turns (your messages)</dt><dd>{{ n(st.turns) }}</dd>{% endif %}
+    {% if not limited %}
+    <dt>Total tokens</dt><dd>{{ n(st.total) }}</dd>
+    <dt class="sub">Input (new)</dt><dd>{{ n(st.input) }}</dd>
+    <dt class="sub">Output (written by the agent)</dt><dd>{{ n(st.output) }}</dd>
+    <dt class="sub">Cache written</dt><dd>{{ n(st.cache_write) }}</dd>
+    <dt>Cache read (re-used context)</dt><dd>{{ n(st.cache_read) }} <span class="muted">not in total</span></dd>
+    {% if st.turns %}<dt>Average per turn</dt><dd>{{ n((st.total / st.turns) | int) }}</dd>{% endif %}
+    {% endif %}
+    {% if st.model %}<dt>Model</dt><dd class="mono">{{ st.model }}</dd>{% endif %}
+  </dl>
+  {% if st.source == 'cursor-agent' %}<p class="stats-foot muted">Cursor does not store token counts; the context % is read from its status line. Amber from {{ 60 }}%, red from {{ 80 }}%.</p>
+  {% elif limited %}<p class="stats-foot muted">{{ src }} reports only part of these figures; rows without data are hidden. Amber from {{ 60 }}%, red from {{ 80 }}%.</p>
+  {% elif st.window_hint %}<p class="stats-foot muted">{{ src }} context window taken as {{ human(st.window) }}. Amber from {{ 60 }}%, red from {{ 80 }}%.</p>
+  {% else %}<p class="stats-foot muted">Context window size is an estimate (200k, or 1M when the chat already exceeds 200k). Amber from {{ 60 }}%, red from {{ 80 }}%.</p>{% endif %}
+  {% if lim %}
+  <section class="lim" aria-label="Usage limits">
+    <h3 class="usg-h">Usage limits <span class="muted">Claude plan</span></h3>
+    <ul class="lim-list">{% for w in lim %}
+      <li class="lim-item lvl-{{ w.level }}" title="{{ w.name }}: {{ w.pct }}% used{% if w.reset == 'reset' %}, window has reset{% elif w.reset %}, resets {{ w.reset }}{% if w.abs %} ({{ w.abs }}){% endif %}{% endif %}">{% if w.when %}<details class="lim-d"><summary class="lim-row" title="Click for the reset time"><span class="lim-l">{{ w.name }}</span><progress class="stats-bar lim-bar" max="100" value="{{ w.pct }}">{{ w.pct }}%</progress><span class="lim-p">{{ w.pct }}% used</span></summary><p class="lim-r muted">{% if w.when == "reset" %}Window has reset{% else %}Resets {{ w.when }} &middot; {{ w.abs }}{% endif %}</p></details>{% else %}<div class="lim-row"><span class="lim-l">{{ w.name }}</span><progress class="stats-bar lim-bar" max="100" value="{{ w.pct }}">{{ w.pct }}%</progress><span class="lim-p">{{ w.pct }}% used</span></div>{% endif %}</li>{% endfor %}
+    </ul>
+  </section>
+  {% elif agent.kind.value == 'claude' %}<p class="stats-foot muted">Plan limits unavailable: enable tools/pm-statusline.sh as the Claude status line.</p>
+  {% endif %}
+  <div class="usg-slot">{% include '_usage_chat.html' %}</div>
+</div>
+{% endif %}

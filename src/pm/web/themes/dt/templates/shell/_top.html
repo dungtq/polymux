@@ -1,0 +1,59 @@
+{#- Top bar (DESIGN.md §6.1, LAYOUT.md §2): lead block (sidebar toggle, phone Back, brand, Quick chat icon: PRD §9
+    decision 6; hidden on phones, where the sidebar drawer has the row) as wide as the sidebar,
+    phone title (a session tab: its state and position; an agent page not open as a tab, shell.home.state set: that
+    agent's state and project; else the Inbox stats), the tab strip, then search, phone tabs button, bell, Launch (the
+    dialog: js/launch.js opens it for [data-l-open] with this page's project; the href is the no-JS fallback), aside
+    toggle, account menu.
+    Context: shell, cur_tab (base.html). Key labels are platform-specific, so titles carry none; keys.js may add
+    them from data-k-title (the key table is the one source). -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set _l = shell.nav | selectattr("key", "equalto", "notifications") | list -%}{%- set bell = _l[0] if _l else none -%}
+{%- set _lp = project.name if (project is defined and project and project.name is defined)
+    else (agent.project if (agent is defined and agent and agent.project is defined) else "") -%}
+{%- set ntabs = shell.tabs | length + 1 -%}
+<header class="x-top">
+  <div class="x-lead">
+    <button class="x-ib x-sbtg" type="button" data-act="side" aria-controls="x-side" aria-label="Sidebar" title="Sidebar" data-k-title="mod+B"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}side-l"/></svg></button>
+    {% if cur_tab %}<a class="x-ib x-back" href="{{ shell.home.href }}" aria-label="Back to {{ shell.home.title }}" title="Back to {{ shell.home.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}back"/></svg></a>
+    {% endif %}<a class="x-brand" href="/" title="pm home (Inbox)">pm{% if dev_banner is defined and dev_banner %}<span class="x-dev" title="Dev instance: fixture data, throwaway token">DEV</span>{% endif %}</a>
+    <button class="x-ib x-qc" type="button" data-q-open aria-controls="q-panel" aria-pressed="false" aria-label="Quick chat" title="Quick chat" data-k-title="Q"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}chat"/></svg></button>
+  </div>
+  <div class="x-mtitle">
+    {%- if cur_tab %}
+    <b>{% if cur_tab.kind != "term" %}<i class="dot {{ cur_tab.state or 'unknown' }}" title="{{ cur_tab.state or 'unknown' }}"></i>{% endif %}<span class="sfx"><bdi>{{ cur_tab.title }}</bdi></span></b>
+    <small>{{ "read-only terminal" if cur_tab.kind == "term" else (cur_tab.state or "unknown") }} · tab {{ shell.tabs.index(cur_tab) + 2 }} of {{ ntabs }}</small>
+    {%- elif shell.home.state %}
+    <b><i class="dot {{ shell.home.state }}" title="{{ shell.home.state }}"></i><span class="sfx"><bdi>{{ shell.home.title }}</bdi></span></b>
+    <small>{{ shell.home.state }}{% if _lp %} · {{ _lp }}{% endif %}</small>
+    {%- else %}
+    <b><span class="ell">{{ shell.home.title }}</span></b>
+    <small>{{ shell.total }} agent{{ "" if shell.total == 1 else "s" }} · {{ shell.running }} running · {{ shell.need }} need{{ "s" if shell.need == 1 else "" }} you</small>
+    {%- endif %}
+  </div>
+  {% include "shell/_tabs.html" %}
+  <button class="x-ib x-search" type="button" data-act="pal" aria-haspopup="dialog" aria-controls="x-pal" aria-label="Search everything" title="Search everything" data-k-title="mod+shift+P"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}search"/></svg></button>
+  <button class="x-ib x-tabcount" type="button" data-act="tabsheet" aria-haspopup="dialog" aria-label="Open tabs: {{ ntabs }}" title="Open tabs"><span class="cnt">{{ ntabs }}</span></button>
+  {#- the bell (PRD §6.7, README A2): opens a popover (js/notifs.js, pm7.menu): the newest six messages of every source
+      from GET /ntfy/panel?scope=all; on phones it is hidden and the bottom nav's Alerts opens the page -#}
+  <button class="x-ib x-bell" type="button" data-n-bell aria-haspopup="menu" aria-expanded="false" aria-label="Notifications{% if bell and bell.count %}, {{ bell.count }} unread{% endif %}" title="Notifications"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}bell"/></svg>{% if bell and bell.count %}<span class="b" aria-hidden="true">{{ bell.count }}</span>{% endif %}</button>
+  <a class="x-btn pri x-launch" href="/launch{% if _lp %}?project={{ _lp | urlencode }}{% endif %}" data-l-open data-l-project="{{ _lp }}" aria-haspopup="dialog" aria-controls="l-dlg" title="Launch an agent" data-k-title="N"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg><span class="x-lt">Launch</span></a>
+  <button class="x-ib x-asidebtn" type="button" data-act="aside" aria-controls="x-aside" aria-pressed="false" aria-label="Chat aside" title="Chat aside" data-k-title="mod+L"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}side-r"/></svg></button>
+  <details class="x-acct" id="x-acct">
+    <summary class="x-ib" aria-label="Account menu" title="Account"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}user"/></svg></summary>
+    <div class="x-pop" role="menu" aria-label="Account">
+      <a href="/settings" role="menuitem"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}sliders"/></svg>Settings</a>
+      <button type="button" role="menuitem" data-act="keys"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}kbd"/></svg>Keyboard shortcuts<kbd>?</kbd></button>
+      <button type="button" role="menuitem" data-act="mode"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}moon"/></svg>Dark / light mode</button>
+      {%- for name, label in (ui_themes if ui_themes is defined else []) if name != (ui_theme if ui_theme is defined else "dt") %}
+      <a href="?ui={{ name | urlencode }}" role="menuitem" title="Switch this browser to the {{ label }} UI"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}swap"/></svg>{{ label }} UI</a>
+      {%- endfor %}
+      {% if not (dev_banner is defined and dev_banner) %}<form method="post" action="/service/reload" hx-post="/service/reload" hx-swap="none" hx-confirm="Reload (restart) the pm service? The UI is unavailable for a few seconds.">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" role="menuitem"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}refresh"/></svg>Reload pm</button>
+      </form>{% endif %}
+      <hr>
+      <button type="button" role="menuitem" class="danger" data-act="stop" aria-haspopup="dialog" aria-controls="x-stop"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}stop"/></svg>Stop all agents…</button>
+      <form method="post" action="/logout"><button type="submit" role="menuitem" class="danger"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}logout"/></svg>Log out</button></form>
+    </div>
+  </details>
+</header>

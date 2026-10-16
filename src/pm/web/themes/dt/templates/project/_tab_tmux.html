@@ -1,0 +1,11 @@
+{#- dt project view, tmux tab (PARITY "Project tabs: tmux"; PARTS.md §14): the project's tmux sessions (a session with
+    a live pane of the project, the core's `sessions`) as the tmux page's rows (macro sess_row of
+    _tmux_session_rows.html; view model ProjectView.sessions, rows from pm.web.dt.tmux.sess_row) and Close all.
+    #pj-tmux is live without a request of its own: the Agents tab's live fragment (GET /p/<name>/live, dt
+    _project_live.html) carries it out of band (hx-swap-oob), so the agent / inbox events refresh both. Shown unless
+    the project settings hide "Agents and sessions" (live). Close all ([data-pj-closeall], js/project.js): typed
+    project name, POST /p/<name>/tmux/close-all, toast after the server's answer. Row hooks: css/tmux.css and
+    js/tmux.js ([data-tm-rows]: agent links open the chat aside, ⋯ Open terminal / Launch an agent here). -#}
+<link rel="stylesheet" href="/static/t/dt/css/tmux.css">
+<script src="/static/t/dt/js/tmux.js" defer></script>
+<div id="pj-tmux" class="pj-tmux" data-tm-rows>{% include "project/_tmux.html" %}</div>

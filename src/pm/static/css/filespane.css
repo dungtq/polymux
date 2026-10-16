@@ -1,0 +1,141 @@
+/* Files pane (project page, right-hand panel): tree + file/dir/diff viewer.
+   Scroll model: .pj-fview and .pj-ftree are the scrollers inside .pj-body; .pj-body itself only clips (hidden)
+   wherever the pane has a bounded height (see the two @media blocks at the end). Nothing inside scrolls on its own. */
+
+/* layout */
+.pj-fsplit{display:grid;grid-template-columns:minmax(140px,26%) minmax(0,1fr);gap:0;min-width:0}
+.pj-ftree{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding:4px 12px 4px 0;border-right:1px solid var(--line);font-size:var(--fs-s)}
+.pj-fview{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 0 16px}
+.pj-ftree ul{list-style:none;margin:0;padding:0}
+.pj-ftree ul ul{padding-left:14px}
+.pj-ftree summary{list-style:none;cursor:pointer}
+.pj-ftree summary::-webkit-details-marker{display:none}
+.pj-ftree :is(a,summary,li>span){display:flex;align-items:center;gap:6px;min-width:0;min-height:26px;padding:0 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg);text-decoration:none}
+.pj-ftree :is(a,summary):hover{background:var(--hover)}
+.pj-ftree summary>a{flex:1 1 auto;padding:0;min-height:0;background:none!important}
+.pj-ftree summary{padding-left:0}
+.pj-ftree summary::before{content:"";flex:none;width:5px;height:5px;margin:0 3px 0 2px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);transition:transform .12s}
+.pj-ftree details[open]>summary::before{transform:rotate(45deg)}
+.pj-ftree li:not(:has(>details))>a{padding-left:16px}
+.pj-ftree>a.pj-ftree-root{padding-left:6px;font-weight:500}
+.pj-ftree summary:has(>a.is-cur){background:var(--accent-soft)}
+.pj-ftree :is(a,summary):focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pj-ftree a:is(.is-cur,[aria-current]){background:var(--accent-soft)}
+.pj-ftree .pj-nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media (pointer:coarse){.pj-ftree :is(a,summary,li>span){min-height:32px}}
+
+/* icons */
+.pj-ico{flex:none;width:16px;height:16px;fill:currentColor;color:var(--muted);vertical-align:-3px}
+.pj-ico-dir{color:var(--ico-dir-c)}
+.pj-ico-md,.pj-ico-doc{color:var(--ico-md-c)}
+.pj-ico-code,.pj-ico-data{color:var(--ico-code-c)}
+.pj-ico-img{color:var(--ico-img-c)}
+.pj-ico-zip{color:var(--ico-zip-c)}
+.pj-ico-link,.pj-ico-special,.pj-ico-file{color:var(--muted)}
+
+/* directory listing: icon+name | modified | size */
+.pj-tree{list-style:none;margin:0;padding:0}
+.pj-tree li{display:flex;align-items:center;gap:12px;padding:2px 6px;min-height:28px;white-space:nowrap;overflow:hidden;border-bottom:1px solid var(--line2)}
+.pj-tree li:hover{background:var(--hover)}
+.pj-tree li>:is(a,span):first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:8px}
+.pj-tree li>:is(a,span):first-child{text-decoration:none;color:var(--fg)}
+.pj-tree li>a:first-child:hover .pj-nm{text-decoration:underline}
+.pj-tree .pj-nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pj-tree li>:is(.pj-t-sz,.pj-t-mt,.pj-t-bt,.pj-gs){flex:none;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.pj-tree .pj-t-mt,.pj-tree .pj-t-bt{width:7.5em}.pj-tree .pj-t-sz{width:5em}
+.pj-gs{width:1.4em;text-align:center!important;font-weight:600;font-size:.75rem}
+.pj-gs-M{color:var(--gs-m)!important}.pj-gs-A{color:var(--gs-a)!important}.pj-gs-D{color:var(--failed)!important}.pj-gs-U{color:var(--gs-u)!important}.pj-gs-C{color:var(--gs-c)!important}.pj-gs-I{color:var(--muted)!important;opacity:.6}
+/* name colour by git state: committed = normal, uncommitted amber, added green, deleted red, untracked/ignored muted */
+.pj-g-M>a .pj-nm{color:var(--gs-m)}.pj-g-A>a .pj-nm{color:var(--gs-a)}.pj-g-D .pj-nm{color:var(--failed)}.pj-g-U>a .pj-nm{color:var(--gs-u)}.pj-g-I>a .pj-nm{color:var(--muted);opacity:.7}
+.pj-crumb{overflow-wrap:anywhere}
+@media (max-width:899px){.pj-tree .pj-t-bt{display:none}}
+@media (max-width:599px){.pj-tree .pj-t-mt{display:none}}
+.pj-fview{container-type:inline-size}
+@container (max-width:560px){.pj-tree .pj-t-bt{display:none}}
+@container (max-width:400px){.pj-tree .pj-t-mt{display:none}}
+@media (max-width:700px){.pj-tree li{min-height:36px;align-items:center}}
+.pj-t-gone .pj-nm{text-decoration:line-through}
+
+/* header / toggles */
+.pj-meta{margin:0 0 6px;color:var(--muted);font-size:var(--fs-s)}
+.pj-toggles{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 10px;font-size:var(--fs-s)}
+.pj-toggle a{color:var(--accent);text-decoration:none;padding:4px 2px}
+.pj-toggle a:hover{text-decoration:underline}
+.pj-toggle a.is-cur{color:var(--fg);font-weight:600;text-decoration:none}
+.pj-toggle a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.pj-toggle a+a::before{content:"|";color:var(--line);margin-right:8px;font-weight:400}
+.pj-meta a,.pj-meta button{color:var(--accent);text-decoration:none;font-size:inherit;background:none;border:0;padding:0 2px;cursor:pointer;font-family:inherit}
+.pj-meta a:hover,.pj-meta button:hover{text-decoration:underline}
+.pj-meta :is(a,button)[aria-current],.pj-meta :is(a,button)[aria-selected=true]{color:var(--fg);font-weight:500;text-decoration:none}
+.pj-meta :is(a,button):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+/* code */
+.pj-file{margin:0;white-space:pre;tab-size:4;border:1px solid var(--line);border-radius:6px;background:var(--subtle);padding:10px 12px;overflow:auto;max-height:70vh}
+code.pj-code{white-space:pre;background:none;padding:0;border:0;font:inherit}
+.pj-fview .pj-file{overflow:visible;max-height:none;width:max-content;min-width:calc(100% - 26px)}
+.hl-k,.hl-kn,.hl-kd,.hl-kc,.hl-kp,.hl-kr,.hl-kt,.hl-ow{color:var(--hl-k)}
+.hl-s,.hl-s1,.hl-s2,.hl-sa,.hl-sb,.hl-sc,.hl-sd,.hl-se,.hl-sh,.hl-si,.hl-sx,.hl-sr,.hl-ss,.hl-dl{color:var(--hl-s)}
+.hl-c,.hl-c1,.hl-cm,.hl-ch,.hl-cp,.hl-cpf,.hl-cs{color:var(--hl-c);font-style:italic}
+.hl-m,.hl-mb,.hl-mf,.hl-mh,.hl-mi,.hl-mo,.hl-il,.hl-no,.hl-nb,.hl-bp,.hl-na,.hl-o{color:var(--hl-m)}
+.hl-nf,.hl-fm,.hl-nd,.hl-nl{color:var(--hl-f)}
+.hl-nc,.hl-ne,.hl-nn{color:var(--hl-n)}
+.hl-nt{color:var(--hl-t)}
+.hl-err,.hl-gd{color:var(--hl-e)}
+.hl-gi{color:var(--df-add-fg)}
+.hl-gh,.hl-gu{font-weight:600}
+.hl-ge{font-style:italic}.hl-gs{font-weight:600}
+
+/* diff */
+.pj-diff{margin:0;white-space:pre;font-size:var(--fs-s);line-height:1.45;border:1px solid var(--line);border-radius:6px;overflow:auto;max-height:70vh;background:var(--bg)}
+.pj-fview .pj-diff{overflow:visible;max-height:none;width:max-content;min-width:calc(100% - 26px)}
+.pj-diff>span,.pj-diff .df-add,.pj-diff .df-del,.pj-diff .df-hunk,.pj-diff .df-meta,.pj-diff .df-ctx{display:block;padding:0 10px}
+.df-add{background:var(--df-add-bg);color:var(--df-add-fg)}
+.df-del{background:var(--df-del-bg);color:var(--df-del-fg)}
+.df-hunk{background:var(--df-hunk-bg);color:var(--df-hunk-fg)}
+.df-meta{color:var(--muted);font-weight:600}
+.df-ctx{color:var(--fg)}
+
+/* rendered markdown */
+.pj-md{max-width:100%;font-size:.9375rem;line-height:1.55;overflow-wrap:anywhere;color:var(--fg)}
+.pj-md>:first-child{margin-top:0}
+.pj-md :is(p,ul,ol,pre,blockquote,table,details){margin:0 0 14px}
+.pj-md :is(h1,h2,h3,h4,h5,h6){margin:22px 0 12px;line-height:1.25;font-weight:600}
+.pj-md :is(h1,h2){padding-bottom:.3em;border-bottom:1px solid var(--line)}
+.pj-md h1{font-size:1.5rem}.pj-md h2{font-size:1.25rem}.pj-md h3{font-size:1.0625rem}.pj-md :is(h4,h5,h6){font-size:.9375rem}
+.pj-md :is(ul,ol){padding-left:2em}
+.pj-md li+li{margin-top:.25em}
+.pj-md a{color:var(--accent)}
+.pj-md blockquote{padding:0 1em;margin-left:0;color:var(--muted);border-left:3px solid var(--line)}
+.pj-md code{font-family:var(--mono,ui-monospace,monospace);font-size:.85em;padding:.2em .4em;border-radius:6px;background:var(--subtle)}
+.pj-md pre{overflow:auto;padding:12px 14px;border-radius:6px;background:var(--subtle);border:1px solid var(--line)}
+.pj-md pre code{padding:0;background:none;font-size:var(--fs-s)}
+.pj-md .md-table{margin:0 0 14px;border:0;border-radius:0} /* the scroll wrapper (core/markdown_render.py); cells draw the grid */
+.pj-md table{margin:0;min-width:0;border-collapse:collapse} /* a real table, so tablesize.js can switch it to table-layout:fixed */
+.pj-md :is(th,td){padding:6px 13px;border:1px solid var(--line)}
+.pj-md tr:nth-child(2n){background:var(--subtle)}
+.pj-md img{max-width:100%}
+.pj-md hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+
+/* narrow / unbounded pane (the page scrolls): tree above, each part capped so it scrolls itself */
+@media (max-width:699px){
+  .pj-fsplit{grid-template-columns:minmax(0,1fr)}
+  .pj-ftree{max-height:35vh;border-right:0;border-bottom:1px solid var(--line);padding:0 0 6px;margin-bottom:8px}
+  .pj-fview{max-height:75vh;padding:0}
+}
+@media (min-width:700px) and (max-width:999px){
+  .pj-split:not(.pj-docsview) .pj-fsplit{grid-template-columns:minmax(0,1fr)}
+}
+/* bounded pane: the split fills .pj-body, and only the two columns scroll */
+@media (min-width:1000px){
+  body:not(.chat-open) .pj-body:has(.pj-fsplit){display:flex;flex-direction:column;overflow:hidden}
+  body:not(.chat-open) .pj-body>.pj-fsplit{flex:1 1 auto;min-height:0;height:100%}
+  body:not(.chat-open) .pj-body .pj-fview{max-height:none}
+}
+@media (min-width:700px){
+  .pj-split.pj-docsview .pj-body:has(.pj-fsplit){display:flex;flex-direction:column;overflow:hidden}
+  .pj-split.pj-docsview .pj-body>.pj-fsplit{flex:1 1 auto;min-height:0;height:100%}
+  .pj-split.pj-docsview .pj-body .pj-fview,.pj-split.pj-docsview .pj-body .pj-ftree{max-height:none}
+  /* single-column file view (no tree): the body itself is the one scroller, both axes */
+  body:not(.chat-open) .pj-body:not(:has(.pj-fsplit)) :is(.pj-file,.pj-diff),
+  .pj-split.pj-docsview .pj-body:not(:has(.pj-fsplit)) :is(.pj-file,.pj-diff){overflow:visible;max-height:none;width:max-content;min-width:100%}
+}

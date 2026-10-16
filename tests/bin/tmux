@@ -1,0 +1,5 @@
+#!/bin/sh
+# Fake tmux for tests: logs argv (one arg per line, NUL-free), prints $FAKE_TMUX_OUT.
+{ for a in "$@"; do printf '%s\n' "$a"; done; echo ---; } >> "${FAKE_TMUX_LOG:-/dev/null}"
+[ -n "$FAKE_TMUX_ERR" ] && { echo "$FAKE_TMUX_ERR" >&2; exit 1; }
+printf '%s' "$FAKE_TMUX_OUT"

@@ -1,0 +1,30 @@
+{% macro item(b, csrf, token, project, back) %}
+<form class="bl-item{{ ' done' if b.done }}"{% if b.inbox %} data-inbox{% endif %} method="post" action="/backlog/toggle">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="project" value="{{ project }}">
+  <input type="hidden" name="back" value="{{ back }}">
+  <input type="hidden" name="line" value="{{ b.line }}">
+  <input type="hidden" name="text" value="{{ b.text }}">
+  <button class="bl-box" type="submit" role="checkbox" aria-checked="{{ 'true' if b.done else 'false' }}" aria-label="{{ 'Mark open' if b.done else 'Mark done' }}">{{ '✓' if b.done }}</button>
+  {% if b.tracker %}<a class="bl-num" href="/p/{{ project|urlencode }}#issue={{ b.num }}" title="Open issue #{{ b.num }}">#{{ b.num }}</a>{% endif %}
+  <span class="bl-text">{{ b.html | safe }}</span>
+  <button class="bl-edit" type="button" data-bl-edit aria-label="Edit item" title="Edit this item"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></button>
+</form>
+{% endmacro %}
+
+{% macro todo_item(b, csrf, token, project) %}
+<form class="bl-item" method="post" action="/p/{{ project|urlencode }}/todo/toggle">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="line" value="{{ b.line }}">
+  <input type="hidden" name="text" value="{{ b.text }}">
+  <button class="bl-box" type="submit" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+  <span class="bl-text" title="{{ b.text }}">{{ b.html | safe }}</span>
+</form>
+{% endmacro %}
+
+{% macro todo_groups(groups, csrf, token, project) %}
+{% for g in groups %}
+{% if g.heading %}<div class="td-head small muted">{{ g.heading }}</div>{% endif %}
+{% for b in g["items"] %}{{ todo_item(b, csrf, token, project) }}{% endfor %}
+{% endfor %}
+{% endmacro %}

@@ -1,0 +1,21 @@
+{# v5 right-hand drawer: chat (/a/ID?embed=1) or read-only terminal (/term/SID?embed=1). Filled by drawer.js. #}
+{% from "_chatview.html" import chatview %}
+{% from "_agentname.html" import agent_head %}
+{% from "_chatchrome.html" import jump_rail, zoomctl %}
+<aside class="v5-chat" id="v5chat" aria-label="Chat or terminal">
+  <div class="vc-resize" id="vc-resize" role="separator" aria-orientation="vertical" aria-label="Resize chat" tabindex="0" title="Drag to resize (double-click: 50%)"></div>
+  <div class="vc-head">
+    {{ agent_head(none, "aside") }}
+    <span class="vc-tabs" id="vc-tabs" role="tablist" aria-label="Agent views" hidden></span><span class="vc-sp"></span><span class="vc-acts" id="vc-acts" hidden></span>
+    <span class="vc-tools" id="vc-tools">{{ chatview() }}{{ zoomctl("vc-zoom") }}</span>
+    <a class="vc-full" id="vc-full" href="/" target="_blank" rel="noopener" title="Open the full page in a new browser tab" aria-label="Open full page in a new tab"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span class="vcf-t">Open full</span></a>
+    <button type="button" class="vc-close" id="vc-close" title="Close (Esc)" aria-label="Close drawer"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  {{ jump_rail("vc-top", "vc-bottom") }}
+  <iframe class="vc-frame" id="vc-frame" title="Agent chat or terminal" src="about:blank"></iframe>
+  {# markdown file popup inside the drawer aside (chat.js in the framed page posts act:md; drawer.js fills it) #}
+  <aside class="v5-md" id="v5md" aria-label="Markdown file" hidden>
+    <header class="mdpane-h"><strong class="mdpane-t mono" id="v5md-t"></strong><span class="mdpane-act">{% include "_mdzoom.html" %}<button type="button" class="small" id="v5md-full" aria-pressed="false" aria-label="Full screen" title="Full screen (Esc to leave)">Full screen</button><button type="button" class="small" id="v5md-close" aria-label="Close file view">Close</button></span></header>
+    <div class="mdpane-b" id="v5md-b"></div>
+  </aside>
+</aside>

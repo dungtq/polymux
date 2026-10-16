@@ -1,0 +1,8 @@
+{# Sub-agent row parts shared by the running rows above the composer (_subagents_live.html) and the
+   Sub-agents tab (_subagents.html). Left: status dot, name (kind), title; right, hugging the edge: last
+   tool call, calls, tokens, running / waiting / finished. Styles: static/css/subagents.css. #}
+
+{% macro sa_line(s, now) -%}
+{% set tok = s.tokens | default(0) or 0 -%}
+<span class="dot dot-{{ 'running' if s.running else 'idle' }}" title="{{ 'working' if s.running else 'finished' }}"></span><strong class="sa-kind" title="{{ s.kind or 'sub-agent' }}">{{ s.kind or 'sub-agent' }}</strong><span class="sa-desc" title="{{ s.desc }}{% if s.group %} ({{ s.group }}){% endif %}">{{ s.desc }}{% if s.group_label %} <span class="sa-tag small">{{ s.group_label }}</span>{% endif %}</span><span class="sa-rt"><span class="sa-last" title="{{ s.last }} {{ s.last_target }}">{% if s.last %}<span class="sa-ln">{{ s.last }}</span> <span class="mono">{{ s.last_target }}</span>{% endif %}</span><span class="sa-calls" title="tool calls{{ ' (at least; long transcript)' if s.calls_more }}">{% if s.calls %}{{ s.calls }}{{ '+' if s.calls_more }} call{{ '' if s.calls == 1 and not s.calls_more else 's' }}{% endif %}</span><span class="sa-tok" title="tokens (latest usage)">{% if tok %}{{ tok | tokens }} tokens{% endif %}</span>{% if s.running and s.waiting %}<span class="sa-age is-wait" title="the last tool call has not returned yet">waiting &middot; {{ (now - s.mtime) | duration }}</span>{% elif s.running %}<span class="sa-age is-run">running {{ s.elapsed(now) }}</span>{% else %}<span class="sa-age">finished {{ s.mtime | ago }}</span>{% endif %}</span>
+{%- endmacro %}

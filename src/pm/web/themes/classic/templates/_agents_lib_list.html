@@ -1,0 +1,17 @@
+{# Agents library list (/agents?t=library): the table and the bottom Show; the live filter box re-fetches only this. #}
+{% from "_agents_macros.html" import hc, dash %}{% from "_macros.html" import empty %}
+{% from "_limitbar.html" import limitbar %}
+<div class="list ag-table" role="list">
+<div class="hrow arow-l ag-head" role="presentation">{{ hc(cols["c-ty"], "c-ty") }}{{ hc(cols["c-nm"], "c-nm") }}{{ hc(cols["c-ds"], "c-ds") }}{{ hc(cols["c-sc"], "c-sc") }}{{ hc(cols["c-ags"], "c-ags") }}{{ hc(cols["c-pa"], "c-pa") }}</div>
+{% for r in rows %}
+<div class="lrow arow-l" role="listitem">
+<span class="c-ty muted">{{ r.type }}</span>
+<span class="c-nm" title="{{ r.name }}"><strong>{{ r.name }}</strong></span>
+<span class="c-ds" title="{{ r.desc }}">{{ dash(r.desc) }}</span>
+<span class="c-sc muted">{{ r.scope }}</span>
+<span class="c-ags muted" title="{{ r.agents | join(', ') }}">{% if r.agents %}{{ r.agents[:2] | join(", ") }}{% if r.agents | length > 2 %} +{{ r.agents | length - 2 }}{% endif %}{% else %}–{% endif %}</span>
+<span class="c-pa mono muted" title="{{ r.path }}">{{ dash(r.path) }}</span>
+</div>
+{% else %}{{ empty("Nothing matches. Clear the filter or the selects to see all " ~ total_all ~ " items.", "ag-empty") }}{% endfor %}
+</div>
+<div class="ag-foot">{{ limitbar(limit_links, shown, total, "/agents", hidden) }}</div>

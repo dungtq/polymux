@@ -1,0 +1,6 @@
+export OPENAI_API_KEY=sk-proj-abcdefghijklmnop1234
+export DB_PASSWORD='p@ss w0rd'
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+export PATH=/usr/bin:/bin
+export EDITOR=nvim
+export TOKEN_FILE=/home/me/.config/pm/token

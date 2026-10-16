@@ -1,0 +1,4 @@
+<div class="slash-card" role="region" aria-label="Command output">
+  <div class="slash-card-h"><span class="muted small">Command output</span><button type="button" class="small" data-slash-dismiss aria-label="Dismiss output">Dismiss</button></div>
+  {% if lines %}<pre class="slash-pre mono">{{ lines | join("\n") }}</pre>{% else %}<p class="muted small">No output captured (the command may print nothing, or it is still running).</p>{% endif %}
+</div>

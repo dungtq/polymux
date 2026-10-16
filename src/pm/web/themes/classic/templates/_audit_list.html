@@ -1,0 +1,31 @@
+{# /audit list: meta line, table, pager. The page includes it in #aud-list; the live filter box re-fetches only this
+   (GET /audit with HX-Request). Context: ap (audit_view.AuditPage), f_result, f_q, f_attempts, page_size, clock_label. #}
+{% from "_macros.html" import agid %}{% from "_limitbar.html" import pager %}
+{% macro qs(page=1, attempts=None) -%}
+?page={{ page }}&amp;result={{ f_result }}{% if f_q %}&amp;q={{ f_q | urlencode }}{% endif %}{% if (attempts if attempts is not none else f_attempts) %}&amp;attempts=1{% endif %}
+{%- endmacro %}
+<p class="small muted aud-meta">
+  {{ ap.total }}{% if ap.truncated %}+{% endif %} entries{% if ap.total %}, showing {{ (ap.page - 1) * page_size + 1 }}-{{ (ap.page - 1) * page_size + ap.rows | length }}{% endif %}
+  &middot; times {{ clock_label }}
+  {% if ap.hidden and f_result != 'attempt' %}&middot;
+    {% if f_attempts %}<a href="/audit{{ qs(1, 0) }}">attempts shown: {{ ap.hidden }} (hide)</a>
+    {% else %}<a href="/audit{{ qs(1, 1) }}">attempts hidden: {{ ap.hidden }}</a>{% endif %}
+  {% endif %}
+</p>
+<table class="aud">
+  <thead><tr><th>time</th><th>client</th><th>action</th><th>target</th><th>result</th><th>detail</th></tr></thead>
+  <tbody>
+  {% for e in ap.rows %}
+  {% set t = e.get('ts') | dt %}
+  <tr{% if e.get('_hidden') %} class="aud-pair"{% endif %}>
+    <td class="aud-time mono" data-l="time"><time title="{{ e.get('ts') | ts }}">{{ t[5:] if t | length > 10 else t }}</time></td>
+    <td data-l="client" class="mono">{{ e.get('client', '') }}</td>
+    <td data-l="action" class="aud-action">{{ e.get('action', '') }}</td>
+    <td data-l="target" class="mono aud-target">{{ agid(e.get('target', '')) }}</td>
+    <td data-l="result"><span class="badge {{ 'ok' if e.get('result') == 'ok' else '' if e.get('result') == 'attempt' else 'bad' }}">{{ e.get('result', '') }}</span></td>
+    <td data-l="detail" class="mono small aud-detail">{% for k, v in (e.get('detail') or {}).items() %}<span class="aud-kv">{{ k }}={{ agid(v) }}</span> {% endfor %}</td>
+  </tr>
+  {% else %}<tr class="aud-empty"><td colspan="6" class="muted">No entries.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{{ pager(ap.page, ("/audit" ~ qs(ap.page - 1)) if ap.page > 1 else "", ("/audit" ~ qs(ap.page + 1)) if ap.has_older else "") }}

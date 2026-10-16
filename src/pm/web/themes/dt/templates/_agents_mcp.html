@@ -1,0 +1,47 @@
+{#- dt Agents › MCP servers (PRD §6.8 "MCP servers"): a note when installed agents have none · filter (client mode) ·
+    one row per server: Server (+ "key in args" warning) · Type · Command / host · Env names · Configured in (chips) · ⋯
+    (Move the key to env…, a planned change from the security finding; Copy name) · Coverage: servers × installed
+    agents, read-only dots (the core has no per-agent on/off and no "add to an agent"). Env shows names
+    only. View model: dt_agents("mcp") (pm.web.dt.agents_library). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set mc = dt_agents("mcp") -%}
+{%- if mc %}
+{%- if mc.no_mcp %}<p class="a-status" role="note"><span class="muted">No MCP servers in {{ mc.no_mcp | join(", ") }}.</span></p>{% endif %}
+{% call ph.tools() %}
+  {{ pf.fbox("agents-mcp", placeholder="Filter MCP servers", label="Filter MCP servers", rows="#a-mcp") }}
+  <span class="note">Names only; env values and headers are never read.</span>
+{% endcall %}
+{% call tb.table("agents-mcp", "MCP servers", cls="a-mcpt", list="agents-mcp", id="a-mcp") %}
+  {{ tb.gh(mc.cols, sort=mc.sort) }}
+  {%- for r in mc.rows %}
+  {% call tb.row(r.id, cls="a-mrow", cur=loop.first, q=r.q, title=r.configs, attrs=r.attrs) %}
+    {% call tb.name(r.name) %}{% if r.warn %}<span class="chip warn" title="An API key is passed as a command-line argument (visible in ps)">key in args</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.transport }}{% endcall %}
+    {% call tb.cell("mono muted") %}<span title="{{ r.command }}">{{ r.command or "–" }}</span>{% endcall %}
+    {% call tb.cell("hide-n muted") %}<span title="{{ r.env }}">{{ r.env }}</span>{% endcall %}
+    {% call tb.cell("hide-s") %}<span class="a-chips">{% for c in r.chips %}<span class="chip k" data-kind="{{ c.kind }}" title="{{ c.name }}">{{ c.label }}</span>{% endfor %}</span>{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- else %}
+  {{ tb.empty("No MCP servers are configured for any agent.") }}
+  {%- endfor %}
+  {{ tb.empty("No MCP server matches the filter.", fnone=true) }}
+{% endcall %}
+{%- if mc.cov_rows and mc.cov_agents %}
+<h2 class="p-h2">Coverage <span class="c">servers × installed agents</span></h2>
+{% call tb.table("agents-cov", "MCP coverage", cls="a-cov a-n" ~ ([mc.cov_agents | length, 12] | min), id="a-cov") %}
+  {{ tb.gh(mc.cov_cols) }}
+  {%- for name, has in mc.cov_rows %}
+  {% call tb.row(name) %}
+    {% call tb.name(name) %}{% endcall %}
+    {%- for on in has %}{% call tb.cell("a-cc") %}{% if on %}<i class="dot running" aria-hidden="true" title="configured"></i><span class="vh">configured</span>{% else %}<span class="muted" aria-hidden="true">–</span><span class="vh">not configured</span>{% endif %}{% endcall %}{% endfor %}
+  {% endcall %}
+  {%- endfor %}
+{% endcall %}
+<p class="a-note muted">Read-only: pm cannot switch a server per agent or add it to another agent yet.</p>
+{%- endif %}
+{%- else %}
+<p class="p-empty">The MCP list could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}

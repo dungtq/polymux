@@ -1,0 +1,10 @@
+• Ran make test
+
+I changed the parser and ran the tests.
+All 12 pass.
+
+✻ Thinking… (3s · esc to interrupt)
+╭──────────────────────────────╮
+│ > type here                  │
+╰──────────────────────────────╯
+  ? for shortcuts

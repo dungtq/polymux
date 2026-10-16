@@ -1,0 +1,77 @@
+{% set ICONS = {
+ 'start': '<path d="M5 3.5v9l7.5-4.5z" fill="currentColor"/>',
+ 'stop': '<rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/>',
+ 'more': '<circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/>',
+ 'trash': '<path d="M3.5 4.5h9M6.5 4.5v-1.5h3v1.5M5 4.5l.5 8h5l.5-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'} %}
+{% macro icon(k) %}<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">{{ ICONS[k] | safe }}</svg>{% endmacro %}
+{% macro act(csrf, url, label, ic, cls="") %}
+<form class="inline" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#flash" hx-swap="innerHTML">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit" class="ibtn {{ cls }}" aria-label="{{ label }}" title="{{ label }}">{{ icon(ic) }}</button>
+</form>
+{% endmacro %}
+{% macro typed(csrf, url, label, name) %}
+<form class="vm-typed" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#flash" hx-swap="innerHTML">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="small">Type <code>{{ name }}</code> to confirm
+    <input name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>
+  <button type="submit" class="danger">{{ label }}</button>
+</form>
+{% endmacro %}
+{% if not vm.available %}
+<p class="muted small">libvirt unavailable{% if vm.error %}: {{ vm.error }}{% endif %}.</p>
+{% else %}
+<p class="small muted">{{ vm.domains | selectattr('state', 'equalto', 'running') | list | length }} running / {{ vm.domains | length }} domains.
+  VMs matching vm_protected are never changed.{% if not vm.writable %} Read-only (vm_manage off).{% endif %}</p>
+<div class="dt dt-vm" role="table" aria-label="Virtual machines">
+  <div class="dt-head" role="row"><span class="vc-dot" role="columnheader"></span><span class="vc-name" role="columnheader">Name</span><span class="vc-cpu" role="columnheader">vCPU</span><span class="vc-ram" role="columnheader">RAM</span><span class="vc-disk" role="columnheader">Disk</span><span class="vc-ip" role="columnheader">State</span><span class="vc-act" role="columnheader"></span></div>
+{% for d in vm.domains %}
+{% set dtitle %}{% for k in d.disks %}{{ k.source }}{% if k.capacity %} {{ fb(k.capacity) }}{% if k.allocation is not none %} / {{ fb(k.allocation) }} used{% endif %}{% endif %}{{ '; ' if not loop.last }}{% endfor %}{% endset %}
+  <div class="dt-row vm-row vm-{{ 'run' if d.state == 'running' else 'off' }}" role="row" title="{{ d.name }} - {{ d.state }}; {{ d.vcpus if d.vcpus is not none else '?' }} vCPU, {{ fb(d.mem_kib * 1024) if d.mem_kib else '?' }}{% if dtitle %}; disks: {{ dtitle }}{% endif %}">
+    <span class="vc-dot"><span class="sdot sdot-{{ 'run' if d.state == 'running' else 'off' }}" title="{{ d.state }}"></span><span class="sr-only">{{ d.state }}</span></span>
+    <strong class="vc-name">{{ d.name }}{% if d.protected %} <span class="lock" title="protected" aria-label="protected">&#128274;</span>{% endif %}</strong>
+    <span class="vc-cpu">{{ d.vcpus if d.vcpus is not none else '?' }}</span>
+    <span class="vc-ram">{{ fb(d.mem_kib * 1024) if d.mem_kib else '?' }}</span>
+    <span class="vc-disk" title="{{ dtitle }}">{% for k in d.disks[:1] %}{% if k.capacity %}{{ fb(k.capacity) }}{% if k.allocation is not none %} <span class="muted">({{ fb(k.allocation) }} used)</span>{% endif %}{% else %}{{ k.target }}{% endif %}{% endfor %}{% if d.disks | length > 1 %} <span class="muted">+{{ d.disks | length - 1 }}</span>{% endif %}</span>
+    <span class="vc-ip muted">{{ d.state }}</span>
+    <span class="vc-act">
+  {% if vm.writable and not d.protected %}
+    {% if d.state == 'shut off' %}{{ act(csrf, '/servers/vms/' ~ d.name ~ '/start', 'Start', 'start') }}
+    {% elif d.state == 'running' %}{{ act(csrf, '/servers/vms/' ~ d.name ~ '/shutdown', 'Shut down', 'stop', 'warn') }}{% endif %}
+    {% if d.state in ('running', 'shut off') %}
+    <details class="vm-more dt-pop"><summary class="ibtn" aria-label="More" title="More">{{ icon('more') }}</summary>
+      <div class="dt-popbody">{% if d.state == 'running' %}{{ typed(csrf, '/servers/vms/' ~ d.name ~ '/destroy', 'Force off', d.name) }}
+      {% else %}{{ typed(csrf, '/servers/vms/' ~ d.name ~ '/undefine', 'Undefine (keeps disks)', d.name) }}{% endif %}</div>
+    </details>{% endif %}
+  {% endif %}
+    </span>
+  </div>
+{% else %}<p class="muted small">No domains.</p>{% endfor %}
+</div>
+
+<h3 class="vm-sub">Images{% if vm.pool %} <span class="muted">pool {{ vm.pool.name }}</span>{% endif %}</h3>
+{% if vm.pool and vm.pool.capacity %}
+<div class="srv-row {{ 'lvl-crit' if vm.pool.allocation / vm.pool.capacity >= 0.92 else 'lvl-warn' if vm.pool.allocation / vm.pool.capacity >= 0.8 else '' }}">
+  <span class="srv-k">Usage</span>
+  <span class="srv-v">{{ fb(vm.pool.allocation) }} of {{ fb(vm.pool.capacity) }}{% if vm.pool.available is not none %} <span class="muted">({{ fb(vm.pool.available) }} free)</span>{% endif %}</span>
+  <progress class="srv-bar" max="100" value="{{ '%.0f' | format(vm.pool.allocation * 100 / vm.pool.capacity) }}" aria-label="Image pool usage"></progress>
+</div>
+{% endif %}
+<div class="dt dt-im{% if vm.writable %} dt-im-act{% endif %}" role="table" aria-label="Images">
+  <div class="dt-head" role="row"><span class="ic-dot" role="columnheader"></span><span class="ic-name" role="columnheader">Image</span><span class="ic-n" role="columnheader">Size</span><span class="ic-n" role="columnheader">On disk</span><span class="ic-use" role="columnheader">Used by</span>{% if vm.writable %}<span class="ic-act" role="columnheader"></span>{% endif %}</div>
+{% for v in vm.volumes %}
+{% set unused = (not v.used_by) and v.type == 'file' %}
+  <div class="dt-row" role="row" title="{{ v.name }}{% if v.capacity %}: {{ fb(v.capacity) }} virtual{% endif %}{% if v.allocation is not none %}, {{ fb(v.allocation) }} on disk{% endif %}{% if v.used_by %}; {{ v.used_by | join(', ') }}{% endif %}">
+    <span class="ic-dot">{% if unused %}<span class="sdot sdot-attn" title="unused"></span><span class="sr-only">unused</span>{% endif %}</span>
+    <span class="ic-name mono">{{ v.name }}</span>
+    <span class="ic-n">{% if v.capacity %}{{ fb(v.capacity) }}{% endif %}</span>
+    <span class="ic-n muted">{% if v.allocation is not none %}{{ fb(v.allocation) }}{% endif %}</span>
+    <span class="ic-use muted">{% if v.used_by %}{{ v.used_by | join(', ') }}{% elif unused %}unused{% endif %}</span>
+  {% if vm.writable %}<span class="ic-act">{% if v.deletable %}
+    <details class="vm-more dt-pop"><summary class="ibtn warn" aria-label="Delete {{ v.name }}" title="Delete">{{ icon('trash') }}</summary>
+      <div class="dt-popbody">{{ typed(csrf, '/servers/images/' ~ v.name ~ '/delete', 'Delete image', v.name) }}</div>
+    </details>{% endif %}</span>{% endif %}
+  </div>
+{% else %}<p class="muted small">No images listed.</p>{% endfor %}
+</div>
+{% endif %}

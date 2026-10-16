@@ -1,0 +1,17 @@
+{#- dt override of the core's _project_doc.html (pm.web.docpane.doc_html: GET /p/<name>/view/<key>, the Files tab's
+    README and errors, the project view's first document): one read-only document, a notice or the dirty file list.
+    The document and the dirty list stay classic markup (filespane / markdown CSS, README A5) inside their own .x-cl
+    box; a notice ("No README here.", a refused path) is the shared empty-state box (DESIGN §6.21: the grid table's
+    empty line, parts/_table.html), outside .x-cl. A found document is article.pj-doc: pm.web.dt.project.docs and
+    js/project.js tell a document from a notice by it. -#}
+{%- import "parts/_table.html" as tb -%}
+{%- if dirty %}
+<div class="x-cl">{% include "_dirty.html" %}</div>
+{%- elif error %}
+{% call tb.table("pj-note", title, cls="pj-note") %}{{ tb.empty(error) }}{% endcall %}
+{%- else %}
+<div class="x-cl">
+<p class="small muted pj-meta pj-meta-zoom"><span class="mono">{{ doc.name }}</span> &middot; {{ doc.size }} bytes{% if doc.mtime %} &middot; <span title="{{ doc.mtime | ts }}">{{ doc.mtime | ago }}</span>{% endif %}{% if doc.truncated %} &middot; <span class="warn">cut at 256 KB</span>{% endif %}<span class="pj-zoom">{% include "_mdzoom.html" %}</span></p>
+<article class="pj-doc md">{{ html | safe }}{% if not html %}<p class="muted">Empty file.</p>{% endif %}</article>
+</div>
+{%- endif %}

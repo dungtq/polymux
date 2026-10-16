@@ -1,0 +1,20 @@
+{#- dt Settings page (docs/themes/dt/PRD.md §6.11, LAYOUT.md §5 Settings). The core's GET /settings
+    passes the panel's data on first paint (settings_panel.context); the body is _settings_panel.html (search box, nav,
+    sections; also the core's GET /settings/panel fragment, which a section reloads itself from on pm7:refresh and the
+    Settings popup loads, shell/_settings.html). View model: dt_settings() (pm.web.dt.settings).
+    No popup here (block settings_popup emptied): the page's ids would exist twice; ⌘, focuses the page's search.
+    CSS / JS (loaded once by base.html for page and popup): css/settings.css; js/settings.js (sections, search,
+    this-browser and all-devices looks, pm7.settings.init), js/settings-forms.js (save on change to the core's
+    /settings/* forms, buttons, Quick chat), js/settings-servers.js (add → scan → compare → pin, re-pin, install the pm
+    key), js/settings-popup.js. Classic passkey.js (loaded by shell/_classic.html) still drives "Register passkey"
+    (removal debt). -#}
+{% extends "base.html" %}
+{% import "parts/_head.html" as ph %}
+{% block title %}Settings{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block settings_popup %}{% endblock %}
+{% block content %}
+{%- set sv = dt_settings() %}
+{{ ph.head("Settings", stats=(sv.stats if sv else "Changes save as you make them"), cls="s-head") }}
+{% include "_settings_panel.html" %}
+{% endblock %}

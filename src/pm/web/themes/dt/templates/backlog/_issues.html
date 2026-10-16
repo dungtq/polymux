@@ -1,0 +1,50 @@
+{#- dt Backlog: the Issues component (PRD.md §6.5), on the Backlog page and the project view's Issues tab
+    (project/_tab_issues.html, scope=project). `bl` = dt_backlog(). One table (parts/_table.html): select · agent dot
+    (an agent running on / waiting about the issue) · # · title · project (Group: none) · notes and images · age ·
+    one visible action (Dispatch; Agent when one is on it; Reopen when done) + ⋯; bands per project (Group: project).
+    Rows: data-row-id "<project>:<num>", data-bl-p / data-bl-n; a click or ↵ opens the issue reader (event bl:open),
+    X selects (bl:select), E marks done / reopens (⋯ item "state"). js/backlog.js: reader, selection + bulk bar,
+    Dispatch, Move. -#}
+{%- import "backlog/_bar.html" as bb with context -%}
+{%- import "parts/_table.html" as tb -%}
+{%- import "parts/_menu.html" as pm -%}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+{%- set flat = bl.st.scope == "page" and bl.st.group == "none" -%}
+{%- macro irow(r) -%}
+{% call tb.row(r.id, cls="bl-row" ~ (" bl-done" if r.done else ""), title=r.title,
+               attrs={"data-bl-p": r.project, "data-bl-n": r.num}) %}
+<label class="bl-ckc" role="cell"><input type="checkbox" class="bl-ck" data-bl-sel aria-label="Select #{{ r.num }} ({{ r.project }})"></label>
+{%- if r.dot %}{{ tb.dot(r.dot, r.dot_title) }}{% else %}<span class="gc-dot" role="cell"></span>{% endif %}
+<span class="num muted" role="cell">#{{ r.num }}</span>
+<span class="gc-nm" role="cell"><span class="nm bl-t">{{ r.html | safe }}</span></span>
+{%- if flat %}{% call tb.cell("hide-n") %}<span class="chip bl-chip">{{ r.project }}</span>{% endcall %}{% endif %}
+{% call tb.cell("hide-n bl-att") %}{% for icon, n, t in r.att %}<span class="bl-a" title="{{ t }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ icon }}"/></svg>{{ n }}<span class="vh"> {{ t }}</span></span>{% endfor %}{% endcall %}
+<span class="gc-end" role="cell" title="{{ r.age_title }}"{% if r.since %} data-since="{{ r.since | int }}"{% endif %}>{{ r.age }}</span>
+{% call tb.meta() %}{{ r.meta }}{% endcall %}
+{% call tb.acts() %}
+  {%- if r.act.href %}<a class="x-btn sm" href="{{ r.act.href }}" title="{{ r.act.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ r.act.icon }}"/></svg>{{ r.act.label }}</a>
+  {%- else %}<button class="x-btn sm" type="button" data-bl-run="{{ r.act.run }}" title="{{ r.act.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ r.act.icon }}"/></svg>{{ r.act.label }}</button>{% endif %}
+  {{- pm.menu(r.menu, label="Actions for #" ~ r.num ~ " (" ~ r.project ~ ")") }}
+{% endcall %}
+{% endcall %}
+{%- endmacro -%}
+{% call bb.root("bl-issues") %}
+{{ bb.top() }}
+{{ bb.tools() }}
+{{ bb.bulk() }}
+{% call tb.table("bl-issues-" ~ bl.st.scope, "Issues", cls="bl-iss" ~ (" bl-flat" if flat else ""), list="bl-issues",
+                 keys={"enter": "event:bl:open", "x": "event:bl:select", "e": "menu:state"},
+                 labels={"enter": "Open the issue", "x": "Select / unselect", "e": "Mark done / reopen"}) %}
+{{ tb.gh([{"sr": "Select"}, {"sr": "Agent on it"}, {"label": "#", "num": true}, {"label": "Title"}]
+         + ([{"label": "Project", "cls": "hide-n"}] if flat else [])
+         + [{"label": "Notes", "cls": "hide-n", "title": "Notes and images"}, {"label": "Age", "num": true},
+            {"sr": "Actions"}]) }}
+{%- for g in bl.issues %}
+{%- if g.key %}
+{% call tb.group(g.key, g.label, count=g.count, note=g.note) %}{% for r in g.rows %}{{ irow(r) }}{% endfor %}{% endcall %}
+{%- else %}{% for r in g.rows %}{{ irow(r) }}{% endfor %}{% endif %}
+{%- endfor %}
+{{ bb.empty() }}
+{% endcall %}
+{{ bb.foot("issues") }}
+{% endcall %}

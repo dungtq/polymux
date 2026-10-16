@@ -1,0 +1,44 @@
+{#- dt Agents › agent › Rules: controls (filter, client mode · Validate · Sync… · New rule) · the validation list
+    (?validate=1) · table status dot (same / differs / broken / missing) · Name · Path (→ symlink target) · Mode ·
+    Lines · ⋯ (Edit…, Sync… when it differs, Copy path, Remove… typed). Sync… and New rule open dialogs
+    (agents/_dlg.html); every change is reviewed first (js/agents.js). View model: dt_agents("detail"). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set dv = dt_agents("detail") -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{% call ph.tools() %}
+  {{ pf.fbox("agents-ru", placeholder="Filter rules", label="Filter rules", rows="#a-ru") }}
+  <span class="sp"></span>
+  <a class="x-btn sm" href="{{ dv.validate_href }}" title="Check every rules file (links, front matter, size)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}check"/></svg>Validate</a>
+  <button class="x-btn sm" type="button" data-a-open="a-sync"{% if not dv.sync_targets %} disabled title="No installed agent has a rules file to sync"{% endif %}><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}swap"/></svg>Sync…</button>
+  <button class="x-btn sm" type="button" data-a-open="a-new"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg>New rule</button>
+{% endcall %}
+{%- if dv.validation is not none %}
+{% call tb.table("agents-val", "Validation of the rules files", cls="a-valt") %}
+  {%- for state, lvl, subj, msg in dv.validation %}
+  {% call tb.row(subj ~ ":" ~ loop.index) %}
+    {{ tb.dot(state, lvl) }}
+    {% call tb.name(subj) %}{% endcall %}
+    {% call tb.cell("muted") %}<span title="{{ msg }}">{{ msg }}</span>{% endcall %}
+    {% call tb.meta() %}{{ msg }}{% endcall %}
+  {% endcall %}
+  {%- else %}{{ tb.empty("No rules files found.") }}{% endfor %}
+{% endcall %}
+{%- endif %}
+{% call tb.table("agents-ru", "Rules of " ~ dv.label, cls="a-rut", list="agents-ru", id="a-ru") %}
+  {{ tb.gh(dv.cols, sort=dv.sort) }}
+  {%- for r in dv.items %}
+  {% call tb.row(r.id, cur=loop.first, q=r.q, title=r.desc, attrs=r.attrs) %}
+    {{ tb.dot(r.state, r.word) }}
+    {% call tb.name(r.name) %}{% endcall %}
+    {% call tb.cell("mono muted") %}<span title="{{ r.desc }}">{{ r.desc }}</span>{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.cells[0] }}{% endcall %}
+    {% call tb.cell("hide-n", num=true) %}{{ r.cells[1] }}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- else %}
+  {{ tb.empty("No rules files for " ~ dv.label ~ ".") }}
+  {%- endfor %}
+  {{ tb.empty("No rule matches the filter.", fnone=true) }}
+{% endcall %}

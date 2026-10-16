@@ -1,0 +1,446 @@
+/* rows.css: Inbox / Project / Projects / tmux list rows and ntfy, loaded after chrome.css */
+
+/* ---- inbox ---- */
+.inbox-head{align-items:flex-start;border-bottom:1px solid var(--line);margin:12px 0 0;padding-bottom:12px;gap:var(--s2) var(--s3)}
+.inbox-title{flex:1 1 auto;min-width:0}
+.inbox-head h1{border:0;margin:0;padding:0;font-size:1.5rem;line-height:1.25}
+.inbox-stats{margin:2px 0 0;font-size:var(--fs-s)}
+.inbox-head .head-actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
+@media (max-width:699px){.inbox-head h1{font-size:1.25rem}}
+/* sections: one style, uniform 16px top margin, count chip */
+.sec-head{display:flex;align-items:center;gap:var(--s2);margin:16px 0 var(--s1);font-size:.875rem;line-height:1.4}
+.sec-waiting .sec-head{color:var(--waiting)}
+.sec-head .cnt{font-size:.75rem;font-weight:500;line-height:18px;padding:0 8px;border:1px solid var(--line);border-radius:var(--r-pill);color:var(--muted)}
+.inbox-sec{margin:0}
+.nhead{margin-top:16px;background:var(--bg)}
+.nrow .n-main .badge{margin-left:6px}
+/* ntfy panel */
+.ntfy-tag,.ntfy-tag.mono,.ntfy-chip-proj{font-family:inherit;font-size:var(--fs-s);color:var(--muted)}
+.ntfy-row>summary::before{width:8px;height:8px;margin-top:-4px;left:7px}
+.ntfy-row[data-unread]>summary::before{background:var(--fg)}
+.ntfy-time{font-variant-numeric:tabular-nums}
+@media (max-width:699px){.inbox-head{flex-wrap:nowrap;align-items:center}.inbox-title{flex:1 1 0}.inbox-stats{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}.inbox-head .head-actions{flex:0 0 auto}}
+
+/* ---- shared: title row, lock icon, +N ---- */
+.phead{align-items:center;border-bottom:1px solid var(--line);margin:12px 0 var(--s2);padding-bottom:12px;position:relative}
+.phead>h1{flex:1 1 0;border:0;margin:0;padding:0;min-width:0}
+.lock{display:inline-block;width:14px;height:14px;font-size:0;margin-right:6px;vertical-align:-2px;color:var(--muted);background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z'/%3E%3C/svg%3E") center/contain no-repeat}
+.gplus{font-size:.75rem;white-space:nowrap;margin-left:4px;cursor:help}
+
+/* ---- project page ---- */
+.pj-h1row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+.pg-project .pj-h1row h1{width:auto;white-space:nowrap;max-width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* git branch / state pills: tinted fill + strong text so they read in light and dark */
+.pj-h1row .badge{margin:0}
+.badge.gb-branch{color:var(--gb-branch-fg);background:var(--gb-branch-bg);border-color:color-mix(in srgb,var(--gb-branch-fg) 45%,transparent)}
+.badge.gb-ok{color:var(--gb-ok-fg);background:var(--gb-ok-bg);border-color:color-mix(in srgb,var(--gb-ok-fg) 45%,transparent)}
+.badge.gb-warn{color:var(--gb-warn-fg);background:var(--gb-warn-bg);border-color:color-mix(in srgb,var(--gb-warn-fg) 50%,transparent)}
+.pg-project .pj-title h1{border:0;padding:0;margin:0 0 2px}
+.pg-project .pj-title .pj-pathrow{margin:0}
+.pg-project .pj-head{display:flex;align-items:flex-start;gap:var(--s2) var(--s3);margin:12px 0 0}
+.pg-project .pj-title{flex:1 1 auto;min-width:0}
+.pg-project .pj-head .head-actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center;flex:0 0 auto}
+.pg-project .pj-head .stop-btn{border-color:color-mix(in srgb,var(--failed) 45%,var(--line))}
+.pg-project .pj-main>.pj-tabbar{margin:8px 0 0}
+.pg-project .pj-split.pj-nodocs .pj-main>.pj-tabbar{display:none}
+.pj-gitacts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.pj-gitacts form{margin:0}
+.pg-project .pj-restart{display:inline-block;margin:0 0 0 8px;vertical-align:middle}
+.pg-project #flash{min-height:0}
+.pg-project h2{font-size:.9375rem;font-weight:600;line-height:1.3}
+.pg-project h2{margin:24px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+.pg-project .ssewrap :not(.sec-h)>h2:first-child,.pg-project #proj-live>h2:first-child{margin-top:20px}
+.pg-project .card{border:0;border-radius:0;padding:0;background:none}
+.pg-project .commits-h{margin:12px 0 4px;font-size:var(--fs-s);font-weight:500;color:var(--muted)}
+.pg-project .commits li:first-child{border-top:0}
+.pg-project .card>.muted:only-child{display:block}
+.prog{display:flex;align-items:center;gap:var(--s2);margin:0 0 4px}
+.prog progress{flex:1 1 auto;width:auto}
+.prog-n{flex:0 0 auto;font-variant-numeric:tabular-nums}
+.pg-project .ext-links+*{margin:0}
+.pg-project .ext-links p,.pg-project h2+p.small{margin:0 0 8px}
+/* Agents / tmux / ntfy share one column template (desktop) */
+@media (min-width:720px){
+  .pg-project .arow{grid-template-columns:14px minmax(0,1fr) 14em 11em 9em;grid-template-areas:"dot main proj age res"}
+  .pg-project .lhead.arow{grid-template-columns:14px minmax(0,1fr) 14em 11em 9em}
+  .pg-project .arow .c-age{text-align:right}
+}
+@media (pointer:coarse){
+  .pg-project .chash a,.pg-project .bl-links a,.pg-project .bl-card a[href*="edit"]{display:inline-flex;align-items:center;min-height:32px}
+  .pg-project .bl-card .small a{display:inline-flex;align-items:center;min-height:32px}
+  .pg-project .badge{line-height:24px}
+}
+
+/* ---- projects list ---- */
+.pg-projects .prow .hcell.c-age,.pg-projects .prow .hcell.c-res,.pg-projects .prow .hcell.c-ntfy,.pg-projects .prow .hcell.c-act{text-align:right;overflow:visible}
+.pg-projects .prow .hcell .arr{display:inline-block;width:0;margin:0;position:relative;left:4px;overflow:visible}
+.pg-projects .c-ntfy{font-variant-numeric:tabular-nums}
+.gmore{display:inline}
+.gplus{display:none}
+@media (max-width:699px){
+  .pg-projects .gmore{display:none}
+  .pg-projects .gplus{display:inline}
+}
+
+/* ---- tmux ---- */
+.pg-tmux .phead details.newsess{margin:0 0 0 auto;position:relative}
+.pg-tmux .newsess>summary{list-style:none;display:inline-flex;align-items:center;min-height:var(--ctl-h);padding:0 var(--ctl-pad);border:1px solid var(--ctl-line);border-radius:6px;background:var(--subtle);color:var(--fg);font-weight:500;cursor:pointer}
+.pg-tmux .newsess>summary::-webkit-details-marker{display:none}
+.pg-tmux .newsess[open]>form{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:20em;max-width:80vw;padding:var(--s2);background:var(--bg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 12px #0003}
+.pg-tmux .expandbar>button{border:1px solid var(--ctl-line);background:var(--subtle);min-height:var(--ctl-h);color:var(--fg)}
+.pg-tmux .expandbar>button+button{margin-left:-6px;border-radius:0 6px 6px 0}
+.pg-tmux .expandbar>button:first-child{border-radius:6px 0 0 6px}
+.pg-tmux .c-agents{white-space:nowrap;overflow:hidden}
+.pg-tmux .c-agents .gplus{display:inline}
+@media (max-width:699px){.pg-tmux .phead{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:var(--s2)}.pg-tmux .phead>h1{font-size:1.1rem}}
+
+/* ---- final review ---- */
+@media (min-width:700px){.pg-projects .prow .c-git{padding-left:14px}}
+.pg-tmux .expandbar>button,.pg-tmux .expandbar>button+button,.pg-tmux .expandbar>button:first-child{border:1px solid var(--line);border-radius:var(--r-pill);background:none;min-height:var(--pill-h);height:var(--pill-h);margin-left:0;color:var(--muted)}
+.pg-tmux .expandbar>button:hover{background:var(--hover);color:var(--fg)}
+
+/* ================= fixE: one ntfy component, grid-aligned sortable headers, spacing rhythm ================= */
+/* --- ntfy panel (Inbox + project page, identical markup) --- */
+.ntfy-panel{margin:24px 0 0}
+.ntfy-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.ntfy-title{display:flex;align-items:center;gap:12px;margin:0 auto 0 0;font-size:.9375rem;font-weight:600;line-height:1.3}
+.ntfy-unread{display:inline-flex;align-items:center;height:22px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);font-size:.75rem;font-weight:500;line-height:1;color:var(--accent);white-space:nowrap}
+.ntfy-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-left:auto}
+.ntfy-ctl form{margin:0}
+.ntfy-mark{box-sizing:border-box;height:var(--ctl-h);min-height:var(--ctl-h);padding:0 var(--ctl-pad);border:1px solid var(--ctl-line);border-radius:var(--r-ctl);background:none;color:var(--fg);font-size:var(--ctl-font);font-weight:500;line-height:1;cursor:pointer;white-space:nowrap}
+.ntfy-mark:hover{background:var(--hover)}
+.ntfy-list{margin-top:12px}
+.ntfy-foot{margin-top:8px}
+/* rows: dot | age | project | title, same on both pages */
+.ntfy-row>summary{grid-template-columns:5em minmax(0,1fr);gap:0 12px;padding:4px 8px 4px 32px;min-height:var(--row-h)}
+.ntfy-row>summary::before{left:12px}
+.ntfy-time{grid-column:1;grid-row:1;text-align:left}
+.ntfy-tag{grid-column:auto;display:none}
+.ntfy-t{grid-column:2;grid-row:1}
+.ntfy-detail{padding-left:32px}
+@media (min-width:720px){
+  .ntfy-row>summary{grid-template-columns:6em 18em minmax(0,1fr)}
+  .ntfy-tag{display:block;grid-column:2;grid-row:1;justify-self:start;max-width:18em}
+  .ntfy-t{grid-column:3;grid-row:1}
+}
+@media (max-width:719px){
+  .ntfy-ctl{flex:1 1 100%;margin-left:0;justify-content:flex-start}
+}
+@media (pointer:coarse){.ntfy-mark{min-height:36px;height:36px}}
+
+/* --- spacing rhythm: title row -24- ntfy -24- hairline -16- filter -12- header --- */
+.filterbar{margin:24px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+.pctl.psearch{margin-bottom:12px}
+.pctl .fbox input[type=search]{flex:1 1 auto;width:100%;min-width:0}  /* the shared box inside a .pctl form: .pctl input[type=search] would pin it to 13em */
+
+/* --- column header = real grid band, identical to the row grid; the one .hcell (sort link) spec --- */
+.nhead,.hrow,.lhead{background:var(--subtle);border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--colh);font-size:var(--fs-s);font-weight:600;line-height:1.3;min-height:32px;padding-top:0;padding-bottom:0;margin-top:0;position:static}
+.nhead{padding-inline:8px;margin-top:0}
+.nrow{padding-inline:8px}
+.lhead *{font-weight:600}
+.hcell{display:flex;align-items:center;gap:4px;min-height:32px;margin:0;color:var(--colh);font-size:var(--fs-s);font-weight:600;white-space:nowrap}
+.hcell:hover{background:var(--hover);color:var(--fg);text-decoration:none}
+.hcell.on{color:var(--fg)}
+.hcell .arr{display:inline-block;flex:0 0 auto;width:1em;margin:0;position:static;left:auto;font-size:.75rem;line-height:1;text-align:center;font-weight:400;color:var(--muted);opacity:.7}
+.hcell.on .arr{color:var(--fg);opacity:1}
+/* right-aligned (numeric) columns: header text flush right over the numbers, icon to its left */
+.hcell.n-res,.pg-projects .hcell.c-age,.pg-projects .hcell.c-res,.pg-projects .hcell.c-ntfy,.pg-projects .hcell.c-act{justify-content:flex-end;text-align:right;overflow:visible}
+.hcell.n-res .arr,.pg-projects .hcell.c-age .arr,.pg-projects .hcell.c-res .arr,.pg-projects .hcell.c-ntfy .arr,.pg-projects .hcell.c-act .arr{order:-1}
+.pg-projects .prow .hcell .arr{width:1em;left:auto}
+@media (min-width:700px){.nhead .hcell,.hrow .hcell{display:flex}}
+.nhead .n-proj::before{display:none}
+@media (min-width:700px){.nhead .n-proj{padding-left:17px}}
+.pitem.phd{background:var(--subtle);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.pitem.phd:hover{background:var(--subtle)}
+.pitem.phd>.hrow{background:none;border:0}
+.hcell.c-act,.srowhead .hcell.c-act{justify-content:flex-end;text-align:right;overflow:visible}
+.srowhead .hcell.c-act .arr{order:-1}
+@media (max-width:699px){.pg-projects .hcell.c-git{justify-content:flex-end;text-align:right;padding-left:0}.pg-projects .hcell.c-git .arr{order:-1}}
+
+/* ---- fixF: title row, new-session buttons, open-chat ---- */
+.pg-projects .phead.inbox-head,.pg-tmux .phead.inbox-head{display:flex;align-items:flex-start;gap:var(--s2) var(--s3);margin:12px 0 var(--s2)}
+.pg-tmux .phead.inbox-head>.inbox-title{flex:1 1 0}
+.pg-tmux .phead details.newsess{margin:0 0 0 auto;flex:0 0 auto}
+@media (max-width:699px){.pg-tmux .phead>h1{font-size:inherit}.pg-tmux .phead.inbox-head{align-items:center}}
+.newsess .formbtns{display:flex;gap:var(--s2);margin-top:var(--s2)}
+.newsess .formbtns button{min-height:var(--ctl-h)}
+.newsess .formbtns .cancel{background:none;border:1px solid var(--ctl-line);color:var(--fg);font-weight:400}
+.newsess .formbtns .cancel:hover{background:var(--hover)}
+.pg-tmux .inbox-stats,.pg-projects .inbox-stats{white-space:normal;overflow:visible;text-overflow:clip}
+
+/* ================= fixG: one agent table, status = 8px dot only ================= */
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.dot{flex:0 0 8px;box-sizing:border-box}
+.dot-idle{background:var(--muted)}
+.dot-running{background:var(--st-run)}
+.dot-waiting{background:var(--st-attn)}
+.dot-failed{background:var(--st-err)}
+.dot-unknown{background:var(--st-attn)}
+.n-dot,.c-dot{position:relative}
+.nhead{margin-top:0}
+.nlist{border-top:0}
+/* Idle fold: heading in the Ended style (.ended-head h2), chevron at the left, Expand/Collapse text at the right */
+.idle-fold>summary{cursor:pointer;list-style:none}
+.idle-fold>summary::-webkit-details-marker{display:none}
+.idle-fold>summary h2::before{content:"\25B8";display:inline-block;width:1em;margin-left:-1em;font-size:.8em;color:var(--muted)}
+.idle-fold[open]>summary h2::before{content:"\25BE"}
+.idle-fold>summary:hover h2::before{color:var(--fg)}
+.fold-tog{display:inline-flex;align-items:center;min-height:var(--chip-h);padding:0 var(--ctl-pad);border:1px solid var(--ctl-line);border-radius:var(--ctl-radius);background:var(--subtle);color:var(--fg);font-size:var(--fs-s);font-weight:500}
+.idle-fold>summary:hover .fold-tog{background:var(--hover)}
+.idle-fold .ft-close,.idle-fold[open] .ft-open{display:none}
+.idle-fold[open] .ft-close{display:inline}
+.nlist-idle{border-top:1px solid var(--line)}
+.nrow.row-unknown .n-main strong,.nrow.row-idle .n-main strong{color:inherit}
+/* tmux agents cell: state = dot + kind text, no pills */
+.c-agents .badge{background:none;border:0;border-radius:0;padding:0 0 0 14px;height:auto;min-height:0;position:relative;color:var(--fg);margin:0 8px 0 0;line-height:inherit}
+.c-agents .badge:not([class*="st-"]){padding-left:0;color:var(--muted)}
+.c-agents .badge[class*="st-"]::before{content:"";position:absolute;left:0;top:50%;width:8px;height:8px;margin-top:-4px;box-sizing:border-box;border-radius:50%;background:var(--muted)}
+.c-agents .badge.st-running::before{background:var(--st-run)}
+.c-agents .badge.st-waiting::before{background:var(--st-attn)}
+.c-agents .badge.st-failed::before{background:var(--st-err)}
+.c-agents .badge.st-unknown::before{background:var(--st-attn)}
+/* fix I: ntfy rows show date-time + relative age */
+.ntfy-time{white-space:nowrap;display:flex;gap:8px;align-items:baseline;min-width:0}
+.ntfy-full{display:none}.ntfy-short{display:inline}
+.ntfy-row>summary{grid-template-columns:11em minmax(0,1fr)}
+@media (min-width:720px){
+  .ntfy-row>summary{grid-template-columns:11em 22em minmax(0,1fr)}
+  .ntfy-tag{max-width:22em}
+}
+/* fix I: Started column (agent tables) */
+.n-start{font-variant-numeric:tabular-nums}
+.nrow .st-full,.nhead .st-full{display:none}
+.c-start,.c-msg{display:none}
+/* Inbox tables (live + idle, and Ended) share one grid: dot | Agent | tmux | Project | Last message | Age | Started | cpu / mem.
+   Phone: dot | Agent | Last message | Age. Column drops go by width, header and rows together. */
+.nrow,.nhead{grid-template-columns:8px minmax(7em,10em) minmax(0,1fr) 4.8em}
+.nrow>*,.nhead>*{grid-row:1}
+.nrow .n-dot,.nhead .n-dot{grid-column:1}
+.nrow .n-main,.nhead .n-main{grid-column:2}
+.nrow .n-msg,.nhead .n-msg{grid-column:3}
+.nrow .n-age,.nhead .n-age{grid-column:4;text-align:right;justify-content:flex-end}
+.nrow .n-tmux,.nrow .n-proj,.nrow .n-start,.nrow .n-res,.nhead .n-tmux,.nhead .n-proj,.nhead .n-start,.nhead .n-res{display:none}
+/* Columns follow the width of the Inbox column (#inbox is a container), not the window: the page column is capped,
+   so window breakpoints would squeeze the columns. <640 phone set, >=640 + tmux/Project/Age, >=780 + cpu/mem,
+   >=880 + Started (short), >=1000 Started in full. */
+#inbox{container:inb/inline-size}
+@container inb (max-width:639px){
+  .nrow .kpill{display:none}
+}
+/* ladder (grows with the width): dot Agent Last message Age | + Project | + tmux | + cpu/mem | + Started. Same order as the project page. */
+@container inb (min-width:640px){
+  .nrow,.nhead{grid-template-columns:14px 15em minmax(0,1fr) 6.5em;grid-template-areas:"dot main msg age"}
+  .nrow .n-dot,.nhead .n-dot{grid-area:dot}.nrow .n-main,.nhead .n-main{grid-area:main}.nrow .n-msg,.nhead .n-msg{grid-area:msg}
+  .nrow .n-age,.nhead .n-age{grid-area:age}.nrow .n-proj,.nhead .n-proj{grid-area:proj}.nrow .n-tmux,.nhead .n-tmux{grid-area:tmux}
+  .nrow .n-start,.nhead .n-start{grid-area:start}.nrow .n-res,.nhead .n-res{grid-area:res}
+}
+@container inb (min-width:760px){
+  .nrow,.nhead{grid-template-columns:14px 6.5em 15em minmax(0,1fr) 6.5em;grid-template-areas:"dot proj main msg age"}
+  .nrow .n-proj{display:block}.nhead .n-proj{display:flex}
+}
+@container inb (min-width:900px){
+  .nrow,.nhead{grid-template-columns:14px 6.5em 15em minmax(0,1fr) 6em 6.5em;grid-template-areas:"dot proj main msg tmux age"}
+  .nrow .n-tmux{display:block}.nhead .n-tmux{display:flex}
+}
+@container inb (min-width:1000px){
+  .nrow,.nhead{grid-template-columns:14px 6.5em 15em minmax(0,1fr) 6em 6.5em 7.5em;grid-template-areas:"dot proj main msg tmux age res"}
+  .nrow .n-res{display:block}.nhead .n-res{display:flex}
+}
+@container inb (min-width:1120px){
+  .nrow,.nhead{grid-template-columns:14px 7.5em 15em minmax(0,1fr) 7em 7em 9em 7.5em;grid-template-areas:"dot proj main msg tmux age start res"}
+  .nrow .n-start{display:block}.nhead .n-start{display:flex}
+  .nrow .st-full{display:inline}.nrow .st-short{display:none}
+}
+.nrow .n-main,.nhead .n-main{display:flex;align-items:center;min-width:0}
+.nrow .n-main strong.aname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nrow .n-main .kpill.kp-model{flex:none;margin-left:6px}
+.nrow .n-tmux .wname{max-width:100%}
+.nrow .n-tmux .wslot{flex:none;white-space:nowrap}
+@media (min-width:720px){
+  .pg-project .arow .c-start{display:block;grid-area:start;text-align:right;font-variant-numeric:tabular-nums}
+  .pg-project .arow{grid-template-columns:14px 21em minmax(0,1.2fr) 7em 11em 10em 9em;grid-template-areas:"dot main msg proj age start res"}
+  .pg-project .lhead.arow{grid-template-columns:14px 21em minmax(0,1.2fr) 7em 11em 10em 9em}
+  .pg-project .arow .c-msg{display:block;grid-area:msg;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pg-project .lhead.arow .c-start{display:block;text-align:right}
+}
+.c-start .st-full{display:none}
+@media (min-width:720px){.c-start .st-full{display:inline}.c-start .st-short{display:none}}
+
+/* ================= port: real-app features in the v4 look ================= */
+/* Ended sessions fold: same quiet summary as the Idle fold, same row grid */
+.ended-fold>.nlist{border-top:1px solid var(--line)}
+.nrow.row-ended .n-main strong{font-weight:400}
+/* project page: ended rows share the Agents grid (.arow); model pill and tmux slot cell */
+.arow.row-ended .c-main{color:var(--muted)}
+.arow .c-main{display:flex;align-items:center;min-width:0}
+.arow .c-main strong.aname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arow .c-main .kpill.kp-model{flex:none;margin-left:6px}
+.arow .c-proj .wname{max-width:100%}
+.arow .c-proj .wslot{flex:none;white-space:nowrap}
+/* row action beside the row link (idle: exit, ended: resume): outlined button in its own trailing slot (see tokens.css --act-w) */
+.n-detail .n-exit{background:none;box-shadow:none}
+.n-exit .linkbtn{font-size:var(--fs-s);border:1px solid var(--line);border-radius:var(--r-pill);padding:0 10px;min-height:24px;line-height:22px;background:none;color:var(--muted)}
+.n-exit .linkbtn:hover{background:var(--hover);color:var(--fg);text-decoration:none}
+.n-exit .linkbtn.danger:hover{color:var(--failed);border-color:var(--failed)}
+@media (hover:none),(pointer:coarse){.n-exit .linkbtn{min-height:36px;padding:0 12px}}
+/* project page: same row + exit actions in the agent list */
+.pg-project .nwrap{position:relative}
+.nwrap>.lrow{display:grid}
+.ended-fold>summary h2.sec-head{font-weight:inherit;font-size:inherit;line-height:inherit}
+.pg-project .ended-fold h2{border:0;padding:0;margin:0}
+.pg-project .lock{vertical-align:middle;overflow:hidden;line-height:0}
+.pg-project .srow .c-main strong{display:inline-flex;align-items:center}
+.pg-project .srow .c-main .badge{margin-left:6px}
+.ended-fold>summary h2.sec-head{font-weight:400!important}
+
+/* ended sessions: same column order as Agents (minus cpu/mem), plus the ntfy title */
+.ended-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin:24px 0 8px}
+.ended-head h2{margin:0}
+.ended-fold .nlist{border-top:0}
+html:not([data-ended-all]):not([data-pmq]) .ended-fold .e-more{display:none}
+html:not([data-ntfy-all]):not([data-pmq]) .ntfy-list .e-more{display:none}
+.ntfy-toggle[hidden]{display:none}
+.kpill.kp-src{flex:none;margin:0 6px 0 0;font-weight:600;--pill:var(--accent)} .kpill.kp-src.kp-ntfy{--pill:var(--ok-fg);background:color-mix(in srgb,var(--ok-fg) 14%,transparent)} :is(.nrow,.arow,.lrow,.ntfy-list,.ended-fold,.pg-project) .kpill.kp-src.kp-src{display:inline-block;margin-left:0}
+
+/* "Working…" replaces the age on running rows: same cell and class every poll so the pulse runs on; right aligned, one line */
+.c-age.working,.n-age.working{color:var(--waiting)}
+.working>span:first-child{animation:pm-working 1.2s ease-in-out infinite}
+@keyframes pm-working{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.working>span:first-child{animation:none}}
+
+.ntfy-t{padding-left:12px}
+@media (max-width:719px){.ntfy-t{padding-left:0}}
+
+/* agent-pill: the one agent name, "[dot] <id> [model pill]" (templates/_agentname.html macro agent_name) */
+.aname-l{color:inherit;text-decoration:none;min-width:0}
+.aname-l:hover{text-decoration:none}@media (hover:hover){.aname-l:hover strong.aname{text-decoration:underline}}  /* underline only with a real pointer: a tap leaves :hover stuck */
+strong.aname+.kpill,.aname-l+.kpill{flex:none;margin-left:6px}
+.dot+.sr-only+strong.aname,.dot+.sr-only+.aname-l{margin-left:6px}
+.vs-agn{display:flex;align-items:center;min-width:0}
+.ts-win .vs-agn,.ts-pane .vs-agn{flex-shrink:0}
+.vs-agn strong.aname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:inherit}
+.hist-n,.tx-ag,.c-agents{white-space:nowrap}
+.hist-n strong.aname,.tx-agent strong.aname,.c-agents strong.aname{font-weight:400}
+.ts-hist .vs-agn{flex:1 1 auto}
+.ts-hist .ts-dur{display:none}  /* ran-for stays in the row title; the id + model pill need the width */
+
+/* ---- row hover: ONE rule for every interactive list/table row (UI-RULES "Row states") ----
+   hover = --hover; the selected/open row (.v5-active, .ag-sel) keeps --accent-soft. Header rows (thead, .lhead,
+   .hrow, .dt-head, .nhead) and static key/value rows (.srv-row) are deliberately not listed. Add a new row class here,
+   not as a one-off :hover elsewhere (tests/test_row_hover.py checks the list). */
+tbody tr:hover td,
+.ntfy-row>summary:hover,
+.bl-group>summary:hover,
+.dt>.dt-row:hover{background:var(--hover)}
+a.lrow:hover,
+.lrow.srow:hover,
+.lrow.pl-row:hover,
+.lrow.usg-row:hover,
+.lrow[class*="arow-"]:hover,
+.tx-row:hover,
+.bl-item:hover{background:var(--hover)}
+a.lrow.v5-active:hover,.lrow.ag-sel:hover,.tx-row.v5-active:hover{background:var(--accent-soft)}
+/* rows with no side padding: widen the fill 8px each way without moving the text */
+.bl-item:hover,.bl-group>summary:hover{box-shadow:-8px 0 0 var(--hover),8px 0 0 var(--hover)}
+
+/* row expand (rowx.js): chevron before the agent id; the panel holds the recap and the exit / resume buttons */
+.rx-tg{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin-right:4px;border-radius:6px;color:var(--muted);cursor:pointer}
+.rx-tg:hover{background:var(--hover);color:var(--fg)}
+.rx-tg:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.aname[data-rx]{cursor:pointer}@media (hover:hover){.aname[data-rx]:hover{text-decoration:underline}}
+.aname[data-rx]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.rx-tg svg{transition:transform .12s}
+.nwrap[data-open] .rx-tg svg{transform:rotate(90deg)}
+.nhead .n-main,.lhead.arow .c-main{padding-left:22px}
+.nwrap>.n-detail{display:none;flex:0 0 100%;box-sizing:border-box;padding:2px var(--s3) var(--s2) 36px;font-size:var(--fs-s)}
+.nwrap[data-open]>.n-detail{display:block}
+.n-recap{min-height:1.4em}
+.n-recap p{margin:0 0 4px;overflow-wrap:anywhere}
+.n-recap .rx-k{display:block;margin-bottom:2px;font-weight:700;color:var(--fg)}
+.n-recap .rx-t .md{color:var(--fg)}
+.n-recap .rx-m{margin:2px 0 0;color:var(--muted)}
+.n-recap .rx-m strong{color:var(--fg);font-weight:700}
+.n-acts{display:flex;gap:var(--s2);margin-top:4px}
+.n-acts:empty{display:none}
+/* unread agent row (Inbox and project page, one rule): bold id, last message in text colour; opening it marks it read (inbox.js) */
+.nwrap>a.unread strong.aname{font-weight:600!important}
+.nwrap>a.unread :is(.n-msg,.c-msg){color:var(--fg)}
+/* pin = the one row action of a live agent row (POST /a/<id>/pin): its own trailing slot (--act-w) so the columns
+   never move; shown on hover / keyboard focus, always while pinned and on touch. The header keeps the same room. */
+.nwrap>.rowpin{flex:none;display:flex;align-items:center;justify-content:center;width:var(--act-w);margin:0}
+.nwrap>a{flex-basis:0}  /* never wrap the row link under its own wide content: the slot stays on the line */
+.ended-fold .nwrap>a{margin-right:var(--act-w)}  /* Ended rows keep the same room, so every agent table on the page aligns */
+.rowpin .ibtn{opacity:0}
+.nwrap:hover>.rowpin .ibtn,.rowpin:focus-within .ibtn,.rowpin.on .ibtn{opacity:1}
+.rowpin.on .ibtn{color:var(--fg)}
+.rowpin.on .ibtn svg{fill:currentColor}
+@media (hover:none),(pointer:coarse){.rowpin .ibtn{opacity:1;width:36px;height:36px}}
+.nhead.has-pin,.lhead.has-pin{padding-right:calc(var(--s2) + var(--act-w))}
+/* group label inside an agent list: Pinned, then Active (no fill: UI-RULES "Row states") */
+.rgrp{padding:6px var(--s2) 2px;border-bottom:1px solid var(--line2);color:var(--muted);font-size:.75rem;font-weight:600;line-height:1.4}
+@media (hover:none),(pointer:coarse){.rx-tg{width:32px;height:32px}}
+.rx-head{display:flex;align-items:center;gap:var(--s2)}
+.rx-head h2{margin-top:0;margin-bottom:0}
+.rx-all{margin-right:auto;min-height:24px;padding:0 10px;font-size:var(--fs-s);border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--muted)}
+.rx-all:hover{background:var(--hover);color:var(--fg)}
+.rx-head .rx-all{margin-right:0}
+/* project page: the heading rule belongs to the whole heading row (full width), not to the shrunk h2 beside the recap button */
+.pg-project .rx-head,.pg-project .idle-fold>summary{margin:24px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+.pg-project .rx-head h2,.pg-project .idle-fold>summary h2{margin:0;padding:0;border:0}
+.pg-project .ssewrap .rx-head>h2:first-child,.pg-project #proj-live .rx-head>h2:first-child,.pg-project .ssewrap .ended-head>h2:first-child,.pg-project #proj-live .ended-head>h2:first-child,.pg-project .ssewrap .idle-fold>summary>h2:first-child{margin:0}
+
+/* Agents tab (back to the tables): only where the docs REPLACE the page (projview.js sets .pj-repl); phones always replace */
+.pj-tab-agents{display:none}
+@media all{
+  .pj-split.pj-repl .pj-tab-agents{display:block}
+  .pj-split.pj-repl:not(.pj-docsview) .pj-right{display:none}
+  .pj-split.pj-docsview>.pj-main>:not(.pj-head):not(.pj-tabbar){display:none}
+  .pj-split.pj-docsview>.pj-right{margin-top:0;border-top:0}
+}
+@media (min-width:700px){
+  /* docs view: the agent tables give way to the document; page header + tab bar stay, the body has its own scrollbar.
+     Phones (<700px) skip this: the whole page scrolls, so a tall header never squeezes the tab into a small box. */
+  html:has(.pj-split.pj-docsview){overflow:hidden}
+  .v5-shell>main:has(.pj-split.pj-docsview){height:calc(100vh - var(--top-h));height:calc(100dvh - var(--top-h));min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  .pg-project:has(.pj-split.pj-docsview){flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .pj-split.pj-docsview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .pj-split.pj-docsview>.pj-main{flex:none}
+  .pj-split.pj-docsview>.pj-right{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .pj-split.pj-docsview .pj-body{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+  .pj-split.pj-docsview .pj-file{max-height:none}
+}
+.pj-pane[hidden]{display:none}
+.pj-pane>h2:first-child{margin-top:0}
+.pj-tabbar .pj-tabs{flex-wrap:wrap;overflow:visible}
+.pj-tabbar .pj-tab{padding:8px 9px}
+.pj-tab{flex:0 0 auto}
+.pj-bledit[hidden]{display:none}
+.pj-bledit iframe{width:100%;border:0;display:block;background:var(--page)}
+.pj-pane-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pj-pane-head h2{margin:0}
+/* Projects (/p) and tmux (/tmux): overrides on top of the rules above */
+
+/* protected lock: the real markup carries an emoji fallback inside the span (font-size 0 hides it);
+   vertical-align:middle keeps the inline-block from dropping below the text baseline */
+.pg-tmux .lock{vertical-align:middle;overflow:hidden;line-height:0}
+.pg-tmux .srow .c-main strong{display:inline-flex;align-items:center}
+.pg-tmux .srow .c-main .badge{margin-left:6px}
+
+/* Cancel/OK in the New session box are real controls: tap targets */
+.newsess .formbtns button,.newsess>summary{min-height:36px}
+@media (pointer:coarse),(max-width:699px){
+  .newsess .formbtns button,.newsess>summary{min-height:44px}
+  .pg-tmux .expandbar>button,.pg-tmux .expandbar>button+button,.pg-tmux .expandbar>button:first-child{min-height:36px;height:36px}
+  .pg-projects .star{min-height:44px}
+}
+.pg-tmux .newsess[open]>form{display:flex;flex-direction:column;gap:var(--s2)}
+.pg-tmux .newsess[open]>form input[name=name]{width:100%;box-sizing:border-box}
+@media (max-width:699px){.pg-tmux .newsess[open]>form{width:min(20em,calc(100vw - 32px))}}
+.pg-tmux .newsess[open]>form input[name=name]{flex:none;height:var(--ctl-h);min-height:var(--ctl-h)}
+.pg-tmux .newsess .formbtns{margin-top:0}
+.pg-tmux details.sessrow>summary.srow .c-main{display:flex;align-items:center;min-width:0}
+.pg-tmux details.sessrow>summary.srow .c-main::before{flex:0 0 auto;line-height:1}
+.pg-tmux details.sessrow>summary.srow .c-act{align-self:center}
+@media (pointer:coarse),(max-width:699px){.pg-tmux .sess-actions a.button{display:inline-flex;align-items:center;min-height:36px}.pg-tmux .sess-actions .kill button{min-height:36px}}

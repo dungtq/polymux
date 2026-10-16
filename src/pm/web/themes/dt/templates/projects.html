@@ -1,0 +1,18 @@
+{#- dt Projects list page (PRD.md §6.4 first and last bullets, LAYOUT.md §4-5). The list lives in #pj, which is
+    the whole fragment templates/_projects_list.html (the core route pages.projects_page returns it for every htmx
+    request: filter, segment, sort, Show all, live refresh; swapped outerHTML, so its hx-get is always the current
+    list URL). Live (V7-CODE-7, no timed poll): #pj reloads on the stream's agent events, on pm:refresh, after the
+    stream reopened (pm7:resync) and on pm7:refresh (a ⋯ item's "refresh"). The New project dialog
+    (templates/projects/_new.html) sits outside #pj so swaps never touch it. Page CSS / JS: css/projects.css,
+    js/projects.js (list), js/newproject.js (dialog). -#}
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+{% block mainclass %}{% endblock %}
+{% block page_head %}<link rel="stylesheet" href="/static/t/dt/css/projects.css">
+<script src="/static/t/dt/js/projects.js" defer></script>
+<script src="/static/t/dt/js/newproject.js" defer></script>
+{% endblock %}
+{% block content %}
+{% include "_projects_list.html" %}
+{% include "projects/_new.html" %}
+{% endblock %}

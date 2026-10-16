@@ -1,0 +1,180 @@
+{#- Grid table (DESIGN.md §6.8, §6.9; LAYOUT.md §3, §4 steps 5-6, §6). Contract: PARTS.md §6. Look: table.css;
+    folds and row details: js/table.js; row keys and row click: js/listkeys.js.
+    {% import "parts/_table.html" as tb %}
+
+    {% call tb.table(key, label, cls, list=none, keys=none, labels=none, id=none) %} ... {% endcall %}
+      div.p-g[role=table][data-p-table=<key>]: key = the table's state key (open details, folds kept across swaps);
+      cls = the page's table class that sets the grid template (--g-cols, --g-cols-n, --g-cols-s; never inline);
+      list = keyboard list name (data-list): J K ↵ O X E P work on its rows; keys = {"enter"|"o"|"x"|"e"|"p": action}
+      -> data-key-<k> (action grammar: PARTS.md §7); labels = {k: "sheet text"} -> data-key-<k>-label.
+    tb.gh(cols, sort=none, sort_url=none, target=none)
+      the header row. cols: list of {"label", "key", "href", "cls", "num", "sr", "title"}; a column is sortable when it
+      has "href", or "key" and a sort_url callable (sort_url(key) -> href; the server decides the direction, so a
+      second click reverses). sort = the current order: "key" ascending, "-key" descending -> aria-sort on that
+      columnheader. target: sort links also load with htmx into target (outerHTML, hx-push-url). "sr" = screen-reader
+      text for a column without a visible label (dot, actions); cls carries hide-n / hide-s, num = right-aligned.
+    {% call tb.group(key, label, count=none, open=true, note="", icon=none, cls="", actions=none) %} rows {% endcall %}
+      div.p-gg[role=rowgroup][data-p-grp=<key>] (.fold when closed) > band div.p-grp[role=row] > span.p-grpc[role=cell]
+      > button.p-fold[aria-expanded] (Enter / Space fold it), then the caller's rows. actions (the caller is the rows,
+      so band buttons come as data): list of {"label", "icon", "title", "attrs", "hidden"} -> span.p-grpa[role=cell]
+      at the band's right end (also while folded) holding button.x-btn.sm per item (attrs = data-* / hx-*).
+    {% call tb.row(id, href=none, cls="", kind=none, cur=false, open=false, sel=false, q=none, title=none,
+                   attrs=none) %} cells {% endcall %}
+      div.p-gr[role=row][data-row-id=<id>][tabindex]: href -> data-href (↵ / click in a list), kind -> data-kind (kind
+      edge), cur = the list's Tab stop (tabindex 0, else -1), open = details shown (.open), sel = shown in the aside
+      (.sel), q = filter text for the client filter box (data-p-q, lower-cased), attrs = extra data-* attributes
+      (xmlattr; e.g. what a page's JS reads from the row). Every direct child is a cell:
+      role="cell" (the macros below add it).
+    cells: tb.dot(state, title=none) · {% call tb.name(text, href=none, sfx=false) %} chips {% endcall %} ·
+      {% call tb.cell(cls="", num=false) %} ... {% endcall %} · tb.end(text, since=none) ·
+      {% call tb.meta() %} phone line 2 {% endcall %} · {% call tb.acts() %} buttons, ⋯ {% endcall %} ·
+      tb.det_btn(table, id, open=false, label=none)
+    {% call tb.det(table, id, open=false, src=none, label=none) %} content {% endcall %}   (or tb.det(...) with src:
+      loaded with htmx on first open) -> div.p-det[role=row][data-p-det-for=<id>][hidden] > div.p-detc[role=cell]
+    tb.kv(pairs) -> dl.p-kv (pairs: (key, value) or (key, value, cls)) · {% call tb.dacts() %} buttons {% endcall %}
+    tb.empty(text, fnone=false) (or {% call %}) -> the empty line; fnone: the client filter's "no match" line (hidden)
+    tb.foot(shown, total, more_href=none, target=none, noun="", text=none, newer=none, older=none,
+            older_label="Older", newer_label="Newer", notes=(), push=true)
+      the foot line, rendered when it has something to say: "Showing X of Y <noun> · Show all Y" when X < Y (text
+      replaces the "Showing" phrase, e.g. a range "Showing 51–100 of 1,234"); newer / older = paging links (hrefs);
+      notes = muted sentences after them. target = swap that element with htmx (outerHTML; push = hx-push-url for the
+      paging links, Show all always pushes); none = plain links (a full page load).
+    tb.hints(items)  key hints line: items = (keys, text) pairs, keys = space-separated key specs ("J K", "Enter");
+      the kbd labels come from the key table (keys.js); hidden on phones and with html.no-khints. -#}
+
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+
+{%- macro _domid(table, id) -%}{{ ("p-det-" ~ table ~ "-" ~ id) | replace(" ", "_") }}{%- endmacro -%}
+
+{%- macro table(key, label, cls="", list=none, keys=none, labels=none, id=none) -%}
+{%- set ka = {} -%}
+{%- for k, v in (keys or {}).items() %}{% set _ = ka.update({"data-key-" ~ k: v}) %}{% endfor -%}
+{%- for k, v in (labels or {}).items() %}{% set _ = ka.update({"data-key-" ~ k ~ "-label": v}) %}{% endfor -%}
+<div class="p-g{{ ' ' ~ cls if cls }}" role="table" aria-label="{{ label }}" data-p-table="{{ key }}"{% if id %} id="{{ id }}"{% endif %}{% if list %} data-list="{{ list }}"{% endif %}{{ ka | xmlattr }}>
+{{ caller() }}
+</div>
+{%- endmacro -%}
+
+{%- macro gh(cols, sort=none, sort_url=none, target=none) -%}
+{%- set sdesc = sort is string and sort.startswith("-") -%}
+{%- set skey = (sort[1:] if sdesc else sort) if sort else none -%}
+<div class="p-gh" role="row">
+  {%- for c in cols %}
+  {%- set k = c.get("key") -%}
+  {%- set href = c.get("href") or (sort_url(k) if (k and sort_url) else none) -%}
+  {%- set cls = (c.get("cls") or "") ~ (" num" if c.get("num") else "") %}
+  <span{% if cls.strip() %} class="{{ cls.strip() }}"{% endif %} role="columnheader"{% if k and k == skey %} aria-sort="{{ 'descending' if sdesc else 'ascending' }}"{% endif %}{% if c.get("title") %} title="{{ c.title }}"{% endif %}>
+    {%- if href %}<a class="p-sort" href="{{ href }}"{% if target %} hx-get="{{ href }}" hx-target="{{ target }}" hx-swap="outerHTML" hx-push-url="true"{% endif %}>{{ c.label }}<i class="ar" aria-hidden="true"></i></a>
+    {%- else %}{{ c.get("label") or "" }}{% if c.get("sr") %}<span class="vh">{{ c.sr }}</span>{% endif %}{% endif -%}
+  </span>
+  {%- endfor %}
+</div>
+{%- endmacro -%}
+
+{%- macro group(key, label, count=none, open=true, note="", icon=none, cls="", actions=none) -%}
+<div class="p-gg{{ '' if open else ' fold' }}" role="rowgroup" data-p-grp="{{ key }}">
+<div class="p-grp{{ ' ' ~ cls if cls }}" role="row"><span class="p-grpc" role="cell"><button class="p-fold" type="button" aria-expanded="{{ 'true' if open else 'false' }}">
+  <svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}down"/></svg>
+  {%- if icon %}<svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ icon }}"/></svg>{% endif -%}
+  <span class="t">{{ label }}</span>
+  {%- if count is not none %}<span class="c">{{ count }}</span>{% endif -%}
+  {%- if note %}<span class="note">· {{ note }}</span>{% endif -%}
+</button></span>
+{%- if actions %}<span class="p-grpa" role="cell">
+  {%- for a in actions %}<button class="x-btn sm" type="button"{{ (a.get("attrs") or {}) | xmlattr }}
+    {%- if a.get("title") %} title="{{ a.title }}"{% endif %}{% if a.get("hidden") %} hidden{% endif %}>
+    {%- if a.get("icon") %}<svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ a.icon }}"/></svg>{% endif -%}
+    {{ a.label }}</button>{% endfor -%}
+</span>{% endif -%}
+</div>
+{{ caller() }}
+</div>
+{%- endmacro -%}
+
+{%- macro row(id, href=none, cls="", kind=none, cur=false, open=false, sel=false, q=none, title=none, attrs=none) -%}
+<div class="p-gr{{ ' ' ~ cls if cls }}{{ ' open' if open }}{{ ' sel' if sel }}" role="row" data-row-id="{{ id }}" tabindex="{{ '0' if cur else '-1' }}"
+  {%- if href %} data-href="{{ href }}"{% endif %}{% if kind %} data-kind="{{ kind }}"{% endif %}
+  {%- if q is not none %} data-p-q="{{ q | lower }}"{% endif %}{% if title %} title="{{ title }}"{% endif %}
+  {{- attrs | xmlattr if attrs }}>
+{{ caller() }}
+</div>
+{%- endmacro -%}
+
+{%- macro dot(state, title=none) -%}
+<span class="gc-dot" role="cell"><i class="dot {{ state or 'unknown' }}" title="{{ title or state }}" aria-hidden="true"></i><span class="vh">{{ title or state }}</span></span>
+{%- endmacro -%}
+
+{%- macro name(text, href=none, sfx=false) -%}
+<span class="gc-nm" role="cell">
+  {%- if href %}<a class="nm{{ ' sfx' if sfx }}" href="{{ href }}">{% else %}<span class="nm{{ ' sfx' if sfx }}">{% endif -%}
+  {%- if sfx %}<bdi>{{ text }}</bdi>{% else %}{{ text }}{% endif -%}
+  {%- if href %}</a>{% else %}</span>{% endif -%}
+  {%- if caller is defined %}{{ caller() }}{% endif -%}
+</span>
+{%- endmacro -%}
+
+{%- macro cell(cls="", num=false) -%}
+{%- set c = (cls ~ (" num" if num else "")).strip() -%}
+<span{% if c %} class="{{ c }}"{% endif %} role="cell">{{ caller() }}</span>
+{%- endmacro -%}
+
+{%- macro end(text, since=none) -%}
+<span class="gc-end" role="cell"{% if since %} data-since="{{ since }}"{% endif %}>{{ text }}</span>
+{%- endmacro -%}
+
+{%- macro meta() -%}
+<span class="gc-m" role="cell">{{ caller() }}</span>
+{%- endmacro -%}
+
+{%- macro acts() -%}
+<span class="gc-act" role="cell">{{ caller() }}</span>
+{%- endmacro -%}
+
+{%- macro det_btn(table, id, open=false, label=none) -%}
+<button class="x-ib sm p-detb" type="button" data-p-det-btn aria-expanded="{{ 'true' if open else 'false' }}" aria-controls="{{ _domid(table, id) }}" aria-label="Details for {{ label or id }}" title="Details" data-k-title="X"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}down"/></svg></button>
+{%- endmacro -%}
+
+{%- macro det(table, id, open=false, src=none, label=none) -%}
+<div class="p-det" role="row" id="{{ _domid(table, id) }}" data-p-det-for="{{ id }}"{% if src %} data-p-det-src="{{ src }}"{% endif %}{% if not open %} hidden{% endif %}><div class="p-detc" role="cell" aria-label="Details for {{ label or id }}">
+{%- if caller is defined %}{{ caller() }}{% endif -%}
+</div></div>
+{%- endmacro -%}
+
+{%- macro kv(pairs) -%}
+<dl class="p-kv">
+  {%- for p in pairs %}<dt>{{ p[0] }}</dt><dd{% if p | length > 2 and p[2] %} class="{{ p[2] }}"{% endif %}>{{ p[1] }}</dd>{% endfor -%}
+</dl>
+{%- endmacro -%}
+
+{%- macro dacts() -%}
+<div class="p-dacts">{{ caller() }}</div>
+{%- endmacro -%}
+
+{%- macro empty(text="", fnone=false) -%}
+<div class="p-empty" role="row"{% if fnone %} data-p-fnone hidden{% endif %}><span role="cell">{% if caller is defined %}{{ caller() }}{% else %}{{ text }}{% endif %}</span></div>
+{%- endmacro -%}
+
+{%- macro _flink(href, label, target, push) -%}
+<a class="p-more" href="{{ href }}"{% if target %} hx-get="{{ href }}" hx-target="{{ target }}" hx-swap="outerHTML"{% if push %} hx-push-url="true"{% endif %}{% endif %}>{{ label }}</a>
+{%- endmacro -%}
+
+{%- macro foot(shown=0, total=0, more_href=none, target=none, noun="", text=none, newer=none, older=none,
+               older_label="Older", newer_label="Newer", notes=(), push=true) -%}
+{%- set part = total and shown < total -%}
+{%- set lead = text or (("Showing " ~ shown ~ " of " ~ total ~ (" " ~ noun if noun else "")) if part else "") -%}
+{%- if lead or newer or older or notes %}
+{%- set ns = namespace(sep=false) %}
+<p class="p-foot">
+  {%- if lead %}<span>{{ lead }}</span>{% set ns.sep = true %}{% endif %}
+  {%- if more_href and part %}<span aria-hidden="true">·</span>{{ _flink(more_href, "Show all " ~ total, target, true) }}{% endif %}
+  {%- for href, lab in ((newer, newer_label), (older, older_label)) if href %}{% if ns.sep %}<span aria-hidden="true">·</span>{% endif %}{{ _flink(href, lab, target, push) }}{% set ns.sep = true %}{% endfor %}
+  {%- for n in notes %}{% if ns.sep %}<span aria-hidden="true">·</span>{% endif %}<span>{{ n }}</span>{% set ns.sep = true %}{% endfor -%}
+</p>
+{%- endif %}
+{%- endmacro -%}
+
+{%- macro hints(items) -%}
+<p class="p-keys" aria-hidden="true">
+  {%- for keys, text in items %}<span>{% for k in keys.split(" ") %}<kbd data-k="{{ k }}"></kbd>{% endfor %} {{ text }}</span>{% endfor -%}
+</p>
+{%- endmacro -%}

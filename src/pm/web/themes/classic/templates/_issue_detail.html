@@ -1,0 +1,41 @@
+{# One issue in the project page's Issues tab (replaces the list until closed; issues.js). Context: d
+   (tracker.issues.detail), it (d.item), pname, csrf, send (running agents of the project with draft links). #}
+{% set base = "/p/" ~ (pname | urlencode) %}{% set u = base ~ "/issues/" ~ it.num %}
+<article class="iss-detail" data-num="{{ it.num }}" aria-labelledby="iss-dt">
+<div class="iss-dhead">
+  <span class="iss-dnum mono">#{{ it.num }}</span>
+  <span class="dot {{ 'dot-idle' if it.done else 'dot-running' }}" title="{{ 'Done' if it.done else 'Open' }}"></span><span class="iss-dstate small">{{ 'Done' if it.done else 'Open' }}</span>
+  <button type="button" class="iss-x" data-iss-close aria-label="Close issue" title="Close (Esc)">&times;</button>
+</div>
+<h3 class="iss-dtitle" id="iss-dt">{{ d.title_html | safe }}</h3>
+<p class="small muted iss-dmeta">Added{% if it.created_by %} by {{ it.created_by }}{% endif %}{% if d.created_at %} {{ d.created_at | ago }}{% else %} (date unknown){% endif %}{% if it.done %} &middot; done{% if it.closed_by %} by {{ it.closed_by }}{% endif %}{% if it.closed_at %} {{ it.closed_at | ago }}{% endif %}{% endif %}{% if it.commit %} &middot; <span class="mono">{{ it.commit[:10] }}</span>{% endif %}</p>
+<div class="iss-dact">
+  <form method="post" action="{{ u }}/{{ 'reopen' if it.done else 'done' }}" data-iss-form><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">{{ 'Reopen' if it.done else 'Done' }}</button></form>
+  <button type="button" data-iss-edit aria-expanded="false" aria-controls="iss-editf">Edit</button>
+  <details class="iss-send"><summary class="button">Send to agent</summary>
+    <div class="iss-sendpop" role="menu">
+    {% for a in send %}<a role="menuitem" href="{{ a.href }}" data-issue-send title="Open {{ a.id }} with a message about #{{ it.num }} (not sent)"><span class="dot dot-{{ a.state }}" title="{{ a.state }}"></span><span class="iss-sl">{{ a.label }}</span><span class="muted mono small">{{ a.id }}</span></a>
+    {% else %}<p class="small muted">No agent runs in {{ pname }}.</p><a role="menuitem" href="{{ base }}/launch">Launch an agent</a>{% endfor %}
+    </div>
+  </details>
+  <form class="iss-del" method="post" action="{{ u }}/delete" data-iss-form data-confirm="Delete issue #{{ it.num }}? Its notes and images go too."><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="danger">Delete</button></form>
+</div>
+<p class="iss-err small" role="alert" hidden></p>
+<form class="iss-editf" id="iss-editf" method="post" action="{{ u }}/edit" data-iss-form hidden>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="small muted" for="iss-et">Title</label>
+  <input id="iss-et" name="title" value="{{ it.title }}" maxlength="500" required autocomplete="off">
+  <label class="small muted" for="iss-eb">Description (Markdown)</label>
+  <textarea id="iss-eb" name="body" rows="8">{{ it.body_md }}</textarea>
+  <div class="iss-fact"><button type="submit" class="primary">Save</button><button type="button" data-iss-edit-cancel>Cancel</button></div>
+</form>
+<div class="md iss-body">{% if it.body_md.strip() %}{{ d.body_html | safe }}{% else %}<p class="muted small">No description.</p>{% endif %}</div>
+{% if d.images %}<div class="chat-imgs iss-imgs">{% for im in d.images %}<a class="chat-img" href="{{ im.url }}" target="_blank" rel="noopener" title="Image {{ loop.index }}"><img src="{{ im.url }}" alt="Image {{ loop.index }} of issue #{{ it.num }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+<h4 class="iss-nh">Notes <span class="muted">{{ d.notes | length }}</span></h4>
+{% if d.notes %}<ol class="iss-notes">{% for n in d.notes %}<li><div class="small muted"><span class="iss-nby">{{ n.author }}</span> {{ n.ts | ago }}</div><div class="md">{{ n.html | safe }}</div></li>{% endfor %}</ol>{% endif %}
+<form class="iss-notef" method="post" action="{{ u }}/note" data-iss-form>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <textarea name="body" rows="2" placeholder="Add a note (Markdown)..." aria-label="New note" required></textarea>
+  <button type="submit">Add note</button>
+</form>
+</article>

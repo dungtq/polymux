@@ -1,0 +1,317 @@
+/* chrome.css (was v4.css): v3 layout untouched, v2 style (flat GitHub/Gitea): 6px radius, light header with underline tabs,
+   white page, bordered boxes without a floating card, outlined chips. Loaded after base.css; no layout moves. */
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;background:var(--page);color:var(--fg)}
+.mono,pre,code,kbd{font-family:var(--mono,ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace)}
+
+/* header: light grey band, dark text, orange underline on the current tab */
+.topbar{background:var(--head);border-bottom:1px solid var(--line)}
+.topbar .brand{color:var(--head-fg)}
+.toplink,.linkbtn{color:var(--head-muted)}
+.toplink:hover,.linkbtn:hover{color:var(--head-fg)}
+.tabbar{background:var(--head);border-top:1px solid var(--line)}
+@media (max-width:699px),(pointer:coarse){
+  .tabbar a.on{box-shadow:none;text-decoration:none;color:var(--fg);font-weight:600}
+  .tabbar a.on::before{content:"";position:absolute;top:0;left:30%;right:30%;height:2px;border-radius:0 0 1px 1px;background:var(--tab-on)}
+}
+@media (min-width:700px) and (pointer:fine){
+  body::before{background:var(--head);border-bottom:1px solid var(--line)}
+  .tabbar{background:none}
+  .tabbar a{color:var(--fg);border-radius:6px;margin:4px 0}
+  .tabbar a:hover{color:var(--fg);background:var(--hover)}
+  .tabbar a.on{color:var(--fg);font-weight:600;box-shadow:none;text-decoration:none;position:relative}
+  .tabbar a.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-4px;height:2px;border-radius:1px;background:var(--tab-on)}
+}
+.tabbadge{color:var(--fg);background:#818b981f;border-radius:99px;padding:0 6px;font-size:12px;font-weight:500;min-width:20px;text-align:center}
+
+/* content: flat white page, no floating card */
+main{background:var(--bg);border:0;border-radius:0;margin:0 auto;padding:8px 24px 24px}
+@media (max-width:699px){main{padding:8px 16px 24px}}
+main h1{font-size:1.25rem;font-weight:600;margin:12px 0;padding-bottom:12px;border-bottom:1px solid var(--line)}
+main h2{font-size:.875rem;font-weight:600}
+.agent-head h1{border:0;padding:0}
+
+/* controls: 6px radius, grey fill, green primary */
+button,.button,select{background:var(--subtle);border-color:var(--ctl-line);border-radius:6px;font-weight:500;padding:0 var(--ctl-pad);transition:background .12s,border-color .12s}
+button:hover,.button:hover{background:var(--hover)}
+button.primary,.launch-btn,button[type=submit].primary{background:var(--btn-green);border-color:#1f232826;color:#fff;font-weight:600}
+button.primary:hover,.launch-btn:hover{background:var(--btn-green);filter:brightness(1.08)}
+button.danger,.button.danger{color:var(--failed)}
+button.danger:hover{background:var(--failed);border-color:var(--failed);color:#fff}
+.pact button,.actions button,.actions .button,.sess-actions button,.sess-actions .button,.expandbar button,.vm-acts button,.vm-typed button,form.kill button,.tools-quiet button,.bl-all button{background:none;border-color:transparent;font-weight:400}
+.pact button:hover,.actions button:hover,.sess-actions button:hover,.expandbar button:hover,.vm-acts button:hover,form.kill button:hover{background:var(--hover)}
+/* action rows: real buttons (undo the quiet link look above) */
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 12px}
+.actions form.inline{margin:0;display:inline-flex}
+.actions button,.actions .button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:var(--ctl-h);height:var(--ctl-h);padding:0 var(--ctl-pad);background:var(--subtle);border:1px solid var(--ctl-line);border-radius:6px;font-weight:500;color:var(--fg);text-decoration:none;white-space:nowrap}
+.actions button:hover,.actions .button:hover{background:var(--hover);border-color:var(--ctl-line);text-decoration:none}
+.actions a.button[href$="/launch"],.actions button.primary{background:var(--btn-green);border-color:#1f232826;color:#fff;font-weight:600}
+.actions a.button[href$="/launch"]:hover,.actions button.primary:hover{background:var(--btn-green);filter:brightness(1.08)}
+.actions .button.danger,.actions button.danger{color:var(--failed)}
+.actions .button.danger:hover,.actions button.danger:hover{background:var(--failed);border-color:var(--failed);color:#fff}
+select{padding-right:10px}
+input:not([type=checkbox]):not([type=hidden]),textarea{background:var(--bg);border-radius:6px;min-height:var(--ctl-h);padding:4px 12px}
+input:not([type=checkbox]):not([type=hidden]):focus,textarea:focus,select:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
+input[type=checkbox]{accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
+
+/* status: outlined pill, colour on text only */
+.badge{border:1px solid var(--line);border-radius:99px;padding:0 8px;font-size:.75rem;line-height:18px;display:inline-block;margin-right:6px}
+.badge.st-running{color:var(--running);border-color:color-mix(in srgb,var(--running) 40%,transparent)}
+.badge.st-waiting{color:var(--waiting);border-color:color-mix(in srgb,var(--waiting) 40%,transparent)}
+.badge.st-failed{color:var(--failed);border-color:color-mix(in srgb,var(--failed) 40%,transparent)}
+
+/* tables and lists: grey header row, hairline rows */
+table{border-collapse:collapse}
+th{background:var(--subtle);color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:8px 12px}
+td{padding:8px 12px;border-bottom:1px solid var(--line2)}
+tbody tr:hover td{background:var(--subtle)}
+code{background:var(--code-bg);border-radius:6px;padding:.2em .4em;font-size:85%}
+pre{background:var(--subtle);border-radius:6px;padding:12px 14px}
+pre code{background:none;padding:0}
+.pane{background:var(--pane-bg);color:var(--pane-fg);border-radius:6px;padding:12px 14px}
+
+/* boxes: 1px bordered, 6px radius */
+.card,.srv-card,.vm-card,.td-card,.bl-card,.set-notice,.stoppanel,.running-strip{border:1px solid var(--line);border-radius:var(--box-r);padding:12px 14px;background:var(--bg)}
+a.card:hover{background:var(--subtle)}
+
+/* chat: user = grey bordered bubble, assistant = plain text */
+.chat{gap:14px}
+.chat-bubble{border-top:0;padding:0}
+.chat-bubble.role-user{align-self:flex-end;max-width:85%;background:var(--subtle);border:1px solid var(--line);border-radius:6px;padding:8px 14px}
+.chat-bubble.role-user .chat-meta{display:none}
+.md pre{border:0;background:var(--subtle);border-radius:6px;padding:10px 14px}
+.md th,.md td{border-bottom:1px solid var(--line)}
+
+
+.term-scroll{background:#0d1117;border-radius:6px;overflow:hidden}
+.term-navbtn{border-radius:6px}
+::selection{background:var(--selection)}
+
+/* ---- servers tab: colour ---- */
+.srv-card{border-top:3px solid var(--accent)}
+.srv-card[aria-labelledby=srv-h-docker]{border-top-color:#8250df}
+.srv-card[aria-labelledby=srv-h-hosts]{border-top-color:var(--btn-green)}
+.srv-card[aria-labelledby=srv-h-tmux]{border-top-color:var(--tab-on)}
+.srv-card.vm-card{border-top-color:#bf3989}
+.srv-card h2,.vm-card h2{color:var(--fg)}
+/* summary tiles, level bars and host rows: servers.css (the one copy) */
+/* status badges: tinted fills */
+.badge.st-idle{background:var(--subtle);color:var(--muted)}
+.badge.st-running{background:var(--running-soft)}
+.badge.st-failed{background:var(--failed-soft)}
+.badge.st-unknown{background:var(--waiting-soft);color:var(--waiting)}
+
+/* ---- side background: grey gutters either side of the white content column ---- */
+body{background:var(--side)}
+main{border-left:1px solid var(--line);border-right:1px solid var(--line);min-height:calc(100vh - 44px)}
+@media (max-width:699px){main{border-left:0;border-right:0}}
+
+/* ---- dir / file icons (mask = recolourable) ---- */
+.ico-dir::before,.ico-file::before,.prow .c-main strong::before,.ntfy-tg::before,.n-proj::before,.ext-links a[data-icon=plans]::before,.ext-links a[data-icon=files]::before{
+  content:"";display:inline-block;width:16px;height:16px;margin-right:6px;vertical-align:-3px;background:currentColor;
+  -webkit-mask:var(--ico) center/contain no-repeat;mask:var(--ico) center/contain no-repeat}
+.prow .c-main strong::before,.ntfy-tg::before,.n-proj::before,.ext-links a[data-icon=files]::before,.ico-dir::before{
+  --ico:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z'/%3E%3C/svg%3E");color:var(--ico-dir)}
+.ext-links a[data-icon=plans]::before,.ico-file::before{
+  --ico:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z'/%3E%3C/svg%3E");color:var(--ico-file)}
+/* names: dirs strong in text colour, paths smaller + muted, file links muted mono-ish */
+.prow .c-main strong{font-size:.9375rem;font-weight:600;color:var(--fg)}
+.ntfy-tg,.n-proj{font-size:.75rem;color:var(--muted)}
+.ntfy-tg::before,.n-proj::before{width:13px;height:13px;vertical-align:-2px;margin-right:4px}
+
+/* checkbox + header contrast (2026-10-08) */
+.toplink,.linkbtn,.tabbar a{color:var(--head-muted)}
+.toplink:hover,.linkbtn:hover,.tabbar a:hover,.tabbar a.on{color:var(--head-fg)}
+th,.hrow,.lhead,.lhead *{color:var(--colh)}
+th{font-weight:600}
+th,.hrow,.lhead{font-size:var(--fs-s);font-weight:600}
+.bl-box{position:relative;width:16px;height:16px;min-width:16px;min-height:16px;margin-top:4px;font-size:12px;line-height:14px;display:inline-flex;align-items:center;justify-content:center;border-radius:3px;border-color:var(--muted)}
+.bl-box::after{content:"";position:absolute;inset:-7px -6px}
+.bl-item.done .bl-box{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (pointer:coarse){.bl-box{width:18px;height:18px;min-width:18px;min-height:18px;margin-top:3px;font-size:13px;line-height:16px}.bl-box::after{inset:-11px -8px}}
+input[type=checkbox]{width:16px;height:16px}
+@media (pointer:coarse){input[type=checkbox]{width:18px;height:18px}}
+
+/* inbox: state as pill beside agent name, State column dropped (2026-10-08) */
+.nrow .n-main .badge{margin:0 0 0 4px;vertical-align:1px}
+
+/* ---- design audit pass (2026-10-08): tokens, pills, touch, focus, mobile nav ---- */
+/* filter chips (Audit result + pager, Servers container filter, Settings theme): the one chip spec.
+   Outlined pills (pill spec below), active = solid text colour. font:inherit first, the pill spec sets size. */
+.aud-chip,.srv-chip,.set-chip{justify-content:center;min-width:0;font:inherit;background:none;color:var(--muted);text-decoration:none;cursor:pointer;position:relative}
+/* one pill spec: 24px, --r-pill radius, hairline border, active = solid text colour */
+.badge,.aud-chip,.srv-chip,.set-chip{
+  box-sizing:border-box;display:inline-flex;align-items:center;min-height:var(--pill-h);height:var(--pill-h);
+  border-radius:var(--r-pill);border:1px solid var(--line);padding:0 10px;font-size:.75rem;line-height:1;white-space:nowrap}
+.badge{padding:0 8px;vertical-align:middle}
+/* count pill (_macros.html count_pill): the shared outline; each place keeps its own size (nav.css .vs-ub, rows.css .ntfy-unread) */
+.cpill{border:1px solid var(--line);border-radius:var(--r-pill)}
+.cpill[hidden]{display:none}
+.aud-chip:hover,.srv-chip:hover,.set-chip:hover{background:var(--hover);color:var(--fg);text-decoration:none}
+.aud-chip.on,.srv-chip.on,.set-chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg);text-decoration:none;font-weight:500}
+.aud-chip.off{opacity:.5}
+.aud-chip{margin:0;min-height:32px}
+.srv-chip{min-height:32px}
+.set-chip{min-height:32px;height:32px;padding:0 14px;font-size:var(--fs-s)}
+@media (pointer:coarse){.aud-chip{min-height:36px;padding:0 14px}.srv-chip{min-height:36px}}
+.badge.b-ok,.badge.st-ok,.badge.ok{color:var(--ok-fg)}
+.badge.st-running{color:var(--running)}
+.badge.st-waiting,.badge.b-warn,.badge.st-unknown{color:var(--waiting-fg)}
+.badge.st-failed{color:var(--failed-fg)}
+.nrow .n-main .badge{height:var(--pill-h)}
+/* header + column headers */
+th a:hover{color:var(--fg)}
+main h1{display:block;width:100%;box-sizing:border-box}
+/* focus rings everywhere */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a:focus-visible,button:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[class*=row]:focus-visible,[class*=row] a:focus-visible,.hcell:focus-visible,th a:focus-visible{outline-offset:-2px}
+input[type=checkbox]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* hit areas without bigger visuals */
+.brand{display:inline-flex;align-items:center;min-height:36px}
+@media (max-width:699px){
+  main{padding-bottom:calc(var(--nav-clear) + 72px)}
+  body{padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom))}
+  .tabbadge{position:static;margin-left:4px;padding:0 6px;font-size:.6875rem;line-height:16px;min-width:16px;vertical-align:1px;display:inline-block}
+  .tabbar a.on::before{left:20%;right:20%}
+}
+@media (max-width:699px),(pointer:coarse){
+  button,.button,select,.toplink,.linkbtn{min-height:40px}
+  .brand{min-height:44px;min-width:44px}
+  .pact button,.actions button,.sess-actions button,.expandbar button,.vm-acts button,form.kill button,.bl-all button{min-height:36px}
+  .aud-chip::after,.srv-chip::after,.set-chip::after{content:"";position:absolute;inset:-8px -4px}
+  a.badge{position:relative}a.badge::after{content:"";position:absolute;inset:-8px -4px}
+  label:has(>input[type=checkbox]){display:flex;align-items:center;gap:8px;min-height:40px}
+}
+
+/* ---- settings: hairline sections, session summary, row-wide labels ---- */
+.card.set-sec{border:0;border-radius:0;background:none;padding:4px 0 16px;border-bottom:1px solid var(--line2)}
+.set-sec .set-row{padding:8px 0;border-bottom:1px solid var(--line2)}
+.set-sec .set-row:last-child{border-bottom:0}
+.set-seg{display:flex;gap:8px;flex-wrap:wrap}
+.set-more{margin:4px 0}
+.set-more>summary{cursor:pointer;color:var(--muted);padding:8px 0;font-size:var(--fs-s)}
+.set-more>summary:hover{color:var(--fg)}
+.set-more .set-row{padding-left:12px}
+button.set-quiet{background:none;border-color:transparent;color:var(--accent);font-weight:400}
+button.set-quiet:hover{background:var(--hover)}
+.set-confirm{cursor:pointer;display:flex;align-items:center;gap:8px;min-height:32px;padding:0 4px;border-radius:6px;flex:1 1 100%;color:var(--fg)}
+.set-confirm:hover{background:var(--hover)}
+.set-grid .set-check{cursor:pointer;min-height:36px;padding:0 4px;border-radius:6px}
+.set-grid .set-check:hover{background:var(--hover)}
+.set-revoke-all{border-bottom:0}
+
+/* ---- final review: shared fixes ---- */
+/* Expand/Collapse all = same 24px pill everywhere (inbox, project, tmux, backlog) */
+.expandbar>button,.bl-all button{box-sizing:border-box;display:inline-flex;align-items:center;min-height:var(--pill-h);height:var(--pill-h);padding:0 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:none;color:var(--muted);font-size:.75rem;line-height:1;font-weight:400;margin:0}
+.expandbar>button+button{margin-left:0;border-radius:var(--r-pill)}
+.expandbar>button:hover,.bl-all button:hover{background:var(--hover);color:var(--fg);text-decoration:none}
+@media (pointer:coarse){.expandbar>button,.bl-all button{min-height:var(--pill-h)}}
+
+/* ---- phone tab bar (2026-10-08): 5 items, icons, 3px active bar, More… sheet ---- */
+.tabmore,.moresheet{display:none}
+@media (max-width:699px),(pointer:coarse){
+  .tabbar{z-index:20;align-items:stretch}
+  .tabbar .t-desk{display:none}
+  .tabbar a,.tabbar .tabmore{flex:1 1 0;min-width:0;min-height:var(--tab-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    padding:6px 0 4px;margin:0;border:0;border-radius:0;background:none;color:var(--head-muted);font:inherit;font-size:12.5px;line-height:1.1;font-weight:500;position:relative;white-space:nowrap}
+  .tabbar a::before,.tabbar .tabmore::before{content:"";width:26px;height:26px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+  .tabbar a.on,.tabbar .tabmore.on,.tabbar .tabmore[aria-expanded=true]{color:var(--accent);font-weight:700;box-shadow:inset 0 3px 0 var(--accent);background:var(--accent-soft)}
+  .tabbar a.on::after{content:none}
+  .tabbar a.on::before{position:static;inset:auto;height:26px;border-radius:0;background:currentColor}
+  .tabbar a[href="/"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 13l3-8h12l3 8v6H3zM3 13h5a4 4 0 008 0h5' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E")}
+  .tabbar a[href="/p"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6h7l2 2h9v11H3z' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E")}
+  .tabbar a[href="/tmux"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='4' width='18' height='16' rx='2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M7 9l3 3-3 3M12 15h5' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")}
+  .tabbar a[href="/servers"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='4' width='18' height='6' rx='1.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3Crect x='3' y='14' width='18' height='6' rx='1.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M7 7h.01M7 17h.01' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E")}
+  .tabbar .tabmore{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h.01M12 12h.01M19 12h.01' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E");cursor:pointer}
+  .tabbar .tabbadge{position:absolute;top:3px;left:calc(50% + 6px);right:auto;margin:0;padding:0 5px;min-width:18px;height:18px;line-height:18px;font-size:11.5px;font-weight:700;
+    background:var(--failed);color:#fff;border-radius:9px;box-sizing:border-box;text-align:center}
+  /* the look is .pop / .pop-item (popup.css); here only its place before popup.js runs and what undoes the tab look */
+  .moresheet:not([hidden]){display:block;position:absolute;right:8px;bottom:calc(100% + 8px);min-width:200px}
+  .moresheet .pop-item{flex-direction:row;justify-content:flex-start;gap:0;min-height:48px;padding:0 14px;margin:0;border-radius:8px;
+    box-shadow:none;color:var(--fg);font-size:16px;font-weight:500}
+  .moresheet a::before{content:none}
+  .moresheet a[aria-current=page]{color:var(--accent);font-weight:700}
+  .moresheet form{margin:0;border-top:1px solid var(--line2)}
+}
+
+/* phone text floor (2026-10-08): 16px form controls (no iOS zoom), 12px code/meta, 15px body */
+@media (max-width:699px),(pointer:coarse){
+  body{font-size:15px}
+  input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}
+  code,kbd,pre{font-size:12.5px}
+  .tabbar .tabbadge{font-size:12px}
+}
+
+/* ---- phone NORMAL weight (2026-10-08): everything 400; names/active tab 500; headings 600 ---- */
+@media (max-width:699px){
+  html,body{-webkit-text-stroke:0;text-shadow:none}
+  body,body *{font-weight:400!important;-webkit-text-stroke:0}
+  .ntfy-row[data-unread]>summary .ntfy-t,.ntfy-row[data-unread]>summary .ntfy-t *{font-weight:600!important}
+  strong,b,.c-main strong,.srv-k,.prow .c-main strong,.brand,.tabbar a.on,.tabbar .tabmore.on,.tabbar .tabmore[aria-expanded=true],
+  .aud-chip.on,.srv-chip.on,.set-chip[aria-pressed="true"],.moresheet a[aria-current=page],button.primary,.launch-btn{font-weight:500!important}
+  h1,h2,h3,main h1,main h2{font-weight:600!important}
+  .tabbar .tabbadge{font-weight:500!important}
+}
+
+/* ---- header icons (2026-10-08): Backlog / Audit / Settings / Log out, icon + label, icon-only <560px ---- */
+.topbar>span{display:inline-flex;align-items:center}
+.topbar .toplink,.topbar .linkbtn{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:var(--fs-m);font-weight:400;line-height:inherit;white-space:nowrap}
+.topbar .i-sun{display:none}
+:root[data-theme="dark"] .topbar .i-sun{display:inline}:root[data-theme="dark"] .topbar .i-moon{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme]) .topbar .i-sun{display:inline}:root:not([data-theme]) .topbar .i-moon{display:none}}
+.topbar form.inline{display:inline-flex;margin:0}
+.topbar .hi{flex:none}
+@media (max-width:699px){
+  .topbar .toplink,.topbar .linkbtn{min-width:40px;min-height:40px;justify-content:center;padding:0 8px;box-sizing:border-box}
+  .topbar>span{gap:0}
+}
+/* phones: 2-row header. Row 1 brand + search toggle, row 2 the tb-* buttons. --top-h (88px) = both rows; the open search overlay stays one row (--top-row) */
+@media (max-width:699px){
+  .topbar{flex-wrap:wrap;align-content:flex-start;padding:0;gap:0;min-height:var(--top-h)}
+  .topbar .brand{display:inline-flex;align-items:center;min-height:var(--top-row);padding:0 var(--s3)}
+  .topbar>.gsearch{height:var(--top-row);padding-right:var(--s2)}
+  .topbar>.gsearch.open{height:var(--top-row)}
+  .topbar>span{order:3;flex:0 0 100%;box-sizing:border-box;justify-content:space-between;min-height:var(--top-row);padding:0 var(--s2);border-top:1px solid var(--line)}
+}
+@media (max-width:559px){.topbar .tl{display:none}.topbar .toplink,.topbar .linkbtn{width:44px;padding:0}}
+@media (min-width:700px){.topbar .toplink[href="/backlog"],.topbar .toplink[href="/audit"],.topbar .toplink[href="/ntfy"]{display:none}}
+/* 700-859px: the tab row plus icon labels is 5px wider than the window; icons only (aria-label/title carry the name) */
+@media (min-width:700px) and (max-width:859px){.topbar .tl{display:none}.topbar .toplink,.topbar .linkbtn{min-width:36px;min-height:36px;justify-content:center;padding:0 8px;box-sizing:border-box}}
+
+/* segmented control (Canvas Edit|Split|Preview, chat view Detail|Compact): one outlined box, pressed = fg + 600 */
+.cv-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--box-r,6px);overflow:hidden}
+.cv-seg button{border:0;border-radius:0;background:none;color:var(--muted);padding:2px 10px;min-height:28px;font-size:var(--fs-s)}
+.cv-seg button+button{border-left:1px solid var(--line)}
+.cv-seg button[aria-pressed="true"]{color:var(--fg);font-weight:600}
+.cv-seg button:focus-visible{outline-offset:-2px}
+
+/* agent kind identity: unknown kinds fall back to other (:where keeps the fallback at zero specificity) */
+:where([data-kind]){--k:var(--k-other)}
+[data-kind=claude]{--k:var(--k-claude)}[data-kind=codex]{--k:var(--k-codex)}[data-kind=devin]{--k:var(--k-devin)}
+[data-kind=cursor-agent],[data-kind=cursor]{--k:var(--k-cursor-agent)}[data-kind=antigravity],[data-kind=agy]{--k:var(--k-antigravity)}
+[data-kind=other]{--k:var(--k-other)}
+/* left edge = who (inset shadow: no layout shift); kind pill/dot/name follow --k */
+.lrow[data-kind],.nrow[data-kind],.hist-row[data-kind],.vs-row[data-kind],.ntfy-row[data-kind]>summary{box-shadow:inset 3px 0 0 var(--k)}
+.kpill[data-kind]{--pill:var(--k)}
+select[data-kind]{box-shadow:inset 3px 0 0 var(--k)}option[data-kind]{color:var(--k)}
+/* model pill follows the row's kind; agent id matches the other cell text (no bold/size bump from the strong rule) */
+[data-kind] .kpill.kp-model{--pill:var(--k)}
+.lrow strong.aname,.nrow .n-main strong.aname,.hist-n strong.aname,.tx-agent strong.aname{font-size:inherit;font-weight:400!important}
+/* Topbar bell (system messages: no agent) and the Servers unread badge; popup is a details.acct dropdown, filled on open */
+.bell-sum{position:relative}
+.bell-sum .vs-ub{position:absolute;top:1px;right:-2px;margin:0;height:16px;min-width:16px;padding:0 4px;background:var(--head)}
+.bell-pop{width:min(340px,calc(100vw - 16px));padding:6px 4px}
+.bell-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:2px 8px 6px;border-bottom:1px solid var(--line2)}
+.bell-h{font-weight:600;font-size:var(--fs-s)}
+.bell-list{list-style:none;margin:0;padding:0}
+.bell-row a{padding-left:18px;position:relative}  /* the row look is .pop-item (popup.css); the room on the left is the unread dot */
+.bell-row a::before{content:"";position:absolute;left:7px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:transparent}
+.bell-row.unread a::before{background:var(--accent)}
+.bell-row.unread .bell-t{font-weight:600}
+.bell-t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bell-ago{flex:0 0 auto}
+.bell-more{border-top:1px solid var(--line2);border-radius:0;margin-top:2px;padding-left:18px}
+.bell-none{margin:0;padding:8px}
+.vs-fb .vs-ub,.acct-it .vs-ub{margin-left:auto}
+@media (max-width:559px){.bell-pop{position:fixed;right:8px;top:48px}}

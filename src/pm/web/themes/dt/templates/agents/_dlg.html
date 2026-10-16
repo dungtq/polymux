@@ -1,0 +1,39 @@
+{#- dt Agents › agent: the New skill / rule / script dialog (#a-new) and the rules Sync dialog (#a-sync), opened by
+    [data-a-open=<id>] (js/agents.js, pm7.dialog). Each is a real form for POST /agents/review: js/agents.js runs the
+    review → the file operations (a confirm stacked on the dialog) → apply, then refreshes the page; a refusal stays in
+    the dialog ([data-a-ferr]). Included once by agents_detail.html (not in the editor modes). -#}
+{%- import "parts/_select.html" as psel -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- if dv.new %}
+<dialog id="a-new" class="x-dlg a-dlg" aria-labelledby="a-new-t">
+<form class="a-form" method="post" action="/agents/review" data-a-plan data-a-title="Create {{ dv.new }}" data-a-ok="Create" data-a-done="Created the {{ dv.new }}" novalidate>
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="{{ dv.new }}_create"><input type="hidden" name="ctx_agent" value="{{ dv.name }}"><input type="hidden" name="ctx_tab" value="{{ dv.tab }}">
+  <div class="x-dh"><h2 id="a-new-t">New {{ dv.new }}</h2><span class="sp"></span>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button></div>
+  <p class="muted a-dnote">{{ dv.new_note }}</p>
+  <label class="a-fl"><span>Name</span><input class="x-in mono" type="text" name="name" required maxlength="64" autocomplete="off" spellcheck="false" placeholder="{{ dv.new_hint }}"></label>
+  {%- if dv.new == "skill" %}
+  <label class="a-fl"><span>Description <span class="muted">(when the agent should use it)</span></span><input class="x-in" type="text" name="description" required maxlength="300" autocomplete="off"></label>
+  {%- endif %}
+  <label class="a-fl"><span>Body</span><textarea class="a-ta mono" name="body" rows="10" maxlength="262144" spellcheck="false"></textarea></label>
+  <p class="a-alert" role="alert" data-a-ferr hidden></p>
+  <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit">Review</button></div>
+</form>
+</dialog>
+{%- endif %}
+{%- if dv.tab == "rules" and dv.sync_targets %}
+<dialog id="a-sync" class="x-dlg a-dlg" aria-labelledby="a-sync-t">
+<form class="a-form" method="post" action="/agents/review" data-a-plan data-a-title="Sync rules files" data-a-ok="Sync" data-a-done="Synced the rules files" novalidate>
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="rules_sync"><input type="hidden" name="ctx_agent" value="{{ dv.name }}"><input type="hidden" name="ctx_tab" value="rules">
+  <div class="x-dh"><h2 id="a-sync-t">Sync rules files</h2><span class="sp"></span>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button></div>
+  <p class="muted a-dnote">Each target becomes a link to the source; the old file is backed up first.</p>
+  <label class="a-fl"><span>Source</span>{{ psel.select("source", dv.sync_sources, value="canonical", label="Source rules file") }}</label>
+  <fieldset class="a-fs"><legend>Targets</legend>
+    {%- for k, l, cur in dv.sync_targets %}<label class="p-chk"><input type="checkbox" name="targets" value="{{ k }}"{% if cur %} checked{% endif %}><span>{{ l }}</span></label>{% endfor %}
+  </fieldset>
+  <p class="a-alert" role="alert" data-a-ferr hidden></p>
+  <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit">Review</button></div>
+</form>
+</dialog>
+{%- endif %}

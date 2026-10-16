@@ -1,0 +1,50 @@
+/* dt theme (pm v7) Audit page (prefix au-; PRD.md §6.10, LAYOUT.md §5 Audit, DESIGN.md §6.8-6.9). Markup:
+   templates/audit.html, _audit_list.html (Activity, #au-act), _client_errors.html (#au-ce); behaviour js/audit.js.
+   Tokens only. Head, tabs, filter box, segments, switch, select, table, bands and details are the shared parts
+   (parts.css, table.css): this file sets the two tables' grid templates and the au- cell looks only. */
+
+/* ---------- controls row: the Attempts switch + category form, laid out like the row's other controls ---------- */
+.au-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);margin:0}
+.au-alert{margin:0 0 var(--s3);color:var(--failed);font-size:var(--fs-ui)}
+
+/* ---------- Activity: result dot · action · target · detail (flexible) · time · actions ---------- */
+.au-list{--g-cols:var(--dot) fit-content(18rem) fit-content(14rem) minmax(0,1fr) auto auto;
+  --g-cols-n:var(--dot) minmax(0,1fr) fit-content(12rem) auto auto;
+  --g-cols-s:var(--dot) minmax(0,1fr) auto auto}
+.au-list .gc-nm{gap:var(--s2)}
+.au-list .gc-nm>.nm{flex:0 1 auto;font-family:var(--font-mono);font-size:var(--fs-s)}
+.au-list .au-hid .gc-nm>.nm{color:var(--muted)}
+.au-list .gc-end{font-family:var(--font-mono);font-size:var(--fs-s);color:var(--muted)}
+.au-tg,.au-dt{font-size:var(--fs-s)}
+.au-tg>*,.au-dt>*{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.au-n{flex:0 0 auto;color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.chip.au-r{flex:0 0 auto}
+.chip.au-r.bad{border-color:var(--failed);color:var(--failed-fg)}
+/* the day band's "N refused or failed" note (the day label keeps its colour: the band is a date, not a state) */
+.p-grp.au-bad .note{color:var(--failed)}
+
+/* a fold's raw entries in its details */
+.au-raw{max-height:16rem;margin:0 0 var(--s3);padding:var(--s2) var(--s3) var(--s2) var(--s6);overflow:auto;
+  border:1px solid var(--line2);border-radius:var(--r);background:var(--page);font-family:var(--font-mono);
+  font-size:var(--fs-s)}
+.au-raw li{overflow-wrap:anywhere}
+.au-raw .au-rt{color:var(--muted);font-variant-numeric:tabular-nums}
+.au-raw .bad{color:var(--failed-fg)}
+.au-list .p-kv dd.bad{color:var(--failed-fg)}
+
+/* ---------- Client errors: kind dot · message (flexible) · kind · pages · count · last seen · actions ------- */
+.au-cel{--g-cols:var(--dot) minmax(0,1fr) auto fit-content(14rem) auto auto auto;
+  --g-cols-n:var(--dot) minmax(0,1fr) auto auto auto auto;
+  --g-cols-s:var(--dot) minmax(0,1fr) auto auto}
+.au-cel .gc-nm{gap:var(--s2)}
+.au-cel .gc-nm>.nm{flex:0 1 auto;font-family:var(--font-mono);font-size:var(--fs-s)}
+/* a short message ("HTTP 403") keeps its text; the request after it truncates first */
+.au-cel .gc-nm>.nm:has(+.au-rq){flex-shrink:0;max-width:70%}
+.au-rq{flex:0 100 auto;min-width:0;overflow:hidden;color:var(--muted);font-family:var(--font-mono);
+  font-size:var(--fs-s);text-overflow:ellipsis;white-space:nowrap}
+.au-cel [role=cell].mono{font-size:var(--fs-s)}
+.au-cel [role=cell].mono>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.au-st{max-height:20rem;margin:0 0 var(--s3);padding:var(--s2) var(--s3);overflow:auto;border:1px solid var(--line2);
+  border-radius:var(--r);background:var(--code-bg);font-family:var(--font-mono);font-size:var(--fs-s);
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.au-st0{margin:0 0 var(--s3);font-size:var(--fs-ui)}

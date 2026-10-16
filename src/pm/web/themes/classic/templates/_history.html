@@ -1,0 +1,8 @@
+{% from "_agentname.html" import agent_name %}
+<h3 class="recap-h">Earlier agents here</h3>
+<ul class="hist-list">
+{% for h in hist %}
+  <li><a class="hist-row" href="/a/{{ h.id | urlencode }}" data-kind="{{ h.kind }}"><span class="hist-n">{{ agent_name(h) }}</span><span class="hist-d muted">{{ dur(h.ended - h.started) if h.ended > h.started else '' }}</span><span class="hist-w muted">{{ h.ended | ago }}</span></a></li>
+{% endfor %}
+</ul>
+{% if hist_total > hist | length %}<p class="muted small">+{{ hist_total - hist | length }} older</p>{% endif %}

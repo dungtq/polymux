@@ -1,0 +1,39 @@
+{#- dt Agents › Library list: #a-lib = controls (filter: name, description, path · Type segments with counts · Agent
+    select) · one table Type · Name · Description · Agents (chips) · Copies (same / N differ) · ⋯ · foot. Every control
+    loads /agents?t=library&... into #a-lib (outerHTML; the core answers htmx with this file). Row ⋯ (View, Edit,
+    Sync copies, Link into, Copy path, Remove): changes are "a:plan" items whose fields ride on the row
+    (data-a-plans, js/agents.js: review → the file operations → apply). Remove backs the files up. View model:
+    dt_agents("library") (pm.web.dt.agents_library). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_select.html" as psel -%}{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set lb = dt_agents("library") -%}
+<div id="a-lib" class="a-lib" hx-get="{{ lb.self_url if lb else '/agents?t=library' }}" hx-trigger="pm7:refresh" hx-swap="outerHTML">
+{%- if lb %}
+{% call ph.tools() %}
+  {{ pf.fbox("agents-lib", value=lb.q, placeholder="Filter skills, rules, scripts", label="Filter the library", get="/agents?t=library", target="#a-lib") }}
+  {{ ps.seg(lb.segs, label="Type", target="#a-lib") }}
+  <span class="sp"></span>
+  {{ psel.select("a", lb.agent_opts, value=lb.a, label="Agent", attrs={"hx-get": lb.a_url, "hx-target": "#a-lib", "hx-swap": "outerHTML", "hx-trigger": "change", "hx-push-url": "true"}) }}
+{% endcall %}
+{% call tb.table("agents-lib", "Skills, rules and scripts", cls="a-libt", list="agents-lib") %}
+  {{ tb.gh(lb.cols, sort=lb.sort, target="#a-lib") }}
+  {%- for r in lb.rows %}
+  {% call tb.row(r.id, cls="a-lrow", cur=loop.first, title=r.path, attrs=r.attrs) %}
+    {% call tb.cell("hide-n muted") %}{{ r.type }}{% endcall %}
+    {% call tb.name(r.name) %}{% endcall %}
+    {% call tb.cell("hide-n muted") %}<span title="{{ r.desc }}">{{ r.desc or "–" }}</span>{% endcall %}
+    {% call tb.cell() %}<span class="a-chips">{% for c in r.chips %}<span class="chip k" data-kind="{{ c.kind }}" title="{{ c.name }}">{{ c.label }}</span>{% else %}<span class="muted">{{ r.unused }}</span>{% endfor %}</span>{% endcall %}
+    {% call tb.cell("gc-end hide-s") %}{% if r.differ %}<span class="chip warn" title="{{ r.differ }} copies differ from the canonical">{{ r.copies }}</span>{% else %}<span class="muted">{{ r.copies }}</span>{% endif %}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {%- if lb.empty %}{% call tb.empty() %}{{ lb.empty }}{% if lb.clear_url %} <a href="{{ lb.clear_url }}" hx-get="{{ lb.clear_url }}" hx-target="#a-lib" hx-swap="outerHTML" hx-push-url="true">Show all {{ lb.total_all }}</a>{% endif %}{% endcall %}{% endif %}
+{% endcall %}
+{{ tb.foot(lb.shown, lb.total, more_href=lb.more_url, target="#a-lib", noun="items") }}
+<p class="a-note muted">One row per item across agents. Remove backs the files up to {{ lb.backups }}; pm never touches ~/.cfg or ~/.agents-git.</p>
+{{ tb.hints([("J K", "move")]) }}
+{%- else %}
+<p class="p-empty">The library could not be built. Reload the page; the error is in pm's log.</p>
+{%- endif %}
+</div>

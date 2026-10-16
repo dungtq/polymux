@@ -1,0 +1,36 @@
+{#- dt Servers › Overview (PRD §6.9): status line, worth a look (links to the tab that shows it), meters, Hosts and
+    This host side by side when the page column is >= 1100px (LAYOUT §5). Included by _servers.html; v = dt_servers(). -#}
+{%- import "parts/_status.html" as pst -%}{%- import "parts/_meter.html" as pmt -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set o = v.ov %}
+{{ pst.status(o.status.dot, o.status.word, o.status.note, o.status.cls) }}
+{{ pst.attn(o.attn) }}
+{{ pmt.meters(o.meters, label="This host and its services") }}
+<div class="sv-cols">
+<section class="sv-sec" id="sv-hosts" aria-labelledby="sv-h-hosts">
+  <h2 class="p-h2" id="sv-h-hosts">Hosts <span class="c">{{ o.hosts | length }}</span></h2>
+  {% call tb.table("sv-hosts", "Hosts", cls="sv-hosts", list="sv-hosts" if o.hosts else none) %}
+    {%- if o.hosts %}
+    {{ tb.gh([{"sr": "State"}, {"label": "Host"}, {"label": "Address", "cls": "hide-s"},
+              {"label": "Latency", "num": true}, {"label": "Role", "cls": "hide-n"}, {"sr": "Actions"}]) }}
+    {%- endif %}
+    {%- for h in o.hosts %}
+    {% call tb.row(h.name, cur=loop.first, title=h.name ~ ": " ~ h.word) %}
+      {{ tb.dot(h.dot, h.word) }}
+      {% call tb.name(h.name) %}{% endcall %}
+      {% call tb.cell("hide-s mono muted") %}{{ h.addr }}{% endcall %}
+      {{ tb.end(h.lat) }}
+      {% call tb.cell("hide-n muted") %}{{ h.note }}{% endcall %}
+      {% call tb.meta() %}{{ h.meta }}{% endcall %}
+      {% call tb.acts() %}{{ pm.menu(h.menu, label="Actions for " ~ h.name) }}{% endcall %}
+    {% endcall %}
+    {%- else %}
+    {{ tb.empty("No remote hosts to check: add [[servers]] entries to pm.toml.") }}
+    {%- endfor %}
+  {% endcall %}
+</section>
+<section class="sv-sec" aria-labelledby="sv-h-host">
+  <h2 class="p-h2" id="sv-h-host">This host <span class="c">{{ o.hostname }}</span></h2>
+  <div class="sv-host">{{ tb.kv(o.host) }}</div>
+</section>
+</div>

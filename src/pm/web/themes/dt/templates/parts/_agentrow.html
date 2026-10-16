@@ -1,0 +1,118 @@
+{#- The dt agent row (docs/themes/dt/PRD.md §6.2, LAYOUT.md §5-6): one live agent or one ended session in a grid table
+    (parts/_table.html), with its row details. Used by the Inbox (templates/_inbox.html) and, from M3, the Projects
+    view. Rows come from pm.web.dt.inbox (Row, Ended); every value is escaped by Jinja.
+    {% import "parts/_agentrow.html" as ar %}
+
+    ar.agent_row(r, table="inbox", project=true, cur=false, sel=false)
+      r = pm.web.dt.inbox.Row. Cells in grid order: dot · Agent (unread count, pin, ctx chip) · Project (hide-n;
+      project=false leaves it out: the project view) · tmux (hide-n i-w: link to the read-only terminal tab) · Last
+      message (source you / ntfy; pending question yellow, error red) · Age (ticks: data-since) · CPU · RAM (hide-n i-w)
+      · phone line 2 · actions (details chevron, ⋯ = r.menu). Then the row details: answer buttons for a pending
+      question ("1 · Yes" from the core's options, else 1 2 3), the recap (lazy, kept across live swaps: data-keep,
+      js/inbox.js), facts (state, model, started, tmux, folder, context, process), actions.
+      Hooks for js/inbox.js: [data-i-rk] (read key, data-i-un = row unread), a[data-i-term] (terminal tab, session id),
+      [data-i-run=<menu item id>] (runs that ⋯ item of the row), [data-i-recap=<url>] (recap box).
+    ar.ended_row(e, table="inbox-ended", project=true, cur=false, live_cols=false)
+      e = pm.web.dt.inbox.Ended: hollow dot · Agent · Project · Last message · Ran for (hide-n) · Ended · Resume
+      (or a dash when the session cannot be resumed) + ⋯. The row's link is the transcript page /a/<id>.
+      live_cols: the row sits in an agent_row table (an "Ended" band, LAYOUT §4 step 5): the live columns' order,
+      dot · Agent · [Project] · tmux (–) · Last message · Ended (the Age column) · CPU, RAM (empty; "ran N" is in the
+      row's title), and ↵ / O open the transcript (data-key-enter / -o = href) instead of the list's chat-aside keys.
+    ar.icon(name)  a sprite icon. -#}
+{%- import "parts/_table.html" as tb -%}
+{%- import "parts/_menu.html" as pm -%}
+
+{%- macro icon(name) -%}
+<svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#{{ name }}"/></svg>
+{%- endmacro -%}
+
+{%- macro _msg(r) -%}
+{%- if r.q %}<span class="i-q">{{ icon("warn") }}<span class="vh">Question: </span>{{ r.q }}</span>
+{%- elif r.err %}<span class="i-err"><span class="vh">Error: </span>{{ r.err }}</span>
+{%- elif r.last %}{% if r.src %}<span class="i-src" title="{{ 'Your last message' if r.src == 'you' else 'Last ntfy message' }}">{{ r.src }}</span>{% endif %}{{ r.last }}
+{%- else %}<span class="muted">–</span>{% endif -%}
+{%- endmacro -%}
+
+{%- macro _chips(r) -%}
+{%- if r.unread_n %}<span class="i-un" title="{{ r.unread_n }} unread">{{ r.unread_n }}<span class="vh"> unread</span></span>
+{%- elif r.unread %}<span class="i-un i-und" title="Unread"><span class="vh">unread</span></span>{% endif -%}
+{%- if r.pinned %}<span class="i-pin" title="Pinned">{{ icon("pin") }}<span class="vh">pinned</span></span>{% endif -%}
+{%- if r.ctx_pct is not none and r.ctx_pct >= 80 %}<span class="chip i-ctx" title="Context {{ r.ctx_pct }} % full">ctx {{ r.ctx_pct }}%</span>{% endif -%}
+{%- endmacro -%}
+
+{%- macro _details(r, table) -%}
+{%- call tb.det(table, r.id, label=r.id) -%}
+<div class="i-det">
+  {%- if r.q %}
+  <div class="i-ask" data-key="ask-{{ r.id }}">
+    <p class="i-askq">{{ icon("warn") }}<span>{{ r.q }}</span></p>
+    {% call tb.dacts() %}{% if r.options %}{% for n, t in r.options %}<button class="x-btn sm{{ ' pri' if loop.first }}" type="button" data-i-run="ans{{ n }}" title="Send {{ n }} to the agent's pane: {{ t }}">{{ n }} · {{ t }}</button>{% endfor %}
+      <span class="note">Sent to the pane as if typed.</span>
+      {%- else %}{% for n in (1, 2, 3) %}<button class="x-btn sm{{ ' pri' if loop.first }}" type="button" data-i-run="ans{{ n }}" title="Send {{ n }} to the agent's pane">{{ n }}</button>{% endfor %}
+      <span class="note">Sent to the pane as if typed; open the chat to read the options.</span>{% endif %}{% endcall %}
+  </div>
+  {%- elif r.err %}
+  <div class="i-ask bad" data-key="ask-{{ r.id }}"><p class="i-askq">{{ r.err }}</p>
+    <p class="note">The agent stopped. Open its chat to tell it what to do next, or the terminal to read the output.</p></div>
+  {%- endif %}
+  <div class="i-recap" data-key="rc-{{ r.id }}" data-keep data-i-recap="/a/{{ r.id }}/recap-row">
+    <p class="i-rhead"><b>Recap</b><span class="muted" data-i-rage hidden></span>
+      <button class="x-btn sm" type="button" data-i-rfr title="Load the recap again">{{ icon("refresh") }}Refresh</button></p>
+    <div class="i-rbody"><p class="muted">Loading…</p></div>
+  </div>
+  {%- set ctxv %}{% if r.ctx_pct is not none %}<progress class="i-bar{{ ' warn' if r.ctx_pct >= 60 }}" max="100" value="{{ r.ctx_pct }}"></progress> {{ r.ctx_pct }} %{% else %}–{% endif %}{% endset %}
+  {%- set tmv %}{% if r.term %}<a class="mono" href="{{ r.term }}" data-i-term="{{ r.sid }}">{{ r.tmux }}</a>{% else %}<span class="mono">{{ r.tmux or "–" }}</span>{% endif %}{% endset %}
+  {{ tb.kv([("State", r.word), ("Model", r.model or "–"), ("Started", r.started or "–"), ("tmux", tmv), ("Folder", r.folder, "mono"),
+            ("Context", ctxv), ("Process", r.cpu ~ " CPU · " ~ r.ram ~ " RAM")]) }}
+  {% call tb.dacts() -%}
+    <button class="x-btn sm pri" type="button" data-i-run="open">{{ icon("side-r") }}Open chat</button>
+    <button class="x-btn sm" type="button" data-i-run="tab">{{ icon("tabs") }}Open in a tab</button>
+    {% if r.term %}<button class="x-btn sm" type="button" data-i-run="term">{{ icon("tmux") }}Terminal</button>{% endif %}
+    <button class="x-btn sm" type="button" data-i-run="read">{{ icon("check") }}{{ "Mark read" if r.unread else "Mark unread" }}</button>
+    <span class="sp"></span>
+    {% if r.state in ("running", "waiting") %}<button class="x-btn sm" type="button" data-i-run="stop">{{ icon("stop") }}Interrupt</button>
+    {% else %}<button class="x-btn sm danger" type="button" data-i-run="stop">{{ icon("power") }}Exit</button>{% endif %}
+  {%- endcall %}
+</div>
+{%- endcall -%}
+{%- endmacro -%}
+
+{%- macro agent_row(r, table="inbox", project=true, cur=false, sel=false) -%}
+{%- call tb.row(r.id, kind=r.kind, cls="i-row" ~ (" un" if r.unread or r.unread_n else ""), cur=cur, sel=sel, title=r.q_text) -%}
+  {{ tb.dot(r.state, r.word) }}
+  {% call tb.name(r.id, sfx=true) %}{{ _chips(r) }}{% endcall %}
+  {% if project %}{% call tb.cell("muted hide-n") %}{{ r.project }}{% endcall %}{% endif %}
+  {% call tb.cell("hide-n i-w") %}{% if r.term %}<a class="mono i-tm" href="{{ r.term }}" data-i-term="{{ r.sid }}" title="Open the tmux window read-only in a tab">{{ r.tmux }}</a>{% else %}<span class="mono muted">{{ r.tmux }}</span>{% endif %}{% endcall %}
+  {% call tb.cell("i-msg") %}{{ _msg(r) }}{% endcall %}
+  {{ tb.end(r.age, since=r.since) }}
+  {% call tb.cell("muted hide-n i-w", num=true) %}{{ r.cpu }}{% endcall %}
+  {% call tb.cell("muted hide-n i-w", num=true) %}{{ r.ram }}{% endcall %}
+  {% call tb.meta() %}{% if project %}{{ r.project }} · {% endif %}{{ _msg(r) }}{% endcall %}
+  {% call tb.acts() %}<span hidden data-i-rk="{{ r.key }}" data-i-un="{{ '1' if r.unread else '0' }}"></span>
+    {{- tb.det_btn(table, r.id) }}{{ pm.menu(r.menu, label="Actions for " ~ r.id) }}{% endcall %}
+{%- endcall %}
+{{ _details(r, table) }}
+{%- endmacro -%}
+
+{%- macro ended_row(e, table="inbox-ended", project=true, cur=false, live_cols=false) -%}
+{%- set keys = {"data-key-enter": "href", "data-key-o": "href"} if live_cols else none -%}
+{%- call tb.row(e.id, href="/a/" ~ e.id, kind=e.kind, cls="i-erow", cur=cur, title=e.id ~ " · " ~ e.project ~ (" · ran " ~ e.ran if live_cols and e.ran else ""), attrs=keys) -%}
+  {{ tb.dot("ended", "Ended") }}
+  {% call tb.name(e.id, sfx=true) %}{% endcall %}
+  {% if project %}{% call tb.cell("muted hide-n") %}{{ e.project }}{% endcall %}{% endif %}
+  {%- if live_cols %}{% call tb.cell("hide-n i-w muted") %}–{% endcall %}{% endif %}
+  {% call tb.cell("i-msg") %}{% if e.last %}{{ e.last }}{% else %}<span class="muted">–</span>{% endif %}{% endcall %}
+  {%- if live_cols %}
+  {{ tb.end(e.ended) }}
+  {% call tb.cell("muted hide-n i-w", num=true) %}{% endcall %}
+  {% call tb.cell("muted hide-n i-w", num=true) %}{% endcall %}
+  {%- else %}
+  {% call tb.cell("muted hide-n", num=true) %}{{ e.ran }}{% endcall %}
+  {{ tb.end(e.ended) }}
+  {%- endif %}
+  {% call tb.meta() %}{% if project %}{{ e.project }} · {% endif %}{{ e.last or "–" }}{% endcall %}
+  {% call tb.acts() %}{% if e.resume %}<button class="x-btn sm keep i-res" type="button" data-i-run="resume" title="Resume {{ e.id }} in a new tmux window">{{ icon("play") }}<span class="lb">Resume</span></button>
+    {%- else %}<span class="muted keep i-nores" title="This kind of session cannot be resumed">–</span>{% endif %}
+    {{- pm.menu(e.menu, label="Actions for " ~ e.id) }}{% endcall %}
+{%- endcall %}
+{%- endmacro -%}

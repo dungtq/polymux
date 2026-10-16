@@ -1,0 +1,56 @@
+{#- dt Audit › Client errors component (PRD.md §6.10): div#au-ce = controls row (filter box, kind segments) ·
+    one table, one row per message and request (count, kind, pages, last seen; the masked stack, request and browser
+    in the details) · foot · key hints. Rendered inside audit.html (?tab=errors, server-side first paint) and, alone,
+    as the core's GET /audit/client-errors (the filter box; pm7:refresh after Clear all, the core's ce-refresh). Like
+    #au-act it takes #au-head (stats, Clear all) out of band from that answer (hx-select-oob). Kind segments are links
+    (a full page load keeps the URL true). Save as pm issue (POST /p/pm/issues) and Clear all: js/audit.js.
+    View model dt_audit("ce") (pm.web.dt.audit_errors). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pmenu -%}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- set cv = dt_audit("ce") -%}
+{%- if cv %}
+{%- if cv.swap %}{{ ph.head("Audit", stats=cv.stats, id="au-head", actions=[cv.clear]) }}{% endif %}
+<div class="au-ce" id="au-ce" data-au-tab="errors" data-au-count="{{ "{:,}".format(cv.entries) }}" hx-get="{{ cv.url }}" hx-trigger="pm7:refresh, ce-refresh from:body" hx-swap="outerHTML" hx-select="#au-ce" hx-select-oob="#au-head">
+{% call ph.tools("au-tools") %}
+  {{ pf.fbox("audit-ce", value=cv.q, placeholder="Filter message or page", label="Filter client errors",
+             get="/audit/client-errors", target="#au-ce", push=false) }}
+  {{ ps.seg(cv.segs, label="Kind") }}
+{% endcall %}
+{% call tb.table("audit-ce", "Client errors", cls="au-cel", list="audit-ce", id="au-cel", keys={"enter": "det"},
+                 labels={"enter": "Show or hide the error's details"}) %}
+  {{ tb.gh([{"sr": "Kind"}, {"label": "Message"}, {"label": "Kind", "cls": "hide-s"}, {"label": "Pages", "cls": "hide-n"},
+            {"label": "Count", "num": true, "cls": "hide-s"}, {"label": "Last seen", "num": true}, {"sr": "Actions"}]) }}
+  {%- for r in cv.rows %}
+  {% call tb.row(r.id, cls="au-erow", cur=loop.first) %}
+    {{ tb.dot(r.dot, title=r.kind_label) }}
+    {% call tb.name(r.msg) %}{% if r.req %}<span class="au-rq" title="The failed request">{{ r.req }}</span>{% endif %}{% if r.count > 1 %}<span class="au-n" title="{{ r.count }} times">×{{ "{:,}".format(r.count) }}</span>{% endif %}{% endcall %}
+    {% call tb.cell("hide-s") %}<span class="chip">{{ r.kind_label }}</span>{% endcall %}
+    {% call tb.cell("hide-n mono muted") %}<span title="{{ r.pages }}">{{ r.pages or "–" }}</span>{% endcall %}
+    {% call tb.cell("hide-s", num=true) %}{{ "{:,}".format(r.count) }}{% endcall %}
+    {{ tb.end(r.last, since=r.since) }}
+    {% call tb.meta() %}{{ r.meta }}{% endcall %}
+    {% call tb.acts() %}{{ tb.det_btn("audit-ce", r.id, label=r.msg) }}{{ pmenu.menu(r.menu, label="Actions for this client error") }}{% endcall %}
+  {% endcall %}
+  {% call tb.det("audit-ce", r.id, label=r.msg) %}
+    {%- if r.stack %}<pre class="au-st" aria-label="Stack (masked)">{{ r.stack }}</pre>
+    {%- else %}<p class="au-st0 muted">No stack recorded{{ " (a failed request has none)" if r.kind in ("fetch", "htmx") }}.</p>{% endif %}
+    {{ tb.kv(r.kv) }}
+    {% call tb.dacts() %}
+      <button class="x-btn sm" type="button" data-au-run="copy"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}copy"/></svg>Copy message and stack</button>
+      <button class="x-btn sm" type="button" data-au-issue data-au-title="{{ r.issue_title }}" data-au-body="{{ r.issue_body }}" title="Add an issue to the pm project with this error"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg>Save as pm issue</button>
+    {% endcall %}
+  {% endcall %}
+  {%- endfor %}
+  {%- if cv.empty %}{{ tb.empty(cv.empty) }}{% endif %}
+{% endcall %}
+{{ tb.foot(text=("{:,}".format(cv.total) ~ " message" ~ ("s" if cv.total != 1 else "") ~ " · " ~ "{:,}".format(cv.entries)
+                 ~ " report" ~ ("s" if cv.entries != 1 else "")) if cv.total else none,
+           newer=cv.newer, older=cv.older, older_label="Load older",
+           notes=["Same message, same request = one row. Paths only; messages and stacks are masked before they are stored. The log keeps the last 500 reports."]) }}
+{{ tb.hints([("J K", "move"), ("Enter", "details"), ("/", "filter")]) }}
+</div>
+{%- else %}
+<div class="au-ce" id="au-ce"><p class="au-alert" role="alert">The client errors could not be shown. Reload the page; the
+  server log has the error.</p></div>
+{%- endif %}

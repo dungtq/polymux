@@ -1,0 +1,3 @@
+{# VM tab body of the project page: the /servers VM table filtered by the project's patterns (needs vm, patterns, fb, csrf). #}
+{% if not patterns %}<p class="muted">No VMs configured for this project. Set VM name patterns in project settings.</p>
+{% else %}{% include "_vms.html" %}{% endif %}

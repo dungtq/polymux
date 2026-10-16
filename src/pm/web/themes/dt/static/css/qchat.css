@@ -1,0 +1,132 @@
+/* dt Quick chat (PRD.md §6.12, LAYOUT.md §5 "Quick chat", DESIGN.md §7 "Panel"; prefix q-): a --qchat-w ×
+   --qchat-h panel (720 × 640, README A10) under its top-bar icon, layer --z-panel, no scrim; the conversation list
+   --qchat-list-w (220px) at the left; .dock = expanded right of the sidebar over the page (tabs stay
+   visible); phones: full screen, the list over the chat. Also the openers: the top-bar icon
+   (.x-qc, hidden on phones) and the phone sidebar drawer row (.x-sqc, phones only). Markup: shell/_qchat.html;
+   behaviour: js/qchat.js, js/qchat-menus.js. Tokens only; selectors carry the element where classic globals
+   (button, textarea) would win while shell/_classic.html is loaded. */
+
+/* ---------- openers ---------- */
+.x-sqc{display:none}
+
+/* ---------- frame ---------- */
+.q-pop{position:fixed;z-index:var(--z-panel);top:calc(var(--top-h) + var(--s1));left:var(--s2);display:flex;
+  flex-direction:column;width:min(var(--qchat-w),calc(100vw - var(--s4)));
+  height:min(var(--qchat-h),calc(100dvh - var(--top-h) - var(--s4)));overflow:hidden;background:var(--page);
+  color:var(--fg);
+  border:1px solid var(--ctl-line);border-radius:var(--r-dlg);box-shadow:var(--shadow-dlg)}
+.q-pop.dock{top:var(--top-h);right:0;bottom:var(--bnav-now);left:var(--side-now);width:auto;height:auto;
+  border-width:0 0 0 1px;border-radius:0;box-shadow:none}
+.q-hd{display:flex;align-items:center;gap:var(--s1);flex:0 0 auto;min-width:0;height:calc(var(--ib) + var(--s3));
+  padding:0 var(--s1) 0 var(--s2);border-bottom:1px solid var(--line)}
+.q-title{flex:0 1 auto;font-size:var(--fs-m);font-weight:600}
+.q-btw{flex:0 0 auto}
+.q-btw>a.chip{color:var(--fg);text-decoration:none}
+.q-bd{position:relative;display:flex;flex:1 1 auto;min-height:0}
+
+/* ---------- conversation list ---------- */
+.q-side{display:flex;flex-direction:column;flex:0 0 var(--qchat-list-w);width:var(--qchat-list-w);min-width:0;
+  min-height:0;padding:var(--s2);
+  background:var(--subtle);border-right:1px solid var(--line)}
+.q-side .p-fbox{flex:0 0 auto;min-width:0;margin:0 0 var(--s1)}
+.q-list{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+.q-gl{margin:var(--s2) var(--s2) 2px;color:var(--muted);font-size:var(--fs-xs);letter-spacing:.04em;
+  text-transform:uppercase}
+.q-pop button.q-it{display:flex;flex-direction:column;align-items:stretch;flex:0 0 auto;width:100%;height:auto;
+  min-height:0;margin:0;padding:var(--s1) var(--s2);border:0;border-radius:var(--r);background:none;color:var(--fg);
+  font:inherit;font-size:var(--fs-ui);font-weight:400;line-height:1.35;text-align:left;cursor:pointer;
+  box-shadow:inset 2px 0 var(--k,transparent)}
+.q-pop button.q-it:hover{background:var(--hover)}
+.q-pop button.q-it[aria-current=true]{background:var(--accent-soft);font-weight:600}
+.q-pop button.q-it:focus-visible{outline-offset:-2px}
+.q-it small{color:var(--muted);font-size:var(--fs-xs);font-weight:400}
+.q-none{margin:0;padding:var(--s2);color:var(--muted);font-size:var(--fs-ui)}
+
+/* ---------- messages ---------- */
+.q-main{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+.q-msgs{display:flex;flex-direction:column;gap:var(--s3);flex:1 1 auto;min-height:0;padding:var(--s3) var(--s4);
+  overflow:auto;overscroll-behavior:contain}
+.q-m{min-width:0;max-width:100%;font-size:var(--fs-m);overflow-wrap:anywhere}
+.q-m.u{align-self:flex-end;max-width:85%;padding:var(--s2) var(--s3);border:1px solid var(--bub-user-bd);
+  border-radius:var(--r-dlg);background:var(--bub-user-bg)}
+.q-m.u .t{white-space:pre-wrap}
+.q-m.a .h{margin:0 0 2px;color:var(--muted);font-size:var(--fs-xs)}
+.q-m.a .t{line-height:1.55}
+.q-m.a .t:not(.md){white-space:pre-wrap}
+.q-m.a .t:empty::before{content:"…";color:var(--muted)}
+.q-m .t.md>:first-child{margin-top:0}
+.q-m .t.md>:last-child{margin-bottom:0}
+.q-ma{display:flex;gap:var(--s1);margin:var(--s1) 0 0}
+.q-err{margin:0;color:var(--failed-fg);font-size:var(--fs-ui)}
+.q-tools{display:flex;flex-direction:column;gap:2px;margin:0 0 var(--s1)}
+.q-tools:empty{display:none}
+.q-tool>summary{display:flex;align-items:center;gap:var(--s2);min-width:0;font-size:var(--fs-s);list-style:none;
+  cursor:pointer}
+.q-tool>summary::-webkit-details-marker{display:none}
+.q-tc{flex:0 0 auto;border-color:var(--tc,var(--line));color:var(--fg)}
+.q-tc.tool-shell{--tc:var(--tool-shell)}
+.q-tc.tool-read{--tc:var(--tool-read)}
+.q-tc.tool-edit{--tc:var(--tool-edit)}
+.q-tc.tool-web{--tc:var(--tool-web)}
+.q-tc.tool-agent{--tc:var(--tool-agent)}
+.q-tc.tool-mcp{--tc:var(--tool-mcp)}
+.q-tool.bad .q-tc{border-color:var(--failed);color:var(--failed-fg)}
+.q-res{max-height:12rem;margin:var(--s1) 0 0;padding:var(--s2);overflow:auto;border:1px solid var(--line2);
+  border-radius:var(--r);background:var(--subtle);font-family:var(--font-mono);font-size:var(--fs-xs);
+  white-space:pre-wrap}
+.q-empty{display:flex;flex-direction:column;align-items:center;gap:var(--s2);max-width:var(--empty-w);margin:auto;
+  color:var(--muted);font-size:var(--fs-ui);text-align:center}
+.q-empty>svg.i{width:calc(var(--icon) * 1.5);height:calc(var(--icon) * 1.5)}
+.q-empty b{color:var(--fg);font-size:var(--fs-l);font-weight:600}
+.q-sugg{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--s2);margin:var(--s1) 0 0}
+
+/* ---------- composer: the box, the chips row, the note ---------- */
+.q-comp{flex:0 0 auto;margin:0;padding:var(--s2) var(--s3) var(--s3);border-top:1px solid var(--line2)}
+.q-box{border:1px solid var(--ctl-line);border-radius:var(--r-pop);background:var(--page)}
+.q-box:focus-within{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.q-pop .q-box textarea{display:block;width:100%;min-height:calc(var(--ctl-h) * 1.5);max-height:30vh;margin:0;
+  padding:var(--s2) var(--s3) var(--s1);border:0;border-radius:var(--r-pop);background:none;color:var(--fg);
+  font:inherit;font-size:var(--fs-in);line-height:1.45;resize:none;outline:0;box-shadow:none}
+.q-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1);padding:var(--s1) var(--s2) var(--s2)}
+.q-pop .q-chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:var(--field-w-sm);
+  height:var(--ctl-h-sm);min-height:0;
+  min-width:0;margin:0;padding:0 var(--s2);border:1px solid var(--line);border-radius:var(--r-pill);
+  background:var(--subtle);color:var(--fg);font:inherit;font-size:var(--fs-s);font-weight:400;line-height:1;
+  white-space:nowrap;cursor:pointer}
+.q-chip svg.i{flex:0 0 auto;width:var(--icon-xs);height:var(--icon-xs);color:var(--muted)}
+.q-pop button.q-chip:hover:not(:disabled){background:var(--hover)}
+.q-pop .q-chip.red{border-color:var(--failed);color:var(--failed-fg)}
+.q-pop .q-chip.off,.q-pop .q-chip:disabled{color:var(--muted);cursor:default}
+.q-pop .q-chip:disabled{opacity:.55}
+.q-pop button.q-send{display:inline-flex;align-items:center;justify-content:center;width:var(--ib-sm);
+  height:var(--ib-sm);min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:var(--r);
+  background:var(--btn-green);color:var(--on-accent);cursor:pointer}
+.q-pop button.q-send.stop{background:var(--failed);color:var(--page)}
+.q-pop button.q-send:disabled{opacity:.55;cursor:not-allowed}
+.q-send svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.q-note{margin:var(--s1) 2px 0;color:var(--muted);font-size:var(--fs-s)}
+.q-note .bad{color:var(--failed-fg);font-weight:600}
+
+@media (pointer:coarse){
+  .q-pop .q-chip{height:var(--ctl-h)}
+  .q-pop button.q-send{width:var(--ib);height:var(--ib)}
+}
+
+/* ---------- phones: full screen; the list over the chat; the drawer row instead of the top-bar icon ---------- */
+@media (max-width:699px){
+  .x-top .x-qc{display:none}
+  .x-sfoot .x-sqc{display:flex;align-items:center;gap:var(--s3);width:100%;height:var(--row-side-h);min-height:0;
+    padding:0 var(--s2);border:0;border-radius:var(--r);background:none;color:var(--fg);font:inherit;
+    font-size:var(--fs-m);font-weight:400;text-align:left;cursor:pointer}
+  .x-sfoot .x-sqc:hover{background:var(--hover)}
+  .x-sfoot .x-sqc svg.i{color:var(--muted)}
+  .q-pop,.q-pop.dock{inset:0;width:auto;height:auto;padding-top:env(safe-area-inset-top);border:0;border-radius:0;
+    box-shadow:none}
+  .q-dockb{display:none}
+  .q-hd{height:auto;min-height:calc(var(--ib) + var(--s2))}
+  .q-side{position:absolute;inset:0;z-index:var(--z-local);flex:none;width:auto;padding:var(--s2) var(--s3);
+    border-right:0}
+  .q-pop button.q-it{padding:var(--s2);font-size:var(--fs-m)}
+  .q-msgs{padding:var(--s3)}
+  .q-comp{padding-bottom:calc(var(--s3) + env(safe-area-inset-bottom))}
+}

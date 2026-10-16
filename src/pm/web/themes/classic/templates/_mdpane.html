@@ -1,0 +1,17 @@
+<aside id="mdpane" class="mdpane" aria-label="Markdown file" hidden>
+    <header class="mdpane-h"><strong class="mdpane-t mono"></strong><span class="mdpane-act">{% include "_mdzoom.html" %}<button type="button" class="small" data-md-full aria-pressed="false" aria-label="Full screen" title="Full screen (Esc to leave)">Full screen</button><button type="button" class="small" data-md-close aria-label="Close file view">Close</button></span></header>
+    <div class="mdpane-b"></div>
+    <div class="cv" hidden>
+      <header class="mdpane-h cv-h"><strong class="mdpane-t cv-t">Canvas</strong><div class="cv-tools">
+        <select class="cv-pick small" aria-label="Canvas" hidden></select>
+        <span class="cv-seg" role="group" aria-label="View"><button type="button" data-cv-m="edit" aria-pressed="true">Edit</button><button type="button" data-cv-m="split" aria-pressed="false">Split</button><button type="button" data-cv-m="view" aria-pressed="false">Preview</button></span>
+        <span class="cv-state" role="status" aria-live="polite">saved</span>
+        <button type="button" class="small" data-md-full aria-pressed="false" aria-label="Full screen" title="Full screen (Esc to leave)">Full screen</button>
+        <button type="button" class="small" data-md-close aria-label="Close canvas">Close</button></div></header>
+      <p class="cv-note small" role="alert" hidden><span class="cv-note-t"></span> <button type="button" class="small" data-cv-reload hidden>Reload</button></p>
+      <div class="cv-body" data-mode="edit"><div class="cv-edw" hidden></div><div class="cv-pv md chat-text" aria-label="Canvas preview"></div></div>
+      <ul class="cv-hist" aria-label="Versions"></ul>
+      <div class="cv-foot"><div class="cv-ask" data-cv-ask><input type="text" maxlength="500" placeholder="Ask the agent to revise (e.g. shorten the table)" aria-label="Revision request"><button type="button" class="small" data-cv-askgo>Ask</button></div>
+        <span class="cv-sp"></span><button type="button" class="small" data-cv-copy>Copy</button><button type="button" class="small" data-cv-del>Delete</button><button type="button" class="small" data-cv-save title="Save version (Ctrl+S)">Save version</button><button type="button" class="small" data-cv-send title="Put the edited document in the message box">Send to agent</button></div>
+    </div>
+  </aside>

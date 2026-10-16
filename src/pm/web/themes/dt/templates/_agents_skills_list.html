@@ -1,0 +1,34 @@
+{#- dt Agents › agent › Skills list (#a-sk; also the core's htmx fragment for the filter box, the segments and the sort
+    headers): controls (filter · All / Enabled / Disabled · New skill) · table switch · Name · Description · Scope · ⋯.
+    The switch links or unlinks the skill for this agent (js/agents.js: review + apply of skill_toggle, toast after the
+    server's OK, the switch flips back on a refusal); a skill pm cannot switch here is disabled with the reason.
+    ⋯: Edit… (the editor page), Copy path, Remove… (typed name; backed up). View model: dt_agents("detail"). -#}
+{%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
+{%- import "parts/_switch.html" as psw -%}{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
+{%- set dv = dt_agents("detail") -%}
+<div id="a-sk" class="a-sk" hx-get="{{ dv.self_url if dv else '' }}" hx-trigger="pm7:refresh" hx-swap="outerHTML">
+{%- if dv %}
+{% call ph.tools() %}
+  {{ pf.fbox("agents-sk", value=dv.q, placeholder="Filter skills", label="Filter skills", get=dv.base ~ "?s=skills", target="#a-sk") }}
+  {{ ps.seg(dv.segs, label="Show", target="#a-sk") }}
+  <span class="sp"></span>
+  <button class="x-btn sm" type="button" data-a-open="a-new"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#plus"/></svg>New skill</button>
+{% endcall %}
+{% call tb.table("agents-sk", "Skills of " ~ dv.label, cls="a-skt", list="agents-sk") %}
+  {{ tb.gh(dv.cols, sort=dv.sort, target="#a-sk") }}
+  {%- for r in dv.items %}
+  {% call tb.row(r.id, cls="a-skrow" ~ ("" if r.on else " a-off"), cur=loop.first, title=r.name, attrs=r.attrs) %}
+    <span class="gc-sw" role="cell">{{ psw.switch("enable", on=r.on, label="Use " ~ r.name, hide_label=true, disabled=r.why != "", why=("Cannot be switched here: " ~ r.why) if r.why else none, attrs={"data-a-sw": r.sw}) }}</span>
+    {% call tb.name(r.name) %}{% endcall %}
+    {% call tb.cell("muted") %}<span title="{{ r.desc }}">{{ r.desc or "–" }}</span>{% endcall %}
+    {% call tb.cell("hide-n muted") %}{{ r.cells[0] }}{% endcall %}
+    {% call tb.meta() %}{{ r.meta }}{% if r.desc %} · {{ r.desc }}{% endif %}{% endcall %}
+    {% call tb.acts() %}{{ pm.menu(r.menu, label="Actions for " ~ r.name) }}{% endcall %}
+  {% endcall %}
+  {%- else %}
+  {{ tb.empty("No skill matches." if dv.q else "No skills for " ~ dv.label ~ ". New skill adds one to ~/.agents/skills.") }}
+  {%- endfor %}
+{% endcall %}
+<p class="p-foot">Showing {{ dv.items | length }} of {{ dv.total }} skills · a switch links or unlinks the skill for {{ dv.label }}</p>
+{%- endif %}
+</div>

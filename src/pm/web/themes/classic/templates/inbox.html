@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import stop_panel %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+{{ stop_panel(csrf, "all", stop_agents) }}
+<div class="ssewrap" data-live>
+<div id="inbox" hx-get="{{ sort_url }}" hx-trigger="pm:agent_state from:document, pm:agent_added from:document, pm:agent_removed from:document, pm:inbox from:document, pm:refresh, every 30s" hx-swap="innerHTML" data-nodiff>
+{% include "_inbox.html" %}
+</div>
+</div>
+<a class="fab" href="{{ launch_href }}" aria-label="Launch an agent" title="Launch an agent">+</a>
+<script src="/static/js/lists.js" defer></script>
+{% endblock %}

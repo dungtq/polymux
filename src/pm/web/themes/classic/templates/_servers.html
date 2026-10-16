@@ -1,0 +1,84 @@
+{% from "_macros.html" import dot, empty, post_btn, sum_tile %}
+{% macro ct_age(status) %}{% set w = (status.split(' (')[0])[3:].split(' ') if status.startswith('Up ') else [] %}{% if not w %}&ndash;{% elif w[0].isdigit() and w|length > 1 %}{{ w[0] }}{{ w[1][0] }}{% elif w[0] == 'About' %}~1{{ w[-1][0] }}{% elif w[0] == 'Less' %}&lt;1s{% else %}{{ w[0] }}{% endif %}{% endmacro %}
+
+{% macro cbtn(name, action, label, cls="", confirm="") %}{{ post_btn(csrf, "/servers/containers/" ~ name ~ "/" ~ action, label, confirm=confirm, cls=("small " ~ cls) | trim) }}{% endmacro %}
+
+<nav class="tabs srv-tabs tabs-seg" aria-label="Servers sections">
+{%- set dk = p.docker if p.docker.available else none %}
+{%- set lv = p.libvirt %}
+<a class="tab srv-tab" href="/servers"{% if tab == 'overview' %} aria-current="page"{% endif %}>Overview</a>
+<a class="tab srv-tab" href="/servers?t=services"{% if tab == 'services' %} aria-current="page"{% endif %}>Services{% if dk %} <span class="srv-tabn" title="{{ dk.running }} running of {{ dk.total }}">{{ dk.running }}/{{ dk.total }}</span>{% endif %}</a>
+<a class="tab srv-tab" href="/servers?t=resources"{% if tab == 'resources' %} aria-current="page"{% endif %}>Resources</a>
+<a class="tab srv-tab" href="/servers?t=vms"{% if tab == 'vms' %} aria-current="page"{% endif %}>VMs{% if lv %} <span class="srv-tabn" title="{{ lv.running }} running of {{ lv.total }}">{{ lv.running }}/{{ lv.total }}</span>{% endif %}</a>
+</nav>
+{% if tab == 'overview' %}
+{% if summary %}
+<section class="sum-strip" aria-label="Summary">
+  <div class="sum-head"><span class="sum-badge lvl-{{ summary.status }}" role="status">{{ summary.status | upper }}</span>
+    <span class="sum-title">Overall health</span></div>
+  <div class="sum-grid">
+  {% for t in summary.tiles %}{{ sum_tile(t, 'sum-' ~ t.key) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+<p class="srv-stamp small muted">Updated <time title="{{ p.ts | ts }}">{{ p.ts | dt }}</time>
+  {% if p.stale %}<span class="badge srv-stale b-warn" role="status">stale: {{ p.failed | join(", ") }}</span>{% endif %}</p>
+<div class="srv-grid">
+<section class="srv-card srv-host" aria-labelledby="srv-h-host">
+  <h2 id="srv-h-host">This host{% if p.hostname %} <span class="muted">{{ p.hostname }}</span>{% endif %}</h2>
+  {% for m in p.metrics %}
+  <div class="srv-row lvl-{{ m.level }}">
+    <span class="srv-k">{{ m.label }}</span>
+    <span class="srv-v">{{ m.text }}</span>
+    {% if m.pct is not none %}<progress class="srv-bar lvl-{{ m.level }}" max="100" value="{{ '%.0f' | format(m.pct) }}" aria-label="{{ m.label }}"></progress>{% endif %}
+  </div>
+  {% endfor %}
+  {% if p.libvirt %}<div class="srv-row"><span class="srv-k">libvirt guests</span><span class="srv-v">{{ p.libvirt.running }} running / {{ p.libvirt.total }}</span></div>{% endif %}
+</section>
+
+<section class="srv-card srv-wide" aria-labelledby="srv-h-hosts">
+  <h2 id="srv-h-hosts">Hosts</h2>
+  <div class="dt dt-hs" role="table" aria-label="Hosts">
+    <div class="dt-head" role="row"><span class="hc-dot" role="columnheader"></span><span class="hc-name" role="columnheader">Host</span><span class="hc-addr" role="columnheader">Address</span><span class="hc-ms" role="columnheader">Latency</span><span class="hc-role" role="columnheader">Role</span></div>
+  {% for h in p.hosts %}
+    <div class="dt-row" role="row" title="{{ h.name }} {{ 'up' if h.up else 'down' }}{% if h.up %}, {{ '%.0f' | format(h.latency_ms) }} ms{% endif %}"><span class="hc-dot">{{ dot('run' if h.up else 'err', 'up' if h.up else 'down', 'sdot') }}</span><strong class="hc-name">{{ h.name }}</strong><span class="hc-addr muted mono">{{ h.host }}:{{ h.port }}</span><span class="hc-ms muted">{% if h.up %}{{ '%.0f' | format(h.latency_ms) }} ms{% else %}&ndash;{% endif %}</span><span class="hc-role muted">{{ h.note }}</span></div>
+  {% endfor %}
+  </div>
+</section>
+</div>
+{% elif tab == 'services' %}
+<p class="srv-stamp small muted">Updated <time title="{{ p.ts | ts }}">{{ p.ts | dt }}</time>
+  {% if p.stale %}<span class="badge srv-stale b-warn" role="status">stale: {{ p.failed | join(", ") }}</span>{% endif %}</p>
+<section class="srv-card srv-wide" aria-labelledby="srv-h-docker">
+  <h2 id="srv-h-docker">Services</h2>
+  {% if p.docker.available %}
+  <p class="small muted">{{ p.docker.running }} running / {{ p.docker.total }} total{% if p.docker.unhealthy %}, <span class="lvl-crit">{{ p.docker.unhealthy }} unhealthy</span>{% endif %}</p>
+  <div class="srv-filter" role="group" aria-label="Container filter">
+    <a class="srv-chip{% if ct != 'bad' %} on{% endif %}" href="/servers?t=services"{% if ct != 'bad' %} aria-current="true"{% endif %}>All</a>
+    <a class="srv-chip{% if ct == 'bad' %} on{% endif %}" href="/servers?t=services&amp;ct=bad"{% if ct == 'bad' %} aria-current="true"{% endif %}>Unhealthy only</a>
+  </div>
+  <div class="dt dt-ct" role="table" aria-label="Containers">
+    <div class="dt-head" role="row"><span class="dc-dot" role="columnheader"></span><span class="dc-name" role="columnheader">Name</span><span class="dc-img" role="columnheader">Image</span><span class="dc-up" role="columnheader">Uptime</span><span class="dc-ports" role="columnheader">Ports</span><span class="dc-go" role="columnheader"></span></div>
+  {% for c in p.docker.containers if ct != 'bad' or c.problem %}
+  {% set cls = 'bad' if c.health == 'unhealthy' else 'down' if c.problem else 'done' if c.clean_exit else 'up' %}
+  {% set dk = 'err' if c.problem else 'attn' if c.health == 'starting' else 'off' if (c.clean_exit or c.state != 'running') else 'run' %}
+  {% set lbl = c.state ~ (', ' ~ c.health if c.health else '') %}
+  <details class="dt-item ct-{{ cls }}"><summary class="dt-row" title="{{ c.name }} - {{ lbl }}; {{ c.status }}; image {{ c.image }}"><span class="dc-dot">{{ dot(dk, lbl, 'sdot') }}</span><strong class="dc-name">{{ c.name }}</strong><span class="dc-img muted">{{ c.image }}</span><span class="dc-up muted">{{ ct_age(c.status) }}</span><span class="dc-ports muted">{{ (c.ports.split(',') | length) if c.ports else '&ndash;'|safe }}</span><span class="dc-go"><span class="dt-chev" aria-hidden="true"></span></span></summary>
+    <div class="dt-more"><span class="dm-k">Image</span><span class="dm-v mono">{{ c.image }}</span><span class="dm-k">Status</span><span class="dm-v mono">{{ c.status }}</span><span class="dm-k">Ports</span><span class="dm-v mono">{{ c.ports or 'none' }}</span>
+    {% if can_ct and not ct_protected(c.name) %}<span class="dm-k">Control</span><span class="dm-v rc-act">
+      {% if c.state == 'running' %}
+      {{ cbtn(c.name, 'stop', 'Stop', '', 'Stop ' ~ c.name ~ '?') }}
+      {{ cbtn(c.name, 'restart', 'Restart', '', 'Restart ' ~ c.name ~ '?') }}
+      {{ cbtn(c.name, 'kill', 'Kill', 'danger', 'Force-kill ' ~ c.name ~ '?') }}
+      {% else %}{{ cbtn(c.name, 'restart', 'Start', '') }}{% endif %}</span>
+    {% elif can_ct %}<span class="dm-k">Control</span><span class="dm-v muted">protected</span>{% endif %}</div></details>
+  {% else %}{{ empty('No unhealthy containers.' if ct == 'bad' else 'No containers.', 'small') }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="srv-row lvl-warn"><span class="srv-k">docker</span><span class="srv-v">docker unavailable</span></div>
+  {% endif %}
+</section>
+
+{% elif tab == 'resources' %}
+{% include "_resources.html" %}
+{% endif %}

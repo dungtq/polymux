@@ -1,0 +1,65 @@
+/* dt theme base: document reset, type, focus, and the shared atoms (DESIGN.md §2 "shared atoms", §4, §5, §9).
+   Tokens only (tokens.css). Atoms that classic content also defines (.dot, .muted, .mono) are written with
+   :where() so classic's own variants (.dot-running ...) keep winning while _classic.html is loaded. */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body.x{margin:0;padding:0;background:var(--page);color:var(--fg);font:var(--fs-body)/1.5 var(--font-ui)}
+a{color:var(--accent);text-decoration:none}
+[hidden]{display:none!important}
+::selection{background:var(--selection)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* DESIGN §5: 700 is not used (the browser's bold for b / strong, classic content included) */
+b,strong{font-weight:600}
+
+/* icons: <svg class="i"><use href="/static/t/dt/icons.svg#name"/></svg> */
+svg.i{width:var(--icon);height:var(--icon);flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* keyboard hint; an empty one (label not rendered yet by keys.js) takes no room */
+kbd,.kbd{display:inline-block;font:inherit;font-family:var(--font-ui);font-size:var(--fs-xs);line-height:var(--badge-h);
+  font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted);background:var(--subtle);
+  border:1px solid var(--line);border-bottom-width:2px;border-radius:var(--r-xs);padding:0 var(--s1);white-space:nowrap}
+kbd:empty{display:none}
+
+/* text atoms */
+:where(.muted){color:var(--muted)}
+:where(.mono){font-family:var(--font-mono)}
+.ell{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp{flex:1 1 auto}
+/* visually hidden (screen readers only); pinned to its box's top-left, so a hidden word below the fold never makes the
+   page taller (a .vh with no positioned ancestor is placed against the page) */
+.vh{position:absolute;top:0;left:0;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);
+  white-space:nowrap;border:0}
+/* a name truncated from the left, so the unique suffix stays visible (LAYOUT.md L-4, L-5):
+   <span class="sfx"><bdi>claude-1c70ee</bdi></span> shows "…1c70ee" when narrow */
+.sfx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+.sfx>bdi{direction:ltr;unicode-bidi:isolate}
+
+/* state dot (8px): colour + title + a .vh word next to it, never colour alone (V7-UI-6); only waiting is yellow,
+   an unknown state keeps the muted idle colour */
+:where(.dot){display:inline-block;width:var(--dot);height:var(--dot);flex:0 0 var(--dot);border-radius:50%;
+  background:var(--dot-idle)}
+.dot.running{background:var(--dot-run)}
+.dot.waiting{background:var(--dot-wait)}
+.dot.failed{background:var(--dot-fail)}
+.dot.idle,.dot.unknown{background:var(--dot-idle)}
+.dot.ended{background:none;box-shadow:inset 0 0 0 1.5px var(--dot-end)}
+
+/* chip: 18px outlined pill; .k = agent-kind border (DESIGN §6.5), the text stays --fg: kind colours are below AA as
+   text on the page (claude 3.9:1 light) */
+.chip{display:inline-flex;align-items:center;height:var(--chip-h);padding:0 var(--s2);border:1px solid var(--line);
+  border-radius:var(--r-pill);font-size:var(--fs-xs);font-weight:400;color:var(--muted);white-space:nowrap}
+.chip.k{color:var(--fg);border-color:color-mix(in srgb,var(--k) 55%,transparent)}
+
+/* agent kind (WHO): data-kind="<kind>" sets --k; unknown kinds fall back to other */
+:where([data-kind]){--k:var(--k-other)}
+[data-kind=claude]{--k:var(--k-claude)}
+[data-kind=codex]{--k:var(--k-codex)}
+[data-kind=devin]{--k:var(--k-devin)}
+[data-kind=cursor-agent],[data-kind=cursor]{--k:var(--k-cursor-agent)}
+[data-kind=antigravity],[data-kind=agy]{--k:var(--k-antigravity)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0s!important;animation-iteration-count:1!important;
+    transition-duration:0s!important}
+}

@@ -1,0 +1,85 @@
+{# Chat item parts (docs/CHAT-SYNC.md), used by _chatitems.html, _outbox.html and the live strip (_chat.html).
+   Import "with context": agent, ended, can_continue, model_name, now, uploads, embed, csrf.
+   DOM contract for static/js/chat-items.js: every top-level node has id + data-seq + data-turn (the Compact
+   view, static/js/chat-compact.js, groups by it; the end item's data-dur is its duration); tool rows are
+   li#i-<seq> with data-name/data-fam/data-status; a running status cell has data-start (epoch s);
+   outbox bubbles are article#ob-<id>[data-ob] with .ob-st and .ob-act; .ob-st is the first child of the
+   user header, before "You". #}
+{% from "_chatmsg.html" import copy_btn, canvas_btn, continue_btn, tool_chip with context %}
+
+{% set OB = {
+  "saved": "Saved", "wait": "Waiting for turn end", "sending": "Sending…", "inpane": "In pane",
+  "queued": "Queued in Claude", "done": "In transcript ✓", "failed": "Not sent", "cancelled": "Cancelled",
+} %}
+
+{% macro ob_state(state, error="") -%}
+{#- Delivery state = the coloured dot only, the words in title + .sr-only; "Not sent" stays visible (needs action) -#}
+{% set lb = OB.get(state, state) %}{% set er = state == "failed" and error -%}
+<span class="ob-st ob-s-{{ state }}" title="{{ lb }}{% if er %} &middot; {{ error }}{% endif %}"><span class="ob-dot" aria-hidden="true"></span>{% if state == "failed" %}<span class="ob-tx">{{ lb }}</span>{% if er %}<span class="sr-only"> &middot; {{ error }}</span>{% endif %}{% else %}<span class="sr-only">{{ lb }}</span>{% endif %}</span>
+{%- endmacro %}
+
+{% macro ob_actions(m) -%}
+<div class="ob-act">{% if m.state == "wait" %}{% if agent is not none and agent.kind.value == "claude" %}<button type="button" class="small" data-ob-act="now" title="Type it into Claude's own queue now">Send now</button>{% endif %}<button type="button" class="small" data-ob-act="edit" title="Back to the composer">Edit</button><button type="button" class="small" data-ob-act="cancel">Cancel</button>{% elif m.state == "failed" %}<button type="button" class="small" data-ob-act="retry">Retry</button><button type="button" class="small" data-ob-act="edit" title="Back to the composer">Edit</button><button type="button" class="small" data-ob-act="cancel">Cancel</button>{% endif %}</div>
+{%- endmacro %}
+
+{# One message typed in pm's composer (models.OutboxMsg), not (yet) in the transcript. data-flow: delivered
+   (sending / in pane / queued / done), chat-items.js moves it once from #ci-pending to the end of the
+   conversation. The age counts from the message's created time and is ticked client-side (data-ago). #}
+{% set OB_FLOW = ("sending", "inpane", "queued", "done") %}
+{% macro ob_bubble(m) -%}
+<article id="ob-{{ m.id }}" class="chat-bubble role-user ci-user ci-ob ob-{{ m.state }}" data-ob="{{ m.id }}" data-state="{{ m.state }}"{% if m.state in OB_FLOW %} data-flow{% endif %} aria-label="Your message: {{ OB.get(m.state, m.state) }}">
+  <header class="chat-meta">{{ ob_state(m.state, m.error) }}<strong>You</strong> <span class="muted ob-age" data-ago="{{ m.created }}">{{ m.created | ago }}</span> <span class="stamp muted small">{{ m.created | ts }}</span>{{ copy_btn(m.text | pm_hint_strip) }}</header>
+  <div class="chat-text md">{{ m.text | pm_hint_strip | md }}</div>
+  {{ ob_actions(m) }}
+</article>
+{%- endmacro %}
+
+{# A tool call's status cell: spinner + elapsed (ticked by chat-items.js), background pill, done, failed.
+   A background task the session ended under (itemsync._bg_reconcile, note "stopped · session ended") is a
+   muted stopped state, not a failure. "no end seen" is only the fallback for an ended agent whose items
+   were not reconciled yet. #}
+{% macro tool_status(it) -%}
+{% set d = (it.ended - it.ts) | dur if it.ended else "" %}
+{% if it.status == "err" and it.note == "stopped · session ended" %}<span class="ci-ts is-bg is-stop"><span class="ci-bgp">background</span><span class="sr-only">not finished: </span>{{ it.note }}{% if d %} &middot; {{ d }}{% endif %}</span>
+{%- elif it.status == "run" and it.note == "background" and ended %}<span class="ci-ts is-bg"><span class="ci-bgp">background</span> no end seen</span>
+{%- elif it.status == "run" and it.note == "background" %}<span class="ci-ts is-run is-bg" data-start="{{ it.ts }}"><span class="ci-bgp">background</span><span class="el">{{ (now - it.ts) | dur }}</span></span>
+{%- elif it.status == "run" %}<span class="ci-ts is-run" data-start="{{ it.ts }}"><span class="ci-spin" aria-hidden="true"></span><span class="ci-wt">waiting &middot; </span><span class="el">{{ (now - it.ts) | dur }}</span><span class="sr-only"> running</span></span>
+{%- elif it.status == "ok" %}<span class="ci-ts is-ok"><span aria-hidden="true">&#10003; </span><span class="sr-only">done </span>{% if it.note and it.note != "background" %}{{ it.note }}{% if d %} &middot; {% endif %}{% endif %}{{ d }}</span>
+{%- elif it.status == "err" %}<span class="ci-ts is-err"><span aria-hidden="true">&#10007; </span><span class="sr-only">failed </span>{% if it.note and it.note != "background" %}{{ it.note }}{% if d %} &middot; {% endif %}{% endif %}{{ d }}</span>
+{%- else %}<span class="ci-ts"></span>{% endif %}
+{%- endmacro %}
+
+{% macro tool_row(it) -%}
+<li id="i-{{ it.seq }}" class="ci-tr" data-seq="{{ it.seq }}" data-name="{{ it.name or 'tool' }}" data-fam="{{ tool_family(it.name) }}" data-status="{{ it.status }}">{{ tool_chip(it.name or 'tool') }}<span class="ci-tl" title="{{ it.line }}">{{ it.line }}</span>{{ tool_status(it) }}</li>
+{%- endmacro %}
+
+{# Tool calls under the reply that started them: folded; the header keeps the counts. #}
+{% macro group(g) -%}
+<details id="{{ g.group }}" class="ci-tg" data-seq="{{ g.seq }}" data-parent="{{ g.parent }}" data-turn="{{ g.tools[0].turn if g.tools else '' }}">
+  <summary class="ci-tg-h"><svg class="ci-car" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="ci-tot"><b>{{ g.tools | length }}</b> tool call{{ '' if g.tools | length == 1 else 's' }}</span><span class="ci-chips">{% for name, n in g.counts %}{{ tool_chip(name, n) }}{% endfor %}</span><span class="ci-run">{% if g.running and not ended %}<span class="ci-spin" aria-hidden="true"></span>{{ g.running }} running{% elif g.running %}<span class="ci-ts is-bg">{{ g.running }} no end seen</span>{% endif %}</span></summary>
+  <ol class="ci-rows">{% for it in g.tools %}{{ tool_row(it) }}{% endfor %}</ol>
+</details>
+{%- endmacro %}
+
+{% macro text_item(it) -%}
+<article id="i-{{ it.seq }}" class="chat-bubble role-assistant ci-text" data-kind="{{ agent.kind.value }}" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}">
+  <header class="chat-meta"><strong>{{ (it.name | model_short) or model_name }}</strong> <span class="ci-aid muted">{{ agent.id }}</span> <span class="muted">{{ it.ts | ago }}</span> <span class="stamp muted small">{{ it.ts | ts }}</span>{% if it.text %}{{ copy_btn(it.text) }}{% if not ended %}{{ canvas_btn(agent, it.text) }}{% endif %}{% endif %}</header>
+  <div class="chat-text md">{{ it.text | md }}</div>
+  {% if it.text and can_continue %}<footer class="ci-foot">{{ continue_btn(agent) }}</footer>{% endif %}
+</article>
+{%- endmacro %}
+
+{% macro user_item(it) -%}
+<article id="i-{{ it.seq }}" class="chat-bubble role-user ci-user" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}"{% if it.outbox %} data-ob="{{ it.outbox }}"{% endif %}>
+  <header class="chat-meta">{% if it.outbox %}{{ ob_state("done") }}{% endif %}<strong>You</strong> <span class="muted">{{ it.ts | ago }}</span> <span class="stamp muted small">{{ it.ts | ts }}</span>{{ copy_btn(it.text | pm_hint_strip) }}</header>
+  <div class="chat-text md">{{ it.text | pm_hint_strip | md }}</div>
+</article>
+{%- endmacro %}
+
+{% macro end_item(it) -%}
+{% set dur = (it.note or "").split(" · ") %}<p id="i-{{ it.seq }}" class="ci-end" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}"{% if dur | length > 2 and dur[2] %} data-dur="{{ dur[2] }}"{% endif %}><span>Turn done{% if it.note %} &middot; {{ it.note }}{% endif %}</span></p>
+{%- endmacro %}
+
+{% macro block(b) -%}
+{% if b.group is defined %}{{ group(b) }}{% elif b.it.kind == "text" %}{{ text_item(b.it) }}{% elif b.it.kind == "user" %}{{ user_item(b.it) }}{% elif b.it.kind == "end" %}{{ end_item(b.it) }}{% endif %}
+{%- endmacro %}

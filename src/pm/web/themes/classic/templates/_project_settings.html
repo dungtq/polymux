@@ -1,0 +1,38 @@
+{# Project settings fragment (right aside). Context: project csrf base ps components choices linked pubkey git_html flash #}
+{% set labels = {"browse": "Browse", "git": "Git", "skills": "Skills", "plans": "Plans", "todo": "TODO", "backlog": "Backlog", "readme": "README", "features": "FEATURES", "changelog": "CHANGELOG", "claude": "CLAUDE", "agents": "AGENTS", "stack": "Stack card", "live": "Agents and sessions"} %}
+<div id="pj-settings" class="pj-settings">
+{% if flash %}<p class="set-notice ok ps-flash" role="status">{{ flash }}</p>{% endif %}
+<form class="ps-form" method="post" action="{{ base }}/settings" hx-post="{{ base }}/settings" hx-target="#pj-settings" hx-swap="outerHTML">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2 class="ps-h">Show components</h2>
+  <div class="ps-grid">
+    {% for c in components %}<label class="ps-chk"><input type="checkbox" name="show" value="{{ c }}"{% if c not in ps.hidden %} checked{% endif %}><span>{{ labels.get(c, c) }}</span></label>{% endfor %}
+  </div>
+  <div class="ps-row">
+    <label class="ps-lbl" for="ps-branch">Default branch</label>
+    <input id="ps-branch" class="mono" name="default_branch" value="{{ ps.default_branch }}" maxlength="100" placeholder="auto" autocomplete="off" spellcheck="false">
+    <button type="submit" class="primary small">Save</button>
+  </div>
+  <div class="ps-row">
+    <label class="ps-lbl" for="ps-vms">VM names</label>
+    <textarea id="ps-vms" class="mono" name="vms" rows="3" maxlength="1400" placeholder="lab-*" autocomplete="off" spellcheck="false">{{ ps.vms | join("\n") }}</textarea>
+  </div>
+  <p class="small muted ps-note">One VM name pattern per line (* and ? allowed). The VM tab lists only matching VMs.</p>
+</form>
+<h2 class="ps-h">Git</h2>
+<div class="ps-git">{{ git_html | safe }}</div>
+{% if pubkey and 'gr-pubkey' not in git_html %}
+<div class="ps-row ps-key"><span class="ps-lbl">SSH key</span><input class="mono" readonly value="{{ pubkey }}" aria-label="pm public key (deploy key)" spellcheck="false"><button type="button" class="small" data-copy-text="{{ pubkey }}">Copy</button></div>
+{% endif %}
+<h2 class="ps-h">Workspace</h2>
+<form class="ps-form" method="post" action="{{ base }}/settings/links" hx-post="{{ base }}/settings/links" hx-target="#pj-settings" hx-swap="outerHTML">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if choices %}
+  <p class="small muted ps-note">Linked projects get a quick link under the path.</p>
+  <div class="ps-grid">
+    {% for n in choices %}<label class="ps-chk"><input type="checkbox" name="link" value="{{ n }}"{% if n in ps.links %} checked{% endif %}><span class="mono" title="{{ n }}">{{ n }}</span></label>{% endfor %}
+  </div>
+  <div class="ps-row"><button type="submit" class="small">Save links</button></div>
+  {% else %}<p class="small muted">No other projects.</p>{% endif %}
+</form>
+</div>
