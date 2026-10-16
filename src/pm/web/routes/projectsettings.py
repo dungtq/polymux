@@ -7,6 +7,7 @@ The audit detail carries counts and names only, never paths. The panel is the fr
 
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request
@@ -16,7 +17,7 @@ from pm.core import executors
 from pm.core.errors import Invalid
 from pm.core.models import Tier
 from pm.infra import sshkeys
-from pm.projects import projects
+from pm.projects import projects, workspace
 from pm.projects import settings as pset
 from pm.security.auth import require_session
 from pm.security.guard import mutation_guard
@@ -43,7 +44,8 @@ def _build(request: Request, name: str, path, flash: str) -> str:
         base=f"/p/{quote(name)}", ps=ps, components=pset.COMPONENTS,
         account_kinds=[(k, names) for k in pset.ACCOUNT_KINDS if (names := st.accounts.get(k))],
         choices=sorted(known - {name}), linked=[n for n in ps.links if n in known],
-        pubkey=key.line if key else "", git_html=git_remotes_html(request, name, path), flash=flash)
+        pubkey=key.line if key else "", git_html=git_remotes_html(request, name, path), flash=flash,
+        workspaces=[(w.id, w.label) for w in _workspaces(st)])
 
 
 async def _render(request: Request, name: str, flash: str = "") -> HTMLResponse:
@@ -108,4 +110,34 @@ async def save_links(request: Request, name: str,
     known = _known(request)
     flash = await _save(request, "project_links", name,
                         lambda: pset.save_links(st, name, links, known), {"links": len(links)})
+    return await _render(request, name, flash)
+
+
+def _workspaces(st) -> list[workspace.WorkspaceFile]:
+    """``*.code-workspace`` files in every project dir and its parent (the ids the import accepts)."""
+    roots = [q for p in projects.discover(st) for q in (Path(p.path), Path(p.path).parent)]
+    return workspace.discover(roots, limit=20)
+
+
+@router.post("/p/{name}/settings/links/import", response_class=HTMLResponse)
+async def import_links(request: Request, name: str,
+                       _=Depends(mutation_guard("project_settings", Tier.SAFE))):
+    project_of(request, name)
+    st = request.app.state.settings
+    wid = (await controlctl.form(request, "workspace")).strip()
+    got: dict = {"linked": 0, "skipped": 0}
+
+    def fn():
+        found = {w.id: w for w in _workspaces(st)}
+        if wid not in found:
+            raise Invalid("workspace: not found")
+        known = {p.name: Path(p.path) for p in projects.discover(st)}
+        names, got["skipped"] = workspace.match(workspace.parse_folders(found[wid].path), known, name)
+        old = [n for n in pset.load(st, name).links if n in known]
+        got["linked"] = len([n for n in names if n not in old])
+        pset.save_links(st, name, old + names, set(known))
+
+    flash = await _save(request, "project_links", name, fn, got)
+    if flash == "Saved.":
+        flash = f"Linked {got['linked']} project(s). {got['skipped']} folder(s) are not pm projects."
     return await _render(request, name, flash)

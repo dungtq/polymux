@@ -10,6 +10,8 @@
      an error toast and the form keeps what was typed; HTTP errors via pm7.fail. A saved settings form that changed
      a checkbox (what the page shows: tabs, Docs choices, the links row) reloads the page with #settings, which
      reopens the panel and shows the toast (one-shot pm7.store key pj.saved).
+   - import (data-pjs-form=import): posts the chosen *.code-workspace id to <base>/settings/links/import; an answer
+     "Linked N ..." with N > 0 reloads like a links save.
    - remove ([data-pjr-rm]): typed remote name (V7-SEC-6; the push remote, #pj-lay[data-pj-remote] = pm.toml
      push_remote, also needs confirm=<name> at the core), then POST <base>/git/remote/remove {name, confirm}.
    - the pm key ⋯ (copy, Generate key) is parts.js: its refresh reloads #git-remotes (hx-get on pm7:refresh).
@@ -46,7 +48,7 @@
   }
 
   let busy = false;
-  async function send(panel, url, body, what, reload, form) {
+  async function send(panel, url, body, what, reload, form) {  // reload: bool, or fn(flash text) -> bool
     if (busy) return;
     busy = true;
     let r;
@@ -71,7 +73,7 @@
       pm7.toast(what + ': ' + (text || 'refused'), '', { error: true });
       return;
     }
-    if (reload) {
+    if (typeof reload === 'function' ? reload(text) : reload) {
       pm7.store.set(SAVED, text || what);
       const p = hashState();
       p.set('settings', '');
@@ -82,7 +84,8 @@
     pm7.toast(text || what + ': done');
   }
 
-  const WHAT = { settings: 'Project settings', links: 'Linked projects', add: 'Add remote', 'set-url': 'Set url' };
+  const WHAT = { settings: 'Project settings', links: 'Linked projects', import: 'Import workspace',
+    add: 'Add remote', 'set-url': 'Set url' };
   d.addEventListener('submit', (e) => {
     const form = e.target;
     if (!form || !form.matches || !form.matches('form[data-pjs-form]')) return;
@@ -91,8 +94,10 @@
     e.preventDefault();
     if (!form.checkValidity()) { form.reportValidity(); return; }
     const kind = form.getAttribute('data-pjs-form');
-    const changed = kind === 'settings' || kind === 'links'
+    let changed = kind === 'settings' || kind === 'links'
       ? pm7.$$('input[type=checkbox]', form).some((i) => i.checked !== i.defaultChecked) : false;
+    // the links row changes only if some were added; the text is the route's flash (routes/projectsettings.py)
+    if (kind === 'import') changed = (r) => /^Linked [1-9]/.test(r);
     send(panel, form.getAttribute('action'), new URLSearchParams(new FormData(form)), WHAT[kind] || 'Save', changed,
       form);
   });

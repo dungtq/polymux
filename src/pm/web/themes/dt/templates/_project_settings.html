@@ -1,15 +1,19 @@
 {#- dt override of the core's project settings panel (GET /p/<name>/settings/panel; the answer of POST
-    /p/<name>/settings and /settings/links: the same panel with flash "Saved." or "Refused: ..."). Context: project,
-    csrf, base, ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, account_kinds ([(kind, names)] of the configured login accounts), git_html (the dt
-    _git_remotes.html), flash. Opened in the project view's reader aside by the head's Settings button or #settings
-    (js/pjsettings.js; css/project.css .pjs). Three blocks: Show (the components; a hidden one leaves the project
-    view: tabs, Docs choices, the tmux tab), Default branch + VM names, Git remotes (the remotes panel), Workspace
-    (linked projects: the links row under the head; one per row, the full name, wrapped on phones). Forms post with pm7.fetch (no htmx), the flash decides the toast
-    (data-pjs-flash ok | bad; screen-reader only, the toast shows it); a save that changes what the page shows reloads
-    it and reopens this panel. Labels of the components: dt_project("panels") (pm.web.dt.project.Panels). -#}
+    /p/<name>/settings, /settings/links and /settings/links/import: the same panel with flash "Saved.",
+    "Linked N project(s). M folder(s) are not pm projects." or "Refused: ..."). Context: project, csrf, base,
+    ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, account_kinds ([(kind, names)] of the configured
+    login accounts), git_html (the dt _git_remotes.html), flash, workspaces ((id, label) of the *.code-workspace files found; the import block
+    shows only when there are some). Opened in the project view's reader aside by the head's Settings button
+    or #settings (js/pjsettings.js; css/project.css .pjs). Blocks: Show (the components; a hidden one leaves the
+    project view: tabs, Docs choices, the tmux tab), Default branch + VM names, Git remotes (the remotes panel),
+    Workspace (linked projects: the links row under the head; one per row, the full name, wrapped on phones),
+    Import from a Cursor / VS Code workspace. Forms post with pm7.fetch (no htmx), the flash decides the toast
+    (data-pjs-flash ok | bad; screen-reader only, the toast shows it); a save that changes what the page shows
+    reloads it and reopens this panel. The "Linked " prefix of the import flash is also read by js/pjsettings.js
+    (import reload check). Labels of the components: dt_project("panels") (pm.web.dt.project.Panels). -#}
 {%- set panels = dt_project("panels") -%}
 {%- set labels = panels.labels if panels else {} -%}
-{%- set ok = flash == "Saved." -%}
+{%- set ok = flash == "Saved." or flash.startswith("Linked ") -%}
 <div id="pj-settings" class="pjs" data-pjs="{{ base }}">
 {%- if flash %}
 <p class="vh" role="status" data-pjs-flash="{{ 'ok' if ok else 'bad' }}">{{ flash }}</p>
@@ -58,5 +62,19 @@
 </form>
 {%- else %}
 <p class="pjs-hint">No other projects.</p>
+{%- endif %}
+{%- if workspaces %}
+<form class="pjs-form" method="post" action="{{ base }}/settings/links/import" data-pjs-form="import">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2 class="p-h2">Import from Cursor / VS Code workspace</h2>
+  <label class="pjs-l" for="pjs-ws">Workspace file</label>
+  <select id="pjs-ws" class="sel" name="workspace" title="Workspace file" aria-describedby="pjs-ws-h">
+    {%- for wid, label in workspaces %}
+    <option value="{{ wid }}">{{ label }}</option>
+    {%- endfor %}
+  </select>
+  <p class="pjs-hint" id="pjs-ws-h">Adds the folders of the chosen workspace that are pm projects. Existing links stay.</p>
+  <div class="pjs-ft"><button class="x-btn" type="submit">Import</button></div>
+</form>
 {%- endif %}
 </div>
