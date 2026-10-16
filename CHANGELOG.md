@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-17 (Auto-exit keeps the agent's window (autoexit_close_window))
+
+- An idle auto-exit no longer closes the agent's tmux window: it stays with its last output, like the window of
+  any agent that quits. New pm.toml key `autoexit_close_window` (default `false`); `true` restores the old
+  behaviour (close it when it holds nothing but the left-over shell). The audit line says `window_close: kept`.
+
 ## 2026-10-17 (Agent with a busy sub-agent stays Running)
 
 A Claude agent that has launched background sub-agents stays under Running while one of them is in a long quiet tool call, such as a test run of several minutes. Before, it moved to the Idle table after a minute without writes.

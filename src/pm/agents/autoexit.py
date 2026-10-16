@@ -4,8 +4,9 @@ Every ``autoexit_interval_s`` the sweeper reads the already published snapshot (
 build) and exits Claude agents that are ``idle`` and whose last response (``Agent.done_ts``) is older
 than the timeout. Exit uses the normal safe mechanism (``stop.exit_agent``: Ctrl-C twice, tmux ids,
 argv only, timeout). Only sessions matching ``autoexit_sessions`` (never ``pm*``) are touched: the
-protection checks use ``tmuxctl.autoexit_settings``. Afterwards the tmux window is closed only when it
-is not protected, has no attached client and holds nothing but the shell left behind by that agent (no child processes).
+protection checks use ``tmuxctl.autoexit_settings``. Afterwards the tmux window stays (like after any agent
+quits); with ``autoexit_close_window`` it is closed, but only when it is not protected, has no attached client and
+holds nothing but the shell left behind by that agent (no child processes).
 
 State lives in ``state_dir/autoexit.json``: the timeout override (settings page) and one info record per
 auto-exit (cwd, kind, session, model, project, window) for the ended-agent page. Nothing here ever holds pane text.
@@ -221,7 +222,7 @@ def exit_one(settings: Settings, audit: AuditLog, cand: Candidate, now: float | 
                                "tmux_session": cand.session, "idle_s": int(cand.idle_s)}
             _save(settings, d)
         if res.status == "stopped":
-            closed = close_window_if_empty(settings, a)
+            closed = close_window_if_empty(settings, a) if settings.autoexit_close_window else "kept"
     try:
         _audit(audit, "agent_autoexit", a.id, "ok" if res.status in ("stopped", "gone") else "error",
                {**base, "status": res.status, "model": model, "window_close": closed})
