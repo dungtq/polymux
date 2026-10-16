@@ -146,3 +146,83 @@ def test_dev_badge_hidden_through_cssom_not_inline_style():
     assert {s.strip() for s in u.DEV_BADGE_SEL.split(",")} == {".x-dev", ".devtag"}
     assert "style.setProperty('display', 'none', 'important')" in u.HIDE_JS
     assert "add_style_tag" not in Path(u.__file__).read_text()  # pm's CSP refuses inline <style>
+
+
+# #208: WebKit's page.screenshot() injects <style>body {}</style> (Playwright coreBundle.js 5:30); pm's CSP refuses it
+CSP_TEXT = ("Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear in the "
+            "style-src directive of the Content Security Policy.")
+SHOT_CONSOLE = {"kind": "console", "type": "error", "text": CSP_TEXT, "src": "http://127.0.0.1:8095/tmux",
+                "line": 0, "col": 0, "doc": "http://127.0.0.1:8095/tmux"}
+SHOT_RECORD = {"client": "127.0.0.1", "col": 30, "kind": "csp", "line": 5, "method": "",
+               "msg": "Refused style-src-elem: inline", "page": "/tmux", "status": 0, "ts": 1.0,
+               "ua": "Safari · macOS", "url": ""}
+
+
+def test_is_shot_noise_matches_the_screenshot_csp_line():
+    assert u.is_shot_noise(SHOT_CONSOLE)
+    assert u.is_shot_noise({**SHOT_CONSOLE, "src": "about:blank"})
+    assert u.is_shot_noise({**SHOT_CONSOLE, "src": ""})
+    assert u.is_shot_noise(SHOT_RECORD)
+
+
+@pytest.mark.parametrize("change", [
+    {"line": 5, "col": 30}, {"line": 12}, {"col": 4},                    # a script position
+    {"src": "http://127.0.0.1:8095/static/js/app.js"},                 # a real source url
+    {"text": "Refused to execute a script because its hash, its nonce, or 'unsafe-inline' does not appear in "
+             "the script-src directive of the Content Security Policy."},  # a different directive
+    {"type": "warning"},
+])
+def test_is_shot_noise_console_near_misses(change):
+    assert not u.is_shot_noise({**SHOT_CONSOLE, **change})
+
+
+@pytest.mark.parametrize("change", [
+    {"line": 6}, {"col": 31}, {"line": 0, "col": 0},
+    {"url": "/static/js/app.js"},
+    {"msg": "Refused script-src-elem: inline"}, {"msg": "Refused style-src-attr: inline"},
+    {"msg": "Refused style-src-elem: https://cdn.example.test"},
+    {"msg": "Refused style-src-elem: https://inline.example.test"},
+    {"kind": "js"},
+])
+def test_is_shot_noise_record_near_misses(change):
+    assert not u.is_shot_noise({**SHOT_RECORD, **change})
+
+
+def test_filter_console_drops_only_the_shot_noise():
+    other_csp = {**SHOT_CONSOLE, "src": "http://127.0.0.1:8095/static/js/app.js", "line": 3, "col": 9}
+    items = [SHOT_CONSOLE, other_csp]
+    assert u.filter_console(items, skip_shot_noise=True) == [f"console.error: {CSP_TEXT}"]
+    assert u.filter_console(items) == [f"console.error: {CSP_TEXT}"] * 2  # chromium: nothing dropped
+
+
+def test_drop_shot_noise_lines():
+    import json
+    real = json.dumps({**SHOT_RECORD, "url": "/static/js/app.js", "line": 3, "col": 9})
+    lines = [json.dumps(SHOT_RECORD), real, "not json", "[1]"]
+    assert u.drop_shot_noise(lines) == [real, "not json", "[1]"]
+
+
+def test_checks_read_before_the_screenshot():
+    calls = []
+
+    class Page:
+        url = "http://x/r"
+
+        def on(self, *a):
+            pass
+
+        def goto(self, *a, **k):
+            calls.append("goto")
+
+        def wait_for_timeout(self, *a):
+            pass
+
+        def evaluate(self, *a):
+            calls.append("evaluate")
+            return [10, 10]
+
+        def screenshot(self, **k):
+            calls.append("screenshot")
+
+    assert u.shoot_routes(Page(), "http://x", ["/r"], Path("/nonexistent"), "light", 10, webkit=True) == 0
+    assert calls == ["goto", "evaluate", "screenshot"]

@@ -27,6 +27,12 @@ FORBIDDEN_PORT = 8093
 DEV_BADGE_SEL = ".x-dev,.devtag"
 HIDE_JS = "s => document.querySelectorAll(s).forEach(e => e.style.setProperty('display', 'none', 'important'))"
 HERE = Path(__file__).resolve().parent
+# WebKit only (#208): every page.screenshot() makes Playwright inject <style>body {}</style> from its own bundle
+# (coreBundle.js 5:30); pm's CSP refuses it -> a console error with no script position, and pm's client-error
+# report below. Not a pm bug, so uishot drops exactly these two shapes.
+SHOT_NOISE_CONSOLE = "Refused to apply a stylesheet"
+SHOT_NOISE_POS = (5, 30)
+SHOT_NOISE_RECORD = "Refused style-src-elem: inline"  # client-errors.js wording for that refusal
 
 
 # ---- pure helpers -------------------------------------------------------
@@ -56,11 +62,37 @@ def has_h_overflow(scroll_width: int, inner_width: int) -> bool:
     return scroll_width > inner_width + 1
 
 
-def filter_console(items: list[dict]) -> list[str]:
-    """items: {kind: console|pageerror|response, text, url?, status?}; returns problem strings."""
+def is_shot_noise(item: dict) -> bool:
+    """The CSP refusal of Playwright's screenshot <style> (WebKit): a console event (no script position, source
+    = the shot document) or a client-error record (kind csp, inline style-src-elem, no url, at 5:30)."""
+    if item.get("kind") == "console":
+        return (item.get("type") == "error" and str(item.get("text") or "").startswith(SHOT_NOISE_CONSOLE)
+                and "style-src" in str(item.get("text"))
+                and (item.get("line"), item.get("col")) == (0, 0)
+                and (item.get("src") or "") in ("", "about:blank", item.get("doc") or ""))
+    return (item.get("kind") == "csp" and item.get("msg") == SHOT_NOISE_RECORD and not item.get("url")
+            and (item.get("line"), item.get("col")) == SHOT_NOISE_POS)
+
+
+def drop_shot_noise(lines: list[str]) -> list[str]:
+    """client-errors.jsonl lines without the WebKit screenshot noise (unparsable lines are kept)."""
+    def noise(ln: str) -> bool:
+        try:
+            rec = json.loads(ln)
+        except ValueError:
+            return False
+        return isinstance(rec, dict) and is_shot_noise(rec)
+    return [ln for ln in lines if not noise(ln)]
+
+
+def filter_console(items: list[dict], skip_shot_noise: bool = False) -> list[str]:
+    """items: {kind: console|pageerror|response, text, url?, status?}; returns problem strings.
+    skip_shot_noise (WebKit): drop Playwright's screenshot CSP error (is_shot_noise)."""
     out = []
     for it in items:
         kind = it.get("kind")
+        if skip_shot_noise and is_shot_noise(it):
+            continue
         url = it.get("url") or ""
         if "favicon" in url or "favicon" in (it.get("text") or ""):
             continue
@@ -195,13 +227,18 @@ def login(ctx, page, base: str, token: str, engine: str) -> bool:
     return "/login" not in page.url
 
 
+def console_event(m, doc: str) -> dict:
+    loc = m.location or {}
+    return {"kind": "console", "type": m.type, "text": m.text, "src": loc.get("url") or "",
+            "line": loc.get("lineNumber", 0), "col": loc.get("columnNumber", 0), "doc": doc}
+
+
 def shoot_routes(page, base: str, routes: list[str], out: Path, theme: str, width: int, *,
-                 hide_dev_badge: bool = False) -> int:
+                 hide_dev_badge: bool = False, webkit: bool = False) -> int:
     """Screenshot + check every route on a logged-in page; prints one line each, returns the failures."""
     fails = 0
     events: list[dict] = []
-    page.on("console", lambda m, ev=events: ev.append(
-        {"kind": "console", "type": m.type, "text": m.text}))
+    page.on("console", lambda m, ev=events: ev.append(console_event(m, page.url)))
     page.on("pageerror", lambda e, ev=events: ev.append({"kind": "pageerror", "text": str(e)}))
     page.on("response", lambda r, ev=events: ev.append(
         {"kind": "response", "status": r.status, "url": r.url})
@@ -215,12 +252,13 @@ def shoot_routes(page, base: str, routes: list[str], out: Path, theme: str, widt
             page.wait_for_timeout(400)
             if hide_dev_badge:
                 page.evaluate(HIDE_JS, DEV_BADGE_SEL)
-            page.screenshot(path=str(out / name), full_page=True)
+            # checks before the shot: the screenshot's own noise (WebKit, #208) is not the page's
             sw, iw = page.evaluate(
                 "[document.documentElement.scrollWidth, window.innerWidth]")
             if has_h_overflow(sw, iw):
                 reasons.append(f"horizontal overflow {sw}>{iw}")
-            reasons += filter_console(events)
+            reasons += filter_console(events, skip_shot_noise=webkit)
+            page.screenshot(path=str(out / name), full_page=True)
         except Exception as e:  # noqa: BLE001
             reasons.append(f"error: {str(e).splitlines()[0]}")
         if reasons:
@@ -280,11 +318,13 @@ def main(argv=None) -> int:
                         return 1
                     total += len(routes)
                     fails += shoot_routes(page, base, routes, out, theme, width,
-                                          hide_dev_badge=args.no_dev_badge)
+                                          hide_dev_badge=args.no_dev_badge, webkit=args.engine == "webkit")
                     ctx.close()
         finally:
             browser.close()
     ce = new_lines(cerr, before) if cerr else []
+    if args.engine == "webkit":
+        ce = drop_shot_noise(ce)
     for ln in ce:
         print(f"FAIL client-error {ln[:300]}")
     fails += len(ce)

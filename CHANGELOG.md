@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-16 (Markdown reader finds files from the folders an agent worked in)
+
+- The markdown reader also finds relative .md links an agent wrote while working in another folder or project: folders it cd'd into, the project a (deleted) worktree belongs to, a unique match in another project, or a unique file of that name inside its project. Hidden folders stay refused (#249).
+
 ## 2026-10-16 (dt: row links, ended sessions in the aside, search popups and project quick look, backlog bulk add and quick edit, md reader)
 
 - Rows: names in Inbox, project Agents, Projects and Agents tables are real links, so Ctrl/⌘/Shift or middle click opens a new browser tab (#247).
