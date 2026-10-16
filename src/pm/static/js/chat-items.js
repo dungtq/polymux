@@ -1,4 +1,4 @@
-/* Chat items (docs/CHAT-SYNC.md) on the agent page, the ended page and the Builder chat.
+/* Chat items on the agent page, the ended page and the Builder chat.
    #ci holds the append-only conversation from GET /a/<id>/items, #ci-pending pm's own composer messages
    that are not in the transcript yet (outbox). Only #chat (the live strip, htmx) is ever replaced.
    1. first load: the newest page; then, on pm:chat_items / pm:chat_outbox for this agent (live.js re-

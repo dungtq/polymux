@@ -235,7 +235,6 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Statusline and askpass | n/a | tools | — | |
 | Deploy | n/a | `deploy/` | — | |
 | `pmctl` CLI | n/a | CLI | — | |
-| Public release export | n/a | release tooling | — | |
 
 ## Core-only entries (core `FEATURES.md`)
 

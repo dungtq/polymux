@@ -221,7 +221,7 @@ def command_words(argv: list[str], shell: str) -> list[str]:
     through the user's ``shell`` (tmux's default-shell), so its startup files still apply (fish -c loads
     config.fish: SSH_AUTH_SOCK, mise, PATH), with argv as positional arguments that no shell re-parses:
     fish ``-c 'exec $argv'``, sh/bash/zsh/dash/ksh ``-c 'exec "$@"'``. A one string command would be parsed by
-    that shell, and fish reads sh quoting differently (#204). Unknown or unreadable shell: /bin/sh (logged).
+    that shell, and fish reads sh quoting differently. Unknown or unreadable shell: /bin/sh (logged).
     Every word goes through ``arg`` (a trailing ``;`` would end the tmux command)."""
     if not argv or not all(isinstance(a, str) and "\0" not in a for a in argv) or argv[0].startswith("-"):
         raise TmuxError("invalid command")

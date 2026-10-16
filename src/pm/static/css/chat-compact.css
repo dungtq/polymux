@@ -1,4 +1,4 @@
-/* Chat view Compact (docs/HANDOFF-chat-compact.md, mock docs/mock/chatsync/compact.html): per turn one
+/* Chat view Compact: per turn one
    working-notes block (the in-between replies as a bulleted list + one folded tool total), then the final
    reply with its own folded total. DOM built by chat-compact.js; every view rule is scoped under
    .ci[data-cv="compact"], so Detail stays as chat-items.css draws it. Tokens only; light + dark via tokens.

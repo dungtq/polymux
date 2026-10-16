@@ -2,10 +2,24 @@
 name = "polymux"
 version = "0.1.0"
 description = "Control plane for projects, git, tmux sessions and coding agents on one Linux host"
+readme = "README.md"
 authors = [
     { name = "dungtq", email = "11043299+dungtq@users.noreply.github.com" }
 ]
 license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["coding-agents", "tmux", "control-plane", "self-hosted", "fastapi", "htmx", "claude-code", "codex"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: System :: Systems Administration",
+]
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.142.2",
@@ -20,6 +34,12 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
     "webauthn>=3.0.1",
 ]
+
+[project.urls]
+Homepage = "https://polymux.app"
+Repository = "https://github.com/dungtq/polymux"
+Issues = "https://github.com/dungtq/polymux/issues"
+Changelog = "https://github.com/dungtq/polymux/blob/main/CHANGELOG.md"
 
 [project.scripts]
 pm = "pm:main"

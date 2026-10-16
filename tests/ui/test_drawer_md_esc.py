@@ -1,4 +1,4 @@
-"""Esc with the Markdown popup open in the chat aside closes the popup only (#186); the next Esc closes the aside."""
+"""Esc with the Markdown popup open in the chat aside closes the popup only; the next Esc closes the aside."""
 from __future__ import annotations
 
 import pytest

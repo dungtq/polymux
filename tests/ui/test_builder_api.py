@@ -1,4 +1,4 @@
-"""Builder preview aside: Page | API switch, endpoints from openapi.json, mock Send shows the example (#159)."""
+"""Builder preview aside: Page | API switch, endpoints from openapi.json, mock Send shows the example."""
 from __future__ import annotations
 
 import json

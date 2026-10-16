@@ -301,7 +301,7 @@ def test_row_pages_phone_box_is_full_width_above_the_rows(make_page, inst, url):
     assert page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth")
 
 
-# ---------------------------------------------------------------- sidebar box, Audit, Agents (the #166 boxes)
+# ---------------------------------------------------------------- sidebar box, Audit, Agents
 def test_sidebar_box_has_its_own_query(page, inst):
     page.goto(f"/a/{inst['agents']['running']}")
     page.wait_for_load_state("networkidle")

@@ -7,7 +7,7 @@ refused), ``claude``
 exists) and ``project`` (``<project>/plans``). Agent plans are matched to a project by content
 (the project's path appears in the file); ``all_agent=True`` lists them unfiltered.
 
-Layout and rules are documented in ``docs/PLANS.md``. Pure logic, no web code: the routes
+Pure logic, no web code: the routes
 (web/routes/plans.py) validate the project NAME against the registry and pass the server-derived
 project path in. Safety:
 

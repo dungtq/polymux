@@ -1,4 +1,4 @@
-/* Tab bars: one rule file, three looks (#163, docs/UI-CONDUCT.md "Tab bar"). Markup: .tabs > .tab, where a .tab is
+/* Tab bars: one rule file, three looks (docs/UI-CONDUCT.md "Tab bar"). Markup: .tabs > .tab, where a .tab is
    - a button or link with role=tab + aria-selected (role=tablist on .tabs; behaviour: static/js/tabs.js, pm.tabs),
    - a link with aria-current="page" (server-selected sections: Agents, Servers; .tabs is a <nav>),
    - a button built by drawer.js in the chat aside's .vc-tabs (role=tablist; layout in nav.css), or

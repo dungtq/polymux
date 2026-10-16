@@ -1,4 +1,4 @@
-"""Background deliverer of the composer outbox (``pm.chat.outbox``; docs/CHAT-SYNC.md).
+"""Background deliverer of the composer outbox (``pm.chat.outbox``).
 
 The message POST only stores a row and calls ``kick``. This lifespan task sends it: per agent the
 oldest ``saved``/``wait`` row goes in when the agent is idle (``message.send_message`` on the tmux

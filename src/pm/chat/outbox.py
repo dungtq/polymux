@@ -1,6 +1,6 @@
 """Composer outbox: messages typed in pm's composer, stored before anything reaches tmux.
 
-Table ``chat_outbox`` in ``settings.db_file`` (docs/CHAT-SYNC.md). Pure DB, no tmux: the background
+Table ``chat_outbox`` in ``settings.db_file``. Pure DB, no tmux: the background
 deliverer (``pm.agents.deliver``) moves rows through the state machine of
 ``pm.core.models.OutboxMsg``; ``pm.agents.chatfeed`` links a row to the transcript user item once
 the message shows up there (``match`` -> ``done``).

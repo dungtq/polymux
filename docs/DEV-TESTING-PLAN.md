@@ -67,7 +67,7 @@ start options the instance was started with ("" = this tree's `.venv/bin/pm` / n
 running, current instance, prints instance.json), `devpm.py stop [--port N]` (kills uvicorn +
 `tmux -L pmtest-dev-N kill-server` + removes `<root>`), `devpm.py status [--port N] [--json]`.
 
-**Restarts keep the instance (#206, 2026-10-15)**: `--pm-bin`, `--extra-toml` and `--limits` are remembered in
+**Restarts keep the instance**: `--pm-bin`, `--extra-toml` and `--limits` are remembered in
 instance.json; a later `start` that omits them (uishot, `tools/ui.sh`, uidiff) uses the remembered values, an explicit
 flag changes them (`--pm-bin ''` = back to this tree's pm). When the code is newer than the instance, pm died, or an
 option changed, `start` replaces **only the pm process**: the fixture projects (and anything an agent added to

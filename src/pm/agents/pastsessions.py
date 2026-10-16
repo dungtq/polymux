@@ -1,4 +1,4 @@
-"""Import past CLI sessions found on disk for each project folder (backlog #156).
+"""Import past CLI sessions found on disk for each project folder.
 
 Every ``past_sessions_interval_s`` (0 = off) a background loop takes the projects of the already
 published snapshot (it never builds one), finds the Claude / Codex / Cursor sessions whose cwd is a

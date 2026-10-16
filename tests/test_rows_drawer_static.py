@@ -105,14 +105,14 @@ def test_show_hide_recap_buttons_on_table_headings():
 
 
 def test_nodiff_never_drops_an_event_refresh():
-    """#185: a refresh asked for while one is in flight is run once after it, not dropped (rows kept a stale state)."""
+    """A refresh asked for while one is in flight is run once after it, not dropped (rows kept a stale state)."""
     js = read("static/js/nodiff.js")
     assert "if (busy.get(el)) { pending.set(el, true); return null; }" in js
     assert "if (pending.get(el)) { pending.delete(el); refresh(el); }" in js
 
 
 def test_drawer_esc_closes_md_popup_before_the_aside():
-    """#186: one Escape listener in drawer.js; it respects defaultPrevented and closes the md popup first."""
+    """One Escape listener in drawer.js; it respects defaultPrevented and closes the md popup first."""
     js = read("static/js/drawer.js")
     assert js.count("'Escape'") == 1
     i = js.index("e.key !== 'Escape' || e.defaultPrevented")
@@ -120,7 +120,7 @@ def test_drawer_esc_closes_md_popup_before_the_aside():
 
 
 def test_drawer_model_pill_reads_the_heading_data_model():
-    """#164: the aside model pill comes from the framed heading's data-model (agent_head), never scraped pill text."""
+    """The aside model pill comes from the framed heading's data-model (agent_head), never scraped pill text."""
     js = read("static/js/drawer.js")
     assert "head.querySelector('.agent-title[data-model]')" in js and "getAttribute('data-model')" in js
     assert "getElementById('agent-pill')" not in js and ".kp-model')" not in js
@@ -128,7 +128,7 @@ def test_drawer_model_pill_reads_the_heading_data_model():
 
 
 def test_drawer_pill_follows_a_model_switch_in_the_frame():
-    """#155: the aside listens for pm:composer on the framed page's document (a fresh document per load: no pile-up)."""
+    """The aside listens for pm:composer on the framed page's document (a fresh document per load: no pile-up)."""
     js = read("static/js/drawer.js")
     i = js.index("frame.addEventListener('load', function () {\n    try { var fd")
     body = js[i:js.index("function close(", i)]

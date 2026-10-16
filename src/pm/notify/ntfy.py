@@ -1,4 +1,4 @@
-"""ntfy publisher (design: ../pv/docs/ntfy-home.md; nothing imported from pv).
+"""ntfy publisher.
 
 Only the headers Title / Tags / Click / Priority are sent, plus a short body
 built from agent state + project name + agent id. Never pane text, tokens,

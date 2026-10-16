@@ -109,7 +109,7 @@ Must:
 - Pins stored per user on the server.
 
 Acceptance: state, last message and unread change together in the event that brings the ntfy (no lag behind
-ntfy, #185); running ages tick without redrawing the table; the recap never flashes (#162).
+ntfy); running ages tick without redrawing the table; the recap never flashes.
 
 ### 6.3 Session tab (full chat, Builder, reader, sub-agents, pane, terminal, composer)
 

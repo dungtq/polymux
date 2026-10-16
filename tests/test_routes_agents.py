@@ -360,7 +360,7 @@ def test_launch_from_popup_redirect_stays_framable(private_tmux, tmp_path):
 
 
 def test_launch_open_redirects_without_polling(private_tmux, tmp_path, monkeypatch):
-    """#157: open=1 answers after ONE fresh snapshot (no 3 s poll for the registry): the pane based id
+    """``open=1`` answers after ONE fresh snapshot (no 3 s poll for the registry): the pane based id
     when the agent is not detected yet; the agent page redirects it once it resolves."""
     from pm.web.routes import agents as routes_agents
     app, c, sess, tok, st = _bypass_client(private_tmux, tmp_path, _sleeper(tmp_path))
@@ -484,7 +484,7 @@ def test_model_switch_only_listed_ids(fake, monkeypatch, tmp_path):
     assert sent == ["/model opus"]
     ev = json.loads(r.headers["hx-trigger"])["pm:composer"]  # the open composer follows the switch
     assert ev["ph"].startswith("Message to opus-5-5") and ev["phShort"] == "Message opus-5-5"
-    assert ev["pill"] == "opus-5-5"  # the heading pill follows too (chat.js, #155)
+    assert ev["pill"] == "opus-5-5"  # the heading pill follows too (chat.js)
     from pm.agents import head
     assert head.live_model(agent) == "claude-opus-5-5"  # shown at once, before a reply carries it
 

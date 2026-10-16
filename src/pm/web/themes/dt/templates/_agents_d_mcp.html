@@ -1,6 +1,6 @@
 {#- dt Agents › agent › MCP (read-only): where the config is written · table state dot · Name (+ key in args) · Command
     / host · Transport · Env names · ⋯ (Move the key to env…, Copy name). Per-agent on/off is not in the core
-    (docs/MCP-SHARING-RESEARCH.md), so there is no switch. View model: dt_agents("detail"). -#}
+    (the off switches differ per agent), so there is no switch. View model: dt_agents("detail"). -#}
 {%- import "parts/_head.html" as ph -%}{%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
 {%- set dv = dt_agents("detail") -%}
 {% call ph.tools() %}<span class="note">{{ dv.note }}</span>{% endcall %}

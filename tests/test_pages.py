@@ -366,7 +366,7 @@ def test_agent_heading_is_window_and_raw_id(env, monkeypatch):
 
 
 def test_agent_heading_pill_follows_the_settings_default(env, monkeypatch):
-    """#155: no reply and no --model yet: the pill shows Claude's settings default, like the composer placeholder."""
+    """No reply and no --model yet: the pill shows Claude's settings default, like the composer placeholder."""
     from pm.agents import claude_defaults
     s, c = env
     login(s, c)
@@ -402,7 +402,7 @@ def test_heading_title_is_agent_id_never_label():
 
 
 def test_agent_heading_pill_is_the_one_model_pill():
-    """#164: the heading pill is .kpill.kp-model (kind colour from chrome.css), sized for the heading, kept on phones."""
+    """The heading pill is .kpill.kp-model (kind colour from chrome.css), sized for the heading, kept on phones."""
     from pathlib import Path
     root = Path(__file__).parent.parent / "src/pm"
     css = (root / "static/css/agent.css").read_text()
@@ -441,7 +441,7 @@ def test_ended_page_has_a_real_composer():
 
 
 def test_project_rows_show_unread_and_pending_question_like_the_inbox(env, monkeypatch):
-    """#160/#165: the project page uses the Inbox's agent row: unread (bold, data-read) and the pending question."""
+    """The project page uses the Inbox's agent row: unread (bold, data-read) and the pending question."""
     import time
 
     s, c = env

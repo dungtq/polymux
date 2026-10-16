@@ -177,7 +177,7 @@ def test_csp_frames_drops_bad_hosts():
         render.CSP + "; frame-src 'self' https://a.me")
 
 
-# ------------------------------------------------------------------ API pane (#159)
+# ------------------------------------------------------------------ API pane
 def _api_csrf(c):
     import re
     m = re.search(r'<meta name="csrf-token" content="([^"]+)"', c.get("/a/claude-12/builder").text)

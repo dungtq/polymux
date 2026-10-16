@@ -235,7 +235,7 @@ async def upload_file(request: Request, name: str) -> Response:
 
 @router.get("/tracker/img/{name}", dependencies=AUTH)
 async def tracker_image(request: Request, name: str) -> Response:
-    """An issue image (docs/TRACKER-PLAN.md): strict ``<24hex>.<ext>`` name, same checks and headers as uploads."""
+    """An issue image (tracker projects): strict ``<24hex>.<ext>`` name, same checks and headers as uploads."""
     try:
         path = await executors.run_collectors(tracker_issues.image_path, deps.settings(request), name)
     except PmError:

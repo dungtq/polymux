@@ -1,4 +1,4 @@
-"""``pmctl``: the agents' command line for tracker projects (docs/TRACKER-PLAN.md section 5).
+"""``pmctl``: the agents' command line for tracker projects.
 
 Writes pm.db directly through the domain code (works while pm is down, no token), appends an audit line
 with the agent id as client and re-renders the file into the main work tree. Exit 0 on success, 1 on an

@@ -1,4 +1,4 @@
-"""The one chat ingest loop (lifespan task; docs/CHAT-SYNC.md).
+"""The one chat ingest loop (lifespan task).
 
 For agents with an open viewer (``watch``, called by the items route; entries expire ``WATCH_TTL_S``
 after the last call) and agents with an outbox row typed in but not matched yet, it runs

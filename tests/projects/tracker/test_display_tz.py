@@ -1,4 +1,4 @@
-"""#202: tracker dates follow pm's display offset (``display_utc_offset_h``), not the host's timezone.
+"""Tracker dates follow pm's display offset (``display_utc_offset_h``), not the host's timezone.
 
 The host runs in UTC here and pm displays UTC+7, so 18:30 UTC is already the next day for the user."""
 

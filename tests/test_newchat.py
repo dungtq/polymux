@@ -203,7 +203,7 @@ def test_restart_chat_in_an_interactive_shell_waits_for_the_agent_then_types_com
 
 
 def test_restart_chat_shell_listed_but_agent_alive_times_out(tmp_path, monkeypatch):
-    """#201: a shell listed as the pane command is no proof the agent quit; its pid must be gone."""
+    """A shell listed as the pane command is no proof the agent quit; its pid must be gone."""
     from pm.agents import message as m
     _proc(tmp_path, 5, 1, ["fish"])
     _proc(tmp_path, 7, 5, ["devin"])
@@ -221,7 +221,7 @@ def test_restart_chat_shell_listed_but_agent_alive_times_out(tmp_path, monkeypat
     ("bash", "clear; devin 'x\\' '; touch /tmp/M #'"),
 ])
 def test_restart_chat_quotes_the_relaunch_for_the_pane_shell(tmp_path, monkeypatch, shell, typed):
-    """#204: the command line typed into the pane is quoted for the shell that reads it (fish reads \\ and \\'
+    """The command line typed into the pane is quoted for the shell that reads it (fish reads \\ and \\'
     inside single quotes, sh does not), so an argument ending in a backslash cannot end the quote early."""
     from pm.agents import message as m
     _proc(tmp_path, 5, 1, ["-" + shell])
@@ -265,7 +265,7 @@ def test_restart_chat_refuses_a_command_it_cannot_type(tmp_path, monkeypatch):
 @pytest.mark.parametrize("root", [["fish", "-c", "claude --model haiku -- 'do it'"], None],
                          ids=["shell-c-parent", "agent-is-pane-process"])
 def test_restart_chat_on_a_launched_pane_respawns_it(tmp_path, monkeypatch, root):
-    """#201: a pane Launch started ends with its agent: keep it (remain-on-exit) and respawn the command."""
+    """A pane Launch started ends with its agent: keep it (remain-on-exit) and respawn the command."""
     from pm.agents import message as m
     if root:
         _proc(tmp_path, 5, 1, root)
@@ -352,7 +352,7 @@ def test_update_pending_reads_status_line(monkeypatch):
     assert not m.update_pending(None, free_agent())
 
 
-# ---- #201: New Chat (restart path) on a pane pm's Launch started (`new-window -- "<agent ...>"`) -------------
+# ---- New Chat (restart path) on a pane pm's Launch started (`new-window -- "<agent ...>"`) -------------------
 FAKE_AGENT = """#!/usr/bin/env python3
 import sys, time
 print("fake agent ready", flush=True)
@@ -401,7 +401,7 @@ def _pane(s, pane_id):
 
 @pytest.mark.parametrize("wrapped", [True, False], ids=["shell-c-parent", "exec"])
 def test_restart_chat_keeps_a_launched_pane_and_relaunches_in_it(private_tmux, tmp_path, wrapped):
-    """#201: /exit ended the launched command, so tmux closed the pane and its window; New Chat must
+    """/exit ended the launched command, so tmux closed the pane and its window; New Chat must
     restart the agent in the same pane instead (the window, and the session it keeps, persist)."""
     import time
 
@@ -425,7 +425,7 @@ def test_restart_chat_keeps_a_launched_pane_and_relaunches_in_it(private_tmux, t
     assert tmuxctl.run(s, ["show-options", "-p", "-v", "-t", a.pane_id, "remain-on-exit"]).strip() == ""
 
 
-# ---- #204: the typed relaunch in a real interactive fish / bash pane --------------------------------------------
+# ---- the typed relaunch in a real interactive fish / bash pane --------------------------------------------------
 ARGV_AGENT = """#!/bin/sh
 for a in "$@"; do printf '<%s>' "$a"; done >> {out}
 echo >> {out}
@@ -437,7 +437,7 @@ while read -r line; do [ "$line" = /exit ] && break; done
 @pytest.mark.parametrize("shell", ["fish", "bash"])
 def test_restart_chat_types_a_literal_relaunch_into_a_real_shell(private_tmux, tmp_path, shell):
     """The relaunch typed into an interactive fish (or bash) pane runs the agent with exactly its old argv:
-    an argument ending in a backslash followed by '; cmd' (#204) stays two literal arguments."""
+    an argument ending in a backslash followed by '; cmd' stays two literal arguments."""
     import shutil
     import time
 

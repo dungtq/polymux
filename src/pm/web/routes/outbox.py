@@ -1,4 +1,4 @@
-"""Composer outbox actions on one stored message (docs/CHAT-SYNC.md):
+"""Composer outbox actions on one stored message:
 ``POST /a/{agent_id}/outbox/{oid}/{now|cancel|retry|edit}``.
 
 ``now`` types the message into the agent's own queue (``deliver.send_now``), ``cancel`` drops it,

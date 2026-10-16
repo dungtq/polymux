@@ -122,7 +122,7 @@ def test_ui_option_parsed(monkeypatch):
 
 
 def test_devpm_start_passes_only_the_port():
-    """#206: uishot must not override the instance's --pm-bin / --extra-toml / --limits."""
+    """uishot must not override the instance's --pm-bin / --extra-toml / --limits."""
     cmd = u.devpm_start_cmd(8330)
     assert cmd[-3:] == ["start", "--port", "8330"]
     assert not any(a in cmd for a in ("--pm-bin", "--extra-toml", "--limits"))

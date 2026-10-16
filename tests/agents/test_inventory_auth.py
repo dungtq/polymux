@@ -227,7 +227,7 @@ def test_login_start_new_session(tmux, tmp_path):
     assert c[0][0] == "list-panes" and c[1] == ["show-options", "-gv", "default-shell"]
     assert c[2] == ["new-session", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-s", "agents-auth",
                     "-n", "auth-cursor", "-c", str(Path.home()), "-e", "NO_OPEN_BROWSER=1", "--",
-                    "/usr/bin/fish", "-c", "exec $argv", str(b), "login"]  # through the user's shell, argv as $argv (#204)
+                    "/usr/bin/fish", "-c", "exec $argv", str(b), "login"]  # through the user's shell, argv as $argv
     assert c[3] == ["set-option", "-w", "-t", "@7", "remain-on-exit", "on"]
     assert c[4][:2] == ["capture-pane", "-p"]
 

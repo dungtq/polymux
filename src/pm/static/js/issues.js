@@ -1,4 +1,4 @@
-/* Project page, Issues tab of a tracker project (docs/TRACKER-PLAN.md section 6).
+/* Project page, Issues tab of a tracker project.
  * #issues-box holds the tab body (GET /p/<name>/issues, swapped after every change; the add form element is
  * kept so typed text survives), .iss-view the open issue (GET /p/<name>/issues/<num>, replaces the list until
  * closed with x / Esc, like the Plans tab's plan view). Forms post with pm.fetch (X-Requested-With: JSON back);

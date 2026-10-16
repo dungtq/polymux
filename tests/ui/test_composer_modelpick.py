@@ -147,7 +147,7 @@ def test_models_panel_pick_posts_model(page, inst):
         unticked.click()
     form = parse_qs(ri.value.post_data or "")
     assert form.get("model") == [want], form
-    # #155: the heading pill follows the switch (HX-Trigger pm:composer {pill}, chat.js)
+    # the heading pill follows the switch (HX-Trigger pm:composer {pill}, chat.js)
     resp = ri.value.response()
     assert resp is not None and resp.ok, resp and resp.status
     pill_txt = json.loads(resp.headers["hx-trigger"])["pm:composer"]["pill"]

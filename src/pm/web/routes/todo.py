@@ -7,7 +7,7 @@ index AND the text the page showed and applied to the CURRENT file, so unrelated
 matter; if the item is gone or changed the toggle is refused (409). Audit details
 carry the project name and sizes only, never the text.
 
-A tracker project (docs/TRACKER-PLAN.md) keeps TODO.md in pm.db: ``line`` is the item number and the
+A tracker project keeps TODO.md in pm.db: ``line`` is the item number and the
 toggle goes to the store, which re-renders the file. ``POST /p/{name}/todo/add`` (tracker projects only; 409
 otherwise) adds an open item, optionally under a section heading.
 """

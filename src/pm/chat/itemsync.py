@@ -1,4 +1,4 @@
-"""Ingest of the agent's store file into append-only chat items (``pm.chat.items``; docs/CHAT-SYNC.md).
+"""Ingest of the agent's store file into append-only chat items (``pm.chat.items``).
 
 Blocking; ``pm.agents.chatfeed`` calls ``sync`` on an executor. Never the pane: only the store file
 (``pm.chat.log.store_file``). Text is masked like ``pm.chat.log`` (``clean_text`` = ``render_pane``

@@ -26,7 +26,7 @@ class Settings:
     # default: "dev-token" next to token_file (so tests/dev instances with a tmp token_file never touch ~/.config/pm)
     dev_token_file: Path | None = None
     totp_file: Path = Path.home() / ".config/pm/totp"
-    # git remotes panel: URL hosts a project remote may point at (docs/DESIGN-GIT-REMOTES-SERVERS.md);
+    # git remotes panel: URL hosts a project remote may point at;
     # pm.toml `git_allowed_hosts = ["git.example.lan", ...]`; also the hosts commit hashes link to. user_ssh_dir: ~/.ssh, listed read-only (*.pub only).
     git_allowed_hosts: tuple[str, ...] = ()
     user_ssh_dir: Path = Path.home() / ".ssh"

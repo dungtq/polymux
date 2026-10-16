@@ -2,7 +2,7 @@
 
 argv only (validated values as default-shell positional args, as launch does); the session id is validated per kind
 (``registry.resume_ident``) and taken from pm's own registry, never from the request.
-Per-kind argv: docs/RESUME-AGENTS.md. An optional first message ("Resume and send") is the CLI's own
+Per-kind argv: ``_ARGV`` below. An optional first message ("Resume and send") is the CLI's own
 initial prompt, appended as ``-- <prompt>`` (``launch.prompt_args``), never typed into the pane.
 """
 

@@ -36,13 +36,11 @@ Several independent tasks: one `pre` per task (they may run in parallel), one `p
 
 - Read-only: never edits, commits or runs the app. Never reads pm's token, TOTP or dev-token.
 - Judges only what the diff introduces or worsens; old debt is a one-line note, not a FAIL.
-- Uses helper names as they exist in the tree now (check the "Migration status" table: a Phase-2 helper
-  does not exist until Phase 2 is done).
+- Uses helper names as they exist in the tree now (`docs/ARCHITECTURE.md` "Shared helpers").
 - `./tools/check.sh` (= `make check`) must pass; it scans the dt static tree with zero tolerance.
 - `tools/archcheck_baseline.json` may only shrink. Any added entry or raised count is a FAIL.
 
 ## Updating the rules
 
-When a phase lands or a rule changes, update `docs/ARCHITECTURE.md` (and the "Migration status" row) in
-the same commit; for dt, `docs/themes/dt/CONDUCT.md` or `docs/themes/dt/CODE.md`. The agent and this skill read
-those files, so they need no edit for rule changes.
+When a rule changes, update `docs/ARCHITECTURE.md` in the same commit; for dt, `docs/themes/dt/CONDUCT.md` or
+`docs/themes/dt/CODE.md`. The agent and this skill read those files, so they need no edit for rule changes.

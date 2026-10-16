@@ -1,4 +1,4 @@
-"""Deliver text and quick keys to an agent pane (send-keys; see docs/messaging-research.md).
+"""Deliver text and quick keys to an agent pane (tmux send-keys).
 
 The target is re-validated against live tmux on every call. Message text is never
 logged here; callers audit length only.
@@ -282,11 +282,11 @@ def _find_pane(settings: Settings, pane_id: str) -> TmuxPane | None:
 
 def _pane_ends_with_agent(pane_pid: int, agent_pid: int, proc_root: Path) -> bool:
     """True when the pane's own process ends with the agent, so tmux closes the pane (and a last window
-    its session) on /exit: the agent is the pane process (pm's Launch since #204: ``<shell> -c 'exec ...'`` + argv), or
+    its session) on /exit: the agent is the pane process (pm's Launch: ``<shell> -c 'exec ...'`` + argv), or
     the pane runs a command through ``<shell> -c`` (older Launch: ``new-window -- "<agent ...>"``). Only an
     interactive shell outlives it.
     pane_current_command cannot tell: a non-interactive ``fish -c`` has no job control and is listed
-    as the pane's command while the agent still runs (#201)."""
+    as the pane's command while the agent still runs."""
     if pane_pid == agent_pid:
         return True
     argv = _cmdline(pane_pid, proc_root)
@@ -357,7 +357,7 @@ def restart_chat(settings: Settings, agent: Agent, exit_cmd: str, *, proc_root: 
     send_message(settings, agent, exit_cmd, proc_root=proc_root)
     pane = _wait_exit(settings, agent, proc_root, sleep, limit,
                       lambda p: p.command in _SHELLS and not (proc_root / str(agent.pid)).exists())
-    try:  # quoted for the shell that reads the line: sh quoting typed into fish can run a second command (#204)
+    try:  # quoted for the shell that reads the line: sh quoting typed into fish can run a second command
         line = tmuxctl.quote_for_shell(pane.command, argv)
     except tmuxctl.ShellQuoteError as e:
         raise Refused(str(e)) from e
