@@ -226,24 +226,38 @@ def _ts(line: bytes) -> float:
         return 0.0
 
 
-def _open_calls(data: bytes, openc: frozenset) -> frozenset:
-    """Tool-use ids still waiting for a result after ``data`` (bounded)."""
-    cur = set(openc)
+def _tool_entries(data: bytes) -> list[tuple[str, list[dict]]]:
+    """(entry type, content blocks) of each line of ``data`` that mentions a tool call or result, parsed
+    once. Newer transcripts replay the request history in ``api-request*`` entries (old ``tool_use``
+    blocks, up to MBs): callers take tool_use only from ``assistant`` and tool_result only from ``user``."""
+    out: list[tuple[str, list[dict]]] = []
     for line in data.splitlines():
-        use, res = _TOOL_RE.search(line), _RES_RE.search(line)
-        if not (use or res):
+        if not (_TOOL_RE.search(line) or _RES_RE.search(line)):
             continue
         try:
             e = json.loads(line)
         except ValueError:
             continue
         msg = e.get("message") if isinstance(e, dict) else None
-        for b in (msg.get("content") if isinstance(msg, dict) else None) or []:
-            if not isinstance(b, dict):
-                continue
-            if b.get("type") in ("tool_use", "server_tool_use") and isinstance(b.get("id"), str):
+        content = msg.get("content") if isinstance(msg, dict) else None
+        if isinstance(content, list):
+            out.append((e.get("type"), [b for b in content if isinstance(b, dict)]))
+    return out
+
+
+def _uses(entries: list[tuple[str, list[dict]]]) -> list[dict]:
+    """The tool_use blocks of the ``assistant`` entries, in order."""
+    return [b for t, bs in entries if t == "assistant" for b in bs if b.get("type") in ("tool_use", "server_tool_use")]
+
+
+def _open_calls(entries: list[tuple[str, list[dict]]], openc: frozenset) -> frozenset:
+    """Tool-use ids still waiting for a result after ``entries`` (bounded)."""
+    cur = set(openc)
+    for t, bs in entries:
+        for b in bs:
+            if t == "assistant" and b.get("type") in ("tool_use", "server_tool_use") and isinstance(b.get("id"), str):
                 cur.add(b["id"])
-            elif b.get("type") == "tool_result":
+            elif t == "user" and b.get("type") == "tool_result":
                 cur.discard(b.get("tool_use_id"))
     return frozenset(list(cur)[-32:])
 
@@ -291,24 +305,15 @@ def _activity(p: Path, size: int) -> tuple[int, bool, str, str, float, bool, int
     cut = data.rfind(b"\n") + 1  # leave a line the writer is still on for the next read
     data = data[:cut]
     if data:
-        calls += len(_TOOL_RE.findall(data))
-        openc = _open_calls(data, openc)
+        ents = _tool_entries(data)
+        uses = _uses(ents)
+        calls += len(uses)
+        openc = _open_calls(ents, openc)
         used = _usage_total(data)
         tokens = tokens if used is None else used
-        for line in reversed(data.splitlines()):
-            if not _TOOL_RE.search(line):
-                continue
-            try:
-                e = json.loads(line)
-            except ValueError:
-                continue
-            msg = e.get("message") if isinstance(e, dict) else None
-            blocks = [b for b in (msg.get("content") if isinstance(msg, dict) else None) or []
-                      if isinstance(b, dict) and b.get("type") in ("tool_use", "server_tool_use")]
-            if blocks:
-                _k, name, tgt = tool_step(blocks[-1].get("name"), blocks[-1].get("input"))
-                last, target = mask(name or "")[:40], mask(tgt or "").replace("\n", " ")[:120]
-                break
+        if uses:
+            _k, name, tgt = tool_step(uses[-1].get("name"), uses[-1].get("input"))
+            last, target = mask(name or "")[:40], mask(tgt or "").replace("\n", " ")[:120]
     if len(_ACT) > 512:
         _ACT.clear()
     _ACT[key] = (pos + cut, calls, more, last, target, t0, openc, tokens)

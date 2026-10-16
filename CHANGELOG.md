@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Finished sub-agents no longer shown as running (transcript request replays))
+
+A finished Claude sub-agent no longer shows as running or "waiting" in the Sub-agents panel, the tab count and the agent rows for up to 30 minutes. Newer transcripts replay old tool calls inside `api-request*` entries; those replays re-opened the sub-agent's last call (usually its final hand-back) and inflated its call count. Tool calls are now read only from assistant entries and results only from user entries. The ntfy owner scan ignores the same replays.
+
 ## 2026-10-17 (Messages from other agents show as "Message from: <agent id>")
 
 A message another agent sent with `tmux-agents` (request, reply or no-reply notice) is no longer a blue "You" bubble in the chat. It shows as a bubble headed "Message from: <agent id>" in that agent's colour (claude, codex, devin, cursor-agent, antigravity; grey when the id is unknown), with the request / reply · status / notice tag and only the message text (the reply instructions are dropped). It stays out of the composer's Up-arrow history.

@@ -265,6 +265,42 @@ def test_waiting_on_open_tool_call_is_running(tmp_path):
     assert not next(s for s in subagents.list_subs(t) if s.sid == "agent-aaa").running  # stale cap
 
 
+def _replays():
+    blocks = [{"type": "tool_use", "id": i, "name": "Bash", "input": {"command": "sleep 500"}} for i in ("t0", "t1")]
+    return [{"type": k, "message": {"content": blocks}} for k in ("api-request-blob", "api-request", "api-request-shape")]
+
+
+def test_request_replays_do_not_reopen_calls_or_inflate_count(tmp_path):
+    t = mk(tmp_path)
+    p = tmp_path / "abc" / "subagents" / "agent-aaa.jsonl"
+    h = {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": "t1", "name": "SubagentHandback", "input": {"message": "done"}}]}}
+    p.write_text("\n".join(json.dumps(x) for x in [h, _res("t1")]) + "\n")
+    old = time.time() - 600
+    os.utime(p, (old,) * 2)
+    base = subagents._activity(p, p.stat().st_size)
+    assert base[0] == 1 and base[2] == "SubagentHandback" and not base[5]
+    with open(p, "a") as f:  # replays appended after the real result (second, incremental read)
+        f.write("\n".join(json.dumps(x) for x in _replays()) + "\n")
+    os.utime(p, (old,) * 2)
+    calls, _more, last, _tgt, _t0, waiting, _tok = subagents._activity(p, p.stat().st_size)
+    assert calls == 1 and last == "SubagentHandback" and not waiting
+    a = next(s for s in subagents.list_subs(t) if s.sid == "agent-aaa")
+    assert not a.waiting and not a.running and a.calls == 1 and a.last == "SubagentHandback"
+    subagents._ACT.clear()  # cold read of the whole file gives the same answer
+    assert subagents._activity(p, p.stat().st_size)[:3] == (1, False, "SubagentHandback")
+    assert not subagents._activity(p, p.stat().st_size)[5]
+
+
+def test_open_assistant_tool_use_still_waits_despite_replays(tmp_path):
+    t = mk(tmp_path)
+    p = tmp_path / "abc" / "subagents" / "agent-aaa.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in [_use("t1"), *_replays()]) + "\n")
+    os.utime(p, (time.time() - 600,) * 2)
+    a = next(s for s in subagents.list_subs(t) if s.sid == "agent-aaa")
+    assert a.waiting and a.running and a.calls == 1
+
+
 def _asst_usage(n, inp=10, out=5, cr=1000, cw=200, ts="2026-10-11T01:00:01.000Z"):
     return {"type": "assistant", "timestamp": ts, "message": {"content": [{"type": "text", "text": f"step {n}"}],
             "usage": {"input_tokens": inp, "output_tokens": out, "cache_read_input_tokens": cr,

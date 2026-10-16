@@ -24,6 +24,16 @@ def test_scan_reads_titles(tmp_path):
     assert [t for _, t in ntfy_owner.scan(str(f))] == ["claude-7cd08a - Fix it", "claude-7cd08a - Other"]
 
 
+def test_scan_ignores_request_replays(tmp_path):
+    now = time.time()
+    cmd = "ntfy publish --title 'claude-7cd08a - Fix it' https://n/agent 'm'"
+    replay = json.loads(_line(now + 60, cmd))
+    replay["type"] = "api-request-blob"
+    f = tmp_path / "s.jsonl"
+    f.write_text("\n".join([_line(now, cmd), json.dumps(replay)]))
+    assert len(ntfy_owner.scan(str(f))) == 1
+
+
 def test_find_nearest_title_within_skew():
     o1, o2 = (ntfy_owner.Owner("a", "dev-pm-1-claude", "%1", True),
               ntfy_owner.Owner("b", "dev-pm-3-claude", "%3", False))
