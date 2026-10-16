@@ -54,7 +54,7 @@ def session_file(
     if kind is AgentKind.CODEX:
         return codex.locate(pid, cwd, (time.time() - age_s) if age_s > 0 else 0.0, home)
     if kind is AgentKind.CURSOR:
-        return cursor.locate(cwd, home)
+        return cursor.locate(cwd, home, pid, proc_root)
     if kind is AgentKind.ANTIGRAVITY:
         return antigravity.locate(pid, home, proc_root)
     return None

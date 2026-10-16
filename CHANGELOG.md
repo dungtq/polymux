@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Cursor launch follows the process's own chat)
+
+Launching cursor-agent treated every process in a directory as the newest store.db there, so the new tmux window opened as an older chat that was still being written. A live process is now the store it has open. Until that file is open, it is not attached to another chat.
+
 ## 2026-10-17 (Builder md links open; clearer not-found message)
 
 - dt Builder: .md links in the chat open in the markdown reader (they did nothing: Builder has no docked reader).
