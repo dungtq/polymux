@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Per-project login accounts for Claude and Codex)
+
+pm.toml `[accounts]` names extra logins (`claude = ["work"]`, `codex = ["a1"]`); each gets its own login folder under the state dir, passed to the CLI as `CLAUDE_CONFIG_DIR` / `CODEX_HOME`. The agent's Auth row shows every account with its own status, Log in and Log out. Project settings choose the account new Claude/Codex agents use. Resume, fork and New chat keep the account the agent started with; an account removed from pm.toml is refused with a 400. Reading sessions and usage of non-default accounts is not supported yet.
+
 ## 2026-10-17 (dt: chat aside only on the main pages, not on a full chat page)
 
 dt theme: the chat aside is now used on the main pages only (Inbox, Projects, tmux, ...). On a session's own full chat page (/a/<id>, Builder, /term/s<n>) the remembered aside is no longer restored beside the chat (it comes back on the next main page), the top-bar Chat aside button is hidden, and opening a chat from search, a notification or a list opens its tab instead; ⌘L / the toggle there only say so; btw still opens in the aside. ⌘⇧L ("to aside") now closes the session tab and goes to the home tab, where the aside shows it.

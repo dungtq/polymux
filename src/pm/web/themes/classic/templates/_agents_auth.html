@@ -1,29 +1,31 @@
 {% from "_macros.html" import dot %}
 {% set label = agent.label or agent.name %}
-{% macro out(live) %}<div id="ag-auth-out" class="ag-auth-out"{% if live %} hx-get="{{ base }}/auth?poll=1" hx-trigger="every 2s" hx-swap="outerHTML" aria-live="polite"{% endif %}>
-{% if links %}<p class="ag-auth-urls">{% for u in links %}<a class="mono" href="{{ u }}" target="_blank" rel="noopener noreferrer" title="{{ u }}">{{ u }}</a>{% endfor %}</p>
+{% macro out(r, live) %}<div id="{{ r.oid }}" class="ag-auth-out"{% if live %} hx-get="{{ base }}/auth?poll=1{% if r.account %}&amp;account={{ r.account | urlencode }}{% endif %}" hx-trigger="every 2s" hx-swap="outerHTML" aria-live="polite"{% endif %}>
+{% if r.links %}<p class="ag-auth-urls">{% for u in r.links %}<a class="mono" href="{{ u }}" target="_blank" rel="noopener noreferrer" title="{{ u }}">{{ u }}</a>{% endfor %}</p>
 {% if live %}<p class="muted ag-hint">Open the link, sign in, then paste the code here if asked.</p>{% endif %}{% endif %}
-{% if view.text %}<pre class="ag-auth-pre" tabindex="0" aria-label="Login output">{{ view.text }}</pre>{% elif live %}<p class="muted ag-hint">Waiting for the login output&hellip;</p>{% endif %}
+{% if r.view.text %}<pre class="ag-auth-pre" tabindex="0" aria-label="Login output">{{ r.view.text }}</pre>{% elif live %}<p class="muted ag-hint">Waiting for the login output&hellip;</p>{% endif %}
 </div>{% endmacro %}
-{% macro act(path, text, cls="small", confirm="") %}<form class="ag-rf" method="post" action="{{ base }}/auth/{{ path }}" hx-post="{{ base }}/auth/{{ path }}" hx-target="#ag-auth" hx-swap="outerHTML"{% if confirm %} hx-confirm="{{ confirm }}"{% endif %}><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="{{ cls }}">{{ text }}</button></form>{% endmacro %}
-{% if part == "out" %}{{ out(true) }}{% else %}
+{% macro act(r, path, text, cls="small", confirm="") %}<form class="ag-rf" method="post" action="{{ base }}/auth/{{ path }}" hx-post="{{ base }}/auth/{{ path }}" hx-target="#ag-auth" hx-swap="outerHTML"{% if confirm %} hx-confirm="{{ confirm }}"{% endif %}><input type="hidden" name="csrf" value="{{ csrf }}">{% if r.account %}<input type="hidden" name="account" value="{{ r.account }}">{% endif %}<button type="submit" class="{{ cls }}">{{ text }}</button></form>{% endmacro %}
+{% if part == "out" %}{{ out(rows[0], true) }}{% else %}
 <div id="ag-auth" class="ag-auth">
-<div class="ag-auth-line"><span class="muted ag-auth-k">Auth</span>
+{% for r in rows %}{% set st = r.st %}{% set view = r.view %}{% set who = (label ~ " (" ~ r.account ~ ")") if r.account else label %}
+<div class="ag-auth-line"><span class="muted ag-auth-k"{% if r.account %} title="{{ r.account }}"{% endif %}>{{ r.label if rows | length > 1 else "Auth" }}</span>
 {% if not sup %}<span class="muted ag-auth-st">Not supported</span>
 {% elif not agent.binary %}<span class="muted ag-auth-st">Not installed</span>
 {% elif view.active and not view.dead %}<span class="ag-auth-st">{{ dot("waiting", "signing in") }}Signing in&hellip;</span>
 {% elif st and st.state == "in" %}{% set extra = [st.account, st.method, st.plan] | select | join(" · ") %}<span class="ag-auth-st" title="{{ ('Logged in · ' ~ extra) if extra else 'Logged in' }}">{{ dot("running", "logged in") }}Logged in{% if extra %} <span class="muted">&middot; {{ extra }}</span>{% endif %}</span>
-<button type="button" class="ag-act" hx-get="{{ base }}/auth?fresh=1" hx-target="#ag-auth" hx-swap="outerHTML" title="Check the login status again">Refresh</button>{{ act("logout", "Log out", "small danger", "Log out of " ~ label ~ "?") }}
-{% elif st and st.state == "out" %}<span class="ag-auth-st">{{ dot("idle", "not logged in") }}Not logged in</span>{{ act("login", "Log in", "small primary") }}
-{% else %}<span class="ag-auth-st"{% if st and st.error %} title="{{ st.error }}"{% endif %}>{{ dot("unknown", "unknown") }}Unknown{% if st and st.error %} <span class="muted">&middot; {{ st.error }}</span>{% endif %}</span>{{ act("login", "Log in", "small") }}
+<button type="button" class="ag-act" hx-get="{{ base }}/auth?fresh=1{% if r.account %}&amp;account={{ r.account | urlencode }}{% endif %}" hx-target="#ag-auth" hx-swap="outerHTML" title="Check the login status again">Refresh</button>{{ act(r, "logout", "Log out", "small danger", "Log out of " ~ who ~ "?") }}
+{% elif st and st.state == "out" %}<span class="ag-auth-st">{{ dot("idle", "not logged in") }}Not logged in</span>{{ act(r, "login", "Log in", "small primary") }}
+{% else %}<span class="ag-auth-st"{% if st and st.error %} title="{{ st.error }}"{% endif %}>{{ dot("unknown", "unknown") }}Unknown{% if st and st.error %} <span class="muted">&middot; {{ st.error }}</span>{% endif %}</span>{{ act(r, "login", "Log in", "small") }}
 {% endif %}</div>
-{% if notice %}<p class="ag-auth-note" role="status">{{ notice }}</p>{% endif %}
 {% if sup and view.active %}<div class="ag-auth-run">
 {% if view.dead %}<p class="ag-auth-done">Login finished.</p>{% endif %}
-{{ out(not view.dead) }}
+{{ out(r, not view.dead) }}
 <div class="ag-auth-ctl">
-{% if not view.dead %}<form class="ag-auth-send" method="post" action="{{ base }}/auth/send" hx-post="{{ base }}/auth/send" hx-target="#ag-auth" hx-swap="outerHTML" autocomplete="off"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="text" name="code" maxlength="4096" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="Code or token from the sign-in page" placeholder="Paste code"><button type="submit">Send</button></form>
-{{ act("cancel", "Cancel", "") }}{% else %}{{ act("cancel", "Close", "") }}{% endif %}
+{% if not view.dead %}<form class="ag-auth-send" method="post" action="{{ base }}/auth/send" hx-post="{{ base }}/auth/send" hx-target="#ag-auth" hx-swap="outerHTML" autocomplete="off"><input type="hidden" name="csrf" value="{{ csrf }}">{% if r.account %}<input type="hidden" name="account" value="{{ r.account }}">{% endif %}<input type="text" name="code" maxlength="4096" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="Code or token from the sign-in page" placeholder="Paste code"><button type="submit">Send</button></form>
+{{ act(r, "cancel", "Cancel", "") }}{% else %}{{ act(r, "cancel", "Close", "") }}{% endif %}
 </div></div>{% endif %}
+{% endfor %}
+{% if notice %}<p class="ag-auth-note" role="status">{{ notice }}</p>{% endif %}
 </div>
 {% endif %}

@@ -16,6 +16,7 @@ from pm.agents import fork as fork_mod
 from pm.agents import launch as launch_mod
 from pm.agents import registry
 from pm.core import executors
+from pm.core.errors import PmError
 from pm.core.models import Tier
 from pm.infra import snapshot as services
 from pm.projects import projects
@@ -68,7 +69,7 @@ async def agent_fork(request: Request, agent_id: str,
         raise agentctl.stop(request, action, rec.id, 404, "unknown project")
     try:
         res = await executors.run_tmux(fork_mod.fork_session, settings, src, project, text)
-    except launch_mod.LaunchError as e:
+    except (launch_mod.LaunchError, PmError) as e:  # PmError: the parent's account left [accounts]
         raise agentctl.stop(request, action, rec.id, 400, "fork refused",
                     detail={"why": str(e)[:80], "kind": kind}) from None
     except Exception:  # noqa: BLE001

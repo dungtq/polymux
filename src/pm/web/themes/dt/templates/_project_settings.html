@@ -1,6 +1,6 @@
 {#- dt override of the core's project settings panel (GET /p/<name>/settings/panel; the answer of POST
     /p/<name>/settings and /settings/links: the same panel with flash "Saved." or "Refused: ..."). Context: project,
-    csrf, base, ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, git_html (the dt
+    csrf, base, ps (hidden, default_branch, vms, links), components, choices, linked, pubkey, account_kinds ([(kind, names)] of the configured login accounts), git_html (the dt
     _git_remotes.html), flash. Opened in the project view's reader aside by the head's Settings button or #settings
     (js/pjsettings.js; css/project.css .pjs). Three blocks: Show (the components; a hidden one leaves the project
     view: tabs, Docs choices, the tmux tab), Default branch + VM names, Git remotes (the remotes panel), Workspace
@@ -28,6 +28,19 @@
   <label class="pjs-l" for="pjs-vms">VM names</label>
   <textarea id="pjs-vms" class="x-in mono" name="vms" rows="3" maxlength="1400" placeholder="lab-*" autocomplete="off" spellcheck="false" aria-describedby="pjs-vms-h">{{ ps.vms | join("\n") }}</textarea>
   <p class="pjs-hint" id="pjs-vms-h">One VM name pattern per line (* and ? allowed). The VMs tab lists only matching VMs.</p>
+  {%- if account_kinds %}
+  <h2 class="p-h2">Login account</h2>
+  {%- for kind, names in account_kinds %}
+  <label class="pjs-l" for="pjs-acc-{{ kind }}">{{ kind | capitalize }}</label>
+  <select id="pjs-acc-{{ kind }}" class="x-in" name="account_{{ kind }}" aria-describedby="pjs-acc-h">
+    <option value="">default</option>
+    {%- for n in names %}
+    <option value="{{ n }}"{% if ps.account(kind) == n %} selected{% endif %}>{{ n }}</option>
+    {%- endfor %}
+  </select>
+  {%- endfor %}
+  <p class="pjs-hint" id="pjs-acc-h">New Claude/Codex agents of this project use the chosen account; a running agent keeps its own.</p>
+  {%- endif %}
   <div class="pjs-ft"><button class="x-btn" type="submit">Save</button></div>
 </form>
 <h2 class="p-h2">Git remotes</h2>

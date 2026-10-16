@@ -1,4 +1,4 @@
-{# Project settings fragment (right aside). Context: project csrf base ps components choices linked pubkey git_html flash #}
+{# Project settings fragment (right aside). Context: project csrf base ps components choices linked pubkey git_html account_kinds flash #}
 {% set labels = {"browse": "Browse", "git": "Git", "skills": "Skills", "plans": "Plans", "todo": "TODO", "backlog": "Backlog", "readme": "README", "features": "FEATURES", "changelog": "CHANGELOG", "claude": "CLAUDE", "agents": "AGENTS", "stack": "Stack card", "live": "Agents and sessions"} %}
 <div id="pj-settings" class="pj-settings">
 {% if flash %}<p class="set-notice ok ps-flash" role="status">{{ flash }}</p>{% endif %}
@@ -18,6 +18,19 @@
     <textarea id="ps-vms" class="mono" name="vms" rows="3" maxlength="1400" placeholder="lab-*" autocomplete="off" spellcheck="false">{{ ps.vms | join("\n") }}</textarea>
   </div>
   <p class="small muted ps-note">One VM name pattern per line (* and ? allowed). The VM tab lists only matching VMs.</p>
+  {% if account_kinds %}
+  <h2 class="ps-h">Login account</h2>
+  {% for kind, names in account_kinds %}
+  <div class="ps-row">
+    <label class="ps-lbl" for="ps-acc-{{ kind }}">{{ kind | capitalize }}</label>
+    <select id="ps-acc-{{ kind }}" name="account_{{ kind }}">
+      <option value="">default</option>
+      {% for n in names %}<option value="{{ n }}"{% if ps.account(kind) == n %} selected{% endif %}>{{ n }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+  <p class="small muted ps-note">New Claude/Codex agents of this project use the chosen account; a running agent keeps its own.</p>
+  {% endif %}
 </form>
 <h2 class="ps-h">Git</h2>
 <div class="ps-git">{{ git_html | safe }}</div>

@@ -211,6 +211,8 @@ async def agent_newchat(request: Request, agent_id: str,
         raise agentctl.stop(request, action, a.id, 409, str(e), reason=str(e), detail=detail) from None
     except msg.MessageError as e:
         raise _msg_error(request, action, a.id, e, detail) from None
+    except PmError as e:  # the agent's account is no longer in [accounts]
+        raise agentctl.stop(request, action, a.id, 400, "chat restart refused", reason=str(e), detail=detail) from None
     agentctl.done(request, action, a.id, "ok", detail)
     agentctl.publish(request, agent=a.id, action=action)
     target = await _new_chat_target(request, a)
@@ -332,7 +334,7 @@ async def _run_launch(request: Request, action: str, name: str, launch: Launch,
     settings = request.app.state.settings
     try:
         res = await executors.run_tmux(launch_mod.launch_agent, settings, launch, project)
-    except launch_mod.LaunchError as e:
+    except (launch_mod.LaunchError, PmError) as e:  # PmError: an account no longer in [accounts]
         raise agentctl.stop(request, action, name, 400, "launch refused", detail=detail,
                     reason=f"launch refused: {str(e)[:120]}") from None
     except (tmuxctl.TmuxError, OSError, sqlite3.Error):

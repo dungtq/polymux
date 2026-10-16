@@ -126,6 +126,15 @@ def test_route_window_and_audit(fake, monkeypatch, tmp_path):
     assert "agent_fork" in log and "native" in log and UUID[:8] in log and UUID not in log
 
 
+def test_route_fork_with_a_removed_account_is_a_400(fake, monkeypatch, tmp_path):
+    st, calls, c, tok, rid, proj = route_env(fake, monkeypatch, tmp_path)
+    monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
+    monkeypatch.setattr(registry, "account_of", lambda s, i: "gone")  # no longer in [accounts]
+    r = post(c, tok, f"/a/{rid}/fork")
+    assert r.status_code == 400 and "fork refused" in r.text
+    assert not any(x[0] == "new-window" for x in calls) and "agent_fork" in audit_text(st)
+
+
 def test_route_where_is_ignored(fake, monkeypatch, tmp_path):
     st, calls, c, tok, rid, proj = route_env(fake, monkeypatch, tmp_path)
     monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
@@ -290,3 +299,27 @@ def test_live_page_single_fork_form(env):
     assert len(re.findall(r'action="/a/[^"]+/fork"', t)) == 1
     assert "Fork in new window" not in t and "Fork in split pane" not in t
     assert "Clone</a>" not in t and "launch?like=" not in t
+
+
+def test_fork_keeps_the_parents_account(fake, monkeypatch, tmp_path):
+    from pm.agents import launch as launch_mod
+    st, calls, _ = fake
+    st, b = bins(st, tmp_path, "claude")
+    st = dataclasses.replace(st, accounts={"claude": ("work",)})
+    parent = ag(AgentKind.CLAUDE, UUID, cwd=str(tmp_path))
+    registry.expect_account(st, "claude", "%2", "work")
+    parent = dataclasses.replace(parent, id=registry.assign(st, [parent])[0].id)
+    assert registry.account_of(st, parent.id) == "work"
+    seen = []
+    monkeypatch.setattr(launch_mod, "_find_session", lambda s, p: "$3")
+    monkeypatch.setattr(tmuxctl, "new_agent_window",
+                        lambda s, sid, name, cwd, argv, *, env=None: seen.append(env) or ("@5", "%7"))
+    proj = Project(name="proj", path=str(tmp_path))
+    fork.fork_session(st, parent, proj)
+    assert seen == [{"CLAUDE_CONFIG_DIR": str(st.state_dir / "accounts" / "claude" / "work")}]
+    # a parent on the default account forks without env, whatever the project says now
+    other = dataclasses.replace(ag(AgentKind.CLAUDE, UUID.replace("5555", "6666"), cwd=str(tmp_path)), pane_id="%3", pid=2)
+    other = dataclasses.replace(other, id=registry.assign(st, [other])[0].id)
+    seen.clear()
+    fork.fork_session(st, other, proj)
+    assert seen == [None]

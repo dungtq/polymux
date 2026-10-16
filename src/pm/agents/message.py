@@ -13,8 +13,9 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from pm.agents import registry
 from pm.chat import ask as ask_mod
-from pm.core.config import Settings
+from pm.core.config import Settings, account_env
 from pm.core.models import Agent, AgentKind, TmuxPane
 from pm.core.procstat import PROC, read_proc_stat
 from pm.security.mask import render_pane
@@ -316,7 +317,7 @@ def _wait_exit(settings: Settings, agent: Agent, proc_root: Path, sleep, limit: 
 
 
 def _respawn_chat(settings: Settings, agent: Agent, exit_cmd: str, argv: list[str], *, proc_root: Path,
-                  sleep, limit: float) -> None:
+                  sleep, limit: float, env: dict[str, str]) -> None:
     """Quit the agent while tmux keeps its pane (remain-on-exit), then start ``argv`` in that same pane."""
     try:
         tmuxctl.set_remain_on_exit(settings, agent.pane_id, True)
@@ -326,7 +327,7 @@ def _respawn_chat(settings: Settings, agent: Agent, exit_cmd: str, argv: list[st
         send_message(settings, agent, exit_cmd, proc_root=proc_root)
         _wait_exit(settings, agent, proc_root, sleep, limit, lambda p: p.dead)
         tmuxctl.clear_history(settings, agent.pane_id)
-        tmuxctl.respawn_pane(settings, agent.pane_id, agent.cwd, argv)
+        tmuxctl.respawn_pane(settings, agent.pane_id, agent.cwd, argv, env=env)
     except tmuxctl.TmuxError as e:
         raise MessageError("restart failed") from e
     finally:
@@ -343,23 +344,27 @@ def restart_chat(settings: Settings, agent: Agent, exit_cmd: str, *, proc_root: 
     verify_target(settings, agent, proc_root=proc_root)
     argv = _relaunch_argv(agent, proc_root)
     limit = EXIT_WAIT_S if wait_s is None else wait_s
+    account = registry.account_of(settings, agent.id)  # the stored account; the env is never read from /proc
+    env = account_env(settings, agent.kind.value, account) if account else {}
     try:
         pane = _find_pane(settings, agent.pane_id)
     except tmuxctl.TmuxError as e:
         raise MessageError("pane lookup failed") from e
     if pane is not None and _pane_ends_with_agent(pane.pid, agent.pid, proc_root):
         _respawn_chat(settings, agent, exit_cmd, argv, proc_root=proc_root, sleep=sleep,
-                      limit=limit)
+                      limit=limit, env=env)
+        registry.expect_account(settings, agent.kind.value, agent.pane_id, account)
         return SendResult(True, agent.id, agent.pane_id, detail="restart")
+    typed = ["env", *(f"{k}={v}" for k, v in env.items()), *argv] if env else argv  # ``env K=V`` reads alike in sh and fish
     try:  # before /exit: a refusal must never leave the agent stopped without its relaunch
-        tmuxctl.check_typeable(argv)
+        tmuxctl.check_typeable(typed)
     except tmuxctl.ShellQuoteError as e:
         raise Refused(str(e)) from e
     send_message(settings, agent, exit_cmd, proc_root=proc_root)
     pane = _wait_exit(settings, agent, proc_root, sleep, limit,
                       lambda p: p.command in _SHELLS and not (proc_root / str(agent.pid)).exists())
     try:  # quoted for the shell that reads the line: sh quoting typed into fish can run a second command
-        line = tmuxctl.quote_for_shell(pane.command, argv)
+        line = tmuxctl.quote_for_shell(pane.command, typed)
     except tmuxctl.ShellQuoteError as e:
         raise Refused(str(e)) from e
     try:
@@ -369,6 +374,7 @@ def restart_chat(settings: Settings, agent: Agent, exit_cmd: str, *, proc_root: 
         tmuxctl.send_key(settings, agent.pane_id, "Enter")
     except tmuxctl.TmuxError as e:
         raise MessageError("restart failed") from e
+    registry.expect_account(settings, agent.kind.value, agent.pane_id, account)
     return SendResult(True, agent.id, agent.pane_id, detail="restart")
 
 

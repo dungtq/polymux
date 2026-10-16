@@ -56,9 +56,9 @@ def test_recap_route_and_history(env, monkeypatch, tmp_path):
     agent = c.get("/a/claude-12/chat")  # warm snapshot
     assert agent.status_code == 200
     con = registry._connect(s)
-    con.execute("INSERT INTO agent_records VALUES ('claude-aaaaaa','claude','u',11,?,?,'%9',NULL,?, 'old one','',?)",
+    con.execute("INSERT INTO agent_records VALUES ('claude-aaaaaa','claude','u',11,?,?,'%9',NULL,?, 'old one','',?,'')",
                 (now - 900, now - 300, str(s.dev_root / "alpha"), now - 300))
-    con.execute("INSERT INTO agent_records VALUES ('claude-bbbbbb','claude','u2',12,?,?,'%8',NULL,'/elsewhere','other cwd','',?)",
+    con.execute("INSERT INTO agent_records VALUES ('claude-bbbbbb','claude','u2',12,?,?,'%8',NULL,'/elsewhere','other cwd','',?,'')",
                 (now - 900, now - 300, now - 300))
     con.commit(); con.close()
     r = c.get("/a/claude-12/recap")

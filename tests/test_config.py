@@ -176,3 +176,26 @@ def test_launch_redirects_keeps_valid_pairs(tmp_path, warns):
                        "config: launch_redirects entry 'empty' = '' ignored"]
     assert _load(tmp_path, 'launch_redirects = ["app"]\n').launch_redirects == {}
     assert warns()[-1] == "config: launch_redirects is not a table, ignored"
+
+
+def test_account_env_and_names(tmp_path):
+    import pytest
+
+    from pm.core.config import Settings, account_dir, account_env
+    from pm.core.errors import Invalid
+
+    s = Settings(state_dir=tmp_path, accounts={"claude": ("work",), "codex": ("a1",)})
+    assert account_env(s, "claude", "") == {} and account_dir(s, "codex", "") is None
+    assert account_env(s, "claude", "work") == {"CLAUDE_CONFIG_DIR": str(tmp_path / "accounts/claude/work")}
+    assert account_env(s, "codex", "a1") == {"CODEX_HOME": str(tmp_path / "accounts/codex/a1")}
+    for kind, name in (("claude", "nope"), ("devin", "x"), ("claude", "../x")):
+        with pytest.raises(Invalid):
+            account_env(s, kind, name)
+
+
+def test_accounts_table_is_validated(tmp_path):
+    from pm.core.config import load_settings
+
+    f = tmp_path / "pm.toml"
+    f.write_text('[accounts]\nclaude = ["work", "Bad Name", "work"]\ncursor = ["x"]\ncodex = "no"\n')
+    assert load_settings(f).accounts == {"claude": ("work",)}

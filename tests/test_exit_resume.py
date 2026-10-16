@@ -559,3 +559,38 @@ def test_ntfy_owner_from_agent_id_in_title(tmp_path):
     assert o is not None and o.agent_id == rid
     assert ntfy_owner.owner_for(st, [], "claude-abcdef - unknown id", 150.0) is None
     assert ntfy_owner.owner_for(st, [], "Claude Code -- old style", 150.0) is None
+
+
+def test_resume_with_a_removed_account_is_a_400(client, monkeypatch, tmp_path):
+    st, calls, c, tok, rid, binp, a = _resume_env(client, monkeypatch, tmp_path)
+    registry.expect_account(st, "claude", "%2", "gone")  # stored, but not in [accounts] (any more)
+    a2 = dataclasses.replace(a, ident="22222222-2222-3333-4444-555555555555", pid=2)
+    rid2 = registry.assign(st, [a2], now=300)[0].id
+    registry.assign(st, [], now=400)
+    assert registry.get(st, rid2).account == "gone"
+    r = post(c, tok, f"/a/{rid2}/resume")
+    assert r.status_code == 400 and "refused" in r.text
+    assert not any(x[0] == "new-window" for x in calls)
+
+
+def test_resume_reuses_the_stored_account_not_the_projects_current_choice(client, monkeypatch, tmp_path):
+    from pm.agents import resume
+    from pm.projects import settings as pset
+    st, calls, c, tok, rid, binp, a = _resume_env(client, monkeypatch, tmp_path)
+    st = dataclasses.replace(st, accounts={"claude": ("work", "other")})
+    registry.expect_account(st, "claude", "%2", "work")
+    a2 = dataclasses.replace(a, ident="22222222-2222-3333-4444-555555555555", pid=2)
+    rid2 = registry.assign(st, [a2], now=300)[0].id
+    registry.assign(st, [], now=400)
+    # the project now picks another account: it must not matter
+    monkeypatch.setattr(pset, "load", lambda s, n: pset.ProjectSettings(accounts=(("claude", "other"),)))
+    seen = []
+    monkeypatch.setattr(tmuxctl, "new_agent_window",
+                        lambda s, sid, name, cwd, argv, *, env=None: seen.append(env) or ("@5", "%7"))
+    rec = registry.get(st, rid2)
+    assert rec.account == "work"
+    resume.resume_session(st, rec, Project(name="proj", path=str(tmp_path / "proj")))
+    assert seen == [{"CLAUDE_CONFIG_DIR": str(st.state_dir / "accounts" / "claude" / "work")}]
+    seen.clear()  # a default-account record resumes without env
+    resume.resume_session(st, registry.get(st, rid), Project(name="proj", path=str(tmp_path / "proj")))
+    assert seen == [None]

@@ -336,3 +336,103 @@ def test_cached_never_probes(tmp_path, monkeypatch):
     monkeypatch.setattr(auth.time, "monotonic", lambda: later)
     assert auth.cached("claude", str(b)) is None  # expired
     assert len(calls(tmp_path)) == 1
+
+
+# ---------------------------------------------------------------- named accounts
+
+
+def acct_settings(tmp_path, **kw) -> Settings:
+    return Settings(state_dir=tmp_path / "state", accounts={"claude": ("work",), "codex": ("team",)}, **kw)
+
+
+def env_bin(tmp_path: Path, out: str = "Not logged in") -> Path:
+    """Executable that logs its account env vars, prints ``out``."""
+    p = tmp_path / "envagent"
+    p.write_text(f'#!/bin/sh\necho "$* C=$CLAUDE_CONFIG_DIR H=$CODEX_HOME" >> "{tmp_path}/env.log"\necho "{out}"\n')
+    p.chmod(p.stat().st_mode | stat.S_IXUSR)
+    return p
+
+
+def test_status_account_env_and_folder(tmp_path):
+    s = acct_settings(tmp_path)
+    b = env_bin(tmp_path)
+    auth.status("claude", str(b), account="work", settings=s)
+    d = tmp_path / "state/accounts/claude/work"
+    assert (tmp_path / "env.log").read_text().strip() == f"auth status --json C={d} H="
+    assert stat.S_IMODE(d.stat().st_mode) == 0o700
+    auth.status("codex", str(b), account="team", settings=s, fresh=True)
+    assert (tmp_path / "env.log").read_text().splitlines()[-1] == f"login status C= H={tmp_path}/state/accounts/codex/team"
+
+
+def test_status_default_account_env_untouched(tmp_path):
+    b = env_bin(tmp_path)
+    auth.status("claude", str(b))
+    assert (tmp_path / "env.log").read_text().strip() == "auth status --json C= H="
+    assert not (tmp_path / "state").exists()
+
+
+def test_cache_is_per_account(tmp_path):
+    s = acct_settings(tmp_path)
+    b = env_bin(tmp_path)
+    auth.status("claude", str(b))
+    assert auth.cached("claude", str(b)) is not None and auth.cached("claude", str(b), account="work") is None
+    auth.status("claude", str(b), account="work", settings=s)
+    assert len((tmp_path / "env.log").read_text().splitlines()) == 2
+    auth.status("claude", str(b), account="work", settings=s)  # cached
+    assert len((tmp_path / "env.log").read_text().splitlines()) == 2
+    auth.clear_cache("claude", account="work")
+    assert auth.cached("claude", str(b), account="work") is None and auth.cached("claude", str(b)) is not None
+
+
+def test_account_needs_valid_name_and_settings(tmp_path):
+    s = acct_settings(tmp_path)
+    b = env_bin(tmp_path)
+    with pytest.raises(Invalid):
+        auth.status("claude", str(b), account="nope", settings=s)
+    with pytest.raises(Invalid):
+        auth.status("claude", str(b), account="work")  # no settings
+    with pytest.raises(Invalid):
+        auth.logout("devin", str(b), account="work", settings=s)  # kind without accounts
+    assert not (tmp_path / "state/accounts/claude/nope").exists()
+
+
+def test_logout_account(tmp_path):
+    s = acct_settings(tmp_path)
+    b = env_bin(tmp_path)
+    auth.status("claude", str(b), account="work", settings=s)
+    auth.logout("claude", str(b), account="work", settings=s)
+    assert (tmp_path / "env.log").read_text().splitlines()[-1].startswith("auth logout C=")
+    assert auth.cached("claude", str(b), account="work") is None
+
+
+def test_window_name():
+    assert auth._window_name("claude") == "auth-claude"
+    assert auth._window_name("claude", "work") == "auth-claude-work"
+
+
+def test_login_start_account_window_and_env(tmux, tmp_path):
+    object.__setattr__(tmux, "accounts", {"claude": ("work",)})
+    b = fake_bin(tmp_path, "", name="claude")
+    set_panes(tmux, [("$4", "agents-auth", "@2", "auth-claude", "%3", False)])  # default window: not reused
+    auth.login_start(tmux, "claude", str(b), account="work")
+    d = tmp_path / "accounts/claude/work"
+    assert stat.S_IMODE(d.stat().st_mode) == 0o700
+    c = tmux_calls(tmux)
+    assert c[2] == ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "$4:", "-n", "auth-claude-work",
+                    "-c", str(Path.home()), "-e", f"CLAUDE_CONFIG_DIR={d}", "--", "/usr/bin/fish", "-c",
+                    "exec $argv", str(b), "auth", "login"]
+
+
+def test_login_window_lookup_per_account(tmux):
+    set_panes(tmux, [("$4", "agents-auth", "@2", "auth-claude", "%3", False),
+                     ("$4", "agents-auth", "@5", "auth-claude-work", "%6", False)])
+    assert auth.login_view(tmux, "claude").window_id == "@2"
+    assert auth.login_view(tmux, "claude", account="work").window_id == "@5"
+    assert auth.login_view(tmux, "claude", account="alt").active is False
+
+
+def test_login_start_unknown_account(tmux, tmp_path):
+    b = fake_bin(tmp_path, "", name="claude")
+    with pytest.raises(Invalid):
+        auth.login_start(tmux, "claude", str(b), account="work")  # not configured
+    assert verbs(tmux) == []

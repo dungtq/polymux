@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pm.core.cache import LRU
+from pm.core.config import account_env
 from pm.core.errors import Conflict, Invalid
 from pm.core.models import TmuxWindow
 from pm.core.proc import ProcError, ProcNotFound, ProcTimeout, run_argv
@@ -87,8 +88,9 @@ class LoginView:
     dead: bool = False  # the login process exited (remain-on-exit pane)
 
 
-# name -> (binary, monotonic time, AuthStatus); () = dropped. Bounded: names are validated against KINDS.
-_cache = LRU(max_bytes=1024 * 1024, max_entries=4 * len(KINDS))
+# (name, account) -> (binary, monotonic time, AuthStatus); () = dropped. Bounded: kinds are validated against
+# KINDS, accounts against the configured names (callers go through account_env); room for 32 accounts per kind.
+_cache = LRU(max_bytes=1024 * 1024, max_entries=4 * 32 * len(KINDS))
 
 
 def supported(name: str) -> bool:
@@ -110,7 +112,19 @@ def _check(name: str, binary: str) -> tuple[str, str]:
     return name, binary
 
 
-def _env(name: str) -> dict[str, str]:
+def _account_env(settings, name: str, account: str) -> dict[str, str]:
+    """Env of a named account (``{}`` for the default one); creates its login folder, mode 0700."""
+    if not account:
+        return {}
+    if settings is None:
+        raise Invalid("account needs settings")
+    env = account_env(settings, name, account)  # Invalid: unknown kind / name
+    for d in env.values():
+        Path(d).mkdir(mode=0o700, parents=True, exist_ok=True)
+    return env
+
+
+def _env(name: str, settings=None, account: str = "") -> dict[str, str]:
     home = Path.home()
     return {
         "PATH": f"{home}/.local/bin:/usr/local/bin:/usr/bin:/bin",
@@ -118,6 +132,7 @@ def _env(name: str) -> dict[str, str]:
         "LANG": "C.UTF-8",
         "NO_COLOR": "1",
         **_EXTRA_ENV.get(name, {}),
+        **_account_env(settings, name, account),
     }
 
 
@@ -180,9 +195,9 @@ def parse_status(name: str, text: str) -> AuthStatus:
     return AuthStatus(name, True, state, account, method, plan)
 
 
-def _probe(name: str, binary: str) -> AuthStatus:
+def _probe(name: str, binary: str, settings=None, account: str = "") -> AuthStatus:
     try:
-        r = run_argv([binary, *_STATUS_ARGV[name]], timeout=STATUS_TIMEOUT, env=_env(name))
+        r = run_argv([binary, *_STATUS_ARGV[name]], timeout=STATUS_TIMEOUT, env=_env(name, settings, account))
     except ProcTimeout:
         return AuthStatus(name, True, error="timed out")
     except ProcNotFound:
@@ -197,43 +212,47 @@ def _probe(name: str, binary: str) -> AuthStatus:
     return st
 
 
-def status(name: str, binary: str, *, fresh: bool = False) -> AuthStatus:
-    """Login state of one agent, cached STATUS_TTL s per (name, binary); ``fresh`` re-probes."""
+def status(name: str, binary: str, *, fresh: bool = False, account: str = "", settings=None) -> AuthStatus:
+    """Login state of one agent account, cached STATUS_TTL s per (name, account, binary); ``fresh`` re-probes.
+
+    A named ``account`` needs ``settings`` (its login folder comes from ``account_env``)."""
     _check(name, binary)
-    hit = _cache.get(name)
+    hit = _cache.get((name, account))
     if not fresh and hit and hit[0] == binary and time.monotonic() - hit[1] < STATUS_TTL:
         return hit[2]
-    st = _probe(name, binary)
-    _cache.put(name, (binary, time.monotonic(), st))
+    st = _probe(name, binary, settings, account)
+    _cache.put((name, account), (binary, time.monotonic(), st))
     return st
 
 
-def cached(name: str, binary: str) -> AuthStatus | None:
-    """The cached status of one agent if still fresh, else None. Never probes (no subprocess)."""
+def cached(name: str, binary: str, *, account: str = "") -> AuthStatus | None:
+    """The cached status of one agent account if still fresh, else None. Never probes (no subprocess)."""
     if not supported(name):
         return None
-    hit = _cache.get(name)
+    hit = _cache.get((name, account))
     if hit and hit[0] == binary and time.monotonic() - hit[1] < STATUS_TTL:
         return hit[2]
     return None
 
 
-def clear_cache(name: str | None = None) -> None:
+def clear_cache(name: str | None = None, *, account: str = "") -> None:
+    """Drop everything (``name`` None) or the entry of one (name, account)."""
     if name is None:
         _cache.clear()
     elif name in KINDS:
-        _cache.put(name, ())
+        _cache.put((name, account), ())
 
 
-def logout(name: str, binary: str) -> None:
-    """Run the agent's logout command; Conflict on a nonzero exit or timeout."""
+def logout(name: str, binary: str, *, account: str = "", settings=None) -> None:
+    """Run the agent's logout command for one account; Conflict on a nonzero exit or timeout."""
     _check(name, binary)
+    env = _env(name, settings, account)
     try:
-        r = run_argv([binary, *_LOGOUT_ARGV[name]], timeout=LOGOUT_TIMEOUT, env=_env(name))
+        r = run_argv([binary, *_LOGOUT_ARGV[name]], timeout=LOGOUT_TIMEOUT, env=env)
     except ProcError as e:
         raise Conflict("logout failed") from e
     finally:
-        clear_cache(name)
+        clear_cache(name, account=account)
     if r.returncode != 0:
         raise Conflict("logout failed")
 
@@ -249,17 +268,17 @@ def _tmux() -> Iterator[None]:
         raise Conflict("tmux failed") from e
 
 
-def _window_name(name: str) -> str:
-    return f"auth-{name}"
+def _window_name(name: str, account: str = "") -> str:
+    return f"auth-{name}-{account}" if account else f"auth-{name}"
 
 
-def _find(settings, name: str) -> tuple[str | None, TmuxWindow | None]:
+def _find(settings, name: str, account: str = "") -> tuple[str | None, TmuxWindow | None]:
     """(session id of AUTH_SESSION, the login window of ``name``), either may be None."""
     for s in tmuxctl.list_sessions(settings):
         if s.name != AUTH_SESSION:
             continue
         for w in s.windows:
-            if w.name == _window_name(name) and w.panes:
+            if w.name == _window_name(name, account) and w.panes:
                 return s.id, w
         return s.id, None
     return None, None
@@ -295,10 +314,11 @@ def _window_view(settings, w: TmuxWindow) -> LoginView:
     return _view(settings, w.id, pane.id, not _alive(w))
 
 
-def _spawn(settings, sid: str | None, name: str, argv: list[str]) -> tuple[str, str]:
+def _spawn(settings, sid: str | None, name: str, argv: list[str], account: str = "") -> tuple[str, str]:
     """Start the login command in a new window (new session when ``sid`` is None) -> (@id, %id)."""
-    wname = tmuxctl.check_name(_window_name(name))
-    env = [a for k, v in _EXTRA_ENV.get(name, {}).items() for a in ("-e", f"{k}={v}")]
+    wname = tmuxctl.check_name(_window_name(name, account))
+    pairs = {**_EXTRA_ENV.get(name, {}), **_account_env(settings, name, account)}
+    env = tmuxctl.env_args(pairs)
     home = str(Path.home())
     if sid is None:
         head = ["new-session", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-s", AUTH_SESSION]
@@ -312,25 +332,26 @@ def _spawn(settings, sid: str | None, name: str, argv: list[str]) -> tuple[str, 
     return wid, pid.strip()
 
 
-def login_start(settings, name: str, binary: str) -> LoginView:
-    """Open (or reuse) the login window of ``name``; a finished one is replaced by a fresh start."""
+def login_start(settings, name: str, binary: str, *, account: str = "") -> LoginView:
+    """Open (or reuse) the login window of ``name`` / ``account``; a finished one is replaced by a fresh start."""
     _check(name, binary)
-    clear_cache(name)
+    _account_env(settings, name, account)  # validates the account before any window work
+    clear_cache(name, account=account)
     with _tmux():
-        sid, w = _find(settings, name)
+        sid, w = _find(settings, name, account)
         if w is not None and _alive(w):
             return _window_view(settings, w)
         if w is not None:
             tmuxctl.run(settings, ["kill-window", "-t", tmuxctl.check_id(w.id, "@")])
-            sid, _ = _find(settings, name)  # the session is gone if that was its last window
-        wid, pid = _spawn(settings, sid, name, [binary, *_LOGIN_ARGV[name]])
+            sid, _ = _find(settings, name, account)  # the session is gone if that was its last window
+        wid, pid = _spawn(settings, sid, name, [binary, *_LOGIN_ARGV[name]], account)
         return _view(settings, wid, pid, False)
 
 
-def login_view(settings, name: str) -> LoginView:
+def login_view(settings, name: str, *, account: str = "") -> LoginView:
     _check_name(name)
     with _tmux():
-        _, w = _find(settings, name)
+        _, w = _find(settings, name, account)
         return LoginView(False) if w is None else _window_view(settings, w)
 
 
@@ -347,25 +368,25 @@ def _clean_input(text: str) -> str:
     return text
 
 
-def login_send(settings, name: str, text: str) -> None:
+def login_send(settings, name: str, text: str, *, account: str = "") -> None:
     """Type a pasted code/token into the running login window, then Enter."""
     _check_name(name)
     text = _clean_input(text)
     with _tmux():
-        _, w = _find(settings, name)
+        _, w = _find(settings, name, account)
         if w is None or not _alive(w):
             raise Invalid("no active login")
         pane = next(p for p in w.panes if not p.dead)
         tmuxctl.send_keys(settings, pane.id, text, literal=True)
         tmuxctl.send_key(settings, pane.id, "Enter")
-    clear_cache(name)
+    clear_cache(name, account=account)
 
 
-def login_cancel(settings, name: str) -> None:
-    """Close the login window of ``name`` if there is one."""
+def login_cancel(settings, name: str, *, account: str = "") -> None:
+    """Close the login window of ``name`` / ``account`` if there is one."""
     _check_name(name)
     with _tmux():
-        _, w = _find(settings, name)
+        _, w = _find(settings, name, account)
         if w is not None:
             tmuxctl.run(settings, ["kill-window", "-t", tmuxctl.check_id(w.id, "@")])
-    clear_cache(name)
+    clear_cache(name, account=account)

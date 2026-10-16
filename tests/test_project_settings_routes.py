@@ -140,3 +140,54 @@ async def test_hidden_docs_not_default_tab(tmp_path):
     assert t["first_key"] == "readme" and "changed-marker" not in t["first_html"]
     t = await _tabs(tmp_path, ["changelog", "readme"])
     assert t["first_key"] == "" and t["first_html"] == ""
+
+
+def test_save_accounts_route(env):
+    import dataclasses
+
+    s, c = env
+    s2 = dataclasses.replace(s, accounts={"claude": ("work",)})
+    c.app.state.settings = s2
+    login(s, c)
+    tok = _tok(c)
+    c.get("/p/alpha/settings/panel")
+    assert CTX["account_kinds"] == [("claude", ("work",))]
+    r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": "work"}, headers=H)
+    assert "Saved." in r.text and pset.load(s2, "alpha").account("claude") == "work"
+    row = [a for a in _audit(s) if a["action"] == "project_settings" and a["result"] == "ok"][-1]
+    assert row["detail"]["accounts"] == "claude=work" and str(s.dev_root) not in json.dumps(row)
+    r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": "evil"}, headers=H)
+    assert "Refused" in r.text and pset.load(s2, "alpha").account("claude") == "work"
+    r = c.post("/p/alpha/settings", data={"csrf": tok, "account_codex": "x"}, headers=H)
+    assert "Refused" in r.text
+    r = c.post("/p/alpha/settings", data={"csrf": tok}, headers=H)  # no account field: kept
+    assert pset.load(s2, "alpha").account("claude") == "work"
+    r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": ""}, headers=H)
+    assert pset.load(s2, "alpha").account("claude") == ""
+
+
+def test_panel_no_accounts_context(env):
+    s, c = env
+    login(s, c)
+    c.get("/p/alpha/settings/panel")
+    assert CTX["account_kinds"] == []
+
+
+@pytest.mark.parametrize("theme", ["classic", "dt"])
+def test_fragment_login_account(theme):
+    import jinja2
+
+    from pm.web import themes
+
+    e = jinja2.Environment(loader=jinja2.FileSystemLoader(themes.HERE / theme / "templates"), autoescape=True)
+    e.globals["dt_project"] = lambda k: None
+    ctx = dict(project=None, csrf="t", base="/p/a", components=pset.COMPONENTS, choices=[], linked=[],
+               pubkey="", git_html="", flash="")
+    tpl = e.get_template("_project_settings.html")
+    off = tpl.render(ps=pset.ProjectSettings(), account_kinds=[], **ctx)
+    assert "Login account" not in off and "account_claude" not in off
+    on = tpl.render(ps=pset.ProjectSettings(accounts=(("claude", "work"),)),
+                    account_kinds=[("claude", ("work", "alt"))], **ctx)
+    assert "Login account" in on and 'name="account_claude"' in on and "account_codex" not in on
+    assert on.index(">default<") < on.index(">work<") and 'value="work" selected' in on
+    assert "a running agent keeps its own" in on

@@ -7,6 +7,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from pm.core.errors import Invalid
 from pm.core.models import Tier
 
 DEFAULT_CONFIG = Path.home() / ".config/pm/pm.toml"
@@ -34,6 +35,9 @@ class Settings:
     user_ssh_dir: Path = Path.home() / ".ssh"
     # Claude Code's home (``projects/<encoded cwd>/memory`` = its per-directory memory, synced by `pmctl memory sync`)
     claude_dir: Path = Path.home() / ".claude"
+    # named login accounts per agent kind (pm.toml ``[accounts]  claude = ["work"]``); the default account is
+    # the CLI's own folder, every named one gets state_dir/accounts/<kind>/<name> (see account_dir / account_env)
+    accounts: dict[str, tuple[str, ...]] = field(default_factory=dict)
     tmux_bin: str = "tmux"
     tmux_socket: str | None = None  # -L name; tests set a private one
     tier_ceiling: Tier = Tier.MESSAGE
@@ -210,11 +214,49 @@ def _convert(key: str, val):
         return tuple(v for v in val if isinstance(v, int) and not isinstance(v, bool))
     if key == "tier_ceiling":
         return Tier(int(val))
+    if key == "accounts":
+        return _account_names(val)
     if key == "plugins":
         return _plugin_tables(val)
     if key == "launch_redirects":
         return _redirect_map(val)
     return val
+
+
+ACCOUNT_KINDS = {"claude": "CLAUDE_CONFIG_DIR", "codex": "CODEX_HOME"}  # kind -> env var that moves its login
+ACCOUNT_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}")
+
+
+def _account_names(val) -> dict[str, tuple[str, ...]]:
+    """``[accounts]`` kind -> list of names; unknown kinds, bad names and non-lists are logged and dropped."""
+    if not isinstance(val, dict):
+        log.warning("config: [accounts] is not a table, ignored")
+        return {}
+    out: dict[str, tuple[str, ...]] = {}
+    for kind, names in val.items():
+        if kind not in ACCOUNT_KINDS or not isinstance(names, list):
+            log.warning("config: [accounts] %r ignored (kinds: %s; value must be a list)", kind, ", ".join(ACCOUNT_KINDS))
+            continue
+        good = [n for n in names if isinstance(n, str) and ACCOUNT_NAME_RE.fullmatch(n)]
+        if len(good) != len(names):
+            log.warning("config: [accounts] %s: names must match %s, some ignored", kind, ACCOUNT_NAME_RE.pattern)
+        out[kind] = tuple(dict.fromkeys(good))
+    return out
+
+
+def account_dir(settings: Settings, kind: str, name: str) -> Path | None:
+    """Login folder of a named account, ``None`` for the default account (``""``). Invalid: unknown kind or name."""
+    if not name:
+        return None
+    if kind not in ACCOUNT_KINDS or name not in settings.accounts.get(kind, ()):
+        raise Invalid(f"unknown {kind} account {name!r}")
+    return Path(settings.state_dir) / "accounts" / kind / name
+
+
+def account_env(settings: Settings, kind: str, name: str) -> dict[str, str]:
+    """Env that points a CLI at an account's login folder; ``{}`` for the default account."""
+    d = account_dir(settings, kind, name)
+    return {} if d is None else {ACCOUNT_KINDS[kind]: str(d)}
 
 
 def _plugin_tables(val) -> dict:

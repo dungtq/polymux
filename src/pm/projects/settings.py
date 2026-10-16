@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pm.core import filelock
-from pm.core.config import Settings
+from pm.core.config import ACCOUNT_KINDS, Settings
 from pm.core.errors import Invalid
 from pm.core.fsutil import JsonStore
 
@@ -27,6 +27,11 @@ class ProjectSettings:
     links: tuple[str, ...] = ()
     default_branch: str = ""
     vms: tuple[str, ...] = ()
+    accounts: tuple[tuple[str, str], ...] = ()  # (kind, account name); absent kind = the default account
+
+    def account(self, kind: str) -> str:
+        """Chosen account name for ``kind`` ('claude' / 'codex'); '' = the default account."""
+        return next((n for k, n in self.accounts if k == kind), "")
 
 
 def _file(settings: Settings) -> Path:
@@ -53,7 +58,10 @@ def _parse(raw) -> ProjectSettings:
     branch = br if isinstance(br, str) and _branch_ok(br) else ""
     vm = raw.get("vms")
     vms = tuple(dict.fromkeys(x for x in vm if isinstance(x, str) and _VM_PAT.fullmatch(x))) if isinstance(vm, list) else ()
-    return ProjectSettings(hidden, links, branch, vms)
+    ac = raw.get("accounts")
+    accounts = tuple((k, ac[k]) for k in ACCOUNT_KINDS if isinstance(ac.get(k), str) and ac[k]) \
+        if isinstance(ac, dict) else ()
+    return ProjectSettings(hidden, links, branch, vms, accounts)
 
 
 def load(settings: Settings, name: str) -> ProjectSettings:
@@ -112,3 +120,19 @@ def save_vms(settings: Settings, name: str, patterns: str | Iterable[str]) -> Pr
     if any(not _VM_PAT.fullmatch(x) for x in out):
         raise Invalid("vms: letters, digits, . _ - * ? [ ] only (max 64 each)")
     return _update(settings, name, lambda e: e.__setitem__("vms", out))
+
+
+def save_accounts(settings: Settings, name: str, mapping: dict[str, str]) -> ProjectSettings:
+    """Login account per agent kind ('' = default). Kinds not in ``mapping`` keep their value."""
+    for kind, acc in mapping.items():
+        if kind not in ACCOUNT_KINDS:
+            raise Invalid(f"unknown account kind: {kind!r}"[:80])
+        if acc and acc not in settings.accounts.get(kind, ()):
+            raise Invalid(f"unknown {kind} account: {acc!r}"[:80])
+
+    def apply(e: dict) -> None:
+        cur = e.get("accounts")
+        cur = {k: v for k, v in cur.items() if k in ACCOUNT_KINDS and isinstance(v, str)} if isinstance(cur, dict) else {}
+        cur.update(mapping)
+        e["accounts"] = {k: cur[k] for k in ACCOUNT_KINDS if cur.get(k)}
+    return _update(settings, name, apply)

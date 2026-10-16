@@ -58,7 +58,7 @@ def test_agent_feed_resolves_title_ids_in_one_registry_query(tmp_path, monkeypat
     s = Settings(state_dir=tmp_path / "state")
     con = registry._connect(s)
     for aid, ended in (("claude-aaaaaa", None), ("devin-bbbbbb", 5.0)):
-        con.execute("INSERT INTO agent_records VALUES (?,?,NULL,1,1.0,2.0,'%1','p','/x',?,'',?)",
+        con.execute("INSERT INTO agent_records VALUES (?,?,NULL,1,1.0,2.0,'%1','p','/x',?,'',?,'')",
                     (aid, aid.split("-")[0], aid + "-label", ended))
     con.commit()
     con.close()

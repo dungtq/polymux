@@ -274,8 +274,21 @@ def quote_for_shell(shell: str, argv: list[str]) -> str:
     return " ".join(a if _PLAIN_WORD.fullmatch(a) else quote(a) for a in argv)
 
 
+ENV_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
+def env_args(env: dict[str, str] | None) -> list[str]:
+    """``-e K=V`` pairs for new-window / respawn-pane (before ``--``); keys ``[A-Z][A-Z0-9_]*``, no NUL/newline."""
+    out: list[str] = []
+    for k, v in (env or {}).items():
+        if not ENV_KEY_RE.fullmatch(k) or not isinstance(v, str) or "\0" in v or "\n" in v:
+            raise TmuxError(f"invalid environment entry: {k!r}")
+        out += ["-e", f"{k}={v}"]
+    return out
+
+
 def new_agent_window(settings: Settings, session_id: str, name: str, cwd: str,
-                     argv: list[str]) -> tuple[str, str]:
+                     argv: list[str], *, env: dict[str, str] | None = None) -> tuple[str, str]:
     """Run ``argv`` in a new background window ``name`` of ``session_id`` (``new-window -d``: focus stays)
     that stays when the agent quits: the window option ``remain-on-exit on`` keeps its pane, dead, until it
     is respawned or the window is cleared. Returns ``(@window, %pane)`` (pane ``""`` when tmux printed
@@ -289,7 +302,7 @@ def new_agent_window(settings: Settings, session_id: str, name: str, cwd: str,
     check_name(name)
     target = f"{session_id}:={_NEW_PREFIX}{uuid.uuid4().hex[:12]}"
     out = run(settings, ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", session_id + ":",
-                         "-n", target.partition("=")[2], "-c", arg(cwd), "--", *start_words(settings, argv),
+                         "-n", target.partition("=")[2], "-c", arg(cwd), *env_args(env), "--", *start_words(settings, argv),
                          ";", "set-option", "-w", "-t", target, "remain-on-exit", "on",
                          ";", "rename-window", "-t", target, "--", name]).strip()
     wid, _, pid = out.partition(" ")
@@ -308,7 +321,8 @@ def set_remain_on_exit(settings: Settings, pane_id: str, on: bool) -> None:
         else ["set-option", "-p", "-u", "-t", pane_id, "remain-on-exit"])
 
 
-def respawn_pane(settings: Settings, pane_id: str, cwd: str, argv: list[str]) -> None:
+def respawn_pane(settings: Settings, pane_id: str, cwd: str, argv: list[str], *,
+                 env: dict[str, str] | None = None) -> None:
     """Run ``argv`` in the dead pane ``pane_id`` (same pane id, window and session), through the default-shell
     with argv as positional arguments (``start_words``), so no shell re-parses them (fish reads sh quoting
     differently)."""
@@ -318,7 +332,7 @@ def respawn_pane(settings: Settings, pane_id: str, cwd: str, argv: list[str]) ->
     args = ["respawn-pane", "-t", pane_id]
     if cwd:
         args += ["-c", arg(cwd)]
-    run(settings, args + ["--", *start_words(settings, argv)])
+    run(settings, args + [*env_args(env), "--", *start_words(settings, argv)])
 
 
 def rename_session(settings: Settings, session_id: str, name: str) -> None:

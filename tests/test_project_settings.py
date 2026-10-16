@@ -72,3 +72,28 @@ def test_vms_normalise_and_validate(s):
         with pytest.raises(Invalid):
             ps.save_vms(s, "a", bad)
     assert ps.save_vms(s, "a", "x" * 64).vms == ("x" * 64,)
+
+
+def test_accounts(s):
+    import dataclasses
+    s = dataclasses.replace(s, accounts={"claude": ("work", "alt"), "codex": ("w2",)})
+    assert ps.load(s, "a").account("claude") == "" and ps.load(s, "a").accounts == ()
+    r = ps.save_accounts(s, "a", {"claude": "work", "codex": "w2"})
+    assert r.accounts == (("claude", "work"), ("codex", "w2")) and ps.load(s, "a") == r
+    assert r.account("claude") == "work" and r.account("codex") == "w2" and r.account("other") == ""
+    r = ps.save_accounts(s, "a", {"claude": ""})  # default again; codex kept
+    assert r.accounts == (("codex", "w2"),)
+    ps.save_hidden(s, "a", ["git"])  # other saves keep accounts
+    assert ps.load(s, "a").account("codex") == "w2"
+    for bad in ({"claude": "nope"}, {"codex": "work"}, {"gemini": "x"}):
+        with pytest.raises(Invalid):
+            ps.save_accounts(s, "a", bad)
+    assert ps.load(s, "a").accounts == (("codex", "w2"),)
+
+
+def test_accounts_old_and_bad_file(s):
+    s.state_dir.mkdir(parents=True, exist_ok=True)
+    (s.state_dir / "project_settings.json").write_text(json.dumps(
+        {"a": {"hidden": ["git"]}, "b": {"accounts": ["x"]}, "c": {"accounts": {"claude": 3, "codex": "w", "zzz": "q"}}}))
+    assert ps.load(s, "a").accounts == () and ps.load(s, "b").accounts == ()
+    assert ps.load(s, "c").accounts == (("codex", "w"),)
