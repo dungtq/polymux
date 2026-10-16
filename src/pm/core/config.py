@@ -123,6 +123,8 @@ class Settings:
     # = the project name (e.g. "git@git.example.lan:me/{name}.git"); "" = the remote step is skipped
     project_templates: list = field(default_factory=lambda: [{"name": "empty"}])
     git_remote_template: str = ""
+    # Launch form hint: project -> the project its code work usually belongs in (e.g. {pm = "polymux"}); {} = none
+    launch_redirects: dict = field(default_factory=dict)
     # UI theme (pm.web.themes): "classic" = today's UI; plugin themes by name; unknown = classic + a warning
     theme: str = "classic"
     # plugins (entry-point group "pm.plugins", pm.web.plugins): false = load none (env PM_NO_PLUGINS=1 too).
@@ -197,6 +199,8 @@ def _convert(key: str, val):
         return Tier(int(val))
     if key == "plugins":
         return _plugin_tables(val)
+    if key == "launch_redirects":
+        return _redirect_map(val)
     return val
 
 
@@ -211,6 +215,20 @@ def _plugin_tables(val) -> dict:
             out[name] = dict(cfg)
         else:
             log.warning("config: [plugins.%s] is not a table, ignored", name)
+    return out
+
+
+def _redirect_map(val) -> dict:
+    """``launch_redirects``: keep the ``project = "other project"`` pairs; anything else is logged and dropped."""
+    if not isinstance(val, dict):
+        log.warning("config: launch_redirects is not a table, ignored")
+        return {}
+    out = {}
+    for src, dst in val.items():
+        if isinstance(src, str) and isinstance(dst, str) and src and dst and src != dst:
+            out[src] = dst
+        else:
+            log.warning("config: launch_redirects entry %r = %r ignored", src, dst)
     return out
 
 

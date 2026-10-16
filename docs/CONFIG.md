@@ -179,6 +179,7 @@ Sent to `ntfy_url`. A metric must be bad for `alerts_sustain` samples in a row.
 | `worktree_root` | unset | Where agent worktrees go; unset = `<project>-wt` next to the project |
 | `snippets` | `[]` | Composer snippets: `[[label, text], ...]` or `{label = text}` |
 | `layouts` | `{}` | Project to tmux window layout used by "ensure" |
+| `launch_redirects` | `{}` | Project to the project its code work usually belongs in, e.g. `launch_redirects = { pm = "polymux" }`. When the Launch form's project has an entry whose target is a known project, a hint under the project picker offers "Launch in <target>". Write it above any `[table]` header in pm.toml (it is a top-level key). Entries that are not two different non-empty names are logged and dropped |
 
 ## Theme and plugins
 

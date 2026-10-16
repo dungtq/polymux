@@ -146,3 +146,15 @@ def test_config_file_is_the_load_path_never_from_toml(tmp_path, warns):
     assert s.port == 9000 and s.config_file is not None and s.config_file.name != "evil.toml"
     assert s.config_file.exists() and "config_file" in " ".join(warns())
     assert Settings(config_file=missing) == Settings()  # not part of equality
+
+
+def test_launch_redirects_keeps_valid_pairs(tmp_path, warns):
+    assert Settings().launch_redirects == {}
+    s = _load(tmp_path, 'launch_redirects = { app = "app-core", "my site" = "site", bad = 3, "" = "x", self = "self",'
+                        ' empty = "" }\n')
+    assert s.launch_redirects == {"app": "app-core", "my site": "site"} and s.extras == {}
+    assert warns() == ["config: launch_redirects entry 'bad' = 3 ignored", "config: launch_redirects entry '' = 'x' "
+                       "ignored", "config: launch_redirects entry 'self' = 'self' ignored",
+                       "config: launch_redirects entry 'empty' = '' ignored"]
+    assert _load(tmp_path, 'launch_redirects = ["app"]\n').launch_redirects == {}
+    assert warns()[-1] == "config: launch_redirects is not a table, ignored"
