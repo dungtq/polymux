@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from html import unescape
 from pathlib import Path
 
@@ -23,6 +25,8 @@ THEME = themes.HERE / "dt"
 TPL = THEME / "templates"
 JS = THEME / "static" / "js" / "backlog.js"
 RJS = THEME / "static" / "js" / "backlog-reader.js"
+AJS = THEME / "static" / "js" / "backlog-add.js"
+ATT = THEME / "static" / "js" / "attach.js"
 CSS = THEME / "static" / "css" / "backlog.css"
 
 BACKLOG = """# Backlog
@@ -198,9 +202,9 @@ def test_add_task_posts_the_core_route_and_falls_back_on_409(benv):
     assert "From the web" in html
     # a file-mode project: 409, which the dialog turns into the pmctl fallback
     assert benv.post("/p/plain/todo/add", text="x").status_code == 409
-    js = JS.read_text()
+    js = AJS.read_text()
     assert "'/todo/add'" in js and "status === 409" in js and "refresh('bl-todo')" in js
-    body = js[js.index("async function addTask"):js.index("/* ---------- events")]
+    body = js[js.index("async function addTask"):js.index("/* ---------- Edit task")]
     assert body.index("res.ok") < body.index("pm7.toast(")  # the toast only after the server said OK
 
 
@@ -279,7 +283,41 @@ def test_reader_edit_form_holds_the_raw_title_and_body(benv):
     assert ">Line *one*\n\n&lt;b&gt;raw&lt;/b&gt;</textarea>" in form  # raw Markdown, escaped once
     assert "<em>one</em>" in html  # the body view stays the rendered Markdown
     html = benv.c.get("/p/alpha/issues/1", headers={"HX-Request": "true"}).text
-    assert 'value="First issue (2026-10-01)"' in html  # the stored title keeps its date suffix on save
+    form = html[html.index("data-bl-editform"):html.index("</form>", html.index("data-bl-editform"))]
+    assert 'value="First issue"' in form and 'value="First issue (' not in form
+    assert 'data-bl-sfx=" (2026-10-01)"' in form  # the field shows the list's title; the stored date rides along
+    assert '<h2 id="bl-rd-t" class="bl-rdt">First issue</h2>' in html
+    assert 'data-bl-sfx=""' in benv.c.get("/p/alpha/issues/2", headers={"HX-Request": "true"}).text
+
+
+# The Edit form's save (backlog-reader.js) in node: the field holds the list's title, data-bl-sfx the stored date; the
+# post gets the date back (unchanged title = unchanged stored title), never twice, and nothing for an undated title.
+SAVE_HARNESS = r"""
+const L = [], posts = [];
+globalThis.document = { addEventListener: (t, f) => L.push([t, f]), getElementById: () => null };
+globalThis.window = { pm7: { el: () => ({}), toast() {}, backlog: { lib: { issueUrl: (i) => '/p/' + i.p + '/issues/' + i.n,
+  refreshAll() {}, post: (u, f) => { posts.push(f.title); return Promise.resolve({ ok: true }); } } } } };
+eval(require('fs').readFileSync(process.argv[1], 'utf8'));
+const art = { getAttribute: (k) => ({ 'data-bl-p': 'alpha', 'data-bl-n': '1' })[k] };
+const form = (title, sfx) => ({ elements: { title: { value: title, focus() {} }, body: { value: 'b' } },
+  getAttribute: (k) => (k === 'data-bl-sfx' ? sfx : null), matches: (s) => s === '[data-bl-editform]',
+  closest: () => art, querySelector: (s) => (s === '[type=submit]' ? {} : null) });
+(async () => {
+  for (const [t, x] of [['First issue', ' (2026-10-01)'], [' Renamed ', ' (2026-10-01)'],
+    ['Own date (2026-01-02)', ' (2026-10-01)'], ['Undated', '']]) {
+    L.filter((e) => e[0] === 'submit').forEach((e) => e[1]({ target: form(t, x), preventDefault() {} }));
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  console.log(JSON.stringify(posts));
+})();
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_reader_save_keeps_the_stored_date_suffix():
+    out = subprocess.run(["node", "-e", SAVE_HARNESS, str(RJS)], capture_output=True, text=True, check=True)
+    assert json.loads(out.stdout) == ["First issue (2026-10-01)", "Renamed (2026-10-01)", "Own date (2026-01-02)",
+                                      "Undated"]
 
 
 def test_reader_edit_and_delete_are_core_writes(benv):
@@ -312,6 +350,9 @@ def test_reader_js_edit_delete_contract():
         src = (TPL / name).read_text()
         a, b = src.index("js/backlog.js"), src.index("js/backlog-reader.js")
         assert a < b  # the reader file needs backlog.js's pm7.backlog.lib
+    for name in ("backlog/_page.html", "project/_tab_issues.html", "project/_tab_todo.html"):
+        src = (TPL / name).read_text()
+        assert src.index("js/backlog.js") < src.index("js/backlog-add.js")  # the dialogs need pm7.backlog.lib
 
 
 def test_issue_links_use_the_project_hash_form(benv):
@@ -341,7 +382,7 @@ def test_busy_tracker_page_says_so():
 
 # ---------------------------------------------------------------- static rules
 def test_js_uses_the_shared_helpers_only():
-    for f in (JS, RJS):
+    for f in (JS, RJS, AJS):
         js = f.read_text()
         assert "addEventListener('keydown'" not in js and "setInterval" not in js and "fetch(" not in js.replace(
             "pm7.fetch(", "")
@@ -349,6 +390,7 @@ def test_js_uses_the_shared_helpers_only():
         assert max(len(x) for x in js.splitlines()) <= 120 and len(js.splitlines()) <= 500, f.name
     assert "if (!pm7 || pm7.backlog) return;" in JS.read_text()  # once, however many partials load it
     assert "pm7.backlog.reader) return;" in RJS.read_text()
+    assert "pm7.backlog.add) return;" in AJS.read_text() and "async function post" not in AJS.read_text()
 
 
 def test_css_avoids_classic_backlog_names():
@@ -356,3 +398,78 @@ def test_css_avoids_classic_backlog_names():
     for cls in ("bl-item", "bl-box", "bl-seg", "bl-group", "bl-card", "bl-head", "bl-err", "bl-md", "bl-num"):
         assert not re.search(r"\." + cls + r"\b", css.split("*/", 1)[1]), cls
     assert not re.search(r"#[0-9a-fA-F]{3,6}\b|rgb\(|z-index", css)
+
+
+# ---------------------------------------------------------------- Add issue: several at once, paste (#245, #246)
+def _dialog(html: str, did: str) -> str:
+    i = html.index(f'<dialog id="{did}"')
+    return html[i:html.index("</dialog>", i)]
+
+
+def test_add_issue_dialog_has_lines_mode_add_another_and_paste(benv):
+    dlg = _dialog(benv.c.get("/backlog").text, "bl-add")
+    assert 'name="title"' in dlg and 'name="lines"' in dlg and "data-bl-many hidden" in dlg
+    assert dlg.count("data-bl-one") == 3  # Title, Details, images hide in the lines mode
+    assert 'type="checkbox" data-bl-manyon' in dlg and 'type="checkbox" data-bl-more' in dlg
+    assert "paste or drop" in dlg
+    js = AJS.read_text()
+    assert "pm7.attach.wire(f," in js  # paste / drop through the shared helper (V7-CODE-6)
+    many = js[js.index("async function addMany"):js.index("/* ---------- Add task")]
+    assert "for (; i < lines.length; i++)" in many and "if (!res.ok) break;" in many  # sequential, stop at a refusal
+    assert "ta.value = lines.slice(i).join('\\n')" in many and "pm7.fail(" in many  # the rest stays in the box
+    assert many.index("i < lines.length") < many.index("pm7.toast('Added")  # one toast after all succeeded
+    added = js[js.index("function added("):js.index("async function addIssue")]
+    assert "[data-bl-more]" in added and "dl.close()" in added and "f.reset()" not in added  # project stays
+
+
+def test_add_issue_lines_post_one_issue_each(benv):
+    """What addMany sends: one POST /p/{n}/issues per line, title only; the numbers follow each other."""
+    h = {"X-Requested-With": "fetch"}
+    got = [benv.post("/p/alpha/issues", headers=h, title=t, body="", images="").json()["num"]
+           for t in ("one", "two", "three")]
+    assert got == [got[0], got[0] + 1, got[0] + 2]
+    text = (benv.s.dev_root / "alpha" / "BACKLOG.md").read_text()
+    assert all(f"- [ ] {t}" in text for t in ("one", "two", "three"))
+
+
+def test_attach_wire_is_the_one_paste_and_drop_helper():
+    att, lp = ATT.read_text(), (THEME / "static" / "js" / "launch-prompt.js").read_text()
+    assert "function wire(zone, onFiles)" in att and "wire: wire" in att
+    assert "zone.addEventListener('paste'" in att and "zone.addEventListener('drop'" in att
+    assert "addEventListener('paste'" not in lp and "addEventListener('drop'" not in lp  # no second copy
+    assert "pm7.attach.wire(box," in lp
+
+
+# ---------------------------------------------------------------- quick edit (#248)
+def test_issue_rows_have_an_edit_item_and_the_r_key(benv):
+    html = benv.c.get("/backlog", headers=FRAG).text
+    m = _menu(html, "alpha:1")
+    assert m["edit"]["event"] == "bl:edit" and m["edit"]["key"] == "R"
+    js, rjs = JS.read_text(), RJS.read_text()
+    assert "on('bl:edit'" in js and "{ edit: true }" in js
+    assert "keys: ['R']" in js and "pm7.menus.run(m, 'edit')" in js and "pm7.keys.register(" in js
+    assert "function reader(p, n, opener, opts)" in rjs and "opts.edit" in rjs and "editing(art, true)" in rjs
+    assert 'data-k="R"' in benv.c.get("/backlog").text  # the hint row names the key
+
+
+def test_todo_rows_edit_item_tracker_only(benv):
+    html = benv.c.get("/backlog?tab=todo&todo=all", headers={"HX-Request": "true", "HX-Target": "bl-todo"}).text
+    rid = re.findall(r'data-row-id="(alpha:t\d+)"', html)[0]
+    assert _menu(html, rid)["edit"]["event"] == "bl:tedit"
+    plain = _menu(html, "plain:l2")["edit"]
+    assert plain["disabled"] and "TODO.md" in plain["why"] and "event" not in plain
+
+
+def test_edit_task_dialog_posts_the_core_route(benv):
+    dlg = _dialog(benv.c.get("/backlog?tab=todo").text, "bl-edt")
+    assert "data-bl-teditform" in dlg and 'name="num"' in dlg and 'name="text"' in dlg and ">Save</button>" in dlg
+    assert _dialog(benv.c.get("/backlog").text, "bl-edt")  # on the Issues tab too (one include per page)
+    html = benv.c.get("/backlog?tab=todo", headers={"HX-Request": "true", "HX-Target": "bl-todo"}).text
+    num = re.search(r'data-row-id="alpha:t(\d+)"', html).group(1)
+    r = benv.post("/p/alpha/todo/edit", headers={"X-Requested-With": "fetch"}, num=num, text="Write more tests")
+    assert r.json()["ok"] and "- [ ] Write more tests" in (benv.s.dev_root / "alpha" / "TODO.md").read_text()
+    assert benv.post("/p/plain/todo/edit", headers={"X-Requested-With": "fetch"}, num="1", text="x").status_code == 409
+    js = AJS.read_text()
+    edit = js[js.index("async function saveTask"):js.index("/* ---------- events")]
+    assert "'/todo/edit'" in edit and edit.index("if (!res.ok)") < edit.index("pm7.toast('Saved")
+    assert "refresh('bl-todo')" in edit and "d.addEventListener('bl:tedit'" in js

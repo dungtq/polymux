@@ -1,0 +1,21 @@
+{#- dialog#x-md: the markdown reader over the shell (DESIGN.md §6.19, §7; user issue #250). A modal centred on the
+    screen (full screen on phones), filled by js/mdview.js (pm7.md.open(agent id, path)) from the core's
+    GET /a/<id>/md?path=. Head: file icon, the file's real path ([data-md-title], cut from the left so the name
+    stays), A- / A+ ([data-md-zoom], value [data-md-zoom-val]), Copy path ([data-md-copy]), Close [data-act=close].
+    Body [data-md-body]: the server's rendered, escaped markdown (div.mdv > div.md, classic .md look), scrolls. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+<dialog id="x-md" class="x-dlg x-md" aria-labelledby="x-md-t">
+  <div class="x-mdh">
+    <svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}file"/></svg>
+    <h2 id="x-md-t" class="sfx"><bdi data-md-title>File</bdi></h2>
+    <span class="sp"></span>
+    <span class="x-mdz" role="group" aria-label="Text size">
+      <button class="x-ib sm" type="button" data-md-zoom="-1" aria-label="Smaller text" title="Smaller text">A−</button>
+      <span class="x-mdzv" data-md-zoom-val aria-live="polite">auto</span>
+      <button class="x-ib sm" type="button" data-md-zoom="1" aria-label="Larger text" title="Larger text">A+</button>
+    </span>
+    <button class="x-ib" type="button" data-md-copy aria-label="Copy path" title="Copy path"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}copy"/></svg></button>
+    <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
+  </div>
+  <div class="x-mdb" data-md-body tabindex="-1"></div>
+</dialog>

@@ -91,6 +91,11 @@
     {{ psw.switch("a_model_pill", on=p.get("model_pill"), label="Show the model pill", hide_label=true, attrs={"data-s-a": "model_pill"}) }}
   {% endcall %}
 {% endcall %}{% endcall %}
+{% call su.grp("Project quick look", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Quick look opens files in", "The project popup from search: its files and folders, and Open project. Folders still open inside the popup; ⌘ / Ctrl + click always opens a new browser tab.", "Project quick look", s.label) %}
+    {{ su.aseg("peek_open", [("new", "new browser tab"), ("same", "this tab")], p.get("peek_open"), "Quick look opens files in") }}
+  {% endcall %}
+{% endcall %}{% endcall %}
 {% call su.grp("Keyboard", "browser", s.label, note="The full list stays under ? and in the tooltips.") %}{% call su.box() %}
   {% call su.row("Show shortcut hints", "The key labels in the sidebar, the account menu, lists and filter boxes.", "Keyboard", s.label) %}
     {{ psw.switch("b_khints", on=true, label="Show shortcut hints", hide_label=true, attrs={"data-s-b": "keys.hints"}) }}

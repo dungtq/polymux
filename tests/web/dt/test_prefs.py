@@ -21,6 +21,13 @@ def test_check_kinds():
             prefs.check(k, v)
 
 
+def test_peek_open_is_an_enum_with_new_tab_default():
+    assert prefs.check("peek_open", "same") == "same" and prefs.EMPTY.get("peek_open") == "new"
+    assert dict(prefs.update(prefs.EMPTY, {"peek_open": "new"}).values) == {}  # the default is not stored
+    with pytest.raises(Invalid):
+        prefs.check("peek_open", "tab")
+
+
 def test_update_drops_defaults_and_resets():
     p = prefs.update(prefs.EMPTY, {"run_status": "off", "col_dot_run": "#112233", "kind_edge": "1"})
     assert dict(p.values) == {"run_status": "off", "col_dot_run": "#112233"}  # kind_edge on = the default

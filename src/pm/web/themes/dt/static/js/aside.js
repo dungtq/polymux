@@ -1,17 +1,18 @@
 /* dt theme (pm v7) chat aside (DESIGN.md §6.1, §7, §8; LAYOUT.md §2; PRD.md §6.1; SHELL.md §4): one agent chat, or a
    read-only terminal, at the right of any page, shown as a same-origin iframe of its embed page (/a/<id>?embed=1,
    /term/s<n>?embed=1; the core sends embed pages with frame-ancestors 'self', dt base.html renders them shell-less).
-   Globals: pm7.aside = {open(id, {focus}) -> bool, close(), toggle(), current() -> id | null, fromTab(), toTab(),
-     btw(id, question?) -> bool}.
+   Globals: pm7.aside = {open(id, {focus, state}) -> bool, close(), toggle(), current() -> id | null, fromTab(),
+     toTab(), btw(id, question?) -> bool}.
      id = an agent id, or a tmux session id "$<n>" for a terminal (its page /term/s<n>, as shell.py tab_href).
      open: shows / switches the aside, focus (default true) puts the cursor into the chat's composer; on a phone
-     (< 700 px) it opens the session as a tab instead. fromTab (⌘⇧L): the current session tab moves into the aside
-     (pm7.tabs.close navigates to the next tab, whose page restores the aside). toTab ("Open as tab"): the reverse.
+     (< 700 px) it opens the session as a tab instead. state (optional, e.g. 'ended' from a list of past sessions):
+     the head's state (then pm:agent_state); without it the dot of the session row, tab or a .p-gr list row on the
+     page, else 'unknown'. fromTab (⌘⇧L): the current session tab moves into the aside (pm7.tabs.close navigates
+     to the next tab, whose page restores the aside). toTab ("Open as tab"): the reverse.
      btw (README A9): the aside shows js/btw.js's side-question panel for that agent (head "btw · <id>", no tools,
      Open as tab off; not remembered across pages); question = asked at once. Phones: not available (toast).
-   Reader: the aside chat's .md links (classic chat-md.js posts {pm: 'drawer', act: 'md', id, path}) open in this
-     page's reader when the page is that agent's session (#chatsplit[data-agent]: a click on a[data-md] there), else
-     in a sheet (GET /a/<id>/md?path=, the server's rendered, escaped markdown).
+   Reader: the aside chat's .md links (classic chat-md.js posts {pm: 'drawer', act: 'md', id, path}) open in the
+     markdown reader dialog centred on the screen (js/mdview.js pm7.md.open; user issue #250).
    Keys (pm7.keys.register, group Panels): ⌘L on a session page (main .c-sess with a composer) while the aside is
    closed = that page's own composer (again: leave it; README A9); else ⌘L = the aside on the selected agent
    (focused list row with data-agent, data-href /a/<id> or in data-list=inbox; else the current session row; else a
@@ -25,7 +26,8 @@
    the window; head.js applies it and html.aside before paint). Event: pm7:aside {open, id, btw?} on document.
    Hooks: aside#x-aside (shell/_aside.html) [data-aside-edge] [data-aside-dot] [data-aside-state] [data-aside-name]
    [data-aside-kind] [data-aside-body] (.fr while it holds iframe.x-aframe or the btw panel), html.aside,
-   html.aside-drag, #x-sess a.x-sr[data-sess-id][data-sess-kind] .dot and #x-tabs .x-tab (state, kind, terminal name).
+   html.aside-drag, #x-sess a.x-sr[data-sess-id][data-sess-kind] .dot, #x-tabs .x-tab (state, kind, terminal name)
+   and .p-gr[data-row-id] .dot (a list row of the agent: state only).
    Embed bridge: this file is also loaded in embed pages. In the aside's own iframe (window.frameElement inside
    #x-aside, same origin only) it registers a soft layer at rank 90 whose close posts {pm7: 'esc'} (so Esc closes
    the aside once the composer was left) and forwards ⌘L ⌘⇧L ⌘K ⌘P ⌘⇧P ⌘B ⌘, as {pm7: 'key', spec}; keys.js is not
@@ -65,7 +67,7 @@
   /* ---------- shell ---------- */
   const A = () => d.getElementById('x-aside');
   const q = (sel) => { const a = A(); return a ? a.querySelector(sel) : null; };
-  let cur = null, opener = null, want = null;  // cur = {kind: agent | term | btw, id, href}; want = iframe to focus
+  let cur = null, opener = null, want = null;  // cur = {kind: agent | term | btw, id, href, state?}; want = iframe
 
   function isOpen() { return R.classList.contains('aside'); }
   function inside(n) { const a = A(); return !!(a && n && a.contains(n)); }
@@ -81,10 +83,11 @@
   function info(t) {
     const sr = t.kind === 'agent' ? d.querySelector(sel('#x-sess a.x-sr', 'data-sess-id', t.id)) : null;
     const tab = d.querySelector(sel('#x-tabs .x-tab[data-tab-kind="' + t.kind + '"]', 'data-tab-id', t.id));
-    const dot = (sr && sr.querySelector('.dot')) || (tab && tab.querySelector('.dot'));
+    const row = t.kind === 'agent' && !sr && !tab ? d.querySelector(sel('.p-gr', 'data-row-id', t.id)) : null;
+    const dot = [sr, tab, row].map((n) => n && n.querySelector('.dot')).find(Boolean);
     const nm = t.kind === 'term' && tab && tab.querySelector('.nm');
     return {
-      state: (dot && STATES.find((s) => dot.classList.contains(s))) || 'unknown',
+      state: (dot && STATES.find((s) => dot.classList.contains(s))) || '',
       kind: (sr && sr.getAttribute('data-sess-kind')) || (tab && tab.getAttribute('data-kind')) ||
         t.id.replace(/-[^-]*$/, ''),
       title: (nm && nm.textContent.trim()) || t.id
@@ -106,7 +109,8 @@
       tab.disabled = true;
       return;
     }
-    const x = t ? info(t) : null, term = !!t && t.kind === 'term', st = state || (x && x.state) || 'unknown';
+    const x = t ? info(t) : null, term = !!t && t.kind === 'term';
+    const st = state || (t && t.state) || (x && x.state) || 'unknown';
     STATES.forEach((s) => dot.classList.remove(s));
     dot.classList.add(st);
     dot.title = st;
@@ -179,6 +183,7 @@
     if (!t || !A()) return false;
     if (pm7.phone()) { asTab(t); return true; }  // LAYOUT §2: no aside on phones, the chat opens as a tab
     if (!isOpen() && !inside(d.activeElement)) opener = d.activeElement;
+    if (STATES.indexOf(o.state) >= 0) t.state = o.state;
     cur = t;
     head(t);
     frame(t, o.focus !== false);
@@ -366,7 +371,7 @@
     const f = frameEl(), m = e.data;
     if (!f || e.origin !== window.location.origin || e.source !== f.contentWindow) return;
     if (!m || typeof m !== 'object') return;
-    if (m.pm === 'drawer' && m.act === 'md') { reader(m.id, m.path); return; }
+    if (m.pm === 'drawer' && m.act === 'md') { if (pm7.md) pm7.md.open(m.id, m.path); return; }
     if (m.pm7 === 'esc') { close(); return; }
     if (m.pm7 !== 'key' || FWD.indexOf(m.spec) < 0) return;
     if (m.spec === 'mod+L') { close(); return; }
@@ -375,42 +380,13 @@
     if (row) row.run();
   });
 
-  /* ---------- the aside chat's .md links: this page's reader (same agent), else a sheet ---------- */
-  function reader(id, path) {
-    id = String(id == null ? '' : id);
-    if (!AGENT.test(id) || typeof path !== 'string' || !path || path.length > 4096) return;
-    const split = d.getElementById('chatsplit');
-    if (split && split.getAttribute('data-agent') === id) {  // classic chat-md.js opens a[data-md] in #mdpane
-      const a = d.createElement('a');
-      a.href = '#';
-      a.hidden = true;
-      a.setAttribute('data-md', path);
-      split.appendChild(a);
-      a.click();
-      a.remove();
-      return;
-    }
-    const url = '/a/' + encodeURIComponent(id) + '/md?path=' + encodeURIComponent(path);
-    pm7.fetch(url, { headers: { Accept: 'text/html' } }).then(async (r) => {
-      if (!r.ok) { pm7.fail('Could not open ' + path, r); return; }
-      const box = d.createElement('div'), hd = d.createElement('div'), b = d.createElement('b');
-      box.className = 'x-mdsheet';
-      box.innerHTML = await r.text();  // server-rendered, escaped markdown (as classic chat-md.js)
-      const v = box.querySelector('.mdv');
-      hd.className = 'hd';
-      b.className = 'ell';
-      b.textContent = (v && v.getAttribute('data-path')) || path;
-      hd.appendChild(b);
-      pm7.sheet(box, { label: 'File ' + b.textContent, head: hd });
-    }, () => pm7.fail('Could not open ' + path, null));
-  }
   d.addEventListener('pm:agent_state', (e) => {
     const x = e.detail || {};
-    if (cur && cur.kind === 'agent' && x.id === cur.id && STATES.indexOf(x.state) >= 0) head(cur, x.state);
+    if (cur && cur.kind === 'agent' && x.id === cur.id && STATES.indexOf(x.state) >= 0) head(cur, cur.state = x.state);
   });
   d.addEventListener('pm:agent_removed', (e) => {
     const x = e.detail || {};
-    if (cur && cur.kind === 'agent' && x.id === cur.id) head(cur, 'ended');
+    if (cur && cur.kind === 'agent' && x.id === cur.id) head(cur, cur.state = 'ended');
   });
   d.addEventListener('htmx:afterSettle', (e) => { if (cur && e.target && e.target.id === 'x-sess') head(cur); });
 

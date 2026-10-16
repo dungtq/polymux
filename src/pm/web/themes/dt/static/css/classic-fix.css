@@ -75,3 +75,10 @@ body.x:has(.composer--dock) .x-page{padding-bottom:calc(var(--msgbar-h,130px) + 
   /* inbox.css: the Launch .fab is fixed above the bottom nav; leave room so it never covers the last row */
   .x-page:has(.fab){padding-bottom:calc(var(--s5) + var(--s6) * 2)}
 }
+
+/* agent.css: .chat-img{max-width:min(240px,100%)} + .chat-img img{max-height:180px} make every chat image a thumbnail.
+   An image in an agent's reply (markdown image or a bare image path line: session tab, the aside's embed, the
+   ended page) shows large: the message column's width, at most 70% of the window's height (user issue #246).
+   Your own attachments (role-user) stay thumbnails; a click still opens the viewer (imgview.js) */
+body.x .chat-bubble.role-assistant .chat-img{max-width:100%}
+body.x .chat-bubble.role-assistant .chat-img img{max-height:70dvh}

@@ -193,6 +193,14 @@ def test_list_fragment(env):
         assert isinstance(json.loads(raw.replace("&#39;", "'")), list)
 
 
+def test_row_names_are_row_links(env):  # #247: ⌘ / Ctrl / Shift / middle click open the project in a new tab
+    html = env.get_template("_projects_list.html").render(**ctx())
+    rows = re.findall(r'<div class="p-gr pj-row[^>]*data-href="([^"]+)"[^>]*>\n(.*?)\n</div>', html, re.S)
+    assert len(rows) == 3
+    for href, body in rows:
+        assert f'<a class="nm" href="{href}" tabindex="-1" data-row-link>' in body
+
+
 def test_rows_have_only_cells(env):
     html = env.get_template("_projects_list.html").render(**ctx())
     body = re.findall(r'<div class="p-gr pj-row[^>]*>\n(.*?)\n</div>', html, re.S)

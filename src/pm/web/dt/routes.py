@@ -1,7 +1,9 @@
 """/dt routes of the dt theme (SHELL.md §3): the tab strip, its JSON, the sessions sidebar, and the v7 "all
-devices" prefs (Settings › Display, Chat colours; ``pm.web.dt.prefs``).
+devices" prefs (Settings › Display, Chat colours; ``pm.web.dt.prefs``), and the project quick look's listing
+(``GET /dt/peek/<project>``, js/peek.js).
 
-GETs need a login session; they are plain ``def`` (threadpool: the tabs / prefs file is stat'ed / read). Every POST:
+GETs need a login session; they are plain ``def`` (threadpool: the tabs / prefs file is stat'ed / read; the peek is
+``async``: snapshot, then the listing on the collectors pool). Every POST:
 ``mutation_guard("dt.<area>.<verb>", Tier.SAFE)``, an audit line, the store write on the collectors pool, then a hub
 event ``ui`` ``{"area": "tabs" | "prefs", "rev": n}`` so other browsers re-fetch.
 The fragments are dt-only templates: a request in another UI theme (cookie ``pm_ui`` changed by another tab) gets
@@ -10,21 +12,25 @@ The fragments are dt-only templates: a request in another UI theme (cookie ``pm_
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 from pm.core import executors
 from pm.core.errors import Invalid
 from pm.core.models import Tier
+from pm.projects import projfiles
 from pm.security.audit import AuditError
 from pm.security.guard import audit_result, mutation_guard
 from pm.web import render, themes
-from pm.web.deps import AUTH
-from pm.web.dt import prefs, shell, stores
+from pm.web.deps import AUTH, snapshot
+from pm.web.dt import files, prefs, shell, stores
 
 router = APIRouter(prefix="/dt")
 TABS_TPL = "shell/_tabs.html"
 SESS_TPL = "shell/_sessions.html"
+PEEK_TPL = "project/_peek_list.html"
 _NOSTORE = {"Cache-Control": "no-store"}
 THEME = "dt"
 
@@ -198,3 +204,32 @@ async def prefs_save(request: Request, _=Depends(mutation_guard("dt.prefs.save",
     target = ",".join(sorted(change))[:80]
     p = await _change(request, "prefs", "save", target, prefs.apply, change)
     return _prefs_json(p, "Saved")
+
+
+# ------------------------------------------------------------------ project quick look (js/peek.js)
+def _peek_read(settings, path: str, rel: str) -> tuple[dict, bool]:
+    """(the directory listing, open in a new browser tab?) on the collectors pool: ``projfiles.read_tree`` (relative
+    path inside the project only, no symlink, the Files tab's rules) and the ``peek_open`` pref."""
+    return projfiles.read_tree(path, rel), prefs.read_cached(settings).get("peek_open") != "same"
+
+
+@router.get("/peek/{project}", dependencies=AUTH)
+async def peek(request: Request, project: str, path: str = "") -> Response:
+    """The quick look's body: one folder of ``project`` (``path`` relative to its root) as a grid table; folders
+    drill down in the dialog, files and folders link to the Files tab (``/p/<name>/files?path=``). Read-only."""
+    if (none := _no_shell()) is not None:
+        return none
+    p = (await snapshot(request)).project(project)
+    if p is None:
+        raise HTTPException(404, "unknown project")
+    try:
+        tree, new_tab = await executors.run_collectors(_peek_read, request.app.state.settings, p.path, path)
+    except projfiles.FileRefused as e:
+        raise HTTPException(e.status, e.msg) from None
+    if tree.get("kind") != "dir":
+        raise HTTPException(404, "not a folder")
+    g = p.git
+    meta = " · ".join(x for x in (g.branch or "", f"{g.dirty} changed" if g.dirty else "clean") if x) if g else ""
+    html = render.get_template(PEEK_TPL).render(
+        fv=files.listing(tree, "/p/" + quote(p.name), p.name), name=p.name, meta=meta, new_tab=new_tab)
+    return render.fragment(request, html)

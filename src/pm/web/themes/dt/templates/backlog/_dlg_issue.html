@@ -1,9 +1,13 @@
 {#- dt Backlog dialogs for issues (DESIGN.md §6.11, layers.js pm7.dialog), outside the swapped component so a live
     refresh never closes them. Included by backlog/_page.html and project/_tab_issues.html (once per page).
-    - dialog#bl-add: Add issue, a real form: Project (filled by js/backlog.js from the opener's component,
-      data-bl-projects; hidden when the component is scoped to one project), Title, Details (Markdown), images. Submit
-      (js/backlog.js): each image goes to POST /p/{n}/image (field image) first, then POST /p/{n}/issues (title, body,
-      images = the stored paths, one per line); the toast comes after the server said OK, errors stay in the form.
+    - dialog#bl-add: Add issue, a real form: Project (filled by js/backlog-add.js from the opener's component,
+      data-bl-projects; hidden when the component is scoped to one project), Title, Details (Markdown), images (the
+      picker, or paste / drop anywhere in the form: pm7.attach.wire). Submit (js/backlog-add.js): each image goes to
+      POST /p/{n}/image (field image) first, then POST /p/{n}/issues (title, body, images = the stored paths, one per
+      line); the toast comes after the server said OK, errors stay in the form. "One issue per line" swaps Title for
+      the Titles box ([data-bl-many]; Details and images hide, [data-bl-one]): each non-empty line is one POST, in
+      order; a failure stops there and leaves the lines not added in the box. "Add another" keeps the dialog open
+      after a success (the fields clear, the project and both options stay).
     - dialog#bl-rd: the issue reader. Its frame keeps a fixed head (#N and the project, filled by js/backlog-reader.js
       from the opener; Close, focused on open) above the scrolling body, so it can always be closed (loading, a load
       error, the phone's full-screen dialog); the body is GET /p/{n}/issues/{num} (the dt _issue_detail.html =
@@ -14,13 +18,15 @@
   <div class="x-dh"><h2 id="bl-add-t">Add issue</h2><span class="sp"></span>
     <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close (Esc)"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}x"/></svg></button></div>
   <label class="bl-fl" data-bl-fprow><span>Project</span><select class="sel" name="project" data-bl-fproj required></select></label>
-  <label class="bl-fl"><span>Title</span><input class="x-in" type="text" name="title" maxlength="500" required autocomplete="off" spellcheck="true" placeholder="What is wrong or missing, in one line"></label>
-  <label class="bl-fl"><span>Details <span class="muted">(Markdown, optional)</span></span><textarea class="bl-ta" name="body" rows="6" placeholder="Steps, expected and actual result, links"></textarea></label>
-  <div class="bl-fl"><span>Images <span class="muted">(png, jpg, gif, webp; optional)</span></span>
+  <label class="bl-fl" data-bl-one><span>Title</span><input class="x-in" type="text" name="title" maxlength="500" required autocomplete="off" spellcheck="true" placeholder="What is wrong or missing, in one line"></label>
+  <label class="bl-fl" data-bl-many hidden><span>Titles <span class="muted">(one issue per line)</span></span><textarea class="bl-ta" name="lines" rows="6" spellcheck="true" placeholder="One issue title per line"></textarea></label>
+  <label class="p-chk bl-fchk"><input type="checkbox" data-bl-manyon><span>One issue per line <span class="muted">(titles only)</span></span></label>
+  <label class="bl-fl" data-bl-one><span>Details <span class="muted">(Markdown, optional)</span></span><textarea class="bl-ta" name="body" rows="6" placeholder="Steps, expected and actual result, links"></textarea></label>
+  <div class="bl-fl" data-bl-one><span>Images <span class="muted">(png, jpg, gif, webp; optional; paste or drop them here)</span></span>
     <span class="bl-pickrow"><button class="x-btn sm" type="button" data-bl-pick><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}img"/></svg>Attach images</button><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-bl-files hidden>
     <span class="bl-chips" data-bl-chips aria-live="polite"></span></span></div>
   <p class="bl-alert" role="alert" data-bl-ferr hidden></p>
-  <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit" data-bl-fok>Add issue</button></div>
+  <div class="ft"><label class="p-chk bl-more" title="Keep the dialog open for the next issue"><input type="checkbox" data-bl-more><span>Add another</span></label><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn pri" type="submit" data-bl-fok>Add issue</button></div>
 </form>
 </dialog>
 <dialog id="bl-rd" class="x-dlg bl-dlg bl-rdd" aria-labelledby="bl-rd-h bl-rd-t" aria-describedby="bl-rd-m">

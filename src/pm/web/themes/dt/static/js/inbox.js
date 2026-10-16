@@ -2,9 +2,10 @@
    (folds, details), listkeys.js (J K ↵ O X E P, row click / double-click), filter.js, parts.js (⋯ menus, their POSTs
    and toasts), ticker.js (ages). This file adds only what is the Inbox's own:
    - opening: a row click / ↵ (event i:open) opens the chat aside (pm7.aside.open, the list keeps focus; phones: a
-     tab), the aside's row is .sel (pm7:aside); a double-click / O (⋯ item "tab",
-     event i:tab) opens a tab (pm7.tabs.open); either marks the row read (POST /inbox/read with its key,
-     [data-i-rk] / data-i-un) when it was unread.
+     tab; an Ended row [data-i-ended] with {state: 'ended'}), the aside's row is .sel (pm7:aside); a double-click / O
+     (⋯ item "tab", event i:tab) opens a tab (pm7.tabs.open); either marks the row read (POST /inbox/read with its
+     key, [data-i-rk] / data-i-un) when it was unread. The name link (a[data-row-link]) is a row click; a modified or
+     middle click on it opens /a/<id> in a new browser tab (js/listkeys.js).
    - terminal: a[data-i-term] (tmux cell, details) and the ⋯ item "term" open the read-only terminal as a tab.
    - [data-i-run=<item id>] buttons (row details, Resume) run that ⋯ item of their row (pm7.menus.run): one POST,
      confirm and toast path for row and menu.
@@ -64,7 +65,9 @@
     last = { id: id, t: Date.now() };
     markRead(r);
     selId = id;
-    pm7.aside.open(id, { focus: false });  // the list keeps the keys (J K); ⌘L puts the cursor in the chat; phones: tab
+    const o = { focus: false };  // the list keeps the keys (J K); ⌘L puts the cursor in the chat; phones: tab
+    if (r.hasAttribute('data-i-ended')) o.state = 'ended';
+    pm7.aside.open(id, o);
     showSel();
   }
   function openTerm(a) {
@@ -88,8 +91,8 @@
     if (id && (!r || r.getAttribute('data-row-id') !== id)) { e.preventDefault(); e.stopPropagation(); }
   }, true);
   d.addEventListener('dblclick', (e) => {
-    const id = near(e.target) ? recent() : null;
-    if (!id && (!inBox(e.target) || e.target.closest('.p-det, a[href], button, input, select'))) return;
+    const id = near(e.target) ? recent() : null, ctl = '.p-det, a[href]:not([data-row-link]), button, input, select';
+    if (!id && (!inBox(e.target) || e.target.closest(ctl))) return;
     const b = box(), r = id ? b && b.querySelector('.p-gr[data-row-id="' + CSS.escape(id) + '"]') : rowOf(e.target);
     if (r && r.closest('[data-list=inbox]')) tabFor(r);
   });

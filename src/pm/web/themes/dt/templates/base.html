@@ -17,7 +17,8 @@
     qstream (the /qchat/send reader), btw (the aside's side-question panel), tabs, sidebar, search, ticker, notifs,
     launch-prompt + launch (the Launch dialog, shell/_launch.html), qchat + qchat-menus (the Quick chat panel,
     shell/_qchat.html), settings + settings-forms + settings-servers + settings-popup (the Settings body, page and
-    popup: loaded here once, never by settings.html; shell/_settings.html), then the page parts: table, filter,
+    popup: loaded here once, never by settings.html; shell/_settings.html), mdview (dialog#x-md, the markdown reader),
+    peek (dialog#x-peek, the project quick look; css/peek.css), then the page parts: table, filter,
     parts, listkeys.
     Block settings_popup: the Settings popup dialog (shell/_settings.html); settings.html empties it.
     embed (the chat aside's iframe, content only): no keys, qstream, btw, tabs, sidebar, search, ticker, notifs,
@@ -62,6 +63,7 @@
 <link rel="stylesheet" href="/static/t/dt/css/launch.css">
 <link rel="stylesheet" href="/static/t/dt/css/qchat.css">
 <link rel="stylesheet" href="/static/t/dt/css/settings.css">
+<link rel="stylesheet" href="/static/t/dt/css/peek.css">
 {% endif %}<script src="/static/t/dt/js/core.js" defer></script>
 <script src="/static/t/dt/js/reload.js" defer></script>
 <script src="/static/t/dt/js/layers.js" defer></script>
@@ -84,6 +86,8 @@
 <script src="/static/t/dt/js/settings-forms.js" defer></script>
 <script src="/static/t/dt/js/settings-servers.js" defer></script>
 <script src="/static/t/dt/js/settings-popup.js" defer></script>
+<script src="/static/t/dt/js/mdview.js" defer></script>
+<script src="/static/t/dt/js/peek.js" defer></script>
 {% endif %}<script src="/static/t/dt/js/table.js" defer></script>
 <script src="/static/t/dt/js/filter.js" defer></script>
 <script src="/static/t/dt/js/parts.js" defer></script>

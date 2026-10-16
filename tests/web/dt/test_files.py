@@ -101,7 +101,8 @@ def test_ended_is_a_band_in_the_agents_table():
     band = tables[0].find(lambda n: n.attrs.get("data-p-grp") == "ended")
     assert len(band) == 1
     row = band[0].one("i-erow")
-    assert row.attrs["data-key-enter"] == "href" and row.attrs["data-key-o"] == "href" and row.attrs["tabindex"] == "0"
+    assert row.attrs["data-key-enter"] == "event:i:open" and row.attrs["data-key-o"] == "event:i:tab"  # aside (#243)
+    assert "data-i-ended" in row.attrs and row.attrs["tabindex"] == "0"
     head = tables[0].one("p-gh")
     assert len([k for k in row.kids if "gc-m" not in k.cls]) == len(head.kids)  # same columns as the live rows
 

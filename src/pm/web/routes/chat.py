@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse
 from pm.agents import slash
 from pm.chat import stats as chat_stats
 from pm.chat import strip as chat_strip
+from pm.chat.mdrefs import ChatPaths
 from pm.chat.stats import human as human_tokens
 from pm.chat.text import clean_text, tool_family
 from pm.core import executors, prefs
@@ -108,11 +109,18 @@ _NOSTORE = {"Cache-Control": "no-store"}
 
 @router.get("/a/{agent_id}/md", dependencies=AUTH)
 async def agent_md(request: Request, agent_id: str, path: str = "") -> Response:
+    """One .md file as rendered, escaped markdown. A relative ``path`` is looked up in the agent's folder, its
+    project, the files and folders its chat named, the known projects, then (a bare name) below the agent's folder
+    (``resolve_md``); hidden folders stay refused."""
     snap = await snapshot(request)
     agent = chatctx.live_or_ended(request, snap, agent_id)[0]
-    real = resolve_md(path, agent.cwd)
+    proj = snap.project(agent.project) if agent.project else None
+    chat = ChatPaths(deps.settings(request), agent.id)
+    projects = [(p.name, p.path) for p in snap.projects]
+    real = await executors.run_collectors(resolve_md, path, agent.cwd, (proj.path,) if proj else (), chat.mentions(),
+                                          chat.dirs(), projects)
     if real is None:
-        raise HTTPException(404, "file not found")
+        raise HTTPException(404, "file not found (or in a hidden folder)")
     try:
         with open(real, "rb") as f:
             data = f.read(MD_MAX_BYTES + 1)

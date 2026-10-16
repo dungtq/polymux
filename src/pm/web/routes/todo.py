@@ -9,17 +9,20 @@ carry the project name and sizes only, never the text.
 
 A tracker project keeps TODO.md in pm.db: ``line`` is the item number and the
 toggle goes to the store, which re-renders the file. ``POST /p/{name}/todo/add`` (tracker projects only; 409
-otherwise) adds an open item, optionally under a section heading.
+otherwise) adds an open item, optionally under a section heading; ``POST /p/{name}/todo/edit`` (tracker projects
+only; 409 otherwise) changes an item's text (``num``, ``text``: one line). A script call to edit
+(``X-Requested-With``) gets JSON ``{"ok": true, "num", "project"}``; a plain form POST goes back to the page (303).
 """
 
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from typing import NoReturn
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from pm.core import executors
 from pm.core.errors import PmError
@@ -30,6 +33,7 @@ from pm.projects.todo import FILE, resolve_path, toggle_line
 from pm.projects.tracker import store, views
 from pm.security.audit import AuditError
 from pm.security.guard import audit_result, mutation_guard
+from pm.web.deps import is_navigation
 from pm.web.issuectx import audit_ok, num_of
 
 router = APIRouter()
@@ -38,10 +42,10 @@ MAX_TEXT = 2000
 MAX_SECTION = 200
 
 
-def _deny(request: Request, name: str, status: int, reason: str, msg: str) -> NoReturn:
-    """Audit a denied toggle (project name and reason only), then raise ``status``."""
+def _deny(request: Request, name: str, status: int, reason: str, msg: str, action: str = "todo_toggle") -> NoReturn:
+    """Audit a denied ``action`` (project name and reason only), then raise ``status``."""
     try:
-        audit_result(request, "todo_toggle", "todo", "denied",
+        audit_result(request, action, "todo", "denied",
                      {"project": name[:60], "reason": reason[:40]})
     except AuditError:
         raise HTTPException(503, "audit unavailable") from None
@@ -88,11 +92,9 @@ async def todo_toggle(request: Request, name: str,
     return _back(name)
 
 
-@router.post("/p/{name}/todo/add", response_class=HTMLResponse)
-async def todo_add(request: Request, name: str,
-                   _=Depends(mutation_guard("todo_add", Tier.SAFE))) -> Response:
-    """Add an open TODO item to a tracker project (``text``, optional ``section``); 409 for a file-mode project.
-    The store writes the "ok" audit line (item number only, never text) inside its transaction."""
+async def _tracker_form(request: Request, name: str, action: str, ok: Callable[..., bool]):
+    """The checks todo_add and todo_edit share: the project is registered (404), ``ok(form)`` (400) and keeps its
+    TODO in the tracker (409: a file-mode project, TODO.md only). Every refusal is audited. -> the form."""
     form = await request.form()
     settings = request.app.state.settings
     try:
@@ -100,25 +102,60 @@ async def todo_add(request: Request, name: str,
     except OSError:
         raise HTTPException(502, "registry unavailable") from None
     if name not in known:
-        _deny(request, name, 404, "unknown project", "unknown project")
-    text, section = form.get("text"), form.get("section") or ""
-    if (not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT
-            or not isinstance(section, str) or len(section) > MAX_SECTION or "\n" in text + section):
-        _deny(request, name, 400, "bad form", "bad form")
+        _deny(request, name, 404, "unknown project", "unknown project", action)
+    if not ok(form):
+        _deny(request, name, 400, "bad form", "bad form", action)
     if not await executors.run_collectors(views.is_tracker, settings, name, "todo"):
-        _deny(request, name, 409, "not a tracker", "TODO add needs a tracker project")
-    audit = audit_ok(request, "todo_add", "todo", {"project": name}, keep=("num",))
+        _deny(request, name, 409, "not a tracker", f"TODO {action.split('_')[-1]} needs a tracker project", action)
+    return form
+
+
+async def _store(request: Request, name: str, action: str, fn: Callable):
+    """``fn(settings)`` (a tracker store write) in the pool -> its result; a refusal is audited, a failed audit write
+    is a 503 (the store rolled the change back)."""
     try:
-        await executors.run_collectors(
-            lambda s: store.add_item(s, name, "todo", text.strip(), section=section.strip() or None, audit=audit),
-            settings)
+        return await executors.run_collectors(fn, request.app.state.settings)
     except AuditError:
         raise HTTPException(503, "audit unavailable") from None
     except PmError as e:
-        _deny(request, name, e.status, str(e), str(e))
+        _deny(request, name, e.status, str(e), str(e), action)
     except sqlite3.Error:
-        _deny(request, name, 503, "tracker busy", "tracker database busy")
+        _deny(request, name, 503, "tracker busy", "tracker database busy", action)
+
+
+def _line(v) -> bool:
+    return isinstance(v, str) and bool(v.strip()) and len(v) <= MAX_TEXT and "\n" not in v
+
+
+@router.post("/p/{name}/todo/add", response_class=HTMLResponse)
+async def todo_add(request: Request, name: str,
+                   _=Depends(mutation_guard("todo_add", Tier.SAFE))) -> Response:
+    """Add an open TODO item to a tracker project (``text``, optional ``section``); 409 for a file-mode project.
+    The store writes the "ok" audit line (item number only, never text) inside its transaction."""
+    def ok(f) -> bool:
+        sec = f.get("section") or ""
+        return _line(f.get("text")) and isinstance(sec, str) and len(sec) <= MAX_SECTION and "\n" not in sec
+    form = await _tracker_form(request, name, "todo_add", ok)
+    text, section = str(form.get("text")), str(form.get("section") or "")
+    audit = audit_ok(request, "todo_add", "todo", {"project": name}, keep=("num",))
+    await _store(request, name, "todo_add", lambda s: store.add_item(
+        s, name, "todo", text.strip(), section=section.strip() or None, audit=audit))
     return _back(name)
+
+
+@router.post("/p/{name}/todo/edit")
+async def todo_edit(request: Request, name: str,
+                    _=Depends(mutation_guard("todo_edit", Tier.SAFE))) -> Response:
+    """Change the text of TODO item ``num`` of a tracker project (``text``: one line, as for add); 409 for a
+    file-mode project. The store writes the "ok" audit line (item number only, never text) in its transaction."""
+    form = await _tracker_form(request, name, "todo_edit", lambda f: _line(f.get("text")))
+    text, num = str(form.get("text")).strip(), form.get("num")
+    audit = audit_ok(request, "todo_edit", "todo", {"project": name}, keep=("num",))
+    it = await _store(request, name, "todo_edit",
+                      lambda s: store.edit_item(s, name, "todo", num_of(num), title=text, audit=audit))
+    if is_navigation(request):
+        return _back(name)
+    return JSONResponse({"ok": True, "num": it.num, "project": name}, headers={"Cache-Control": "no-store"})
 
 
 def _back(name: str) -> Response:
@@ -130,13 +167,5 @@ async def _tracker_toggle(request: Request, name: str, idx: int) -> Response:
     """Tracker project: the posted ``line`` is the TODO item number; done <-> open in pm.db. The store writes
     the "ok" audit line inside its transaction (a failed write rolls the toggle back)."""
     audit = audit_ok(request, "todo_toggle", "todo", {"project": name}, keep=("num", "done"))
-    try:
-        await executors.run_collectors(lambda s: store.toggle(s, name, "todo", num_of(idx), audit=audit),
-                                       request.app.state.settings)
-    except AuditError:
-        raise HTTPException(503, "audit unavailable") from None
-    except PmError as e:
-        _deny(request, name, e.status, str(e), str(e))
-    except sqlite3.Error:
-        _deny(request, name, 503, "tracker busy", "tracker database busy")
+    await _store(request, name, "todo_toggle", lambda s: store.toggle(s, name, "todo", num_of(idx), audit=audit))
     return _back(name)

@@ -2,6 +2,8 @@
     #x-scrim (overlay sidebar / aside under 900px, phone sheet), dialog#x-pal (search: the first input is the
     combobox, [role=listbox], [data-scope], [data-pfopen] = what ↵ does to the selected row, [data-pfhint]), dialog#x-keys (frame; keys.js fills [data-keys-body]
     from its key table), dialog#x-stop (Stop all agents: typed PANIC, plain form POST; opened by the `stop` verb),
+    dialog#x-md (shell/_mdview.html: the markdown reader, js/mdview.js), dialog#x-peek (shell/_peek.html: the project quick
+    look, js/peek.js),
     and the roots layers.js fills itself: dialog#x-dlg (h2#x-dlg-t, .bd, input.mono, .ft), div#x-menu,
     div#x-sheet (.grab, .hd, .ls), div#x-toast (the one live region, .on / .err).
     Dialogs open with showModal() (top layer); [data-act=close] inside one closes it. -#}
@@ -33,6 +35,8 @@
     <div class="ft"><button class="x-btn" type="button" data-act="close">Cancel</button><button class="x-btn red" type="submit">Stop all agents</button></div>
   </form>
 </dialog>
+{% include "shell/_mdview.html" %}
+{% include "shell/_peek.html" %}
 {% endif %}<dialog id="x-dlg" class="x-dlg" aria-labelledby="x-dlg-t"></dialog>
 <div id="x-menu" class="x-menu" role="menu" hidden></div>
 <div id="x-sheet" class="x-sheet" role="dialog" aria-modal="true" aria-label="Sheet" hidden></div>

@@ -6,5 +6,6 @@
     once however many partials include it). Context: v = dt_project() of project.html (v.name). -#}
 <link rel="stylesheet" href="/static/t/dt/css/backlog.css">
 <script src="/static/t/dt/js/backlog.js" defer></script>
+<script src="/static/t/dt/js/backlog-add.js" defer></script>
 <div class="bl-c" id="bl-todo" data-bl-scope="project" data-bl-tab="todo" data-bl-project="{{ v.name }}" data-bl-projects="[]" data-bl-lazy="/backlog?scope=project&amp;tab=todo&amp;project={{ v.name | urlencode }}"><p class="bl-load">Loading…</p></div>
 {% include "backlog/_dlg_task.html" %}

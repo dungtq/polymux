@@ -26,7 +26,8 @@
   {%- endif %}
 {% endcall %}
 {%- if ib.view == "ended" %}
-{% call tb.table("inbox-ended", "Ended sessions", cls="i-end", list="ended", labels={"enter": "Open the transcript"}) %}
+{% call tb.table("inbox-ended", "Ended sessions", cls="i-end", list="ended", keys={"enter": "event:i:open", "o": "event:i:tab"},
+                 labels={"enter": "Open the transcript in the chat aside", "o": "Open the transcript in a tab"}) %}
   {{ tb.gh([{"sr": "State"}, {"label": "Agent"}, {"label": "Project", "cls": "hide-n"}, {"label": "Last message"},
             {"label": "Ran for", "num": true, "cls": "hide-n"}, {"label": "Ended", "num": true}, {"sr": "Actions"}]) }}
   {% for e in ib.ended %}{{ ar.ended_row(e, cur=loop.first) }}{% endfor %}
@@ -45,7 +46,7 @@
 {% endcall %}
 {%- endif %}
 {{ tb.foot(ib.shown, ib.total, more_href=ib.more_url, noun="sessions" if ib.view == "ended" else "agents") }}
-{{ tb.hints([("J K", "move"), ("Enter", "aside"), ("O", "tab"), ("X", "details"), ("E", "read / unread"), ("P", "pin")] if ib.view != "ended" else [("J K", "move"), ("Enter", "open")]) }}
+{{ tb.hints([("J K", "move"), ("Enter", "aside"), ("O", "tab"), ("X", "details"), ("E", "read / unread"), ("P", "pin")] if ib.view != "ended" else [("J K", "move"), ("Enter", "aside"), ("O", "tab")]) }}
 {%- else -%}
 <p class="p-empty">The Inbox could not be built. Reload the page; the error is in pm's log.</p>
 {%- endif -%}

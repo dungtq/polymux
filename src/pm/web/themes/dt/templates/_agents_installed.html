@@ -2,14 +2,15 @@
     names) and one table: dot · Agent · Version · Login · Skills · Rules · MCP · Scripts · Findings · ⋯; "Not installed"
     is a folded band. Beside an agent's detail (agents_detail.html) it is the narrow list: dot · Agent · Findings, the
     open agent selected. Login cells ([data-a-login=<name>]) are filled by js/agents.js from GET /agents/auth.json (the
-    status cache; nothing is probed on render). View model: dt_agents("installed"). -#}
+    status cache; nothing is probed on render). The name is the row's link (row_link: a new tab on a modified or
+    middle click). View model: dt_agents("installed"). -#}
 {%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}
 {%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
 {%- set fr = dt_agents("frame") -%}{%- set ins = dt_agents("installed") -%}
 {%- macro irow(r, first) -%}
 {% call tb.row(r.name, href=r.href, kind=r.kind if r.installed else none, cls="a-row" ~ ("" if r.installed else " a-off"), cur=first, sel=r.sel, q=r.q, title=r.label) %}
   {{ tb.dot("running" if r.installed else "idle", "installed" if r.installed else "not installed") }}
-  {% call tb.name(r.label) %}{% endcall %}
+  {% call tb.name(r.label, href=r.href, row_link=true) %}{% endcall %}
   {%- if not ins.narrow %}
   {% call tb.cell("hide-n muted") %}<span title="{{ r.version }}">{{ r.version }}</span>{% endcall %}
   {% call tb.cell("hide-n") %}{% if r.installed %}<span class="muted" data-a-login="{{ r.name }}">…</span>{% else %}<span class="muted">–</span>{% endif %}{% endcall %}

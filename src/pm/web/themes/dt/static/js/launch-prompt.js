@@ -3,9 +3,10 @@
    [data-l-at] listbox, [data-l-pbox]). Templates are launch.js's.
    Globals: pm7.launch.prompt = {wire(form, base), paths(form) -> [saved path], uploading(form) -> bool,
      tokenAt(value, pos) -> {start, text} | null, split(text) -> {dir, q} (pure; tested)}.
-   Attachments: the clip button (file picker), paste and drop. Each file is uploaded at once with pm7.attach
-   (js/attach.js: POST <base>/image, one .chip.att per file, .up while uploading, × removes it; a failure toasts its
-   reason); launch.js adds the saved paths to the prompt when it launches and waits while one is still uploading.
+   Attachments: the clip button (file picker), paste and drop (pm7.attach.wire on the box). Each file is uploaded at
+   once with pm7.attach (js/attach.js: POST <base>/image, one .chip.att per file, .up while uploading, × removes it;
+   a failure toasts its reason); launch.js adds the saved paths to the prompt when it launches and waits while one is
+   still uploading.
    @ files: "@name" at the start or after a space lists the project directory's entries (GET <base>/atfiles?dir=&q=:
    names only, the server's containment rules); "@sub/" lists that folder. ↑ ↓ move, Enter or Tab picks, a click
    picks; the list closes when the token ends or the box loses focus. Esc belongs to the dialog (layers.js, DESIGN §7):
@@ -145,21 +146,7 @@
       const o = e.target.closest('[data-l-ati]');
       if (o) atPick(st, +o.getAttribute('data-l-ati'));
     });
-    ta.addEventListener('paste', (e) => {
-      const fl = e.clipboardData && e.clipboardData.files;
-      if (!fl || !fl.length) return;
-      e.preventDefault();
-      files(form, base, fl);
-    });
-    const hasFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0);
-    box.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); box.classList.add('drop'); } });
-    box.addEventListener('dragleave', () => { box.classList.remove('drop'); });
-    box.addEventListener('drop', (e) => {
-      box.classList.remove('drop');
-      if (!hasFiles(e)) return;
-      e.preventDefault();
-      files(form, base, e.dataTransfer.files);
-    });
+    pm7.attach.wire(box, (fl) => { files(form, base, fl); });  // paste in the box, drop on it
     form.querySelector('[data-l-attach]').addEventListener('click', () => { file.click(); });
     file.addEventListener('change', () => { files(form, base, file.files); file.value = ''; });
   }

@@ -9,17 +9,20 @@
      folded groups are never selected (folding a group drops its rows); the bulk bar [data-bl-bulkbar] shows the count
      and runs Done / Dispatch / Move as one POST per issue, then reports per item.
    - issue rows: [data-bl-run=<⋯ item id>] runs that ⋯ item (the visible action); bl:dispatch (confirm, then POST
-     /p/{n}/issues/{num}/dispatch), bl:move (confirm with a project select, POST .../move {to}), bl:open (reader).
+     /p/{n}/issues/{num}/dispatch), bl:move (confirm with a project select, POST .../move {to}), bl:open (reader),
+     bl:edit (the reader with its Edit form open).
    - TODO rows: [data-bl-tick] / bl:tick (POST /p/{n}/todo/toggle {line, text}), bl:tdispatch / [data-bl-run=dispatch]
-     (pm7.launch.open({project, todo: index}) when the Launch dialog is there, else confirm + POST /p/{n}/dispatch).
-   - dialogs: #bl-add (Add issue: images via pm7.attach, then POST /p/{n}/issues), #bl-addt (Add task: POST
-     /p/{n}/todo/add {text, section}; 409 = not a tracker project: the dialog says so and offers the pmctl line to
-     copy). The reader #bl-rd (GET /p/{n}/issues/{num}, its actions, Edit, Delete, Add note) is js/backlog-reader.js,
-     loaded after this file; it uses pm7.backlog.lib (one post helper for both files).
+     (pm7.launch.open({project, todo: index}) when the Launch dialog is there, else confirm + POST /p/{n}/dispatch);
+     bl:tedit (Edit task) is js/backlog-add.js's.
+   - R (pm7.keys.register, group "This list", while a Backlog list shows): runs the focused row's ⋯ item "edit".
+   - dialogs: the Add issue / Add task / Edit task dialogs are js/backlog-add.js, the reader #bl-rd (GET
+     /p/{n}/issues/{num}, its actions, Edit, Delete, Add note) is js/backlog-reader.js; both load after this file and
+     use pm7.backlog.lib (one post helper for the three files).
    - the Backlog page keeps the address bar on the component's URL (data-bl-url) after a swap; the project view's tabs
      load their component when the frame shows them (pm7:pj-tab {key} on document) or when shown at first paint.
-   Globals: pm7.backlog = {refresh(id?), reader(project, num, opener) (set by backlog-reader.js), lib: {post, json,
-   copy, dispatch, issueUrl, refreshAll} (for backlog-reader.js only)}. Runs once however many partials load it. */
+   Globals: pm7.backlog = {refresh(id?), reader(project, num, opener, {edit}) (set by backlog-reader.js), add (set by
+   backlog-add.js), lib: {post, json, copy, dispatch, issueUrl, refreshAll, projects} (for backlog-reader.js and
+   backlog-add.js only)}. Runs once however many partials load it. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;
@@ -202,117 +205,13 @@
     refreshAll();
   }
 
-  /* ---------- Add issue (#bl-add), Add task (#bl-addt) ---------- */
-  let files = [];
-  function fill(dl, c) {
-    const s = dl.querySelector('[data-bl-fproj]'), row = dl.querySelector('[data-bl-fprow]');
-    const list = projects(c), want = (c && c.getAttribute('data-bl-project')) || s.value || '';
-    s.replaceChildren(...list.map((p) => { const o = el('option', '', p); o.value = p; return o; }));
-    if (list.indexOf(want) >= 0) s.value = want;
-    if (row) row.hidden = !!c && c.getAttribute('data-bl-scope') === 'project';
-  }
-  function chips(dl) {  // one pm7.attach chip per picked file; × drops the file
-    const box = dl.querySelector('[data-bl-chips]');
-    box.replaceChildren();
-    files.forEach((f) => { pm7.attach.chip(box, f.name || 'image', () => { files = files.filter((x) => x !== f); }); });
-  }
-  function openAdd(kind, c, opener) {
-    const dl = d.getElementById(kind === 'task' ? 'bl-addt' : 'bl-add');
-    if (!dl) return;
-    fill(dl, c);
-    const err = dl.querySelector('[data-bl-ferr]');
-    if (err) err.hidden = true;
-    if (kind === 'task') fallback(dl.querySelector('form'), '');
-    pm7.dialog(dl, { opener: opener, focus: dl.querySelector('input[name=title], input[name=text]') });
-  }
-  function say(f, text) {
-    const err = f.querySelector('[data-bl-ferr]');
-    err.textContent = text;
-    err.hidden = !text;
-  }
-  async function addIssue(f) {
-    const p = f.elements.project.value, title = f.elements.title.value.trim(), ok = f.querySelector('[data-bl-fok]');
-    if (!p) { say(f, 'Pick a project.'); return; }
-    if (!title) { say(f, 'The title is required.'); f.elements.title.focus(); return; }
-    say(f, '');
-    ok.disabled = true;
-    try {
-      const paths = [];
-      for (const file of files) paths.push(await pm7.attach.upload('/p/' + enc(p), file));
-      const res = await post('/p/' + enc(p) + '/issues', { title: title, body: f.elements.body.value,
-        images: paths.join('\n') }, 'Add issue');
-      if (!res.ok) throw new Error(res.why);
-      const j = await json(res.r);
-      pm7.toast('Added #' + (j.num || '?') + ' to ' + p);
-      f.reset();
-      files = [];
-      chips(f.closest('dialog'));
-      f.closest('dialog').close();
-      refreshAll();
-    } catch (e) {
-      say(f, String(e && e.message ? e.message : e));
-    } finally {
-      ok.disabled = false;
-    }
-  }
-  function sh(s) { return /^[\w@%+=:,./-]+$/.test(s) ? s : "'" + s.replace(/'/g, "'\\''") + "'"; }
-  function cmd(f) {
-    const p = f.elements.project.value, sec = f.elements.section.value.trim(), text = f.elements.text.value.trim();
-    f.elements.cmd.value = 'pmctl --project ' + sh(p || '<project>') + ' todo add ' +
-      (sec ? '--section ' + sh(sec) + ' ' : '') + sh(text || '<task>');
-    return !!(p && text);
-  }
-  function fallback(f, p) {  // p = the project the core refused (409: not a tracker project); '' hides the fallback
-    const box = f.querySelector('[data-bl-tfall]');
-    box.hidden = !p;
-    f.querySelector('[data-bl-tcopy]').hidden = !p;
-    if (p) {
-      f.querySelector('[data-bl-tnote]').textContent = 'pm adds tasks only to tracker projects; ' + p +
-        ' keeps its tasks in TODO.md. Add the line to TODO.md, or import the project (pmctl import) and run:';
-      cmd(f);
-    }
-    say(f, '');
-  }
-  async function addTask(f) {
-    const p = f.elements.project.value, text = f.elements.text.value.trim(), ok = f.querySelector('[data-bl-fok]');
-    if (!p) { say(f, 'Pick a project.'); return; }
-    if (!text) { say(f, 'Write the task.'); f.elements.text.focus(); return; }
-    say(f, '');
-    ok.disabled = true;
-    try {
-      const res = await post('/p/' + enc(p) + '/todo/add', { text: text, section: f.elements.section.value.trim() },
-        'Add task');
-      if (res.r && res.r.status === 409) { fallback(f, p); return; }
-      if (!res.ok) { say(f, res.why); return; }
-      pm7.toast('Added the task to ' + p);
-      f.reset();
-      f.closest('dialog').close();
-      refresh('bl-todo');
-    } finally {
-      ok.disabled = false;
-    }
-  }
-
   /* ---------- events ---------- */
   d.addEventListener('change', (e) => {
     const t = e.target;
     if (t.matches && t.matches('[data-bl-sel]')) {
       const r = rowOf(t);
       if (r && !select(r, t.checked)) t.checked = false;
-    } else if (t.matches && t.matches('[data-bl-files]')) {
-      files = files.concat(Array.from(t.files || []).filter((f) => /^image\//.test(f.type)));
-      t.value = '';
-      chips(t.closest('dialog'));
     }
-  });
-  d.addEventListener('input', (e) => {
-    const f = e.target.closest && e.target.closest('[data-bl-taskform]');
-    if (f && !f.querySelector('[data-bl-tfall]').hidden) cmd(f);
-  });
-  d.addEventListener('submit', (e) => {
-    const f = e.target;
-    if (f.matches('[data-bl-addform]')) { e.preventDefault(); addIssue(f); }
-    else if (f.matches('[data-bl-taskform]')) { e.preventDefault(); addTask(f); }
   });
   d.addEventListener('click', (e) => {
     const t = e.target;
@@ -328,25 +227,11 @@
     if ((b = t.closest('[data-bl-bulk]'))) {
       const c = comp(b);
       if (c) bulk(c, b.getAttribute('data-bl-bulk'), b);
-      return;
-    }
-    if ((b = t.closest('[data-bl-add]'))) {
-      const c = comp(b) || d.querySelector('.bl-c');
-      openAdd(b.getAttribute('data-bl-add'), c, b);
-      return;
-    }
-    if ((b = t.closest('[data-bl-tcopy]'))) {
-      const f = b.closest('form');
-      if (cmd(f)) copy(f.elements.cmd.value);
-      return;
-    }
-    if ((b = t.closest('[data-bl-pick]'))) {
-      const i = b.parentNode.querySelector('[data-bl-files]');
-      if (i) i.click();
     }
   });
   const on = (type, fn) => d.addEventListener(type, (e) => { const r = rowOf(e.target); if (r && comp(r)) fn(r, e); });
   on('bl:open', (r) => { const i = info(r); if (pm7.backlog.reader) pm7.backlog.reader(i.p, i.n, r); });
+  on('bl:edit', (r) => { const i = info(r); if (pm7.backlog.reader) pm7.backlog.reader(i.p, i.n, r, { edit: true }); });
   on('bl:select', (r) => { if (!select(r)) pm7.toast('Unfold the group to select its rows'); });
   on('bl:dispatch', (r, e) => { dispatch(info(r), e.target); });
   on('bl:move', (r, e) => { move(comp(r), [info(r)], e.target); });
@@ -381,6 +266,25 @@
   });
   pm7.ready(() => pm7.$$('[data-bl-lazy]').forEach((c) => lazy(c, false)));
 
-  pm7.backlog = { refresh: (id) => (id ? refresh(id) : refreshAll()), reader: null,
-    lib: { post: post, json: json, copy: copy, dispatch: dispatch, issueUrl: issueUrl, refreshAll: refreshAll } };
+  /* ---------- R: the focused row's ⋯ Edit (issue: the reader's Edit form; task: #bl-edt) ---------- */
+  const lists = () => pm7.$$('.bl-c [data-list]').some((l) => l.getClientRects().length > 0);
+  function editKey() {  // a disabled item (a TODO.md task) says why
+    const r = pm7.list && pm7.list.row(), m = r && comp(r) && r.querySelector('[data-menu]');
+    if (!m || !pm7.menus) return false;
+    if (pm7.menus.run(m, 'edit')) return true;
+    let it = null;
+    try { it = JSON.parse(m.getAttribute('data-menu')).find((x) => x.id === 'edit'); } catch (e) { it = null; }
+    if (it && it.disabled) pm7.toast('Cannot edit: ' + (it.why || 'not here'));
+    return !!it;
+  }
+  pm7.ready(() => {
+    if (pm7.keys && pm7.keys.register) {
+      pm7.keys.register({ id: 'backlog', group: 'This list', active: lists },
+        [{ id: 'bl-edit', label: 'Edit the row (issue or task)', keys: ['R'], run: editKey }]);
+    }
+  });
+
+  pm7.backlog = { refresh: (id) => (id ? refresh(id) : refreshAll()), reader: null, add: null,
+    lib: { post: post, json: json, copy: copy, dispatch: dispatch, issueUrl: issueUrl, refreshAll: refreshAll,
+      projects: projects } };
 })();

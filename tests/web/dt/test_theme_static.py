@@ -152,13 +152,13 @@ def test_base_renders_the_shell(cur_agent):
     assert dt == ["core.js", "reload.js", "layers.js", "keys.js", "live.js", "aside.js", "qstream.js", "btw.js",
                   "tabs.js", "sidebar.js", "search.js", "ticker.js", "notifs.js", "attach.js", "launch-prompt.js", "launch.js",
                   "qchat.js", "qchat-menus.js", "settings.js", "settings-forms.js", "settings-servers.js",
-                  "settings-popup.js", "table.js", "filter.js", "parts.js", "listkeys.js"]
+                  "settings-popup.js", "mdview.js", "peek.js", "table.js", "filter.js", "parts.js", "listkeys.js"]
     links = re.findall(r'<link rel="stylesheet" href="([^"]+)"', html)
     assert links.index("/static/t/dt/css/tokens.css") > max(i for i, h in enumerate(links) if h.startswith("/static/css/"))
     dtcss = [h.rsplit("/", 1)[1] for h in links if h.startswith("/static/t/dt/css/") and "classic-fix" not in h]
     # notifs.css is page CSS too (the Notifications list): after the parts, or table.css's --g-cols default wins
     assert dtcss == ["tokens.css", "base.css", "shell.css", "aside.css", "layers.css", "keys.css", "parts.css",
-                     "table.css", "notifs.css", "launch.css", "qchat.css", "settings.css"]
+                     "table.css", "notifs.css", "launch.css", "qchat.css", "settings.css", "peek.css"]
     assert "notifs" not in _between(html, "</head>", "</body>")  # the bell's assets are in <head>, not in _top.html
     assert '<main id="main" class="x-main x-cl">' in html  # un-ported content keeps the classic compat sizes
     assert ">1h<" in html  # server-rendered session age (SessRow.age)

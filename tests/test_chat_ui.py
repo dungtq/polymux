@@ -329,6 +329,70 @@ def test_md_view_any_path_but_no_dotdirs(env, monkeypatch, tmp_path):
         assert c.get("/a/claude-12/md", params={"path": bad}).status_code == 404, bad
 
 
+def test_md_relative_ref_found_among_the_files_the_chat_named(env, monkeypatch, tmp_path):
+    """#249: an agent in dev/alpha wrote `SECURITY.md` / `docs/CODE.md` about files of another repo it worked on."""
+    s, c = env
+    login(s, c)
+    other = tmp_path / "dev" / "polymux"
+    (other / "docs").mkdir(parents=True)
+    (other / "SECURITY.md").write_text("# Security\n")
+    (other / "docs" / "CODE.md").write_text("# Code\n")
+    (other / ".git").mkdir()
+    (other / ".git" / "HIDDEN.md").write_text("no")
+    items = [ChatItem(seq=1, rev=1, uid="t1", conv="c", kind="tool", turn="u", ts=1.0, name="Read",
+                      line=str(other / "SECURITY.md")),
+             ChatItem(seq=2, rev=2, uid="t2", conv="c", kind="text", turn="u", ts=2.0,
+                      text=f"Edited `{other / 'docs' / 'CODE.md'}` and {other / '.git' / 'HIDDEN.md'}.")]
+    calls = []
+
+    def list_items(settings, agent_id, **kw):
+        calls.append((agent_id, kw.get("before_seq"), kw.get("limit")))
+        return items
+
+    monkeypatch.setattr("pm.chat.items.list_items", list_items)
+    r = c.get("/a/claude-12/md", params={"path": "SECURITY.md"})
+    assert r.status_code == 200 and "<h1>Security</h1>" in r.text
+    assert f'data-path="{other / "SECURITY.md"}"' in r.text
+    assert calls == [("claude-12", None, 1000)]  # one page: fewer than 1000 items
+    assert "<h1>Code</h1>" in c.get("/a/claude-12/md", params={"path": "docs/CODE.md"}).text
+    assert c.get("/a/claude-12/md", params={"path": "HIDDEN.md"}).status_code == 404  # hidden stays refused
+    calls.clear()
+    (tmp_path / "dev" / "alpha" / "SECURITY.md").write_text("# Here\n")
+    assert "<h1>Here</h1>" in c.get("/a/claude-12/md", params={"path": "SECURITY.md"}).text
+    assert calls == []  # the agent's own folder has it: the chat is not read
+
+
+def test_md_relative_ref_in_a_deleted_worktree_or_below_the_folder(env, monkeypatch, tmp_path):
+    """#249 live case: the chat did `cd <dev>/polymux-wt-dt; cat SECURITY.md` (worktree since deleted, the file is
+    in the polymux project now; beta has one too), and named RESUME-AGENTS.md (in alpha/docs) bare."""
+    s, c = env
+    dev = tmp_path / "dev"
+    for f, body in (("polymux/SECURITY.md", "# Poly\n"), ("beta/SECURITY.md", "# Beta\n"),
+                    ("alpha/docs/RESUME-AGENTS.md", "# Resume\n"), ("polymux/docs/dt/CODE.md", "# Code\n"),
+                    ("alpha/x/DUP.md", "a"), ("alpha/y/DUP.md", "b"), ("polymux/.git/H.md", "no")):
+        (dev / f).parent.mkdir(parents=True, exist_ok=True)
+        (dev / f).write_text(body)
+    login(s, c)
+    items = [ChatItem(seq=1, rev=1, uid="t1", conv="c", kind="tool", turn="u", ts=1.0, name="Bash",
+                      line=f"cd {dev}/polymux-wt-dt; sed -n 1,12p README.md; cat SECURITY.md")]
+    calls = []
+
+    def list_items(settings, agent_id, **kw):
+        calls.append(agent_id)
+        return items
+
+    monkeypatch.setattr("pm.chat.items.list_items", list_items)
+    r = c.get("/a/claude-12/md", params={"path": "SECURITY.md"})
+    assert r.status_code == 200 and "<h1>Poly</h1>" in r.text
+    assert calls == ["claude-12"]  # the chat is read once for the mentions and the folders
+    assert "<h1>Code</h1>" in c.get("/a/claude-12/md", params={"path": "docs/dt/CODE.md"}).text  # one project has it
+    assert "<h1>Resume</h1>" in c.get("/a/claude-12/md", params={"path": "RESUME-AGENTS.md"}).text
+    for bad in ("DUP.md", "H.md", ".git/H.md", "pasted-text.md"):
+        assert c.get("/a/claude-12/md", params={"path": bad}).status_code == 404, bad
+    items.clear()
+    assert c.get("/a/claude-12/md", params={"path": "SECURITY.md"}).status_code == 404  # two projects: no guess
+
+
 def test_md_long_file_not_truncated(env, tmp_path):
     s, c = env
     login(s, c)
