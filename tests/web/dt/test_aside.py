@@ -262,6 +262,24 @@ def test_embed_bridge_only_inside_the_aside_frame():
     assert run(code, embed=True, inAside=False) == [[], []]  # other embeds (drawer, Builder, term tab): nothing
 
 
+@needs_node
+def test_switch_agent_from_the_aside_chat_reaches_the_shell_launch_dialog():
+    """The aside iframe has no launch.js: its c:switch is posted to the shell, which opens the Launch dialog."""
+    ev = ("(id) => ({target: {closest: (s) => (s === '[data-agent]' && id !== null ? {getAttribute: () => id} : null)}})")
+    fwd = (f"const ev = {ev}; const cs = listeners.filter((x) => x[0] === 'c:switch');"
+           "cs.forEach((x) => x[1](ev('claude-1c70ee'))); cs.forEach((x) => x[1](ev('bad id/..')));"
+           "cs.forEach((x) => x[1](ev(null))); out.push(cs.length, parentMsgs);")
+    got = run(fwd, embed=True, inAside=True)
+    assert got == [1, [[{"pm7": "switch", "id": "claude-1c70ee"}, "https://pm.test"]]]
+    assert run(fwd, embed=True, inAside=False) == [0, []]
+    shell = ("window.pm7.launch = {open: (o) => log.push(['launch', o])}; A.open('claude-1c70ee', {focus: false});"
+             "const w = abody.frame.contentWindow = {}; const sw = (id, o, s) => msg({pm7: 'switch', id: id}, o, s);"
+             "sw('claude-1c70ee', 'https://pm.test', w); sw('claude-1c70ee', 'https://evil.test', w);"
+             "sw('claude-1c70ee', 'https://pm.test', {}); sw('bad id/..', 'https://pm.test', w);"
+             "sw(5, 'https://pm.test', w); out.push(log.filter((x) => x[0] === 'launch'));")
+    assert run(shell) == [[["launch", {"handoff": "claude-1c70ee"}]]]
+
+
 # ---------------------------------------------------------------- btw, ⌘L on a session tab, .md links (README A9)
 BTW_STUB = ("window.pm7.btw = {panel: (id) => el('div', {'data-btw-agent': id}),"
             " ask: (id, q) => log.push(['ask', id, q]), focus: (id) => log.push(['focus', id]), focused: () => false};")

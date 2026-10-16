@@ -108,7 +108,7 @@ def test_live_chat_column_and_composer(live):
 
 def test_live_menu_items(live):
     items = menu_items(Doc(page(live, f"/a/{AID}")))
-    assert list(items) == ["newchat", "continue", "fork", "review", "usage", "btw", "copy", "exit", "exitkill"]
+    assert list(items) == ["newchat", "continue", "switch", "fork", "review", "usage", "btw", "copy", "exit", "exitkill"]
     assert items["newchat"]["click"] == "form[data-newchat] button[type=submit]"
     assert items["fork"]["post"] == f"/a/{AID}/fork" and items["fork"]["confirm"]
     assert items["review"]["href"] == f"/p/alpha/launch?review={AID}"
@@ -116,7 +116,8 @@ def test_live_menu_items(live):
     kill = items["exitkill"]
     assert kill["post"] == f"/a/{AID}/exitkill" and kill["typed"] == AID and kill["danger"]  # V7-SEC-6
     assert items["copy"]["copy"] == AID
-    assert {items[k]["event"] for k in ("continue", "usage", "btw")} == {"c:continue", "c:usage", "c:btw"}
+    assert {items[k]["event"] for k in ("continue", "switch", "usage", "btw")} == {
+        "c:continue", "c:switch", "c:usage", "c:btw"}
 
 
 @pytest.mark.parametrize(("st", "want"), [("pane", "pane"), ("sub", "sub"), ("term", "chat"), ("nope", "chat")])
@@ -171,7 +172,7 @@ def test_ended_frame(live, monkeypatch):
     assert not doc.find(role="tab", data_p_tab=True) and not doc.find(class_="c-bbtn")
     doc.one("section", class_="composer", data_composer="ended")
     items = menu_items(doc)
-    assert list(items) == ["resume", "fork", "copy"]
+    assert list(items) == ["resume", "switch", "fork", "copy"]
     assert items["resume"]["post"] == f"/a/{AID}/resume"
     s = scripts(src)
     assert "/static/js/chat-send.js" not in s and "/static/js/canvas.js" in s and "/static/js/pane.js" not in s

@@ -33,6 +33,7 @@ from pm.web import deps, plugins, settings_panel, stats, themes
 from pm.web.chatctx import composer_ctx
 from pm.web.deps import AGENT_ID_RE, AUTH, agent_or_404, project_sidebar, side_unread, snapshot
 from pm.web.docpane import project_file_html as _project_file_html
+from pm.web.launchctx import handoff_prompt as _handoff_prompt
 from pm.web.launchctx import launch_data as _launch_data
 from pm.web.launchctx import remembered as _remembered_launch
 from pm.web.launchctx import todo_rows as _launch_todo_rows
@@ -470,6 +471,9 @@ async def launch_page(request: Request, name: str) -> Response:
         _review_launch, snap, project, remembered, request.query_params.get("review", ""))
     if review_text:
         remembered["prompt"] = review_text
+    elif request.query_params.get("handoff"):  # Switch agent: this chat as the hand-off prompt
+        remembered["prompt"] = await executors.run_collectors(
+            _handoff_prompt, st, snap, project, request.query_params["handoff"]) or remembered.get("prompt", "")
     launch_data = await _launch_data(st, project, kinds, remembered, [p.name for p in snap.projects])
     running = [a for a in snap.agents if a.project == project.name]
     todo_rows = await _launch_todo_rows(st, snap, project)

@@ -1,7 +1,9 @@
 /* dt Launch dialog (PRD.md §6.12, LAYOUT.md §5 "Launch", DESIGN.md §6.11, §8 key N): one dialog from anywhere instead
    of the /p/<project>/launch page. Opened by the top-bar Launch button, any [data-l-open] (data-l-project,
-   data-l-todo), key N and the search command "Launch an agent" (the shell's key-table row, pointed here).
-   It loads GET /launch/form?project=&todo= (dt _launch_form.html) into dialog#l-dlg [data-l-body] and loads again
+   data-l-todo), the session ⋯ item "Switch agent…" (event c:switch: open({handoff: <agent id>})), key N and the
+   search command "Launch an agent" (the shell's key-table row, pointed here).
+   It loads GET /launch/form?project=&todo=&handoff= (dt _launch_form.html; handoff = an agent id: that chat as the
+   prompt to edit) into dialog#l-dlg [data-l-body] and loads again
    when the project picker changes. The form's choices come from its data-l-data JSON (launchctx.launch_data):
    models per kind (families with variants and efforts), permission modes (help sentence, bypass), the remembered
    launch of the project (prefilled), worktree hints, prompt templates. The prompt box (attachments, @ files) is
@@ -10,7 +12,7 @@
    new agent as a tab (pm7.tabs.open); Launch in background posts open=0 and toasts the server's line after it said OK.
    A prompt taken from the From TODO tab and left unchanged (no worktree branch, no attachment) posts <base>/dispatch
    with the item's index instead, so the item is marked in progress like the classic Dispatch.
-   Globals: pm7.launch = {open({project, todo}) -> Promise<bool>, close(), isOpen(), prompt: see js/launch-prompt.js}.
+   Globals: pm7.launch = {open({project, todo, handoff}) -> Promise<bool>, close(), isOpen(), prompt}.
    Layers: pm7.dialog (layers.js: Esc, backdrop, focus trap and return); confirms stack on top of it. Keys: the form's
    own keydown (mod+Enter launches; Enter in a one-line field never submits). A prompt left in the box when the
    dialog closes comes back on the next open of the same project (memory only). */
@@ -40,11 +42,12 @@
   function loading(body) {
     body.replaceChildren(el('h2.vh', { id: 'l-dlg-t' }, 'Launch an agent'), el('p.l-wait', null, 'Loading…'));
   }
-  async function load(project, todo) {
+  async function load(project, todo, handoff) {
     const D = dlg(), body = D.querySelector('[data-l-body]'), n = ++seq;
     const q = new URLSearchParams();
     if (project) q.set('project', project);
     if (todo != null && todo !== '') q.set('todo', String(todo));
+    if (handoff) q.set('handoff', String(handoff));
     let r = null;
     try { r = await pm7.fetch('/launch/form?' + q.toString()); } catch (e) { r = null; }
     if (n !== seq || !D.open) return false;
@@ -72,7 +75,7 @@
       loading(D.querySelector('[data-l-body]'));
       pm7.dialog(D, { opener: d.activeElement, onClose: closed });
     }
-    const ok = await load(o.project || curProject(), o.todo);
+    const ok = await load(o.project || curProject(), o.todo, o.handoff);
     if (ok && D.open) {
       const f = pm7.phone() ? D.querySelector('[data-act=close]') : $('[data-l-prompt]');
       if (f) f.focus({ preventScroll: true });
@@ -409,6 +412,13 @@
     if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
     e.preventDefault();
     open({ project: a.getAttribute('data-l-project') || '', todo: a.getAttribute('data-l-todo') });
+  });
+
+  /* ⋯ Switch agent… (session/_frame.html menu, dt.session): the agent of the page it was clicked in */
+  d.addEventListener('c:switch', (e) => {
+    const s = e.target && e.target.closest ? e.target.closest('[data-agent]') : null;
+    const id = s ? s.getAttribute('data-agent') : '';
+    if (id && ID.test(id)) open({ handoff: id });
   });
 
   pm7.launch = Object.assign(pm7.launch || {}, { open: open, close: close, isOpen: isOpen });

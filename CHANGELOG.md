@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (dt: Switch agent… hands a chat over to another coding agent)
+
+A session's ⋯ menu (live and ended) has Switch agent…. It opens the Launch dialog with the chat as the prompt: your messages and the agent's text replies, without tool calls, command output or thinking, at most 8000 characters (the first message and the last reply stay whole). Pick the agent kind, edit the prompt and launch; the old agent is left running.
+
 ## 2026-10-17 (Agent rows show the last ntfy message of any agent)
 
 An agent's ntfy message now shows as the row's last message when the agent tagged it with another project's path (a cursor-agent working in a polymux worktree) and when its title names only the kind (`devin - ...`, no agent id): the project page maps messages over the whole feed, and a kind-only title goes to the one session of that kind active at that time.
