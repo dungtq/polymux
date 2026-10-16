@@ -1,6 +1,7 @@
 """gitglue + git.ctl tracker helpers on a tmp repo: hooks install, stale, render --stage, merge driver."""
 
 import os
+import shutil
 import stat
 import subprocess
 
@@ -242,3 +243,14 @@ def test_foreign_post_commit_refused_before_writing(repo):
     assert not (hooks / "pre-commit").exists() and not (repo / ".gitattributes").exists()
     gitglue.install_hooks(repo, force=True)
     assert (hooks / "post-commit.pmctl-old").read_text() == "#!/bin/sh\necho mine\n"
+
+
+def test_worktree_paths_main_first_skips_gone_trees(repo, tmp_path):
+    a, b = tmp_path / "wt" / "a", tmp_path / "wt" / "b"
+    git(repo, "worktree", "add", "-q", "-b", "a", str(a))
+    git(repo, "worktree", "add", "-q", "-b", "b", str(b))
+    shutil.rmtree(b)  # prunable
+    assert gitglue.worktree_paths(repo) == [repo, a]
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    assert gitglue.worktree_paths(plain) == [plain]

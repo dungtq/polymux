@@ -55,12 +55,14 @@ def git_env(monkeypatch, tmp_path):
 
 @pytest.fixture
 def tk(tmp_path, monkeypatch):
-    """Settings for the tracker: dev root ``tmp/dev`` with an empty project ``proj``, state in ``tmp/state``."""
+    """Settings for the tracker: dev root ``tmp/dev`` with an empty project ``proj``, state in ``tmp/state``,
+    Claude's home ``tmp/claude`` (not created)."""
     dev = tmp_path / "dev"
     (dev / "proj").mkdir(parents=True)
     monkeypatch.setenv("PM_ACTOR", "claude-test01")
     return Settings(dev_root=dev, extra_projects=(), state_dir=tmp_path / "state", tmux_socket="pmtest-unused",
-                    token_file=tmp_path / "cfg/token", totp_file=tmp_path / "cfg/totp")
+                    token_file=tmp_path / "cfg/token", totp_file=tmp_path / "cfg/totp",
+                    claude_dir=tmp_path / "claude")
 
 
 def git(cwd, *args) -> str:
@@ -83,7 +85,8 @@ def repo(tk, git_env):
 @pytest.fixture
 def cfg(tk, tmp_path):
     p = tmp_path / "pm.toml"
-    p.write_text(f'dev_root = "{tk.dev_root}"\nextra_projects = []\nstate_dir = "{tk.state_dir}"\n')
+    p.write_text(f'dev_root = "{tk.dev_root}"\nextra_projects = []\nstate_dir = "{tk.state_dir}"\n'
+                 f'claude_dir = "{tk.claude_dir}"\n')
     return p
 
 

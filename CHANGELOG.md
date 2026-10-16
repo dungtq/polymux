@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-17 (Per-project agent memory: pmctl memory, shared by every agent kind, synced with Claude Code's memory dirs)
+
+- `pmctl memory add|set|show|list|rm|search|context|sync`: one memory per project in pm.db (`tk_memory`), shared by
+  every agent kind and every git work tree of the project; type `user` memories with `--global` apply everywhere.
+  Writes are audited (fail closed) and work while the web service is down.
+- `pmctl memory context` prints a one-line-per-memory index for session start; `pmctl memory sync [--all]` keeps
+  Claude Code's own memory dirs (main tree and each work tree) in step both ways: files Claude wrote are imported
+  by hash (pm.db wins a conflict, the file version is kept as a `-conflict-<time>` copy), then every memory is
+  rendered back with its `MEMORY.md` index. A summary goes to `state_dir/memory/<project>.md`. Nothing is ever
+  written inside a repo; symlinks are refused; files are 0600.
+- New pm.toml key `claude_dir` (default `~/.claude`). `encode_cwd` moved to `pm.core.fsutil`; `timefmt.iso` is the
+  shared ISO helper.
+
 ## 2026-10-17 (Builder md links open; clearer not-found message)
 
 - dt Builder: .md links in the chat open in the markdown reader (they did nothing: Builder has no docked reader).
@@ -8,6 +21,17 @@
 ## 2026-10-16 (Markdown reader finds files from the folders an agent worked in)
 
 - The markdown reader also finds relative .md links an agent wrote while working in another folder or project: folders it cd'd into, the project a (deleted) worktree belongs to, a unique match in another project, or a unique file of that name inside its project. Hidden folders stay refused (#249).
+
+## 2026-10-16 (Leak check for commits and pushes)
+
+- `tools/leakcheck.sh`: checks the lines a commit or push adds against a private pattern file (`$PM_PRIVATE_PATTERNS`
+  or `~/.config/pm/private-patterns.txt`, one regex per line, `path:` and `src:` kinds). `--install` adds a
+  pre-commit step and a pre-push hook; hits show `file:line` and the pattern number with the match masked. Without a
+  pattern file it warns and passes, so contributors are not blocked.
+- `tools/check.sh` (and CI) scan the tracked tree with a small public set `tools/leak-public.txt`: private-key
+  headers, `.env` / `*.db` / token files, `/home/<user>/` paths and 10.x addresses outside tests.
+- `pmctl hooks install`: the pre-commit hook now also runs every executable in `.git/hooks/pre-commit.d/` after the
+  tracker render, so other checks can chain onto it.
 
 ## 2026-10-16 (dt: row links, ended sessions in the aside, search popups and project quick look, backlog bulk add and quick edit, md reader)
 

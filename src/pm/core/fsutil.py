@@ -128,6 +128,12 @@ class JsonStore:
             return obj
 
 
+def encode_cwd(cwd: str) -> str:
+    """Claude Code's project-dir encoding (``~/.claude/projects/<this>``): every char outside [A-Za-z0-9-]
+    becomes '-'."""
+    return re.sub(r"[^A-Za-z0-9-]", "-", cwd)
+
+
 def safe_join(root, rel, *, allow_symlink_leaf: bool = False) -> Path:
     """``Path(root) / rel`` (unresolved) after checking it stays inside ``root``.
 

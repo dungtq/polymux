@@ -21,7 +21,6 @@ import sqlite3
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
 from fnmatch import fnmatchcase
 
 from pm.core import timefmt
@@ -70,15 +69,8 @@ class Claim:
         return {"num": self.num, "project": self.project, "agent": self.agent, "pane": self.pane,
                 "title": self.title, "branch": self.branch, "worktree": self.worktree, "paths": list(self.paths),
                 "issue": self.issue, "status": self.status, "stale": self.stale,
-                "created_at": _iso(self.created_at), "updated_at": _iso(self.updated_at),
-                "closed_at": _iso(self.closed_at), "commit": self.commit, "note": self.note}
-
-
-def _iso(epoch: float) -> str | None:
-    """ISO 8601 in the display offset (``timefmt``); None for 0 (not set)."""
-    if not epoch:
-        return None
-    return datetime.fromtimestamp(epoch, timefmt.tz()).isoformat(timespec="seconds")
+                "created_at": timefmt.iso(self.created_at), "updated_at": timefmt.iso(self.updated_at),
+                "closed_at": timefmt.iso(self.closed_at), "commit": self.commit, "note": self.note}
 
 
 def from_row(r: sqlite3.Row, live: frozenset[str] | None = None) -> Claim:

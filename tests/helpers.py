@@ -12,6 +12,7 @@ import base64
 import dataclasses
 import re
 import time
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -54,6 +55,8 @@ SITE = dict(
     builder_frame_hosts=("https://mock.example.test",), ntfy_url="https://ntfy.example.test/pm",
     ntfy_topic_url="https://ntfy.example.test/agent", ntfy_pm_topic_url="https://ntfy.example.test/pm",
     display_utc_offset_h=7.0, vm_protected=("*eve*",),
+    # never the real ~/.claude: a dir that does not exist, so `memsync` finds no Claude home and writes nothing
+    claude_dir=Path("/nonexistent/pm-tests/.claude"),
 )
 _INIT_FIELDS = [f.name for f in dataclasses.fields(Settings) if f.init]
 NEUTRAL_DEFAULTS = {k: Settings.__init__.__defaults__[_INIT_FIELDS.index(k)] for k in SITE}
@@ -69,9 +72,10 @@ def apply_site_defaults() -> None:
 # ------------------------------------------------------------------ settings / app / login
 def make_settings(fake_tmux, tmp_path, *, state="state", **overrides):
     """``fake_tmux`` settings rooted in ``tmp_path``: dev_root ``dev/``, no extra projects,
-    state in ``tmp_path/<state>``, token/totp under ``cfg/``. ``overrides`` win."""
+    state in ``tmp_path/<state>``, token/totp under ``cfg/``, Claude's home ``claude/`` (not created). ``overrides``
+    win."""
     fields = dict(dev_root=tmp_path / "dev", extra_projects=(), state_dir=tmp_path / state,
-                  token_file=tmp_path / "cfg/token", totp_file=tmp_path / "cfg/totp")
+                  token_file=tmp_path / "cfg/token", totp_file=tmp_path / "cfg/totp", claude_dir=tmp_path / "claude")
     fields.update(overrides)
     return dataclasses.replace(fake_tmux, **fields)
 

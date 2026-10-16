@@ -86,6 +86,16 @@ def test_missing_file_gives_defaults(tmp_path):
     assert config.DEFAULT_CONFIG.name == "pm.toml"
 
 
+def test_claude_dir_default_and_memory_dir(tmp_path):
+    from helpers import NEUTRAL_DEFAULTS, SITE
+
+    assert NEUTRAL_DEFAULTS["claude_dir"] == Path.home() / ".claude"
+    assert Settings().claude_dir == SITE["claude_dir"] and not SITE["claude_dir"].exists()  # tests: never ~/.claude
+    s = _load(tmp_path, 'claude_dir = "~/elsewhere/.claude"\nstate_dir = "/srv/pm-state"\n')
+    assert s.claude_dir == Path.home() / "elsewhere/.claude"
+    assert s.memory_dir == Path("/srv/pm-state/memory")
+
+
 def test_ntfy_defaults_match_notify_constants():
     """config cannot import notify (cycle); the typed defaults must stay equal to notify's constants."""
     from helpers import NEUTRAL_DEFAULTS
@@ -116,7 +126,8 @@ def test_neutral_defaults_and_origin_from_base_url(tmp_path):
     assert NEUTRAL_DEFAULTS == {
         "base_url": "http://127.0.0.1:8093", "allowed_origins": (),  # () = (base_url,)
         "git_allowed_hosts": (), "builder_frame_hosts": (), "ntfy_url": "", "ntfy_topic_url": "",
-        "ntfy_pm_topic_url": "", "display_utc_offset_h": 0.0, "vm_protected": ()}
+        "ntfy_pm_topic_url": "", "display_utc_offset_h": 0.0, "vm_protected": (),
+        "claude_dir": Path.home() / ".claude"}
     s = _load(tmp_path, 'base_url = "https://pm.example.lan/"\n')
     assert s.allowed_origins == ("https://pm.example.lan",)
     s = _load(tmp_path, 'base_url = "https://a.lan"\nallowed_origins = ["https://b.lan"]\n')

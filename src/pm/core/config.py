@@ -30,6 +30,8 @@ class Settings:
     # pm.toml `git_allowed_hosts = ["git.example.lan", ...]`; also the hosts commit hashes link to. user_ssh_dir: ~/.ssh, listed read-only (*.pub only).
     git_allowed_hosts: tuple[str, ...] = ()
     user_ssh_dir: Path = Path.home() / ".ssh"
+    # Claude Code's home (``projects/<encoded cwd>/memory`` = its per-directory memory, synced by `pmctl memory sync`)
+    claude_dir: Path = Path.home() / ".claude"
     tmux_bin: str = "tmux"
     tmux_socket: str | None = None  # -L name; tests set a private one
     tier_ceiling: Tier = Tier.MESSAGE
@@ -175,6 +177,11 @@ class Settings:
         """Tracker issue images (``<sha>.<ext>``, hard links or copies of uploads)."""
         return self.state_dir / "tracker"
 
+    @property
+    def memory_dir(self) -> Path:
+        """Agent memory renders for agents without a memory dir of their own (``<project>.md``)."""
+        return self.state_dir / "memory"
+
 
 EXTRAS_FIELDS = (
     "agent_bins", "agent_models", "allow_bypass", "worktree_root", "snippets", "alerts_host", "disable_poll",
@@ -184,7 +191,8 @@ EXTRAS_FIELDS = (
 
 
 def _convert(key: str, val):
-    if key in {"dev_root", "state_dir", "token_file", "dev_token_file", "totp_file", "user_ssh_dir"}:
+    if key in {"dev_root", "state_dir", "token_file", "dev_token_file", "totp_file", "user_ssh_dir",
+               "claude_dir"}:
         return Path(val).expanduser()
     if key == "extra_projects":
         return tuple(Path(v).expanduser() for v in val)

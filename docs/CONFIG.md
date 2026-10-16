@@ -56,6 +56,7 @@ pm's git actions use the remote named `gitdev`.
 | `token_file` | `"~/.config/pm/token"` | Login token (0600, created on first start) |
 | `dev_token_file` | unset (= `dev-token` next to `token_file`) | Second full-access login token for scripts and agents (created on first start) |
 | `totp_file` | `"~/.config/pm/totp"` | TOTP secret, written when you set up TOTP |
+| `claude_dir` | `"~/.claude"` | Claude Code's home; `pmctl memory sync` reads and writes its per-directory memory (`projects/<encoded cwd>/memory`) for every work tree of a project. Agent memory renders for other agents go to `state_dir/memory/<project>.md` |
 | `db_backup_keep` | `14` | Daily `pm.db` copies kept in `state_dir/backups/`; `0` = off |
 
 ## tmux
