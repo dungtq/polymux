@@ -87,7 +87,7 @@ def test_draft_kept_per_root():
 
 def test_history_keys_wired():
     js = COMPOSER.read_text()
-    assert "HIST_SRC = '#ci .ci-user .chat-copy[data-raw]'" in js
+    assert "HIST_SRC = '#ci .ci-user:not(.ci-peer) .chat-copy[data-raw]'" in js
     assert "if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;" in js
     assert "new Event('input', { bubbles: true })" in js
     # bubble phase only: slash.js / atfiles.js own the arrows (capture) while their popup is open

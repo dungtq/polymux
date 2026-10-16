@@ -7,6 +7,7 @@ Only files that exist in ``state_dir/uploads`` under the names ``/a/{id}/image``
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from pm.core.markdown_render import MAX_CHARS, render_markdown
@@ -19,6 +20,44 @@ _WRAP = re.compile(r"</?pasted_content\b[^>\n]*>", re.IGNORECASE)
 def strip_wrappers(text: str) -> str:
     """Drop ``<pasted_content ..>`` / ``</pasted_content ..>`` tags; the text between stays."""
     return _WRAP.sub("", text or "").strip("\n")
+
+
+# A message another agent sent with `tmux-agents` (request / reply / no-reply notice), as that tool pastes it.
+_PEER_REQ = re.compile(r"\A\[tmux-agents request id=(\S+) from ([^\]\n]+)\]\n(.*?)\n*---\nWhen you have finished,.*\Z", re.S)
+_PEER_REPLY = re.compile(r"\A\[tmux-agents reply id=(\S+) from (.+?) status=(\w+)\][ \n](.*)\Z", re.S)
+_PEER_NOTICE = re.compile(r"\A(.*?)\n*\[tmux-agents id=(\S+) from ([^\]\n]+?), no reply expected\]", re.S)
+_PEER_ID = re.compile(r"\b(?:pm id=)?((?:claude|codex|devin|cursor-agent|antigravity)-[0-9a-f]{6})\b")
+_PEER_NAME = re.compile(r"name=([^,)]+)")
+PEER_KINDS = ("claude", "codex", "devin", "cursor-agent", "antigravity")
+
+
+@dataclass(frozen=True)
+class PeerMessage:
+    role: str  # request | reply | notice
+    sender: str  # the sender's pm agent id when known, else its name / pane
+    kind: str  # agent kind of the sender (colour), "other" when unknown
+    body: str
+    status: str = ""  # reply: done | failed | blocked ...
+
+
+def parse_peer(text: str) -> PeerMessage | None:
+    """The ``tmux-agents`` message in ``text`` (the whole message), else None."""
+    t = strip_wrappers(text or "").strip()
+    if not t.startswith("[tmux-agents ") and "[tmux-agents id=" not in t[-300:]:
+        return None
+    if m := _PEER_REQ.match(t):
+        role, who, body, status = "request", m.group(2), m.group(3), ""
+    elif m := _PEER_REPLY.match(t):
+        role, who, body, status = "reply", m.group(2), m.group(4), m.group(3)
+    elif m := _PEER_NOTICE.match(t):
+        role, who, body, status = "notice", m.group(3), m.group(1), ""
+    else:
+        return None
+    body = re.sub(r"\n*\[\d+ older message\(s\) for you[^\]]*\]\s*\Z", "", body).strip()
+    pid, name = _PEER_ID.search(who), _PEER_NAME.search(who)
+    sender = pid.group(1) if pid else (name.group(1).strip() if name else who.strip())
+    kind = next((k for k in PEER_KINDS if pid and pid.group(1).startswith(k + "-")), "other")
+    return PeerMessage(role, sender, kind, body, status)
 
 
 def clip_text(text: str, limit: int) -> str:

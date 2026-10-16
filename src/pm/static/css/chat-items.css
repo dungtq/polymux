@@ -23,6 +23,16 @@ body:has(#chat .chat-working) .ci-items :is(.chat-meta .cv-open, .ci-foot) { dis
 /* Compact mode: replies folded into Working notes show no header actions, so no Continue either */
 .ci[data-cv="compact"] .ci-cn-li > .ci-text > .ci-foot { display: none; }
 .ci-items .chat-bubble.role-user .md p + p, .ci-pending .chat-bubble.role-user .md p + p { margin-top: .5em; }
+/* Message from another agent (tmux-agents): left, in that agent's colour (--k from data-kind) */
+.ci-items .chat-bubble.ci-peer { width: fit-content; min-width: min(260px, 85%); max-width: min(85%, 640px); margin-right: auto;
+  background: color-mix(in srgb, var(--k, var(--k-other)) 9%, var(--bg)); border: 1px solid color-mix(in srgb, var(--k, var(--k-other)) 35%, var(--line));
+  border-left: 4px solid var(--k, var(--k-other)); border-radius: 6px 12px 12px 6px; }
+.ci-items .chat-bubble.ci-peer .chat-meta { justify-content: flex-start; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.ci-items .chat-bubble.ci-peer .chat-meta .stamp { display: none; }  /* the age carries the full time as its title */
+.ci-items .chat-bubble.ci-peer .chat-meta .chat-copy { margin-left: auto; }
+.ci-items .chat-bubble.ci-peer .chat-meta strong { color: var(--k, var(--k-other)); text-transform: none; }
+.ci-peer-id { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; }
+.ci-peer-role { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .ci-items .chat-bubble .md > :last-child, .ci-pending .chat-bubble .md > :last-child { margin-bottom: 0; }
 
 /* ---- tool group under a reply: count header (folded by default), then one row per call ---- */
