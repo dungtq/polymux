@@ -181,7 +181,8 @@ def test_launch_redirects_keeps_valid_pairs(tmp_path, warns):
 def test_account_env_and_names(tmp_path):
     import pytest
 
-    from pm.core.config import Settings, account_dir, account_env
+    from pm.core.accounts import account_dir, account_env
+    from pm.core.config import Settings
     from pm.core.errors import Invalid
 
     s = Settings(state_dir=tmp_path, accounts={"claude": ("work",), "codex": ("a1",)})

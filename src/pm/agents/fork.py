@@ -32,7 +32,8 @@ from pathlib import Path
 from pm.agents import launch as launch_mod
 from pm.agents import lineage, registry
 from pm.chat.sources.claude import live_session_id
-from pm.core.config import Settings, account_env
+from pm.core.accounts import account_env
+from pm.core.config import Settings
 from pm.core.models import Agent, AgentKind, Project
 from pm.tmux import ctl as tmuxctl
 

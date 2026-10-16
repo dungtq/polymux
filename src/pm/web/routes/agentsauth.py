@@ -28,7 +28,8 @@ from fastapi.responses import JSONResponse, Response
 from pm.agents.inventory import auth as agentsauth
 from pm.agents.inventory import read as agentsinv
 from pm.core import executors
-from pm.core.config import ACCOUNT_KINDS, account_env
+from pm.core.accounts import account_env
+from pm.core.config import ACCOUNT_KINDS
 from pm.core.errors import PmError
 from pm.core.models import AgentInfo, Tier
 from pm.security.guard import mutation_guard

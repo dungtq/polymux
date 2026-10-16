@@ -7,7 +7,6 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pm.core.errors import Invalid
 from pm.core.models import Tier
 
 DEFAULT_CONFIG = Path.home() / ".config/pm/pm.toml"
@@ -35,8 +34,8 @@ class Settings:
     user_ssh_dir: Path = Path.home() / ".ssh"
     # Claude Code's home (``projects/<encoded cwd>/memory`` = its per-directory memory, synced by `pmctl memory sync`)
     claude_dir: Path = Path.home() / ".claude"
-    # named login accounts per agent kind (pm.toml ``[accounts]  claude = ["work"]``); the default account is
-    # the CLI's own folder, every named one gets state_dir/accounts/<kind>/<name> (see account_dir / account_env)
+    # named login accounts per agent kind from pm.toml (``[accounts]  claude = ["work"]``, read-only; the UI adds more in
+    # state_dir/accounts.json, see pm.core.accounts); every named account gets state_dir/accounts/<kind>/<name>
     accounts: dict[str, tuple[str, ...]] = field(default_factory=dict)
     tmux_bin: str = "tmux"
     tmux_socket: str | None = None  # -L name; tests set a private one
@@ -242,21 +241,6 @@ def _account_names(val) -> dict[str, tuple[str, ...]]:
             log.warning("config: [accounts] %s: names must match %s, some ignored", kind, ACCOUNT_NAME_RE.pattern)
         out[kind] = tuple(dict.fromkeys(good))
     return out
-
-
-def account_dir(settings: Settings, kind: str, name: str) -> Path | None:
-    """Login folder of a named account, ``None`` for the default account (``""``). Invalid: unknown kind or name."""
-    if not name:
-        return None
-    if kind not in ACCOUNT_KINDS or name not in settings.accounts.get(kind, ()):
-        raise Invalid(f"unknown {kind} account {name!r}")
-    return Path(settings.state_dir) / "accounts" / kind / name
-
-
-def account_env(settings: Settings, kind: str, name: str) -> dict[str, str]:
-    """Env that points a CLI at an account's login folder; ``{}`` for the default account."""
-    d = account_dir(settings, kind, name)
-    return {} if d is None else {ACCOUNT_KINDS[kind]: str(d)}
 
 
 def _plugin_tables(val) -> dict:

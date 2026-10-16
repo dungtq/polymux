@@ -11,7 +11,7 @@ new top-level module.
 
 | Package | Owns | Modules (moved 2026-10-12) |
 |---|---|---|
-| `pm.core` | config, models, executors, subprocess (`run_argv`), file IO (`atomic_write`, `JsonStore`, `safe_join`, flock/leases), caches (`LRU`, `SWR`), time formatting, logging setup, /proc sampling (`procstat`), chat upload names and storage (`uploads`), the pm.db SQLite helper (`db`: `connect`, used by the chat stores and the tracker), Markdown rendering, code highlight, prefs | `errors`, `proc`, `fsutil`, `config`, `models`, `executors`, `filelock`, `cache`, `timefmt`, `markdown_render`, `codehl`, `prefs`, `db` (moved from `pm.chat.db` 2026-10-13) |
+| `pm.core` | config, models, executors, subprocess (`run_argv`), file IO (`atomic_write`, `JsonStore`, `safe_join`, flock/leases), caches (`LRU`, `SWR`), time formatting, logging setup, /proc sampling (`procstat`), chat upload names and storage (`uploads`), the pm.db SQLite helper (`db`: `connect`, used by the chat stores and the tracker), Markdown rendering, code highlight, prefs | `errors`, `proc`, `fsutil`, `config`, `models`, `executors`, `filelock`, `cache`, `timefmt`, `markdown_render`, `codehl`, `prefs`, `accounts` (named Claude/Codex login accounts and their config folders), `db` (moved from `pm.chat.db` 2026-10-13) |
 | `pm.security` | auth, sessions, passkey, CSRF + Origin, `mutation_guard`, audit, masking | already a package |
 | `pm.tmux` | tmux control, kill, PTY terminal | `ctl`, `kill`, `term` |
 | `pm.git` | git calls, remotes | `ctl` |

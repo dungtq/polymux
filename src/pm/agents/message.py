@@ -15,7 +15,8 @@ from pathlib import Path
 
 from pm.agents import registry
 from pm.chat import ask as ask_mod
-from pm.core.config import Settings, account_env
+from pm.core.accounts import account_env
+from pm.core.config import Settings
 from pm.core.models import Agent, AgentKind, TmuxPane
 from pm.core.procstat import PROC, read_proc_stat
 from pm.security.mask import render_pane

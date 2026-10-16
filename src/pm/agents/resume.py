@@ -14,7 +14,8 @@ from pathlib import Path
 from pm.agents import launch as launch_mod
 from pm.agents import message as msg
 from pm.agents import registry
-from pm.core.config import Settings, account_env
+from pm.core.accounts import account_env
+from pm.core.config import Settings
 from pm.core.errors import Invalid
 from pm.core.models import AgentKind, Project
 from pm.tmux import ctl as tmuxctl

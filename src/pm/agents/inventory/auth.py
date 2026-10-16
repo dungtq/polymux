@@ -16,8 +16,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from pm.core.accounts import account_env
 from pm.core.cache import LRU
-from pm.core.config import account_env
 from pm.core.errors import Conflict, Invalid
 from pm.core.models import TmuxWindow
 from pm.core.proc import ProcError, ProcNotFound, ProcTimeout, run_argv

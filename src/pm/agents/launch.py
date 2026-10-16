@@ -16,7 +16,8 @@ from pathlib import Path
 
 from pm.agents import registry
 from pm.core import db, prefs
-from pm.core.config import ACCOUNT_KINDS, Settings, account_env
+from pm.core.accounts import account_env
+from pm.core.config import ACCOUNT_KINDS, Settings
 from pm.core.models import AgentKind, Launch, Project
 from pm.git import ctl as gitctl
 from pm.projects import projects
