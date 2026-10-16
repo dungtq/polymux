@@ -14,7 +14,8 @@
    [data-rl-need=restart] (+ data-rl-msg, data-rl-head), live from the pm:pm_code event (js/live.js). With
    [data-rl-ok] (the core would restart) the bar's Restart pm asks pm7.confirm, then POSTs /service/reload (CSRF in
    body and header) and, on OK, starts the restart wait above; without it the bar shows the systemctl command
-   (data-rl-unit). Never restarts without that click. No header.x-top (embed): no "new code" state.
+   (data-rl-unit) in a .mono span after the text. Never restarts without that click. No header.x-top (embed): no
+   "new code" state.
    Globals: pm7.reload = {wait() (start the restart wait), down() (start the 5xx wait), state() -> '' | mode}. */
 (function () {
   'use strict';
@@ -50,11 +51,16 @@
     main.prepend(b);
     return b;
   }
-  function show(text, label, act) {
+  function show(text, label, act, cmd) {  // cmd: a shell command, shown after the text in a .mono span
     const b = bar();
     if (!b) return;
     const t = b.querySelector('.x-lock-t'), btn = b.querySelector('.x-btn');
-    t.textContent = text;
+    t.textContent = text;  // also drops the last state's command span
+    if (cmd) {
+      const c = pm7.el('span', 'mono');
+      c.textContent = cmd;
+      t.appendChild(c);
+    }
     btn.hidden = !label;
     btn.textContent = label || '';
     btn.setAttribute('data-act', act || 'reload');
@@ -118,8 +124,9 @@
   function code(j) {
     if (!top || mode || !j || j.need !== 'restart') return;
     const text = String(j.msg || 'New code: restart pm to load it.') + (j.head ? ' Latest commit: ' + j.head : '');
-    if (top.hasAttribute('data-rl-ok')) show(text, 'Restart pm', 'restart');
-    else show(text + ' Run: systemctl --user restart ' + (top.getAttribute('data-rl-unit') || 'pm.service'), '');
+    if (top.hasAttribute('data-rl-ok')) { show(text, 'Restart pm', 'restart'); return; }
+    show(text + (j.head ? ' · Run: ' : ' Run: '), '', '',
+      'systemctl --user restart ' + (top.getAttribute('data-rl-unit') || 'pm.service'));
   }
   async function restart() {
     if (mode || !pm7.confirm) return;

@@ -24,7 +24,7 @@
   <span class="sp"></span>
   <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
 </div>{% if v.hint %}
-<div class="l-bd" data-l-hint><p class="l-help">Work on <b>{{ v.hint }}</b> code? <button type="button" class="x-btn sm" data-l-switch="{{ v.hint }}" title="Open the launch form for {{ v.hint }}">Launch in {{ v.hint }}</button></p></div>{% endif %}
+<div class="l-bd" data-l-hint><p class="l-help"><span>Work on <b>{{ v.hint }}</b> code?</span> <button type="button" class="x-btn sm" data-l-switch="{{ v.hint }}" title="Open the launch form for {{ v.hint }}"><span class="ell">Launch in {{ v.hint }}</span></button></p></div>{% endif %}
 {{ pt.tabs([{"key": "l-new", "label": "New agent", "controls": "l-pnew", "cur": true},
             {"key": "l-todo", "label": "From TODO", "controls": "l-ptodo", "count": v.todo_free}], "Launch", cls="l-tabs") }}
 {%- call pt.panel("l-pnew", "l-new", cur=true) %}

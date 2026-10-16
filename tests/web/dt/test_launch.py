@@ -96,12 +96,13 @@ def test_form_posts_to_the_project_and_carries_its_data():
 def test_redirect_hint_line_only_when_set():
     assert "data-l-hint" not in render_form() and "data-l-switch" not in render_form()
     h = render_form(launch_data={**DATA, "hint": "beta"})
-    assert re.search(r'</div>\n<div class="l-bd" data-l-hint><p class="l-help">Work on <b>beta</b> code\? '
-                     r'<button type="button" class="x-btn sm" data-l-switch="beta" title="[^"]+">Launch in beta</button>'
-                     r'</p></div>\n', h)
+    assert re.search(r'</div>\n<div class="l-bd" data-l-hint><p class="l-help">'
+                     r'<span>Work on <b>beta</b> code\?</span> '
+                     r'<button type="button" class="x-btn sm" data-l-switch="beta" title="[^"]*beta">'
+                     r'<span class="ell">Launch in beta</span></button></p></div>\n', h)  # label ellipsizes, title whole
     assert h.index("data-l-hint") < h.index('id="p-tab-l-new"')  # under the title row, above the tabs
     h = render_form(projects=["alpha", "<b>"], launch_data={**DATA, "hint": "<b>"})
-    assert 'data-l-switch="&lt;b&gt;"' in h and "Launch in &lt;b&gt;" in h  # autoescaped
+    assert 'data-l-switch="&lt;b&gt;"' in h and '<span class="ell">Launch in &lt;b&gt;</span>' in h  # autoescaped
 
 
 def test_launch_js_switch_sets_the_picker_and_loads():

@@ -41,9 +41,11 @@ globalThis.setTimeout = (fn, ms) => { timers.push({ fn: fn, at: now + (ms || 0) 
 globalThis.clearTimeout = (id) => { if (id && timers[id - 1]) timers[id - 1].fn = null; };
 Date.now = () => now;
 globalThis.AbortController = class { constructor() { this.signal = {}; } abort() {} };
-class N {
+class N {  // textContent as in the DOM: setting it drops the children, reading it joins theirs
   constructor(tag, cls) { this.tag = tag; this.className = cls || ''; this.kids = []; this.attrs = {};
-    this.hidden = false; this.textContent = ''; this.ls = {}; }
+    this.hidden = false; this.text = ''; this.ls = {}; }
+  get textContent() { return this.text + this.kids.map((k) => k.textContent).join(''); }
+  set textContent(v) { this.text = String(v); this.kids = []; }
   setAttribute(k, v) { this.attrs[k] = String(v); } getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   append(...k) { this.kids.push(...k); } appendChild(k) { this.kids.push(k); } prepend(k) { this.kids.unshift(k); }
   addEventListener(t, f) { this.ls[t] = f; } scrollIntoView() {}
@@ -138,8 +140,12 @@ const hz = () => calls.filter((c) => c === '/healthz').length;
     await bar().kids[1].ls.click(); await flush();
     out.failed = [toasts.slice(), pm7.reload.state(), btn()];
   } else if (scen === 'nocode') {
-    docLs['pm:pm_code']({ detail: { need: 'restart', msg: 'New code: restart pm to load it.' } });
+    docLs['pm:pm_code']({ detail: { need: 'restart', msg: 'New code: restart pm to load it.', head: 'fix x' } });
     out.text = [text(), btn()];
+    const t = bar() && bar().kids[0];
+    out.cmd = t ? t.kids.map((k) => [k.tag, k.className, k.textContent]) : [];
+    pm7.reload.wait();  // the next state's text drops the command span
+    out.next = t ? [t.kids.length, text()] : [];
   } else if (scen === 'htmx') {
     docLs['htmx:afterRequest']({ detail: { successful: false, requestConfig: { path: '/service/reload' },
       xhr: { status: 403 } } });
@@ -214,7 +220,10 @@ def test_new_code_bar_refused_restart_toasts_and_waits_for_nothing():
 @node
 def test_new_code_bar_without_reload_shows_the_command():
     o = _reload("nocode", {"data-rl-unit": "pm-dev.service"})
-    assert o["text"] == ["New code: restart pm to load it. Run: systemctl --user restart pm-dev.service", ""]
+    assert o["text"] == ["New code: restart pm to load it. Latest commit: fix x · Run: "
+                         "systemctl --user restart pm-dev.service", ""]
+    assert o["cmd"] == [["span", "mono", "systemctl --user restart pm-dev.service"]]  # the command in a .mono child
+    assert o["next"] == [0, "pm is restarting… this page reloads when it is back."]
     assert _reload("nocode")["text"] == ["", ""]  # embed (no header.x-top): no "new code" state
 
 
