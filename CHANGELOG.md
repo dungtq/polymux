@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-17 (Per-project agent memory: pmctl memory, shared by every agent kind, synced with Claude Code's memory dirs)
+
+- `pmctl memory add|set|show|list|rm|search|context|sync`: one memory per project in pm.db (`tk_memory`), shared by
+  every agent kind and every git work tree of the project; type `user` memories with `--global` apply everywhere.
+  Writes are audited (fail closed) and work while the web service is down.
+- `pmctl memory context` prints a one-line-per-memory index for session start; `pmctl memory sync [--all]` keeps
+  Claude Code's own memory dirs (main tree and each work tree) in step both ways: files Claude wrote are imported
+  by hash (pm.db wins a conflict, the file version is kept as a `-conflict-<time>` copy), then every memory is
+  rendered back with its `MEMORY.md` index. A summary goes to `state_dir/memory/<project>.md`. Nothing is ever
+  written inside a repo; symlinks are refused; files are 0600.
+- New pm.toml key `claude_dir` (default `~/.claude`). `encode_cwd` moved to `pm.core.fsutil`; `timefmt.iso` is the
+  shared ISO helper.
+
 ## 2026-10-17 (Builder md links open; clearer not-found message)
 
 - dt Builder: .md links in the chat open in the markdown reader (they did nothing: Builder has no docked reader).
