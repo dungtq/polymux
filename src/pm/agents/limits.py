@@ -1,9 +1,15 @@
-"""Plan usage limits (5-hour, weekly, per-model weekly) for the agent page (Claude and Antigravity).
+"""Plan usage limits (5-hour, daily, weekly, per-model weekly) for the agent page (Claude, Antigravity, Devin).
 
 Claude source: the ``rate_limits`` object Claude Code hands to ``tools/pm-statusline.sh`` (stdin JSON),
 written to ``<state_dir>/claude-limits.json``.
 Antigravity source: ``agy -p /usage --output-format json``, cached in ``<state_dir>/antigravity-limits.json``
 and refreshed via ``SWR`` at most once per ``AGY_FRESH_S``.
+Devin source: the CLI keeps quotas server-side and prints them only for the interactive ``/usage`` command.
+While the agent is idle with an empty composer, pm sends ``/usage`` to the pane, waits past the
+"Fetching account usage" placeholder, parses the Daily/Weekly lines and caches them in
+``<state_dir>/devin-limits.json`` (refreshed via ``SWR`` at most once per ``DEVIN_FRESH_S``; a failed
+attempt stamps the file too, so failures do not retrigger every poll). Captured pane text is
+ANSI-stripped and masked, used in memory only — never logged, indexed or sent anywhere.
 """
 
 from __future__ import annotations
@@ -18,16 +24,30 @@ from pathlib import Path
 from pm.core import timefmt
 from pm.core.cache import SWR
 from pm.core.fsutil import atomic_write
-from pm.core.models import AgentKind
+from pm.core.models import AgentKind, AgentState
 from pm.core.proc import ProcError, run_argv
 
 FILE = "claude-limits.json"
 AGY_FILE = "antigravity-limits.json"
 AGY_FRESH_S = 180
 AGY_TIMEOUT_S = 5.0
+DEVIN_FILE = "devin-limits.json"
+DEVIN_FRESH_S = 1800  # each refresh types /usage into the agent's pane: keep it rare
+DEVIN_POLL_S = 0.5
+DEVIN_WAIT_S = 9.0  # Devin prints a "Fetching account usage" placeholder first, then the real quotas
+DEVIN_SCAN_LINES = 120
 STALE_S = 6 * 3600  # older than this and the numbers are not trusted
 _MODEL_KEY = re.compile(r"^seven_day_([a-z0-9_]{1,24})$")
 _AGY_SWR = SWR(max_entries=4)
+_DEVIN_SWR = SWR(max_entries=4)
+# Devin TUI contract: the composer shows the "Message to …" placeholder only when it is empty and the
+# agent is at the prompt; a running turn shows "Guide Devin while it works". Anything else: do not type.
+_DEVIN_IDLE = "message to "
+_DEVIN_BUSY = "guide devin while it works"
+_DEVIN_FETCHING = re.compile(r"(?i)fetching account usage")
+_DEVIN_LINE = re.compile(r"(?i)^\s*(daily|weekly)\b.*?(\d{1,3})\s*%\s*used\b.*\bresets\b")
+_DEVIN_REL = re.compile(r"(?i)\bresets in\s+((?:\d+\s*[dhm]\s*)+)")
+_DEVIN_ABS = re.compile(r"(?i)\bresets\s+([a-z]{3}\s+\d{1,2},\s+\d{1,2}:\d{2}\s*[ap]m)(?:\s*\(utc([+-]\d{1,2})\))?")
 
 
 @dataclass(frozen=True)
@@ -199,11 +219,140 @@ def read_agy_limits(state_dir: Path, model: str = "", now: float | None = None, 
     return out
 
 
+def _devin_reset_epoch(text: str, now: float) -> float:
+    """``resets in 12h 57m`` or ``resets Oct 18, 3:00 PM (UTC+7)`` -> epoch; 0 when unparsed."""
+    m = _DEVIN_REL.search(text)
+    if m:
+        d = sum(int(n) * {"d": 86400, "h": 3600, "m": 60}[u]
+                for n, u in re.findall(r"(\d+)\s*([dhm])", m.group(1)))
+        return now + d if d else 0.0
+    m = _DEVIN_ABS.search(text)
+    if m:
+        tz = timefmt.now().tzinfo
+        if m.group(2):  # Devin prints the zone it used, e.g. "(UTC+7)"
+            from datetime import timedelta, timezone
+            tz = timezone(timedelta(hours=int(m.group(2))))
+        try:  # the TUI omits the year: "Oct 18, 3:00 PM" -> this year's occurrence
+            md, hm_ap = m.group(1).split(",", 1)
+            mon_s, day_s = md.split()
+            mo = "jan feb mar apr may jun jul aug sep oct nov dec".split().index(mon_s.lower()[:3]) + 1
+            hm, ap = hm_ap.strip().rsplit(None, 1)
+            hh, mm = (int(x) for x in hm.split(":"))
+            dt = datetime(_local(now).year, mo, int(day_s),
+                          (hh % 12) + (12 if ap.lower() == "pm" else 0), mm, tzinfo=tz)
+        except (ValueError, IndexError):
+            return 0.0
+        ts = dt.timestamp()
+        return dt.replace(year=dt.year + 1).timestamp() if ts < now - 43200 else ts
+    return 0.0
+
+
+def parse_devin_usage(text: str, now: float | None = None) -> dict[str, dict[str, float]]:
+    """``{daily|weekly: {used_percentage, resets_at}}`` from a Devin ``/usage`` screen.
+
+    While the fetch runs, the pane shows "Fetching account usage…" above 0% placeholder bars;
+    the line is removed when the real numbers land. So any Fetching line means not final.
+    Older ``/usage`` blocks stay in the scroll: the last matching line per window wins."""
+    now = time.time() if now is None else now
+    if _DEVIN_FETCHING.search(text):
+        return {}
+    hits: dict[str, str] = {}
+    for ln in text.splitlines():
+        m = _DEVIN_LINE.match(ln)
+        if m:
+            hits[m.group(1).lower()] = ln
+    return {key: {"used_percentage": int(_DEVIN_LINE.match(ln).group(2)),
+                  "resets_at": _devin_reset_epoch(ln, now)} for key, ln in hits.items()}
+
+
+def _devin_pane_text(settings, pane_id: str) -> str | None:
+    from pm.security.mask import render_pane
+    from pm.tmux import ctl as tmuxctl
+
+    try:
+        return render_pane(tmuxctl.capture_pane(settings, pane_id, DEVIN_SCAN_LINES))
+    except tmuxctl.TmuxError:
+        return None
+
+
+def _fetch_devin_limits(state_dir: Path, agent, settings) -> bool:
+    """SWR compute (own thread): type ``/usage`` into the agent's idle pane and store the quota lines.
+    Always stamps the file so a failed attempt throttles the next retry via ``DEVIN_FRESH_S``."""
+    from pm.agents import message as msg
+
+    def mark(extra: dict) -> None:
+        try:
+            Path(state_dir).mkdir(parents=True, exist_ok=True)
+            atomic_write(Path(state_dir) / DEVIN_FILE, json.dumps({"attempted_at": time.time()} | extra).encode())
+        except OSError:
+            pass
+
+    text = _devin_pane_text(settings, agent.pane_id)
+    low = (text or "").lower()
+    if agent.state is not AgentState.IDLE or _DEVIN_IDLE not in low or _DEVIN_BUSY in low:
+        mark({})
+        return False
+    try:
+        msg.send_message(settings, agent, "/usage")
+    except msg.MessageError:
+        mark({})
+        return False
+    data: dict[str, dict[str, float]] = {}
+    deadline = time.monotonic() + DEVIN_WAIT_S
+    while time.monotonic() < deadline:
+        time.sleep(DEVIN_POLL_S)
+        data = parse_devin_usage(_devin_pane_text(settings, agent.pane_id) or "")
+        if data:
+            break
+    if not data:
+        mark({})
+        return False
+    mark(data)
+    return True
+
+
+def read_devin_limits(state_dir: Path, agent=None, settings=None, now: float | None = None) -> list[Window]:
+    """Devin plan windows (daily, weekly); [] when nothing usable is stored. Triggers a background
+    ``/usage`` refresh when the file is older than ``DEVIN_FRESH_S`` and the agent is idle."""
+    now = time.time() if now is None else now
+    path = Path(state_dir) / DEVIN_FILE
+    if settings is not None and agent is not None and agent.state is AgentState.IDLE:
+        try:
+            age = now - path.stat().st_mtime
+        except OSError:
+            age = STALE_S + 1
+        if age >= DEVIN_FRESH_S:
+            from pm.core import executors
+
+            # SWR is the throttle/dedupe; the send+poll itself goes to the jobs pool so even a
+            # cold miss never stalls the tmux pool thread this route runs on.
+            _DEVIN_SWR.get(str(path), lambda: bool(
+                executors.jobs.submit(_fetch_devin_limits, state_dir, agent, settings)),
+                           DEVIN_FRESH_S, STALE_S)
+    try:
+        if now - path.stat().st_mtime > STALE_S:
+            return []
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    out: list[Window] = []
+    for key, label, name, tag in (("daily", "Day limit", "Daily limit", "D"),
+                                  ("weekly", "Week limit", "Weekly limit", "W")):
+        w = _window(label, name, data.get(key), now, tag)
+        if w:
+            out.append(w)
+    return out
+
+
 def for_agent(agent, settings, model: str = "", now: float | None = None) -> list[Window]:
-    """Plan usage windows for ``agent`` (Claude or Antigravity)."""
+    """Plan usage windows for ``agent`` (Claude, Antigravity or Devin)."""
     kind = agent.kind.value
     if kind == "claude":
         return read_limits(settings.state_dir, now)
     if kind == "antigravity":
         return read_agy_limits(settings.state_dir, model=model, now=now, settings=settings)
+    if kind == "devin":
+        return read_devin_limits(settings.state_dir, agent=agent, settings=settings, now=now)
     return []

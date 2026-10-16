@@ -48,6 +48,7 @@
     </ul>
   </section>
   {% elif agent.kind.value == 'claude' %}<p class="stats-foot muted">Plan limits unavailable: enable tools/pm-statusline.sh as the Claude status line.</p>
+  {% elif agent.kind.value == 'devin' %}<p class="stats-foot muted">Plan limits refresh in the background while Devin is idle.</p>
   {% endif %}
   <div class="usg-slot">{% include '_usage_chat.html' %}</div>
 </div>
