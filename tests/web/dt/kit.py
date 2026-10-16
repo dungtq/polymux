@@ -4,6 +4,7 @@ Jinja over the dt templates (``ENV``), tmux sessions for the view models, and ba
 
 from __future__ import annotations
 
+import dataclasses
 from html.parser import HTMLParser
 from types import SimpleNamespace
 
@@ -148,12 +149,13 @@ def stub_shell(cur_agent: bool) -> dtshell.Shell:
     return dtshell.Shell(nav, foot, [dtshell.SessGroup("pm", "/p/pm", "", rows)], tabs, home, 7, 1, 1, 2)
 
 
-def render_base(cur_agent: bool = False, embed: bool = False) -> str:
+def render_base(cur_agent: bool = False, embed: bool = False, chat: bool = False) -> str:
     env = jinja2.Environment(loader=jinja2.ChoiceLoader([
         jinja2.DictLoader({"page.html": '{% extends "base.html" %}{% block title %}Inbox{% endblock %}'
                                         '{% block content %}<h1>Inbox</h1>{% endblock %}'}),
         jinja2.FileSystemLoader(TPL)]), autoescape=True, undefined=jinja2.StrictUndefined)
-    env.globals.update(dt_shell=lambda: dtshell.EMPTY if embed else stub_shell(cur_agent))
+    sh = dtshell.EMPTY if embed else dataclasses.replace(stub_shell(cur_agent), chat=chat)
+    env.globals.update(dt_shell=lambda: sh)
     return env.get_template("page.html").render(
         csrf="tok", embed=embed, dev_banner=False, require_unlock=False, locked=False, provisioned=True,
         ui_theme="dt", ui_themes=[("classic", "Classic"), ("dt", "dt (keyboard)")])

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (dt: chat aside only on the main pages, not on a full chat page)
+
+dt theme: the chat aside is now used on the main pages only (Inbox, Projects, tmux, ...). On a session's own full chat page (/a/<id>, Builder, /term/s<n>) the remembered aside is no longer restored beside the chat (it comes back on the next main page), the top-bar Chat aside button is hidden, and opening a chat from search, a notification or a list opens its tab instead; ⌘L / the toggle there only say so; btw still opens in the aside. ⌘⇧L ("to aside") now closes the session tab and goes to the home tab, where the aside shows it.
+
 ## 2026-10-17 (Agent thinking shows in the chat)
 
 The thinking of Antigravity (agy), Devin, Cursor and Codex agents now shows in the chat as a folded "Thought" row with its first line. Click it to read the full text. The Compact view hides these rows. Claude is unchanged. Conversations are read once again so earlier thinking appears.

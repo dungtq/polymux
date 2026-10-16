@@ -189,7 +189,8 @@ const cls = new Set();
 globalThis.window = { innerWidth: 1512, localStorage: { getItem: (k) => (k in store ? store[k] : null),
   setItem: (k, v) => { store[k] = String(v); } } };
 globalThis.document = { documentElement: { getAttribute: (a) => (a === 'data-tab' ? tab : null),
-    classList: { add: (c) => cls.add(c), toggle: (c, on) => { if (on) cls.add(c); else cls.delete(c); } },
+    classList: { add: (c) => cls.add(c), contains: (c) => cls.has(c),
+      toggle: (c, on) => { if (on) cls.add(c); else cls.delete(c); } },
     setAttribute() {}, removeAttribute() {}, style: { setProperty() {}, removeProperty() {} } },
   addEventListener() {} };
 eval(require('fs').readFileSync(process.argv[1], 'utf8'));

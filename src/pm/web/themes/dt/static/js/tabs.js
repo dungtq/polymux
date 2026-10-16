@@ -1,7 +1,7 @@
 /* dt theme (pm v7) tab strip (SHELL.md §3, §4). Tabs are stored on the server (/dt/tabs*), so every device shows
    the same strip; this file only asks the server and swaps the strip it answers with.
-   Globals: pm7.tabs = {open(kind, id, href), close(kind, id), closeCurrent(), reopen(), step(±1), list(), current(),
-   refresh(), sheet(anchor)}.
+   Globals: pm7.tabs = {open(kind, id, href), close(kind, id, {home}), closeCurrent(), reopen(), step(±1), list(),
+   current(), refresh(), sheet(anchor)}. close goes to the next tab, with home: true to the home tab (aside.js).
    Hooks: nav#x-tabs[data-rev] > div.x-tab[data-tab-kind][data-tab-id] (home first: .home), each holding
    a[role=tab][href] (current one: .on on the div, aria-selected="true" on the link) and, beside the link, a
    button[data-act=tabclose]; #x-sess a.x-sr[data-sess-id][href] (a click opens the session in a tab; without JS
@@ -68,11 +68,12 @@
   function open(kind, id, href) {  // the page is opened even when the server could not store the tab
     send('/dt/tabs/open', { kind: kind, id: id }).then((r) => r.ok, () => false).then(() => go(href));
   }
-  function close(kind, id) {
+  function close(kind, id, opts) {  // home: go to the home tab, not the next one
     const t = findTab(kind, id);
     if (!t || kind === 'home') { pm7.toast('The home tab stays', pm7.keys ? pm7.keys.label('alt+W') : ''); return; }
     const l = list(), i = l.indexOf(t), wasCur = isCur(t), title = titleOf(t);
-    const next = l[i + 1] || l[i - 1] || l.find((x) => x.classList.contains('home'));
+    const home = l.find((x) => x.classList.contains('home'));
+    const next = opts && opts.home ? home : l[i + 1] || l[i - 1] || home;
     const nextHref = next ? hrefOf(next) : '/';
     send('/dt/tabs/close', { kind: kind, id: id }).then((r) => answer(r)).then(() => {
       if (wasCur) go(nextHref || '/');

@@ -25,7 +25,8 @@ and conditions):
 
 ```
 Shell(nav: list[NavRow], foot: list[NavRow], groups: list[SessGroup], tabs: list[Tab], home: Tab,
-      rev: int, need: int, running: int, total: int)
+      rev: int, need: int, running: int, total: int, chat: bool)
+    chat: the page is a session's own page (`page_ref(path)` is set: /a/<id>[/...], /term/s<n>) -> `html.x-chatpg`
 NavRow(key, href, label, icon, count: int | None, hot: bool, chord: str, cur: bool)
     built from the core's one nav list (`env.globals["NAV"]` = `render.NAV` + plugin `nav_items`): href and label
     come from the core item; dt keeps only `DT_NAV` (core key -> dt key, icon, chord, label override, foot) and
@@ -99,7 +100,7 @@ metas, `<main>` as the page column with `#flash` in it. `embed` true → no shel
 | `html.side-rail` | set before paint by `js/head.js` from `pm7.look.rail()`: `pm.v7.shell.rail` (`rail` / `open`), or with Settings › Display › Sidebar state "per tab" (`pm.v7.shell.railmode` = `tab`) this tab's entry in `pm.v7.shell.railtab` (`{"<kind>:<id>" \| "home": "rail" \| "open"}`, the newest 40 tabs; a tab without an entry follows `shell.rail`). `pm7.look.rail(v)` stores it (⌘B, Settings): the one place that knows these keys | `sidebar.js`, `settings.js` |
 | `html[data-tab]` | the server's current tab (`base.html`): `<kind>:<id>` of the open session tab this page is (`agent:claude-1c70ee`, `term:$3`), else `home`; read before paint for the per-tab sidebar state | `head.js` |
 | `html.cmp-open` | Settings › Display › Composer on phones = open (all devices, `cmp_phone` in `/dt/prefs`; `head.js` from the prefs mirror): the session composer stays shown under 700 px (`css/session.css`; else it starts collapsed and `[data-c-cmp]` in the session header line, ⌘L, a focus or a draft shows it, `js/session.js`) | `session.js` |
-| `html.side-open`, `html.aside`, `html.aside-drag` | overlay sidebar open (< 900 px), chat aside open (restored before paint by `js/head.js` from `pm.v7.aside.open` at ≥ 900 px, with `--aside-pct` from `pm.v7.aside.pct`), aside edge drag running | `sidebar.js`, `aside.js` |
+| `html.side-open`, `html.aside`, `html.aside-drag` | overlay sidebar open (< 900 px), chat aside open (restored before paint by `js/head.js` from `pm.v7.aside.open` at ≥ 900 px, not on `html.x-chatpg` (README A28), with `--aside-pct` from `pm.v7.aside.pct`), aside edge drag running | `sidebar.js`, `aside.js` |
 | `html[data-theme]` | light/dark/auto from `pm.v7.shell.mode` (`head.js`) | `keys.js` (mode toggle) |
 | `html.no-sess` | Settings › Display › "Sessions list in the sidebar" off (this browser, `pm.v7.side.sess` = `0`; `head.js` before paint, again on change): `css/shell.css` hides `.x-shead`, `.x-sfilter` and `#x-sess`, the foot stays at the bottom; `Mod+P` / `>` still find sessions | `settings.js` (writes), `head.js` |
 | `html[data-ktoast]` | Settings › Display › Shortcut helper (`pm.v7.keys.toast`): absent = key chip and action, `action` = no key chip, `off` = no toast for a shortcut. A shortcut toast is `pm7.toast(text, key)` with the key's label (`sidebar.js` Mod+B, `aside.js` Mod+L, `tabs.js`, `project.js`); `layers.js`' toast applies the flag, toasts without a key are always shown | `settings.js` (writes), `head.js`, `layers.js` |
@@ -139,14 +140,15 @@ One agent chat (or a read-only terminal) beside any page, as a same-origin ifram
 `/a/<id>?embed=1` or `/term/s<n>?embed=1` (the core sends embed pages with `frame-ancestors 'self'`; `base.html`
 renders them without the shell). Docked column from 900 px (`--aside-w` = `clamp(360px, --aside-pct, 50vw)`),
 fixed overlay `min(440px, 100vw)` with the scrim under 900 px, not used on phones (< 700 px: opening a chat opens its
-tab instead).
+tab instead). Not used on a session's own page either (`html.x-chatpg`, README A28): no restore, no top-bar
+toggle, `open` opens the session's tab, toggle / ⌘L toast; btw still works.
 
 | API (`window.pm7.aside`) | Does |
 |---|---|
 | `open(id, {focus})` -> bool | shows / switches the aside; `id` = agent id or tmux `$<n>` (terminal); `focus` (default true) puts the cursor into the chat's composer (`textarea[data-cmp-input]`, later `textarea[data-k-input]`), same-origin access after the iframe loaded; phone: `pm7.tabs.open` instead |
 | `close()`, `toggle()` | toggle with nothing to show opens the empty aside (it says how to fill it) |
 | `current()` -> id \| null | the id shown, null when closed |
-| `fromTab()` | ⌘⇧L: the current session tab moves into the aside (stores it, then `pm7.tabs.close`, whose navigation restores the aside on the next page) |
+| `fromTab()` | ⌘⇧L: the current session tab moves into the aside (stores it, then `pm7.tabs.close(kind, id, {home: true})`, which goes to the home tab, whose page restores the aside) |
 | `toTab()` | head "Open as tab": `pm7.tabs.open` + close (not for btw) |
 | `btw(id, question?)` -> bool | README A9, PRD §6.3: the aside shows `js/btw.js`'s side-question panel for agent `id` (`pm7.btw.panel(id)`, one per agent, kept for the page's life): head "btw · <id>", chip "no tools", no state dot, Open as tab off; `question` is asked at once, else the question box gets the cursor. Not stored (`pm.v7.aside.*` untouched: the next page restores the last chat, not btw). Phones: a toast (no aside; Quick chat is not ported yet). Callers: the session ⋯ item "btw" (`c:btw`), the composer's btw icon (its text is the question) and `/btw <question>` in the composer (`session.js`, capture-phase submit: never posted to the agent); from inside the aside's iframe `session.js` calls the parent shell's `pm7.aside` |
 

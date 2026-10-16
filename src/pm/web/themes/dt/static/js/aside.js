@@ -5,10 +5,12 @@
      toTab(), btw(id, question?) -> bool}.
      id = an agent id, or a tmux session id "$<n>" for a terminal (its page /term/s<n>, as shell.py tab_href).
      open: shows / switches the aside, focus (default true) puts the cursor into the chat's composer; on a phone
-     (< 700 px) it opens the session as a tab instead. state (optional, e.g. 'ended' from a list of past sessions):
-     the head's state (then pm:agent_state); without it the dot of the session row, tab or a .p-gr list row on the
-     page, else 'unknown'. fromTab (⌘⇧L): the current session tab moves into the aside (pm7.tabs.close navigates
-     to the next tab, whose page restores the aside). toTab ("Open as tab"): the reverse.
+     (< 700 px) or on a session's own page (html.x-chatpg, README A28: no aside there; toggle and ⌘L only toast) it
+     opens the session as a tab instead. state (optional, e.g. 'ended' from a list of past sessions): the head's
+     state (then pm:agent_state); without it the dot of the session row, tab or a .p-gr list row on the page, else
+     'unknown'. fromTab (⌘⇧L): the current session tab moves into the aside (pm7.tabs.close navigates to the home
+     tab, whose page restores the aside; head.js never restores it on html.x-chatpg). toTab ("Open as tab"): the
+     reverse.
      btw (README A9): the aside shows js/btw.js's side-question panel for that agent (head "btw · <id>", no tools,
      Open as tab off; not remembered across pages); question = asked at once. Phones: not available (toast).
    Reader: the aside chat's .md links (classic chat-md.js posts {pm: 'drawer', act: 'md', id, path}) open in the
@@ -70,6 +72,7 @@
   let cur = null, opener = null, want = null;  // cur = {kind: agent | term | btw, id, href, state?}; want = iframe
 
   function isOpen() { return R.classList.contains('aside'); }
+  function chatPage() { return R.classList.contains('x-chatpg'); }  // README A28: a session's own page, no aside
   function inside(n) { const a = A(); return !!(a && n && a.contains(n)); }
   function target(id) {
     id = id == null ? '' : String(id);
@@ -177,11 +180,14 @@
     pm7.$$('[data-act=aside][aria-pressed]').forEach((b) => b.setAttribute('aria-pressed', on ? 'true' : 'false'));
     pm7.layers.sync();
   }
-  function asTab(t) { if (pm7.tabs) pm7.tabs.open(t.kind, t.id, t.href); else window.location.assign(t.href); }
+  function asTab(t) {
+    if (window.location.pathname === t.href) return;  // already this page
+    if (pm7.tabs) pm7.tabs.open(t.kind, t.id, t.href); else window.location.assign(t.href);
+  }
   function open(id, opts) {
     const o = opts || {}, t = target(id);
     if (!t || !A()) return false;
-    if (pm7.phone()) { asTab(t); return true; }  // LAYOUT §2: no aside on phones, the chat opens as a tab
+    if (pm7.phone() || chatPage()) { asTab(t); return true; }  // LAYOUT §2, README A28: the chat opens as a tab
     if (!isOpen() && !inside(d.activeElement)) opener = d.activeElement;
     if (STATES.indexOf(o.state) >= 0) t.state = o.state;
     cur = t;
@@ -252,9 +258,11 @@
   }
   function toggle() {
     if (isOpen()) { close(); return; }
+    if (chatPage()) { mainOnly(); return; }
     const t = pick();
     if (t) open(t.id); else showEmpty();
   }
+  function mainOnly() { pm7.toast('No chat aside on a session page', label('mod+L')); }
   function ownComposer() {  // a session page's own composer (classic markup, README A5)
     const ta = d.querySelector('#main .c-sess textarea[data-cmp-input]');
     return ta && !ta.disabled && ta.getClientRects().length ? ta : null;
@@ -282,6 +290,7 @@
       return;
     }
     if (isOpen()) { close(); return; }
+    if (chatPage()) { mainOnly(); return; }
     const t = pick();
     if (!t) { showEmpty(); return; }
     open(t.id);
@@ -294,7 +303,7 @@
     if (pm7.phone()) { pm7.toast('The chat aside is not used on phones'); return false; }
     pm7.store.set('aside.last', t.id);
     pm7.store.set('aside.open', '1');
-    pm7.tabs.close(kind, t.id);  // the current tab: tabs.js goes to the next one, whose page restores the aside
+    pm7.tabs.close(kind, t.id, { home: true });  // the current tab: to the home tab, whose page restores the aside
     return true;
   }
   function toTab() {

@@ -52,10 +52,10 @@ def test_base_loads_the_aside_assets_also_in_embed():
 
 # ---------------------------------------------------------------- head.js (before paint)
 HEAD = r"""
-const [store, width] = JSON.parse(process.argv[2]);
-const cls = new Set(), props = {};
+const [store, width, init] = JSON.parse(process.argv[2]);
+const cls = new Set(init), props = {};
 globalThis.window = { innerWidth: width, localStorage: { getItem: (k) => (k in store ? store[k] : null) } };
-globalThis.document = { documentElement: { classList: { add: (c) => cls.add(c),
+globalThis.document = { documentElement: { classList: { add: (c) => cls.add(c), contains: (c) => cls.has(c),
     toggle: (c, on) => { if (on) cls.add(c); else cls.delete(c); } }, setAttribute() {}, removeAttribute() {},
   style: { setProperty: (k, v) => { props[k] = v; }, removeProperty: (k) => { delete props[k]; } } },
   addEventListener() {}, querySelector: () => null };
@@ -64,8 +64,8 @@ console.log(JSON.stringify([[...cls].sort(), props]));
 """
 
 
-def head(store: dict, width: int):
-    out = subprocess.run(["node", "-e", HEAD, str(JS / "head.js"), json.dumps([store, width])],
+def head(store: dict, width: int, html: tuple = ()):
+    out = subprocess.run(["node", "-e", HEAD, str(JS / "head.js"), json.dumps([store, width, list(html)])],
                          capture_output=True, text=True, check=True)
     return json.loads(out.stdout)
 
@@ -76,6 +76,8 @@ def test_head_restores_the_aside_on_docked_widths_only():
     assert head(on, 1512) == [["aside"], {"--aside-pct": "36vw"}]
     assert head(on, 899) == [[], {"--aside-pct": "36vw"}]  # overlay widths: a layer, never restored
     assert head({"pm.v7.aside.open": "0", "pm.v7.aside.pct": "70"}, 2560) == [[], {}]  # out of range: the token
+    # README A28: never on a session's own page (the flag stays for the next main page)
+    assert head(on, 1512, ("x-chatpg",)) == [["x-chatpg"], {"--aside-pct": "36vw"}]
 
 
 # ---------------------------------------------------------------- aside.js in node (fake DOM)
@@ -122,7 +124,8 @@ const doc = globalThis.document = {
 };
 const parentMsgs = [];
 globalThis.window = {
-  innerWidth: CFG.width || 1512, location: { origin: 'https://pm.test', assign: (h) => log.push(['go', h]) },
+  innerWidth: CFG.width || 1512,
+  location: { origin: 'https://pm.test', pathname: CFG.path || '/', assign: (h) => log.push(['go', h]) },
   addEventListener: (t, f) => winL.push([t, f]),
   frameElement: CFG.inAside ? { closest: (s) => (s === '#x-aside' ? {} : null) } : null,
   CSS: { escape: (x) => x }
@@ -139,7 +142,7 @@ window.pm7 = {
   layers: { soft: (x) => softs.push(x), sync() {}, top: () => null },
   keys: CFG.embed ? undefined : { table: table, label: (s) => s,
     register: (scope, rows) => { rows.forEach((r) => regs.push(Object.assign({ scope: scope }, r))); } },
-  tabs: { open: (k, i, h) => log.push(['tabs.open', k, i, h]), close: (k, i) => log.push(['tabs.close', k, i]),
+  tabs: { open: (k, i, h) => log.push(['tabs.open', k, i, h]), close: (k, i, o) => log.push(['tabs.close', k, i, o || null]),
           current: () => (CFG.tab ? el('div', { 'data-tab-kind': CFG.tab[0], 'data-tab-id': CFG.tab[1] }) : null) }
 };
 globalThis.CSS = window.CSS;
@@ -213,7 +216,7 @@ def test_mod_l_opens_then_closes_and_esc_layer_closes():
 def test_mod_shift_l_moves_the_session_tab():
     got = run("key('mod+shift+L'); out.push(state(), log);", tab=["agent", "claude-1c70ee"])
     assert got[0]["store"] == {"pm.v7.aside.last": "claude-1c70ee", "pm.v7.aside.open": "1"}
-    assert ["tabs.close", "agent", "claude-1c70ee"] in got[1]
+    assert ["tabs.close", "agent", "claude-1c70ee", {"home": True}] in got[1]  # the home tab restores the aside
     back = run("A.open('codex-44aa01', {focus: false}); key('mod+shift+L'); out.push(state(), log);", tab=["home", ""])
     assert back[0]["html"] == [] and ["tabs.open", "agent", "codex-44aa01", "/a/codex-44aa01"] in back[1]
 
@@ -326,3 +329,25 @@ def test_head_state_from_the_open_option_or_a_list_row():
             "doc.querySelector = (s) => (s === '.p-gr[data-row-id=\"devin-1\"]' ? row : null);"
             "A.open('devin-1', {focus: false}); out.push(dot.classList.list());")
     assert run(code) == [["ended"], ["unknown"], ["waiting"]]
+
+
+@needs_node
+def test_no_aside_on_a_sessions_own_page():
+    """README A28: html.x-chatpg (/a/<id>, /term/s<n>): opening a chat opens its tab, toggle and ⌘L only toast."""
+    pg = {"html": ["x-chatpg"], "path": "/a/claude-1c70ee", "store": {"pm.v7.aside.last": "codex-44aa01",
+                                                                      "pm.v7.aside.open": "1"}}
+    got = run("out.push(A.open('codex-44aa01'), state(), log.slice()); log.length = 0;"
+              "out.push(A.open('claude-1c70ee'), log.slice()); log.length = 0;"
+              "A.toggle(); key('mod+L'); out.push(state(), log);", **pg)
+    assert got[0] is True and got[1]["html"] == ["x-chatpg"] and got[1]["frame"] is None
+    assert ["tabs.open", "agent", "codex-44aa01", "/a/codex-44aa01"] in got[2]
+    assert got[3] is True and got[4] == []  # this page's own chat: nothing to do
+    assert got[5]["html"] == ["x-chatpg"] and got[5]["store"] == pg["store"]  # the flag waits for a main page
+    assert got[6] == [["toast", "No chat aside on a session page"]] * 2
+    btw = run(BTW_STUB + "out.push(A.btw('claude-1c70ee'), state().html);", **pg)
+    assert btw == [True, ["aside", "x-chatpg"]]  # btw is a side panel, not a second chat
+
+
+def test_base_marks_a_sessions_own_page():
+    assert '<html lang="en" class="x-doc x-chatpg"' in render_base(cur_agent=True, chat=True)
+    assert '<html lang="en" class="x-doc"' in render_base()

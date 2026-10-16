@@ -87,6 +87,7 @@ class Shell:
     need: int = 0  # waiting + failed
     running: int = 0
     total: int = 0
+    chat: bool = False  # a session's own page (/a/<id>[/...], /term/s<n>): no chat aside (README A28)
 
 
 EMPTY = Shell()
@@ -254,7 +255,8 @@ def build(snap, tabs: stores.TabState, path: str, nav: str | None = None, agent_
     home = Tab("home", "", label, path if cur is None and not path.startswith("/dt/") else href, state, "",
                cur is None, icon)
     return Shell(_nav_rows(main, key, cur is None, counts, need), _nav_rows(foot, key, cur is None, {}, 0), groups,
-                 [_tab(r, snap, r == cur) for r in tabs.tabs], home, tabs.rev, need, running, len(agents))
+                 [_tab(r, snap, r == cur) for r in tabs.tabs], home, tabs.rev, need, running, len(agents),
+                 page is not None)
 
 
 def snapshot_of(request):

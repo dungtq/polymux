@@ -27,7 +27,8 @@ def snap4():
 def test_field_names_match_the_contract():
     names = {c: [f.name for f in dataclasses.fields(c)] for c in
              (shell.Shell, shell.NavRow, shell.SessGroup, shell.SessRow, shell.Tab)}
-    assert names[shell.Shell] == ["nav", "foot", "groups", "tabs", "home", "rev", "need", "running", "total"]
+    assert names[shell.Shell] == ["nav", "foot", "groups", "tabs", "home", "rev", "need", "running", "total",
+                                    "chat"]
     assert names[shell.NavRow] == ["key", "href", "label", "icon", "count", "hot", "chord", "cur"]
     assert names[shell.SessGroup] == ["project", "href", "dot", "rows"]
     assert names[shell.SessRow] == ["id", "kind", "state", "href", "label", "since", "open", "cur", "title", "age"]
@@ -234,3 +235,13 @@ def test_dt_shell_never_raises_and_logs_once(jenv, tmp_path, monkeypatch, caplog
         assert tpl.render(request=request) == "00"
         assert tpl.render(request=request) == "00"
     assert sum("dt shell failed" in r.message for r in caplog.records) == 1
+
+
+def test_chat_flag_marks_a_sessions_own_page():
+    """README A28: html.x-chatpg (no chat aside) on /a/<id>[/...] and /term/s<n>, as a tab or not."""
+    snap, aid = snap4(), "claude-aaa111"
+    assert shell.build(snap, TabState(), "/a/" + aid).chat
+    assert shell.build(snap, TabState(tabs=(("agent", aid),)), "/a/" + aid + "/builder").chat
+    assert shell.build(snap, TabState(), "/term/s3").chat
+    for path in ("/", "/tmux", "/p/alpha", "/projects"):
+        assert not shell.build(snap, TabState(), path).chat, path
