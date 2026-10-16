@@ -226,7 +226,7 @@
         d.getElementById('v5md-t').textContent = mdCur;
         body.scrollTop = 0;
       })
-      .catch(function (c) { body.textContent = c === 404 ? 'File not available (only readable .md files outside hidden folders).' : 'Could not load file.'; });
+      .catch(function (c) { body.textContent = c === 404 ? 'Not found: ' + path + '. Files in hidden folders never open.' : 'Could not load file.'; });
   }
   if (mdp) {
     d.getElementById('v5md-close').addEventListener('click', mdClose);

@@ -96,7 +96,10 @@
         body.scrollTop = 0;
       })
       .catch(function (c) {
-        body.textContent = c === 404 ? 'File not available (only readable .md files outside hidden folders).' : 'Could not load file.';
+        body.textContent = c === 404
+          ? 'Not found: ' + path + '. pm looked in the agent\'s folder, its project, the files its chat named and the ' +
+            'folders it worked in. Files in hidden folders never open.'
+          : 'Could not load file.';
       });
   }
 

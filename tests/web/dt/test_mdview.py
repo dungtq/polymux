@@ -52,7 +52,10 @@ body.querySelector = (s) => (s === '.mdv' ? mdv : null);
 body.querySelectorAll = () => [];
 const parts = { '[data-md-body]': body, '[data-md-title]': ttl, '[data-md-zoom-val]': val };
 dlg.querySelector = (s) => parts[s] || null;
-globalThis.document = { getElementById: (id) => (id === 'x-md' ? dlg : null) };
+dlg.contains = () => false;
+const docOn = {};
+globalThis.document = { getElementById: (id) => (id === 'x-md' ? dlg : (CFG.ids || []).includes(id) ? el('div') : null),
+  querySelector: () => null, addEventListener: (t, f) => { (docOn[t] = docOn[t] || []).push(f); } };
 globalThis.getComputedStyle = () => ({ fontSize: '14px' });
 let answer = CFG.answer || [200, '<div class="mdv" data-path="/home/u/p/docs/a.md"><div class="md"></div></div>'];
 globalThis.window = { pm7: {
@@ -111,7 +114,7 @@ def test_links_inside_the_reader():
 def test_missing_file_says_where_it_looked():
     got = run("pm7.md.open('claude-1c70ee', 'SECURITY.md'); await tick(); await tick();"
               "out.push(body.kids.map((k) => [k.spec, k.text]), ttl.textContent);", answer=[404, "{}"])
-    assert got[0][0][0] == "p.x-mdn.err" and "agent's folder, its project or the files its chat named" in got[0][0][1]
+    assert got[0][0][0] == "p.x-mdn.err" and "agent's folder, its project, the files its chat named and the folders" in got[0][0][1]
     assert got[1] == "SECURITY.md"
 
 
@@ -121,3 +124,24 @@ def test_text_size_buttons_share_the_session_reader_size():
               " {closest: (s) => (s === '[data-md-zoom]' ? el('b', {'data-md-zoom': n}) : null)}}));"
               "z('1'); z('1'); out.push(store['chat.md'], dlg.style.p['--md-size'], val.textContent);")
     assert got == ["16", "16px", "16px"]
+
+
+BUILDER = ("const host = el('section', {'data-agent': 'claude-1c70ee'});"
+           "const a = el('a', {'data-md': 'docs/PLAN.md'}); a.closest = (s) => (s === 'a[data-md]' ? a : host);"
+           "const e = {target: {closest: (s) => a.closest(s)}, prevented: 0, stopped: 0,"
+           " preventDefault() { this.prevented = 1; }, stopPropagation() { this.stopped = 1; }};"
+           "docOn.click.forEach((f) => f(e)); await tick();"
+           "out.push(e.prevented, e.stopped, log.map((x) => x[0]));")
+
+
+@needs_node
+def test_builder_md_links_open_the_reader():
+    """Builder has no classic #mdpane, so chat-md.js would do nothing: a chat .md link opens the dialog instead."""
+    got = run(BUILDER)
+    assert got == [1, 1, ["fetch", "dialog"]]
+
+
+@needs_node
+def test_md_links_stay_with_the_docked_reader_when_the_page_has_one():
+    got = run(BUILDER, ids=["mdpane"])
+    assert got == [0, 0, []]
