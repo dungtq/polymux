@@ -20,7 +20,9 @@
   // a span runs from a user message to the next one. Its replies are working notes, except the last one, which
   // is the final bubble once the span is done (it ends on a turn end, no background task running) and the reply
   // is long; a short last reply stays the last note. "took" = the span's turn durations added up.
-  // ds: [{k: 'user'|'text'|'tg'|'end'|'ob', seq, parent, short (text), run (tg), dur (end, s)}] in seq order
+  // Thinking items ('think', hidden by CSS in Compact) are no replies: they stay plain nodes right after the user
+  // message, never notes, never the final, never a reason for "done".
+  // ds: [{k: 'user'|'text'|'think'|'tg'|'end'|'ob', seq, parent, short (text), run (tg), dur (end, s)}] in seq order
   // (bubbles last) -> slots: {t:'node', i} | {t:'notes', key, texts:[i], tools:[i], took} |
   // {t:'final', i, tools:[i], took} (i = index in ds)
   function plan(ds) {
@@ -34,7 +36,10 @@
     obs.forEach(function (i) { out.push({ t: 'node', i: i }); });
     return out;
   }
-  function spanSlots(ds, idx, out) {
+  function spanSlots(ds, all, out) {
+    var thinks = all.filter(function (i) { return ds[i].k === 'think'; });
+    var idx = all.filter(function (i) { return ds[i].k !== 'think'; });
+    if (!idx.length) { thinks.forEach(function (i) { out.push({ t: 'node', i: i }); }); return; }
     var user = ds[idx[0]].k === 'user' ? idx[0] : -1, body = user >= 0 ? idx.slice(1) : idx;
     var ends = [], texts = [], tools = [], finTools = [], fin = -1, sec = 0, past = false, j;
     var last = body.length ? ds[body[body.length - 1]] : null;
@@ -53,6 +58,7 @@
     // tools before the final with no note beside them belong to the final (no tools-only block)
     if (fin >= 0 && !texts.length) { finTools = tools.concat(finTools); tools = []; }
     if (user >= 0) out.push({ t: 'node', i: user });
+    thinks.forEach(function (i) { out.push({ t: 'node', i: i }); });
     if (texts.length || tools.length) {
       out.push({ t: 'notes', key: ds[idx[0]].seq, texts: texts, tools: tools, took: done && fin < 0 ? took : '' });
     }
@@ -110,7 +116,7 @@
   }
 
   // ---- layout (DOM) ----
-  var ITEMS = '.ci-user, .ci-text, .ci-tg, .ci-end';
+  var ITEMS = '.ci-user, .ci-text, .ci-think, .ci-tg, .ci-end';
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -121,7 +127,7 @@
   function kind(n) {
     var c = n.classList;
     return c.contains('ci-ob') ? 'ob' : c.contains('ci-user') ? 'user' : c.contains('ci-text') ? 'text'
-      : c.contains('ci-tg') ? 'tg' : 'end';
+      : c.contains('ci-think') ? 'think' : c.contains('ci-tg') ? 'tg' : 'end';
   }
   function child(p, cls) {
     for (var c = p && p.firstElementChild; c; c = c.nextElementSibling) if (c.classList.contains(cls)) return c;

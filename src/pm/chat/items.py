@@ -33,7 +33,7 @@ MAX_NOTE = 80
 MAX_PER_AGENT = 20000
 MAX_LIMIT = 1000
 PAGE = 200  # items per page: the first load is the newest PAGE, "Load older" the PAGE before it
-KINDS = ("user", "text", "tool", "end")
+KINDS = ("user", "text", "think", "tool", "end")
 
 _SCHEMA = (
     ("CREATE TABLE IF NOT EXISTS chat_items ("
@@ -60,8 +60,9 @@ _SCHEMA = (
 # itemsync's parsing format: a cursor written by an older format re-reads its conversation once
 # (2 = mid-turn queued_command prompts become user items, 2026-10-12;
 #  3 = narration thinking becomes text items, background tasks stay running until notified, 2026-10-12;
-#  4 = Antigravity waits for streaming steps to finish before ingesting, 2026-10-17)
-FORMAT = 4
+#  4 = Antigravity waits for streaming steps to finish before ingesting, 2026-10-17;
+#  5 = thinking of Antigravity / Devin / Cursor / Codex becomes ``think`` items, 2026-10-17)
+FORMAT = 5
 
 
 def connect(settings: Settings) -> sqlite3.Connection:

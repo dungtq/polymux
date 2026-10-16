@@ -240,6 +240,30 @@ def test_other_kind_fallback(settings, tmp_path, monkeypatch):
     assert got(settings, "codex-1")[-1].kind == "end"
 
 
+def test_other_kind_thinking_becomes_think_items(settings, tmp_path):
+    """Kinds that keep thinking in clear (Codex here) get a ``think`` item before the reply; it is masked,
+    never a reply (no tool parent, not counted in the end note). Claude's own thinking stays out."""
+    rp = tmp_path / "rollout-t.jsonl"
+    lines = [
+        {"timestamp": ts(1), "type": "response_item",
+         "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "do it"}]}},
+        {"timestamp": ts(2), "type": "response_item",
+         "payload": {"type": "reasoning", "summary": [{"type": "summary_text", "text": f"Plan: use {TOKEN} to ls"}]}},
+        {"timestamp": ts(3), "type": "response_item",
+         "payload": {"type": "function_call", "name": "shell", "arguments": json.dumps({"command": ["ls"]})}},
+        {"timestamp": ts(4), "type": "response_item",
+         "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "done"}]}},
+    ]
+    rp.write_text("".join(json.dumps(x) + "\n" for x in lines))
+    itemsync.sync(settings, agent(rp, aid="codex-2", kind=AgentKind.CODEX))
+    its = got(settings, "codex-2")
+    kinds = [i.kind for i in its]
+    assert "think" in kinds and kinds.index("think") < kinds.index("text")
+    th = next(i for i in its if i.kind == "think")
+    assert "Plan: use" in th.text and TOKEN not in th.text
+    assert all(i.parent == 0 for i in its if i.kind == "tool")  # a thought is not the reply the tools hang under
+
+
 def test_sync_never_raises(settings, jsonl, monkeypatch):
     p = jsonl(user("u1", "x", 1))
 

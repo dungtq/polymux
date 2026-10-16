@@ -84,7 +84,8 @@ class ChatPaths:
 
     def mentions(self) -> Iterator[str]:
         """Absolute .md paths the items name (a tool's target line, a message's text), each once."""
-        return _unique(m for it in self._items() for m in md_mentions(it.line if it.kind == "tool" else it.text))
+        return _unique(m for it in self._items() if it.kind != "think"  # thinking is not a mention
+                       for m in md_mentions(it.line if it.kind == "tool" else it.text))
 
     def dirs(self) -> Iterator[str]:
         """Folders the chat worked in: a tool line's ``cd``/``git -C``/``--directory`` and its paths' folders,
@@ -92,7 +93,7 @@ class ChatPaths:
         def per_item(it: ChatItem) -> list[str]:
             if it.kind == "tool":
                 return cmd_dirs(it.line) + file_dirs(it.line, any_file=True)
-            return file_dirs(it.text)
+            return [] if it.kind == "think" else file_dirs(it.text)
         return _unique(d for it in self._items() for d in per_item(it))
 
 

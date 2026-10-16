@@ -254,7 +254,8 @@ class ChatMsg:
 class ChatItem:
     """One append-only chat item (``pm.chat.items``, table ``chat_items``).
 
-    A user prompt, one assistant text block, one tool call, or a turn end. Once stored, only a
+    A user prompt, one assistant text block, one thinking block (kinds that keep it in clear), one tool call,
+    or a turn end. Once stored, only a
     tool item's ``status``/``ended``/``note`` (and a user item's ``outbox`` link) may change; every
     change bumps ``rev``. Text is masked (``render_pane``) and bounded before it is stored.
     """
@@ -263,7 +264,7 @@ class ChatItem:
     rev: int  # global change counter: a client cursor "rev > N" gets new AND changed items
     uid: str  # stable source id: entry uuid, "<entry uuid>:<block idx>", tool_use_id, "<turn uid>:end"
     conv: str
-    kind: str  # "user" | "text" | "tool" | "end"
+    kind: str  # "user" | "text" | "think" | "tool" | "end"
     turn: str  # uid of the user prompt that opened the turn ("" when unknown)
     ts: float  # epoch s (start for a tool)
     text: str = ""  # user / text: markdown source (masked, <= 20000 chars); end: ""

@@ -73,6 +73,9 @@
 .ci[data-cv="compact"] .ci-cnt .ci-tg > .ci-tg-h[data-after=""],
 .ci[data-cv="compact"] .ci-cnt.ci-cnt-one .ci-tg > .ci-tg-h { display: none; }
 
+/* ---- thinking items stay in the list (chat-compact.js plans them as plain nodes) but Compact shows replies only ---- */
+.ci[data-cv="compact"] .ci-think { display: none; }
+
 /* ---- final reply and turn end ---- */
 .ci[data-cv="compact"] .ci-final .chat-meta .ci-took { color: var(--muted); white-space: nowrap; flex: none; }
 .ci[data-cv="compact"] .ci-end { display: none; }

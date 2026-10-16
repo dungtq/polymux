@@ -4,7 +4,7 @@
    1. first load: the newest page; then, on pm:chat_items / pm:chat_outbox for this agent (live.js re-
       dispatches /events) and every 5 s as a fallback (15 s ended; an empty page re-asks a few times
       after 1.5 s), /items?after_rev=<cursor> (new AND changed items);
-   2. a new item is inserted by seq; a changed tool row (li#i-<seq>) is replaced alone and its group
+   2. a new item (reply, thinking, tool group, turn end) is inserted by seq; a changed tool row (li#i-<seq>) is replaced alone and its group
       header recomputed from the rows; a user bubble only gets its state + actions swapped;
    3. tool groups are folded by default; groups the user opened stay open while on the page;
    4. running timers tick here from data-start (server clock via X-Now); "waiting" after 10 s;
@@ -46,13 +46,13 @@
       if (d < 86400) return Math.floor(d / 3600) + 'h ago';
       return Math.floor(d / 86400) + 'd ago';
     },
-    // kinds ['user' | 'text' | 'tool' | 'end'] in list order -> index of the reply that keeps New chat /
+    // kinds ['user' | 'text' | 'think' | 'tool' | 'end'] in list order -> index of the reply that keeps New chat /
     // Replace / Canvas: the nearest reply before the last turn end (tool groups may lie between), else -1;
     // -1 too while a turn is running (a prompt, reply or tool after the last turn end)
     doneLast: function (kinds) {
       var e = kinds.lastIndexOf('end'), i = e;
       for (var k = e + 1; k < kinds.length; k++) {
-        if (kinds[k] === 'user' || kinds[k] === 'text' || kinds[k] === 'tool') return -1;
+        if (kinds[k] === 'user' || kinds[k] === 'text' || kinds[k] === 'think' || kinds[k] === 'tool') return -1;
       }
       while (--i >= 0) {  // stop at the turn's prompt: a turn without a text reply marks nothing
         if (kinds[i] === 'text') return i;
@@ -85,10 +85,11 @@
   function parse(html) { return new DOMParser().parseFromString('<!doctype html><body>' + html, 'text/html').body; }
   // only the newest reply with a turn end after it shows the reply actions (CSS: .ci-done-last)
   function markDone() {
-    var l = list(), k = l ? Array.prototype.slice.call(l.querySelectorAll('.ci-user, .ci-text, .ci-tg, .ci-end')) : [];
+    var l = list(), k = l ? Array.prototype.slice.call(l.querySelectorAll('.ci-user, .ci-text, .ci-think, .ci-tg, .ci-end')) : [];
     var i = rules.doneLast(k.map(function (c) {
       return c.classList.contains('ci-text') ? 'text' : c.classList.contains('ci-end') ? 'end'
-        : c.classList.contains('ci-user') ? 'user' : c.classList.contains('ci-tg') ? 'tool' : '';
+        : c.classList.contains('ci-user') ? 'user' : c.classList.contains('ci-think') ? 'think'
+        : c.classList.contains('ci-tg') ? 'tool' : '';
     }));
     k.forEach(function (c, j) { c.classList.toggle('ci-done-last', j === i); });
   }

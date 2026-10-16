@@ -45,6 +45,14 @@ def test_chat_paths_newest_first_read_once(monkeypatch):
     assert calls == [None]  # one page (fewer than 1000 items), shared by both
 
 
+def test_chat_paths_ignore_thinking(monkeypatch):
+    page = [ChatItem(seq=1, rev=1, uid="k", conv="c", kind="think", turn="u", ts=1.0, text="maybe /k/K.md"),
+            ChatItem(seq=2, rev=2, uid="m", conv="c", kind="text", turn="u", ts=2.0, text="See /t/T.md")]
+    monkeypatch.setattr("pm.chat.items.list_items", lambda settings, agent_id, **kw: page)
+    cp = mdrefs.ChatPaths(None, "claude-1")
+    assert list(cp.mentions()) == ["/t/T.md"] and list(cp.dirs()) == ["/t"]
+
+
 def test_chat_paths_reads_at_most_two_pages_lazily(monkeypatch):
     full = _items(["cd /p%d" % i for i in range(1000)])
     calls = []
