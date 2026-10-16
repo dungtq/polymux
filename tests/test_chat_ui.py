@@ -584,6 +584,114 @@ def test_limits_parse_windows_and_staleness(tmp_path):
     assert limits.read_limits(tmp_path / "nope", now) == []
 
 
+def test_devin_usage_parse():
+    import time
+
+    from pm.agents import limits
+    now = time.time()
+    out = limits.parse_devin_usage(
+        "⟩ /usage\n\n"
+        "Daily   ▇▇▇▇           12% used   · resets in 12h 57m\n"
+        "Weekly  ▇▇             47% used   · resets Oct 18, 3:00 PM (UTC+7)\n"
+        "\nThis session\nTokens   25k in · 604 out\n", now)
+    assert out["daily"]["used_percentage"] == 12 and out["daily"]["resets_at"] == now + 12 * 3600 + 57 * 60
+    assert out["weekly"]["used_percentage"] == 47
+    assert limits._local(out["weekly"]["resets_at"]).strftime("%H:%M") == "15:00"
+    # placeholder bars below a live "Fetching" line are not final
+    assert limits.parse_devin_usage(
+        "⟩ /usage\nFetching account usage…\nDaily   ▇▇  0% used\nWeekly  ▇  0% used\n", now) == {}
+    # an old block above a new fetch is not the result either
+    assert limits.parse_devin_usage(
+        "Daily  ▇▇ 12% used · resets in 1h\nWeekly ▇ 47% used · resets in 3d\n"
+        "⟩ /usage\nFetching account usage…\n", now) == {}
+    # done fetch after an older block: last block wins
+    assert limits.parse_devin_usage(
+        "Daily  ▇▇ 9% used · resets in 1h\n⟩ /usage\n"
+        "Daily  ▇▇ 12% used · resets in 5h\nWeekly ▇ 3% used · resets in 2m\n",
+        now)["daily"]["used_percentage"] == 12
+    assert limits.parse_devin_usage("random text\n", now) == {}
+
+
+def test_devin_limits_read_and_staleness(tmp_path):
+    import json
+    import os
+    import time
+    from types import SimpleNamespace
+
+    from pm.agents import limits
+    from pm.core.models import AgentKind, AgentState
+    now = time.time()
+    f = tmp_path / limits.DEVIN_FILE
+    f.write_text(json.dumps({"daily": {"used_percentage": 34, "resets_at": now + 3600},
+                             "weekly": {"used_percentage": 81, "resets_at": now + 3 * 86400}}))
+    w = limits.read_devin_limits(tmp_path, now=now)
+    assert [(x.label, x.pct, x.level, x.tag) for x in w] == [("Day limit", 34, "ok", "D"), ("Week limit", 81, "red", "W")]
+    ag = SimpleNamespace(kind=AgentKind.DEVIN, state=AgentState.RUNNING)
+    assert limits.for_agent(ag, SimpleNamespace(state_dir=tmp_path), now=now) == w
+    os.utime(f, (now - 7 * 3600, now - 7 * 3600))
+    assert limits.read_devin_limits(tmp_path, now=now) == []
+
+
+def test_devin_limits_refresh_gating(tmp_path, monkeypatch):
+    import time
+    from types import SimpleNamespace
+
+    from pm.agents import limits
+    from pm.agents import message as msg
+    from pm.core.models import AgentKind, AgentState
+    idle = SimpleNamespace(kind=AgentKind.DEVIN, state=AgentState.IDLE, pane_id="%99")
+    running = SimpleNamespace(kind=AgentKind.DEVIN, state=AgentState.RUNNING, pane_id="%99")
+    sent = []
+
+    monkeypatch.setattr(msg, "send_message", lambda settings, agent, text, **kw: sent.append(text))
+    monkeypatch.setattr(limits, "DEVIN_WAIT_S", 0.3)
+    monkeypatch.setattr(limits, "DEVIN_POLL_S", 0.05)
+    screens = iter(["…\n Message to swe-2-medium in dev-pm:9\n",  # idle, empty composer
+                    "⟩ /usage\nFetching account usage…\nDaily ▇ 0% used\n",  # placeholder
+                    "Daily ▇ 21% used · resets in 5h 10m\nWeekly ▇ 9% used · resets Oct 18, 3:00 PM (UTC+7)\n"])
+    monkeypatch.setattr(limits, "_devin_pane_text", lambda settings, pane: next(screens, ""))
+    s = SimpleNamespace(state_dir=tmp_path)
+    # running agent: never sends
+    assert limits.read_devin_limits(tmp_path, agent=running, settings=s) == []
+    assert not sent
+    limits._DEVIN_SWR.clear()
+    # idle + empty composer + no file: schedules a fetch on the jobs pool; the file lands shortly
+    assert limits.read_devin_limits(tmp_path, agent=idle, settings=s) == []
+    f = tmp_path / limits.DEVIN_FILE
+    for _ in range(60):
+        if f.exists() and sent:
+            break
+        time.sleep(0.05)
+    assert sent == ["/usage"]
+    w = limits.read_devin_limits(tmp_path, now=time.time())
+    assert [(x.label, x.pct) for x in w] == [("Day limit", 21), ("Week limit", 9)]
+
+
+def test_devin_limits_busy_composer_no_send(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from pm.agents import limits
+    from pm.agents import message as msg
+    from pm.core.models import AgentKind, AgentState
+    idle = SimpleNamespace(kind=AgentKind.DEVIN, state=AgentState.IDLE, pane_id="%99")
+    sent = []
+    monkeypatch.setattr(msg, "send_message", lambda settings, agent, text, **kw: sent.append(text))
+    # a draft replaces the "Message to" placeholder; a running turn shows "Guide Devin"
+    import time
+    f = tmp_path / limits.DEVIN_FILE
+    for screen in ("│ fix the tests\n", "Guide Devin while it works\n"):
+        limits._DEVIN_SWR.clear()
+        f.unlink(missing_ok=True)
+        monkeypatch.setattr(limits, "_devin_pane_text", lambda settings, pane, s=screen: s)
+        limits.read_devin_limits(tmp_path, agent=idle, settings=SimpleNamespace(state_dir=tmp_path))
+        for _ in range(60):
+            if f.exists():
+                break
+            time.sleep(0.05)
+        assert not sent
+        assert f.exists()  # failed attempt still throttles retries
+
+
 def test_stats_limits_inline_and_204_unchanged(env, monkeypatch):
     import json
     import time

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Agent thinking shows in the chat)
+
+The thinking of Antigravity (agy), Devin, Cursor and Codex agents now shows in the chat as a folded "Thought" row with its first line. Click it to read the full text. The Compact view hides these rows. Claude is unchanged. Conversations are read once again so earlier thinking appears.
+
 ## 2026-10-17 (Auto-exit keeps the agent's window (autoexit_close_window))
 
 - An idle auto-exit no longer closes the agent's tmux window: it stays with its last output, like the window of
