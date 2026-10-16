@@ -19,6 +19,8 @@ uv sync --group dev
 
 Run a local instance with `uv run pm` (see [docs/INSTALL.md](docs/INSTALL.md)). For the optional
 Playwright UI suite and screenshots, install the browsers once: `uv run playwright install chromium webkit`.
+To keep your own host names, LAN addresses and user name out of commits, list them in
+`~/.config/pm/private-patterns.txt` (format: `tools/leakcheck.sh --help`) and run `./tools/leakcheck.sh --install` once.
 
 ## Checks before a PR
 
@@ -26,7 +28,7 @@ Playwright UI suite and screenshots, install the browsers once: `uv run playwrig
 |---|---|
 | `uv run pytest` | Test suite (UI tests are skipped by default) |
 | `uv run ruff check src tests tools` | Lint (`make lint`) |
-| `./tools/check.sh` (= `make check`) | ruff plus `tools/archcheck.py`, the architecture gate (also the dt static tree) |
+| `./tools/check.sh` (= `make check`) | ruff, the public leak scan (`tools/leakcheck.sh --tree` with `tools/leak-public.txt`) and `tools/archcheck.py`, the architecture gate (also the dt static tree) |
 | `./tools/ui.sh` (= `make ui`) | Optional: screenshot smoke (`tools/uishot.py --smoke`) plus `uv run pytest -m ui`, the Playwright UI suite against a dev instance |
 
 All of them must pass (the UI suite when you change the UI). CI runs `./tools/check.sh` and pytest on every PR.
