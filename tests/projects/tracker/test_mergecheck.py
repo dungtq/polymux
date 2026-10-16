@@ -102,3 +102,16 @@ def test_bad_or_unknown_base(tk, repo):
         _check(tk, repo)
     with pytest.raises(NotFound):
         _check(tk, tk.state_dir)
+
+
+
+def test_generated_tracker_files_never_overlap(tk, repo, monkeypatch):
+    monkeypatch.setattr(mergecheck.mdgen, "tracked_files", lambda s, p, files: ["changelog", "features"])
+    assert mergecheck.generated(tk, "proj") == {"CHANGELOG.md", "FEATURES.md"}
+    wt = _wt(tk, repo, "b")
+    _commit(wt, "CHANGELOG.md", "mine\n")
+    _commit(wt, "src/a.py")
+    other = _wt(tk, repo, "c")
+    _commit(other, "CHANGELOG.md", "theirs\n")
+    rep = _check(tk, wt)
+    assert rep.files == ["src/a.py"] and rep.worktrees == [] and rep.exit_code == mergecheck.CLEAR

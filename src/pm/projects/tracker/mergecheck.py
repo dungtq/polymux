@@ -3,7 +3,9 @@
 ``files`` = ``git diff --name-only BASE...HEAD`` plus this work tree's uncommitted changes. Reported: whether
 BASE moved on (commits not in HEAD: rebase / merge it first; a warning, never an overlap), the other agents'
 active, non-stale claims covering any of ``files`` (own claims: same agent or same work tree, are left out), and
-the repo's other work trees whose uncommitted changes or commits not in BASE touch any of ``files``.
+the repo's other work trees whose uncommitted changes or commits not in BASE touch any of ``files``. The
+project's generated tracker files (root BACKLOG.md, TODO.md, CHANGELOG.md, FEATURES.md once imported) never
+count: pm's hooks and merge driver re-render them, so every branch touches them without a real conflict.
 The git logic of claims lives here too (``where``: the cwd's work tree and branch). Git errors come out as
 ``Invalid``; all git calls go through ``pm.git.ops`` / ``pm.git.ctl`` (argv, timeout, user values checked).
 """
@@ -17,7 +19,7 @@ from pm.core.config import Settings
 from pm.core.errors import Invalid, NotFound
 from pm.git import ctl as gitctl
 from pm.git import ops
-from pm.projects.tracker import claims, drafts
+from pm.projects.tracker import claims, drafts, mdgen, schema
 
 CLEAR, OVERLAP, ERROR = 0, 1, 2
 
@@ -72,11 +74,16 @@ def _dirty(top: Path) -> set[str]:
     return {p for f in st.files for p in (f.path, f.orig) if p}
 
 
-def _changed(top: Path, base: str) -> set[str]:
-    return set(ops.files_since(top, base)) | _dirty(top)
+def generated(settings: Settings, project: str) -> set[str]:
+    """Root-level tracker files the project renders from pm.db (``schema.ALL_FILES`` that are imported)."""
+    return {schema.ALL_FILES[f] for f in mdgen.tracked_files(settings, project, schema.ALL_FILES)}
 
 
-def _other_trees(top: Path, base: str, files: set[str]) -> list[dict]:
+def _changed(top: Path, base: str, skip: set[str] = frozenset()) -> set[str]:
+    return (set(ops.files_since(top, base)) | _dirty(top)) - skip
+
+
+def _other_trees(top: Path, base: str, files: set[str], skip: set[str]) -> list[dict]:
     """The repo's other work trees (``git worktree list``) whose changes touch ``files``; one that cannot be
     read (gone, bare, locked away) is skipped."""
     out = []
@@ -88,7 +95,7 @@ def _other_trees(top: Path, base: str, files: set[str]) -> list[dict]:
             other = ops.top_of(path)
             if other == top:
                 continue
-            hit = sorted(_changed(other, base) & files)
+            hit = sorted(_changed(other, base, skip) & files)
         except (gitctl.GitError, NotFound, Invalid):
             continue
         if hit:
@@ -111,10 +118,11 @@ def check(settings: Settings, project: str, cwd: str | Path, *, agent: str, base
         base = ops.check_base(base) if base else default_base(settings, project, top)
         if not ops.has_ref(top, base):
             raise NotFound(f"no such branch or ref: {base}")
-        files = _changed(top, base)
+        skip = generated(settings, project)
+        files = _changed(top, base, skip)
         _ahead, behind = ops.ahead_behind(top, base)
         branch = gitctl.current_branch(top) or ""
-        trees = _other_trees(top, base, files)
+        trees = _other_trees(top, base, files, skip)
     except gitctl.GitError as e:
         raise Invalid(f"git: {e}") from None
     hits = [c for c in claims.list_claims(settings, project, live=live)
