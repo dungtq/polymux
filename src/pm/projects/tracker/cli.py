@@ -14,7 +14,7 @@ from collections.abc import Sequence
 
 from pm.core.errors import PmError
 from pm.projects import backlog
-from pm.projects.tracker import cli_cmds, schema
+from pm.projects.tracker import cli_cmds, memory, schema
 
 
 class _Parser(argparse.ArgumentParser):
@@ -147,11 +147,48 @@ def _claim_parser(sub, common) -> None:
     m.add_argument("--base", help="branch it merges into (default: the repo's main branch)")
 
 
+def _memory_body(p: argparse.ArgumentParser) -> None:
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--text", help="body (Markdown)")
+    g.add_argument("--body-file", help="body from a file, - = stdin")
+    p.add_argument("--title", help="index title (default: the name)")
+    p.add_argument("--global", dest="is_global", action="store_true", help="the global memory (type user only)")
+
+
+def _memory_parser(sub, common) -> None:
+    p = sub.add_parser("memory", help="agent memory shared by every agent kind (synced with Claude Code's)")
+    s = p.add_subparsers(dest="action", required=True, parser_class=_Parser)
+    types = list(memory.TYPES)
+    a = s.add_parser("add", parents=[common], help="new memory")
+    a.add_argument("name", help="slug: a-z, 0-9, '-', '_'")
+    a.add_argument("--type", required=True, choices=types)
+    a.add_argument("--description", required=True, help="one line: what it is and when it applies")
+    _memory_body(a)
+    e = s.add_parser("set", parents=[common], help="replace the given fields (adds the memory when missing)")
+    e.add_argument("name")
+    e.add_argument("--type", choices=types)
+    e.add_argument("--description")
+    _memory_body(e)
+    for act, hlp in (("show", "description, body, who and when"), ("rm", "delete (its synced files go too)")):
+        x = s.add_parser(act, parents=[common], help=hlp)
+        x.add_argument("name")
+        x.add_argument("--global", dest="is_global", action="store_true", help="the global memory")
+    lp = s.add_parser("list", parents=[common], help="this project's memories")
+    lp.add_argument("--type", choices=types)
+    lp.add_argument("--all", action="store_true", help="also the global memories")
+    q = s.add_parser("search", parents=[common], help="name, title, description and body contain QUERY")
+    q.add_argument("query")
+    q.add_argument("--limit", type=int, default=memory.SEARCH_LIMIT, help=f"at most {memory.SEARCH_LIMIT}")
+    s.add_parser("context", parents=[common], help="short index for a session start (project + global)")
+    y = s.add_parser("sync", parents=[common], help="two-way sync with Claude Code's memory dirs (all work trees)")
+    y.add_argument("--all", action="store_true", help="every project with memories or a Claude memory dir")
+
+
 def build_parser() -> argparse.ArgumentParser:
     common = _common()
     p = _Parser(prog="pmctl", parents=[common],
-                description="pm tracker: issues (BACKLOG.md), TODO.md, CHANGELOG.md, FEATURES.md and agent"
-                            " work claims in pm.db")
+                description="pm tracker: issues (BACKLOG.md), TODO.md, CHANGELOG.md, FEATURES.md, agent"
+                            " work claims and agent memory in pm.db")
     sub = p.add_subparsers(dest="cmd", required=True, parser_class=_Parser)
     for name in ("issue", "backlog"):
         _issue_parser(sub, name, common)
@@ -166,6 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
     _change_parser(sub, common)
     _feature_parser(sub, common)
     _claim_parser(sub, common)
+    _memory_parser(sub, common)
     r = sub.add_parser("render", parents=[common], help="write the tracker files from pm.db")
     g = r.add_mutually_exclusive_group()
     g.add_argument("--check", action="store_true", help="exit 1 listing files that differ from the render")

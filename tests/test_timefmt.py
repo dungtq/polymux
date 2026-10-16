@@ -37,6 +37,12 @@ def test_bad_input(bad):
         assert f(bad) == "\u2013"
 
 
+def test_iso():
+    assert timefmt.iso(E0) == "2026-10-07T14:32:05+07:00"
+    for bad in (None, 0, -5, "x", float("nan"), 1e30, True):
+        assert timefmt.iso(bad) is None
+
+
 def test_offsets():
     timefmt.configure(SimpleNamespace(display_utc_offset_h=5.5))
     assert timefmt.label() == "UTC+5:30" and timefmt.fmt_dt(E0) == "2026-10-07 13:02:05"
