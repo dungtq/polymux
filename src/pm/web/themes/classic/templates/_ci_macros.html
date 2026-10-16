@@ -80,18 +80,22 @@
 </details>
 {%- endmacro %}
 
-{# A message another agent sent with tmux-agents (chat.text.parse_peer): "Message from: <agent id>" in that agent's
+{# A message another agent sent with tmux-agents (chat.text.parse_peers; one section per message): "Message from: <agent id>" in that agent's
    colour (data-kind -> --k). Keeps .ci-user for chat-items.js / chat-compact.js; the composer history skips it. #}
-{% macro peer_item(it, p) -%}
-<article id="i-{{ it.seq }}" class="chat-bubble ci-user ci-peer" data-kind="{{ p.kind }}" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}" aria-label="Message from {{ p.sender }}">
-  <header class="chat-meta"><strong>Message from: <bdi class="ci-peer-id">{{ p.sender }}</bdi></strong> <span class="ci-peer-role">{{ {"request": "request", "notice": "notice"}.get(p.role, "reply" ~ (" · " ~ p.status if p.status else "")) }}</span> <span class="muted" title="{{ it.ts | ts }}">{{ it.ts | ago }}</span>{{ copy_btn(p.body) }}</header>
-  <div class="chat-text md">{{ p.body | md }}</div>
+{% macro peer_item(it, peers) -%}
+<article id="i-{{ it.seq }}" class="ci-user ci-peers" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}">
+{%- for p in peers %}
+  <section class="chat-bubble ci-peer" data-kind="{{ p.kind }}" aria-label="Message from {{ p.sender }}">
+    <header class="chat-meta"><strong>Message from: <bdi class="ci-peer-id">{{ p.sender }}</bdi></strong> <span class="ci-peer-role">{{ {"request": "request", "notice": "notice"}.get(p.role, "reply" ~ (" · " ~ p.status if p.status else "")) }}</span> <span class="muted" title="{{ it.ts | ts }}">{{ it.ts | ago }}</span>{{ copy_btn(p.body) }}</header>
+    <div class="chat-text md">{{ p.body | md }}</div>
+  </section>
+{%- endfor %}
 </article>
 {%- endmacro %}
 
 {% macro user_item(it) -%}
-{% set peer = it.text | pm_peer -%}
-{% if peer %}{{ peer_item(it, peer) }}{% else -%}
+{% set peers = it.text | pm_peers -%}
+{% if peers %}{{ peer_item(it, peers) }}{% else -%}
 <article id="i-{{ it.seq }}" class="chat-bubble role-user ci-user" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}"{% if it.outbox %} data-ob="{{ it.outbox }}"{% endif %}>
   <header class="chat-meta">{% if it.outbox %}{{ ob_state("done") }}{% endif %}<strong>You</strong> <span class="muted">{{ it.ts | ago }}</span> <span class="stamp muted small">{{ it.ts | ts }}</span>{{ copy_btn(it.text | pm_hint_strip) }}</header>
   <div class="chat-text md">{{ it.text | pm_hint_strip | md }}</div>
