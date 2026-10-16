@@ -34,7 +34,7 @@ _KINDS = {
     "agy": AgentKind.ANTIGRAVITY,
 }
 _INTERPRETERS = {"node", "bun", "deno", "python", "python3", "sh", "bash", "env"}
-_AUTH_SUBCMDS = {"auth", "login", "logout"}  # login/logout/status runs of an agent CLI
+_AUTH_SUBCMDS = {"auth", "login", "logout", "models", "-p", "--print"}  # login/logout/status/print runs of an agent CLI
 SUBAGENT_BUSY_S = 60.0  # background sub-agents wrote this recently: parent "idle" is not finished
 
 

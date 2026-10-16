@@ -321,6 +321,16 @@ def panel_data(agent, settings=None) -> dict | None:
     st = stats_for(agent, settings) if kind != "cursor-agent" else None  # cursor scrapes the pane: not here
     if st is None or not st.exact:
         return None
-    return {"model": st.model, "turns": st.turns, "replies": None, "tools": None, "duration": "–",
+    replies = tools = None
+    dur = "–"
+    if kind == "antigravity":
+        from pm.chat.sources import antigravity
+
+        ex = antigravity.usage_extras(agent)
+        if ex is not None:
+            replies, tools, dur = ex[0], ex[1], fmt_duration(ex[2])
+    side = st.input + st.cache_write + st.cache_read
+    hit = round(100 * st.cache_read / side) if side else None
+    return {"model": st.model, "turns": st.turns, "replies": replies, "tools": tools, "duration": dur,
             "input": st.input, "output": st.output, "cache_write": st.cache_write, "cache_read": st.cache_read,
-            "total": st.total, "hit": None, "exact": True}
+            "total": st.total, "hit": hit, "exact": True}

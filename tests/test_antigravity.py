@@ -226,3 +226,95 @@ def test_detect_agy_without_conversation(tmp_path):
     mkproc(proc, 21, 1, "agy", ["agy"])
     a = detect_agents([pane(21, 1)], sessions_dir=tmp_path / "none", proc_root=proc, home=tmp_path / "h")
     assert a[0].kind is AgentKind.ANTIGRAVITY and a[0].transcript == ""
+
+
+def test_detect_ignores_agy_print_and_models(tmp_path):
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    mkproc(proc, 21, 1, "agy", ["agy", "-p", "/usage", "--output-format", "json"])
+    mkproc(proc, 22, 1, "agy", ["agy", "models"])
+    assert detect_agents([pane(21, 1), pane(22, 2)], sessions_dir=tmp_path / "none", proc_root=proc, home=tmp_path / "h") == []
+
+
+def test_locate_via_presence_lock_fd(tmp_path):
+    home, root, db = home_with_conv(tmp_path)
+    proc = tmp_path / "proc"
+    (proc / "77" / "fd").mkdir(parents=True)
+    os.symlink(str(root / "presence" / f"{UUID}.lock"), proc / "77" / "fd" / "4")
+    assert agy.locate(77, home, proc) == db
+
+
+def test_read_entries_waits_for_in_progress_step(tmp_path):
+    streaming = f_int(1, 15) + f_int(4, 2) + f_msg(20, f_msg(1, "half sentence") + f_msg(3, "thinking..."))
+    done = f_int(1, 15) + f_int(4, 3) + f_msg(20, f_msg(1, "half sentence completed in full") + f_msg(3, "thinking..."))
+    _, _, db = home_with_conv(tmp_path, steps=[(14, user_step("prompt")), (15, streaming)])
+    c1 = agy.read_entries(db, -1)
+    assert [(e.role, e.text) for e in c1.entries] == [("user", "prompt")]
+    assert c1.pos == 0  # stopped before idx=1 while status==2 (GENERATING)
+    assert agy.read_latest(db) is None
+    con = sqlite3.connect(db)
+    con.execute("UPDATE steps SET status=3, step_payload=? WHERE idx=1", (done,))
+    con.commit()
+    con.close()
+    c2 = agy.read_entries(db, c1.pos)
+    assert [(e.role, e.text) for e in c2.entries] == [("assistant", "half sentence completed in full")]
+    assert c2.pos == 1
+    assert agy.read_latest(db).text == "half sentence completed in full"
+
+
+def test_usage_extras_and_running_state(tmp_path):
+    from pm.agents.state import classify_pane_text
+
+    home, _, db = home_with_conv(tmp_path)
+    ag = Agent(id="antigravity-1", kind=AgentKind.ANTIGRAVITY, pane_id="%1", session_id="$1", pid=0, cwd="/p",
+               transcript=str(db))
+    assert agy.usage_extras(ag, home) == (2, 1, 80)
+    st, _ = classify_pane_text("⣻  Running command...\n> \n/w/proj\nesc to cancel", AgentKind.ANTIGRAVITY)
+    assert st is AgentState.RUNNING
+
+
+def test_agy_limits_parse_and_model_tags(tmp_path):
+    import json
+    import time
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from pm.agents import limits
+
+    now = time.time()
+    r5 = datetime.fromtimestamp(now + 3600, UTC).isoformat().replace("+00:00", "Z")
+    rw = datetime.fromtimestamp(now + 5 * 86400, UTC).isoformat().replace("+00:00", "Z")
+    raw = {
+        "status": "SUCCESS",
+        "command": {
+            "name": "usage",
+            "data": {
+                "groups": [
+                    {"name": "Gemini Models", "buckets": [
+                        {"id": "gemini-weekly", "window": "weekly", "remaining_fraction": 0.99, "reset_time": rw},
+                        {"id": "gemini-5h", "window": "5h", "remaining_fraction": 0.98, "reset_time": r5},
+                    ]},
+                    {"name": "Claude and GPT models", "buckets": [
+                        {"id": "3p-weekly", "window": "weekly", "remaining_fraction": 1.0, "reset_time": rw},
+                        {"id": "3p-5h", "window": "5h", "remaining_fraction": 1.0, "reset_time": r5},
+                    ]},
+                    {"name": "Gemini 4 Argon", "buckets": [
+                        {"id": "gemini-argon-wtu-weekly", "window": "weekly", "remaining_fraction": 0.26, "reset_time": rw},
+                    ]},
+                ]
+            },
+        },
+    }
+    (tmp_path / limits.AGY_FILE).write_text(json.dumps(raw))
+    w_argon = limits.read_agy_limits(tmp_path, model="gemini-4-argon-trial", now=now)
+    assert [(x.name, x.pct, x.tag, x.level) for x in w_argon] == [
+        ("5-hour limit", 2, "5", "ok"),
+        ("Weekly limit", 1, "", "ok"),
+        ("Argon weekly limit", 74, "W", "warn"),
+    ]
+    w_gem = limits.read_agy_limits(tmp_path, model="gemini-3-flash", now=now)
+    assert [(x.name, x.tag) for x in w_gem] == [("5-hour limit", "5"), ("Weekly limit", "W"), ("Argon weekly limit", "")]
+    ag = SimpleNamespace(kind=AgentKind.ANTIGRAVITY)
+    s = SimpleNamespace(state_dir=tmp_path)
+    assert limits.for_agent(ag, s, model="gemini-4-argon-trial", now=now) == w_argon
+

@@ -43,8 +43,10 @@ from .common import (
 )
 
 _UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-_DB_RE = re.compile(rf"/conversations/({_UUID})\.db(?:-wal|-shm)?$")
-_STEP_USER, _STEP_REPLY = 14, 15
+_DB_RE = re.compile(rf"/(?:conversations/({_UUID})\.db(?:-wal|-shm)?|presence/({_UUID})\.lock)$")
+_STEP_USER, _STEP_REPLY, _STEP_TOOL = 14, 15, 132
+# CORTEX_STEP_STATUS (field 4 of step_payload): 1 PENDING, 2 GENERATING, 3 DONE, 8 WAITING, 9 RUNNING
+_IN_PROGRESS = (1, 2, 8, 9)
 _RECENT = 6
 _MAX_STEPS = 60
 _MAX_BLOB = 256 * 1024
@@ -166,7 +168,7 @@ def _from_fds(pid: int, root: Path, proc_root: Path) -> Path | None:
         m = _DB_RE.search(target)
         if m is None:
             continue
-        p = _conv_path(root, m.group(1))
+        p = _conv_path(root, m.group(1) or m.group(2))
         if p is None:
             continue
         t = mtime(p)
@@ -247,7 +249,7 @@ def read_latest(path: Path) -> Latest | None:
     found: list[tuple[str, float]] = []
     task, task_ts = "", 0.0
     for typ, payload in rows:
-        if not isinstance(payload, bytes):
+        if not isinstance(payload, bytes) or find(payload, 4) in _IN_PROGRESS:
             continue
         if typ == _STEP_REPLY and len(found) < _RECENT:
             t = _text(find(payload, 20, 1)) or _text(find(payload, 20, 8))
@@ -293,6 +295,8 @@ def read_entries(path: Path, pos: int = -1) -> Chunk:
     out: list[RawEntry] = []
     last = start
     for idx, typ, payload in rows:
+        if isinstance(payload, bytes) and typ in (_STEP_USER, _STEP_REPLY) and find(payload, 4) in _IN_PROGRESS:
+            break  # step still streaming: wait until status becomes DONE so text/tools are complete
         last = idx
         if not isinstance(payload, bytes):
             continue
@@ -363,7 +367,7 @@ def session_stats(agent, home: Path | None = None):
         if c is not None and c["mtime"] == mt:
             return _build(Stats, c)
         c = dict(c) if c else {"last": -1, "in": 0, "out": 0, "cache": 0, "ctx": 0, "window": 0,
-                               "model": "", "turns": 0}
+                               "model": "", "turns": 0, "replies": 0, "tools": 0, "dur": 0}
     try:
         con = _connect(path)
         try:
@@ -384,6 +388,17 @@ def session_stats(agent, home: Path | None = None):
                 if len(rows) < _BATCH:
                     break
             c["turns"] = con.execute("SELECT count(*) FROM steps WHERE step_type=?", (_STEP_USER,)).fetchone()[0]
+            c["replies"] = con.execute("SELECT count(*) FROM steps WHERE step_type=?", (_STEP_REPLY,)).fetchone()[0]
+            c["tools"] = con.execute("SELECT count(*) FROM steps WHERE step_type=?", (_STEP_TOOL,)).fetchone()[0]
+            first = con.execute("SELECT CASE WHEN length(step_payload) <= ? THEN step_payload END FROM steps "
+                                "WHERE step_type IN (?, ?) ORDER BY idx ASC LIMIT 1",
+                                (_MAX_BLOB, _STEP_USER, _STEP_REPLY)).fetchone()
+            last = con.execute("SELECT CASE WHEN length(step_payload) <= ? THEN step_payload END FROM steps "
+                               "WHERE step_type IN (?, ?) ORDER BY idx DESC LIMIT 1",
+                               (_MAX_BLOB, _STEP_USER, _STEP_REPLY)).fetchone()
+            t0 = _step_ts(first[0]) if first and isinstance(first[0], bytes) else 0.0
+            t1 = _step_ts(last[0]) if last and isinstance(last[0], bytes) else 0.0
+            c["dur"] = max(0, int(t1 - t0)) if t0 and t1 else 0
         finally:
             con.close()
     except sqlite3.Error:
@@ -394,6 +409,16 @@ def session_stats(agent, home: Path | None = None):
             _STATS_CACHE.clear()
         _STATS_CACHE[key] = c
     return _build(Stats, c)
+
+
+def usage_extras(agent, home: Path | None = None) -> tuple[int, int, int] | None:
+    """``(replies, tools, duration_sec)`` from the cached conversation stats, or None."""
+    path = _stat_path(agent, home or Path.home())
+    if path is None or session_stats(agent, home) is None:
+        return None
+    with _LOCK:
+        c = _STATS_CACHE.get(str(path))
+    return (c.get("replies", 0), c.get("tools", 0), c.get("dur", 0)) if c else None
 
 
 def _build(stats_cls, c: dict):

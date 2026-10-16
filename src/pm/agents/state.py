@@ -37,8 +37,8 @@ _WAITING = [
     re.compile(r"press enter to (confirm|continue)", re.I),
 ]
 _RUNNING = [
-    re.compile(r"[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏✻✶✳✢·✽]\s+\S+(ing|…)", re.I),
-    re.compile(r"esc to interrupt|ctrl\+c to (interrupt|stop|cancel)", re.I),
+    re.compile(r"[\u2800-\u28ff✻✶✳✢·✽]\s+\S+(ing|…)", re.I),
+    re.compile(r"esc to (interrupt|cancel)|ctrl\+c to (interrupt|stop|cancel)", re.I),
     re.compile(r"\b(thinking|working|running|generating|searching|reading|editing)\s*(\.{2,}|…)", re.I),
 ]
 _FAILED = [

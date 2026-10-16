@@ -52,8 +52,8 @@ MAX_STEPS = 200  # per assistant turn, newest kept
 STEP_LINE = 160
 STEP_KINDS = ("text", "tool", "thinking")
 # parsing format: a cursor written by an older one re-reads its conversation once
-# (1 = narration thinking is text, 2026-10-12)
-FORMAT = 1
+# (1 = narration thinking is text, 2026-10-12; 2 = Antigravity waits for streaming steps, 2026-10-17)
+FORMAT = 2
 
 _SCHEMA = (
     ("CREATE TABLE IF NOT EXISTS chat_messages ("
