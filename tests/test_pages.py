@@ -134,7 +134,7 @@ def test_launch_popup_redirect_hint(env):
     c.app.state.settings.extras.update(s.extras)
     h = c.get(url).text
     assert "data-project-hint" in h and "Work on <b>beta</b> code?" in h
-    assert re.search(r'<button type="button" class="linkbtn" data-project-switch="beta" title="[^"]+">Launch in beta'
+    assert re.search(r'<button type="button" class="textlink" data-project-switch="beta" title="[^"]+">Launch in beta'
                      r'</button>', h)
     assert "data-project-hint" not in c.get("/p/beta/launch?embed=1&from=inbox").text  # target not a project
     assert "data-project-hint" not in c.get("/p/alpha/launch").text  # no picker on the full page

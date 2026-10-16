@@ -8,7 +8,7 @@
   {% if from_inbox %}<label class="f-project"><span class="lbl">Project</span>
     <select data-project-pick aria-label="Project">{% for n in launch_projects %}<option value="{{ n }}"{% if n == project.name %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>{% if launch_data.hint %}
   <p class="muted small f-hint f-project" data-project-hint>Work on <b>{{ launch_data.hint }}</b> code?
-    <button type="button" class="linkbtn" data-project-switch="{{ launch_data.hint }}" title="Open the launch form for {{ launch_data.hint }}">Launch in {{ launch_data.hint }}</button></p>{% endif %}{% endif %}
+    <button type="button" class="textlink" data-project-switch="{{ launch_data.hint }}" title="Open the launch form for {{ launch_data.hint }}">Launch in {{ launch_data.hint }}</button></p>{% endif %}{% endif %}
   <label class="f-agent"><span class="lbl">Agent</span>
     <select name="kind" data-kind="{{ kinds[0] if kinds else 'other' }}">{% for k in kinds %}<option value="{{ k }}" data-kind="{{ k }}">{{ k }}</option>{% endfor %}</select></label>
   {{ launch_opts() }}
