@@ -84,4 +84,4 @@ First public release.
   off, UTC display, no protected VM names.
 - Docs: install, config reference, security model. Bundled extras: systemd
   unit, nginx example, Docker proxy + ntfy stack, `tmux-agents`.
-- Static design mock of the next UI (v7) in `docs/mock/v7/`.
+
