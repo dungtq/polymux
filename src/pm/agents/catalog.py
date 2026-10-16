@@ -134,15 +134,26 @@ def parse_devin(text: str) -> list[tuple[str, str, str]]:
     return out
 
 
+def parse_antigravity(text: str) -> list[tuple]:
+    """``agy models``: ``<id>\\t<display name>`` per line; effort words fold into the family like cursor."""
+    out = []
+    for line in text.splitlines():
+        m = re.match(r"^(\S+)(?:\t+|\s{2,})(.+)$", line.strip())
+        if m and _ID.match(m.group(1)):
+            out.append((m.group(1), m.group(2).strip(), cursor_base(m.group(1)), ""))
+    return out
+
+
 _SOURCES = {
     AgentKind.CLAUDE: (["--help"], claude_rows),
     AgentKind.CODEX: (["debug", "models"], parse_codex),
     AgentKind.CURSOR: (["models"], lambda t: group_cursor(parse_cursor(t))),
     AgentKind.DEVIN: (["models", "list"], parse_devin),
+    AgentKind.ANTIGRAVITY: (["models"], parse_antigravity),
 }
 
 # programs whose TUI takes `/model <id>` (codex's /model has no argument)
-SWITCHABLE = (AgentKind.CLAUDE, AgentKind.CURSOR, AgentKind.DEVIN)
+SWITCHABLE = (AgentKind.CLAUDE, AgentKind.CURSOR, AgentKind.DEVIN, AgentKind.ANTIGRAVITY)
 
 
 def _norm(m) -> tuple:

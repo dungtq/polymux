@@ -127,6 +127,10 @@ def test_classify():
     assert c("done\n│ > \n  ? for shortcuts")[0] is I
     assert c("")[0] is U
     assert c("hello world")[0] is U
+    cur = lambda t: classify_pane_text(t, AgentKind.CURSOR)[0]  # noqa: E731
+    assert cur("done\n\n  → Add a follow-up\n\n  Grok 4.7 · 86.3%\n  ~/proj · main") is I
+    assert cur("  → Plan, search, build anything\n  ~/proj · main") is I
+    assert cur("  → Add a follow-up\n  ctrl+c to stop") is R
     for t in ("Allow?", "esc to interrupt", "Error: x"):
         assert 0 < c(t)[1] < 1
 

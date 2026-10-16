@@ -42,6 +42,14 @@ def test_build_each_kind(settings):
     for k in (AgentKind.CODEX, AgentKind.DEVIN, AgentKind.CURSOR):
         a = L.build_command(Launch("p", k, prompt="--evil"), settings)
         assert a[0].endswith(f"/.local/bin/{k.value}") and a[-2:] == ["--", "--evil "]
+    agy = L.build_command(Launch("p", AgentKind.ANTIGRAVITY, "gemini-4-argon-medium", "plan", None, "hi -x",
+                                 effort="high", permission_extra="sandbox"), settings)
+    assert agy[0].endswith("/.local/bin/agy")
+    assert agy[1:] == ["--model", "gemini-4-argon-medium", "--mode", "plan", "--sandbox", "--effort", "high",
+                       "-i", "hi -x"]
+    # agent_bins accepts both "antigravity" and "agy"
+    s2 = dataclasses.replace(settings, agent_bins={"agy": "/x/agy"})
+    assert L.agent_binary(s2, AgentKind.ANTIGRAVITY) == "/x/agy"
 
 
 @pytest.mark.parametrize("word", ["doctor", "update", "logout"])
@@ -49,13 +57,17 @@ def test_one_word_prompt_is_never_a_subcommand(settings, word):
     """Claude / cursor-agent run ``<cli> -- doctor`` as the doctor subcommand; a trailing space stops it."""
     for k in AgentKind:
         if k in L.MODEL_FLAG:
-            assert L.build_command(Launch("p", k, prompt=word), settings)[-2:] == ["--", word + " "]
+            flag = "-i" if k is AgentKind.ANTIGRAVITY else "--"
+            assert L.build_command(Launch("p", k, prompt=word), settings)[-2:] == [flag, word + " "]
 
 
 def test_prompt_args():
     pa = L.prompt_args
     assert pa("") == [] and pa("hi there") == ["--", "hi there"]
     assert pa("doctor") == ["--", "doctor "] and pa("--help") == ["--", "--help "]  # never a subcommand / flag
+    assert pa("hi there", AgentKind.ANTIGRAVITY) == ["-i", "hi there"]
+    assert pa("--version", "antigravity") == ["-i", "--version "]
+    assert L.apply_prompt_commands(AgentKind.ANTIGRAVITY, "/plan x", None) == ("x", "plan")
     with pytest.raises(L.LaunchError):
         pa("a\0b")
 
@@ -94,6 +106,7 @@ BYPASS = {
     AgentKind.CODEX: ("bypass", ["--dangerously-bypass-approvals-and-sandbox"]),
     AgentKind.DEVIN: ("dangerous", ["--permission-mode", "dangerous"]),
     AgentKind.CURSOR: ("yolo", ["--yolo"]),
+    AgentKind.ANTIGRAVITY: ("dangerously-skip-permissions", ["--dangerously-skip-permissions"]),
 }
 
 
@@ -143,7 +156,9 @@ def test_form_spec_covers_cli_modes(settings):
     assert keys["codex"] >= {"read-only", "workspace-write", "danger-full-access", "bypass"}
     assert keys["devin"] == {"auto", "accept-edits", "smart", "dangerous"}
     assert keys["cursor-agent"] == {"plan", "ask", "auto-review", "yolo"}
+    assert keys["antigravity"] == {"accept-edits", "auto", "plan", "dangerously-skip-permissions"}
     assert {o["key"] for o in spec["codex"]["extra"]["options"]} >= {"on-request", "never"}
+    assert {o["key"] for o in spec["antigravity"]["extra"]["options"]} == {"sandbox"}
     assert all(m["help"] for v in spec.values() for m in v["modes"])
 
 

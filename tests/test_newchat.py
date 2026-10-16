@@ -159,6 +159,8 @@ def test_relaunch_argv_keeps_flags_drops_resume_and_prompt(tmp_path):
     assert m._relaunch_argv(a, tmp_path) == ["devin", "--permission-mode", "dangerous"]
     (d / "cmdline").write_bytes(b"/home/u/.local/bin/agent\0--use-system-ca\0/x/index.js\0--yolo\0")
     assert m._relaunch_argv(a, tmp_path) == ["/home/u/.local/bin/agent", "--yolo"]
+    (d / "cmdline").write_bytes(b"/home/u/.local/bin/agy\0--mode\0plan\0--conversation\0c-1\0-i\0hi\0")
+    assert m._relaunch_argv(a, tmp_path) == ["/home/u/.local/bin/agy", "--mode", "plan"]
 
 
 def _proc(root, pid, ppid, argv):

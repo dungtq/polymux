@@ -235,8 +235,9 @@ def update_pending(settings: Settings, agent: Agent) -> bool:
 EXIT_WAIT_S = 12.0
 EXIT_POLL_S = 0.4
 _SHELLS = frozenset({"sh", "bash", "zsh", "fish", "dash"})
-_RESUME_FLAGS = frozenset({"-r", "--resume", "-c", "--continue", "resume", "continue"})
-_RESUME_WITH_ARG = frozenset({"-r", "--resume", "resume"})
+_RESUME_FLAGS = frozenset({"-r", "--resume", "-c", "--continue", "--conversation",
+                           "-i", "--prompt-interactive", "resume", "continue"})
+_RESUME_WITH_ARG = frozenset({"-r", "--resume", "--conversation", "-i", "--prompt-interactive", "resume"})
 
 
 def _cmdline(pid: int, proc_root: Path) -> list[str] | None:

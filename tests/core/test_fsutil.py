@@ -184,3 +184,10 @@ def test_jsonstore_fsync_dir_is_passed(tmp_path, monkeypatch):
     fsutil.JsonStore(tmp_path / "s.json", dict, fsync_dir=True).save({"a": 1})
     assert seen["fsync_dir"] is True
     assert fsutil.JsonStore(tmp_path / "s.json", dict).load() == {"a": 1}
+
+
+def test_encode_cwd_one_copy_reexported_by_the_claude_source():
+    from pm.chat.sources import claude
+
+    assert fsutil.encode_cwd("/home/me/dev/pm-wt/a.b_c") == "-home-me-dev-pm-wt-a-b-c"
+    assert claude.encode_cwd is fsutil.encode_cwd  # pm.chat.live / sources.past import it from there

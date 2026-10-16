@@ -91,6 +91,24 @@ def toplevel(cwd: str | Path) -> Path:
     return Path(out)
 
 
+def worktree_paths(root: str | Path) -> list[Path]:
+    """``root`` first, then the repo's other work trees that exist (no bare or prunable entries); just
+    ``[root]`` when ``root`` is not a git repo or git fails."""
+    out = [Path(root)]
+    try:
+        found = gitctl.worktrees(root)
+    except gitctl.GitError:
+        return out
+    seen = {os.path.realpath(root)}
+    for wt in found:
+        path = wt.get("worktree", "")
+        if not path or "bare" in wt or "prunable" in wt or os.path.realpath(path) in seen or not Path(path).is_dir():
+            continue
+        seen.add(os.path.realpath(path))
+        out.append(Path(path))
+    return out
+
+
 def stale(settings: Settings, project: str, root: str | Path) -> list[str]:
     """Tracker files under ``root`` whose bytes differ from the render."""
     out = []

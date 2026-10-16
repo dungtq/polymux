@@ -13,7 +13,8 @@ CHANGELOG.md and FEATURES.md (``DOC_FILES``, T3) are not item files: ``tk_line``
 (``file`` = ``changelog`` / ``features``), ``tk_change`` the CHANGELOG entries, ``tk_feature`` the FEATURES
 entries and ``tk_feature_rev`` old texts and branch drafts of a feature (``changelog.py``, ``featurelist.py``,
 ``drafts.py``). ``FILES`` stays the item files only; ``ALL_FILES`` has all four. ``tk_claim`` holds the agents'
-work claims (``claims.py``); it belongs to no file.
+work claims (``claims.py``), ``tk_memory`` / ``tk_memory_sync`` the agents' memory (``memory.py``, ``memsync.py``);
+they belong to no file.
 """
 
 from __future__ import annotations
@@ -95,6 +96,19 @@ SCHEMA = (
      " updated_at REAL NOT NULL DEFAULT 0, closed_at REAL NOT NULL DEFAULT 0,"
      " commit_sha TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', UNIQUE (project, num))"),
     "CREATE INDEX IF NOT EXISTS tk_claim_status ON tk_claim (project, status)",
+    # agent memory (``memory.py``): project '' = global (type user only). ``meta`` = JSON of the frontmatter keys
+    # not modelled here (lossless round trip with Claude Code's files), ``source`` = the file name it came from,
+    # ``hook`` = its MEMORY.md index text when that differs from the description
+    ("CREATE TABLE IF NOT EXISTS tk_memory ("
+     " id INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT NOT NULL DEFAULT '', name TEXT NOT NULL,"
+     " type TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',"
+     " body_md TEXT NOT NULL DEFAULT '', meta TEXT NOT NULL DEFAULT '{}', source TEXT NOT NULL DEFAULT '',"
+     " hook TEXT NOT NULL DEFAULT '', created_by TEXT NOT NULL DEFAULT '', updated_by TEXT NOT NULL DEFAULT '',"
+     " created_at REAL NOT NULL DEFAULT 0, updated_at REAL NOT NULL DEFAULT 0, UNIQUE (project, name))"),
+    # what ``memsync`` last wrote to / read from one memory dir: ``file`` in ``dir``, sha256 of its bytes
+    ("CREATE TABLE IF NOT EXISTS tk_memory_sync ("
+     " project TEXT NOT NULL, dir TEXT NOT NULL, name TEXT NOT NULL, file TEXT NOT NULL DEFAULT '',"
+     " hash TEXT NOT NULL DEFAULT '', synced_at REAL NOT NULL DEFAULT 0, PRIMARY KEY (project, dir, name))"),
 )
 
 

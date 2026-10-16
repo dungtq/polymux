@@ -1,8 +1,30 @@
 # Changelog
 
+## 2026-10-17 (Composer messages reach an idle Cursor agent)
+
+A message sent from the composer to a Cursor agent no longer waits forever. An idle Cursor agent shows an arrow prompt ("Add a follow-up"), which pm did not recognise as idle, so the message stayed queued. It now counts as idle and is sent.
+
+## 2026-10-17 (Antigravity CLI launch from the web UI)
+
+- Launch form and quick launch now start Antigravity (`agy`): model list from `agy models`, permission modes (`accept-edits`, `auto`, `plan`, bypass `dangerously-skip-permissions`), reasoning effort (`low`..`max`), optional `--sandbox`, and `-i` (`--prompt-interactive`) for the initial prompt instead of `--` (which `agy` rejects).
+- Fork handoffs to Antigravity pass the handoff prompt with `-i`, and New Chat strips `-i` / `--prompt-interactive` and `--conversation` when restarting an Antigravity process.
+
 ## 2026-10-17 (Cursor launch follows the process's own chat)
 
 Launching cursor-agent treated every process in a directory as the newest store.db there, so the new tmux window opened as an older chat that was still being written. A live process is now the store it has open. Until that file is open, it is not attached to another chat.
+
+## 2026-10-17 (Per-project agent memory: pmctl memory, shared by every agent kind, synced with Claude Code's memory dirs)
+
+- `pmctl memory add|set|show|list|rm|search|context|sync`: one memory per project in pm.db (`tk_memory`), shared by
+  every agent kind and every git work tree of the project; type `user` memories with `--global` apply everywhere.
+  Writes are audited (fail closed) and work while the web service is down.
+- `pmctl memory context` prints a one-line-per-memory index for session start; `pmctl memory sync [--all]` keeps
+  Claude Code's own memory dirs (main tree and each work tree) in step both ways: files Claude wrote are imported
+  by hash (pm.db wins a conflict, the file version is kept as a `-conflict-<time>` copy), then every memory is
+  rendered back with its `MEMORY.md` index. A summary goes to `state_dir/memory/<project>.md`. Nothing is ever
+  written inside a repo; symlinks are refused; files are 0600.
+- New pm.toml key `claude_dir` (default `~/.claude`). `encode_cwd` moved to `pm.core.fsutil`; `timefmt.iso` is the
+  shared ISO helper.
 
 ## 2026-10-17 (Builder md links open; clearer not-found message)
 

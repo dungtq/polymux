@@ -16,7 +16,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from pm.core.errors import PmError
-from pm.core.fsutil import safe_join
+from pm.core.fsutil import encode_cwd, safe_join
 from pm.core.procstat import PROC, ProcStat, read_proc_stat
 
 from .common import (
@@ -49,11 +49,6 @@ _STOP_TOOLS = ("TaskStop", "KillShell")
 # a background Bash task's output file ends with this line once the command is done
 _TASK_EXIT = re.compile(rb"\[exited with code (\d{1,3})\]\s*$")
 _TASK_TAIL = 64
-
-
-def encode_cwd(cwd: str) -> str:
-    """Claude's project-dir encoding: every char outside [A-Za-z0-9-] becomes '-'."""
-    return re.sub(r"[^A-Za-z0-9-]", "-", cwd)
 
 
 def transcript_path(cwd: str, session_uuid: str, home: Path | None = None) -> Path | None:

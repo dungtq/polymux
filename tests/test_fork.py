@@ -63,11 +63,10 @@ def test_argv_handoff(fake, tmp_path):
         k, argv, mode = fork.build_argv(st, ag(kind, "abc", str(f)))
         assert k == name and mode == "handoff" and argv[:2] == [b[name], "--"]
         assert str(f) in argv[2] and len(argv) == 3
-    # antigravity kind string works without the enum member; binary comes from agent_bins
     class A:  # duck typed record
         kind, ident, transcript, cwd = "agy", "c1", str(f), "/"
     k, argv, mode = fork.build_argv(st, A)
-    assert k == "antigravity" and argv[0] == b["antigravity"] and mode == "handoff"
+    assert k == "antigravity" and argv[:2] == [b["antigravity"], "-i"] and mode == "handoff"
     # codex without a uuid degrades to handoff
     st, b2 = bins(st, tmp_path, "codex")
     assert fork.build_argv(st, ag(AgentKind.CODEX, "weird", str(f)))[2] == "handoff"
