@@ -136,6 +136,20 @@ def _preview_keys(options: tuple[AskOption, ...], after: list[str]) -> tuple[Ask
     return out
 
 
+def _startup_trust_keys(options: tuple[AskOption, ...], window: list[tuple[int, str]]) -> tuple[AskOption, ...]:
+    """Codex startup trust shortcuts only highlight; Enter grants the selected trust.
+
+    The other shortcuts submit immediately, so adding Enter to those could act on the next screen.
+    Match both the screen heading and the trust row, not arbitrary numbered permission prompts.
+    """
+    headings = {s for _, s in window}
+    trust = {("Folder access", "1", "Trust and continue"),
+             ("Hooks need review", "2", "Trust all and continue")}
+    return tuple(replace(o, key=f"{o.key} Enter")
+                 if any(h in headings and (o.key, o.label) == (k, label) for h, k, label in trust) else o
+                 for o in options)
+
+
 def find_ask(lines: list[str]) -> tuple[Ask | None, int]:
     """Open ask in the pane tail, plus the index of its first line in ``lines``."""
     idx = [i for i, ln in enumerate(lines) if _unbox(ln)]
@@ -183,6 +197,8 @@ def find_ask(lines: list[str]) -> tuple[Ask | None, int]:
             preview = form and any(_NOTES_FOOT.search(s) for _, s in window[-3:])
             if preview:
                 options = _preview_keys(options, after)
+            elif not form:
+                options = _startup_trust_keys(options, window)
             if tabbed:  # multi-question form: Left/Right switch tabs (the last tab is the review); a preview
                 # question's arrows move the cursor, its footer says "Tab to switch questions"
                 options += ((AskOption("BTab", "← Back"), AskOption("Tab", "Next →")) if preview

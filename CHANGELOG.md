@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-17 (Fix Codex startup trust choice submission)
+
+- Codex startup folder and hook trust choices now send the selected digit followed by Enter, so clicking the trust row submits it instead of only moving the terminal selection.
+- Quit, Review hooks, and Continue without trusting keep their immediate digit shortcuts; no extra Enter reaches the next screen.
+- Regression coverage checks startup prompt parsing, rendered choice form values, and key delivery through the authenticated route.
+
 ## 2026-10-17 (Composer messages reach an idle Cursor agent)
 
 A message sent from the composer to a Cursor agent no longer waits forever. An idle Cursor agent shows an arrow prompt ("Add a follow-up"), which pm did not recognise as idle, so the message stayed queued. It now counts as idle and is sent.

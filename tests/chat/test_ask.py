@@ -3,6 +3,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from pm.chat import ask as A
 from pm.chat import live
 from pm.core.models import AgentKind, AgentState
@@ -39,6 +41,24 @@ REVIEW = PROMPT + [RULE, "←  ☒ A  ☒ B  ✔ Submit  →", "Review your answ
     "   → Option 3", "Ready to submit your answers?", "❯ 1. Submit answers", "  2. Cancel"]
 
 FIX = Path(__file__).resolve().parent.parent / "fixtures" / "askq"  # real Claude Code 2.1.296 captures
+
+
+@pytest.mark.parametrize("fixture,keys", [
+    ("codex_folder_trust.txt", ["1 Enter", "2"]),
+    ("codex_hooks_review.txt", ["1", "2 Enter", "3"]),
+])
+@pytest.mark.parametrize("selected", [1, 2])
+def test_codex_startup_trust_requires_enter(fixture, keys, selected):
+    text = (FIX.parent / "chat" / fixture).read_text().replace("› ", "  ")
+    text = text.replace(f"  {selected}.", f"› {selected}.")
+    ask, _ = A.find_ask(text.splitlines())
+    assert ask.kind == "permission"
+    assert [o.key for o in ask.options] == keys
+
+
+def test_trust_label_outside_startup_prompt_keeps_digit_shortcut():
+    ask, _ = A.find_ask(["Choose a label", "1. Trust and continue", "2. Trust all and continue"])
+    assert [o.key for o in ask.options] == ["1", "2"]
 
 
 def cap(name):

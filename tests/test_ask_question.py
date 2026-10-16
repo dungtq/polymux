@@ -1,7 +1,9 @@
 """Claude Code AskUserQuestion screens: numbered options with indented descriptions, tab bar, review;
 and the "Needs you" card for a form matched to the pane."""
 import re
+from pathlib import Path
 
+import pytest
 from helpers import chat_env as env  # noqa: F401  (fixture)
 from helpers import chat_view, login, set_chat_view
 
@@ -81,6 +83,18 @@ def card(env, monkeypatch, ask):
 
 def keyforms(t):
     return re.findall(r'<form[^>]*action="/a/claude-12/key"[^>]*>.*?</form>', t, re.S)
+
+
+@pytest.mark.parametrize("fixture,keys", [
+    ("codex_folder_trust.txt", ["1 Enter", "2"]),
+    ("codex_hooks_review.txt", ["1", "2 Enter", "3"]),
+])
+def test_startup_trust_card_posts_confirmation_sequence(env, monkeypatch, fixture, keys):
+    pane = (Path(__file__).parent / "fixtures" / "chat" / fixture).read_text()
+    ask, _ = chat.find_ask(pane.splitlines())
+    html = card(env, monkeypatch, ask)
+    forms = keyforms(html)
+    assert [re.search(r'name="key" value="([^"]*)"', f).group(1) for f in forms] == keys
 
 
 def test_card_numbered_rows_tabs_and_nav(env, monkeypatch):
