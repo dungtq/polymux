@@ -20,7 +20,7 @@ from pm.agents.inbox import last_src
 from pm.agents.message import strip_builder_hint
 from pm.chat.live import last_user_task, last_user_task_ts
 from pm.chat.stats import human as human_tokens
-from pm.chat.text import render_message
+from pm.chat.text import parse_peer, render_message
 from pm.core import prefs, timefmt
 from pm.core.config import frame_origins
 from pm.infra import snapshot as services
@@ -165,6 +165,7 @@ env.filters["dur"] = timefmt.elapsed
 env.filters["duration"] = timefmt.duration  # 45s / 3m / 2h 5m / 1d 4h
 env.filters["tmux_win"] = agenthead.tmux_win
 env.filters["tokens"] = human_tokens  # 950 / 1.2k / 34k / 1.5M
+env.filters["pm_peer"] = parse_peer  # a tmux-agents request / reply / notice from another agent, else None
 env.filters["pm_hint_strip"] = strip_builder_hint  # drop the "[pm builder: ...]" line a Builder message carries
 
 

@@ -362,3 +362,16 @@ def test_user_header_dot_before_you_and_continue_tip_right():
     assert 'class="small tip tip-r"' in cm  # a left-anchored tooltip would widen the narrow aside frame
     css = (STATIC_DIR / "css" / "composer.css").read_text()
     assert ".composer--flow:has(.slash-list){overflow:visible}" in css  # slash popup not clipped (Builder)
+
+
+def test_tmux_agents_message_renders_as_message_from_bubble_in_the_senders_colour():
+    peer = "[tmux-agents reply id=1-2 from devin-44fd82 status=done]\nShipped **it**."
+    items = [ChatItem(seq=1, rev=1, uid="a", conv="c", kind="user", turn="t", ts=1.0, text=peer),
+             ChatItem(seq=2, rev=2, uid="b", conv="c", kind="user", turn="t2", ts=2.0, text="plain from me")]
+    out = jenv.get_template("_chatitems.html").render(mode="poll", agent=_agent(), ended=False, blocks=blocks(items),
+                                                     outbox=None, model_name="opus-5-5", now=3.0)
+    first, second = out.split('id="i-2"')
+    assert 'class="chat-bubble ci-user ci-peer" data-kind="devin"' in first
+    assert "Message from: <bdi" in first and "devin-44fd82" in first and "reply · done" in first
+    assert "<strong>it</strong>" in first and "tmux-agents" not in first
+    assert "ci-peer" not in second and "<strong>You</strong>" in second

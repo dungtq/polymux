@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Messages from other agents show as "Message from: <agent id>")
+
+A message another agent sent with `tmux-agents` (request, reply or no-reply notice) is no longer a blue "You" bubble in the chat. It shows as a bubble headed "Message from: <agent id>" in that agent's colour (claude, codex, devin, cursor-agent, antigravity; grey when the id is unknown), with the request / reply · status / notice tag and only the message text (the reply instructions are dropped). It stays out of the composer's Up-arrow history.
+
 ## 2026-10-17 (Project settings: import a Cursor / VS Code workspace into the links)
 
 The project settings panel (both themes) has an import section when `*.code-workspace` files are found in the project folders or their parent folders. Importing one links the workspace folders that are pm projects, keeps the existing links and reports how many folders are not pm projects. The audit line `project_links` carries counts only.
