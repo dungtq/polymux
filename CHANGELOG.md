@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (dt: model pill filled with the agent colour, setting wired)
+
+The model pill is now filled with a wash of the agent colour (Inbox/project rows, chat header, message headers). Settings > Chat colours > "Model pill in the agent colour" controls it (off = plain outlined pill); it was wired to nothing before (html.no-kpill had no CSS).
+
 ## 2026-10-17 (Accounts: global default, add/remove in the UI, sessions of named accounts readable)
 
 Named Claude/Codex accounts can now be added and removed in Agents > the agent > Auth (no pm.toml edit, no restart; Remove only unlists, the login folder is kept; pm.toml names stay read-only). One account can be the global default; project settings > Login account offers "Global default (X)", "CLI default" or a name. Chat, model, usage, recap, forks and past sessions of an agent running under a named account are now read from that account's folder. A project choice that points at a removed account is refused with an audited 400 (launch, continue, resume, fork, New chat).

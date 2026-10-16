@@ -53,6 +53,10 @@ kbd:empty{display:none}
 /* Settings › Display › Show the model pill off (head.js: html.no-mpill): every model pill goes (Inbox / project rows,
    chat header, message headers); the composer's model picker stays */
 html.no-mpill :is(.i-mdl,.c-pill,.kpill.kp-model,.chat-bubble.role-assistant .chat-meta strong){display:none}
+/* Model pill in the agent colour (Settings › Chat colours, default on): a wash of the kind colour behind the id; off
+   (head.js: html.no-kpill) = plain outlined pill. The text stays --fg: kind colours are below AA as text */
+html :is(.i-mdl,.c-pill,.kpill.kp-model){background:color-mix(in srgb,var(--k) 16%,var(--page))}
+html.no-kpill :is(.i-mdl,.c-pill,.kpill.kp-model){background:none;border-color:var(--line);--pill:var(--muted)}
 
 /* agent kind (WHO): data-kind="<kind>" sets --k; unknown kinds fall back to other */
 :where([data-kind]){--k:var(--k-other)}
