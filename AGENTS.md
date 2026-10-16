@@ -66,3 +66,9 @@ systemd user unit (not Docker), behind a TLS reverse proxy.
 - Add tests with every change. Do not edit `CHANGELOG.md` or `FEATURES.md` (generated); describe user-visible
   changes in the PR and the maintainer adds the entries.
 - One topic per pull request; describe what changed and how you checked it (`CONTRIBUTING.md`).
+- Several agents at once (with pm installed): `pmctl claim add "<task>" --path '<glob>'` before implementing,
+  `pmctl claim done N --commit <sha>` after, and `pmctl merge-check` in the branch's work tree before merging (exit 1
+  = another agent's claim or work tree touches the same files: do not merge, coordinate first). `tmux-agents`
+  (`deploy/tmux-agents/`) wraps these and messages the other agents.
+- Project memory: `pmctl memory context` at session start; save what a later agent needs and cannot read from the
+  repo with `pmctl memory add` (never secrets; memory is kept outside the repo).

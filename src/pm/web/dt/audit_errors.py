@@ -1,7 +1,8 @@
 """The dt Audit page, Client errors tab (PRD.md §6.10): the view model of ``_client_errors.html`` (also the
 core's GET /audit/client-errors), read from the core's ``ce_groups`` / ``ce_kind`` / ``ce_q`` / ``kinds`` context
 only (no IO). Kind segments, one row per message and request (the core's ``ClientErrorLog.grouped``), the masked
-stack, request and browser in the details, Copy and Save as pm issue in ⋯, the head's Clear all.
+stack, request and browser in the details, Copy and Save as issue in ⋯ (to one of the core's ``issue_projects``;
+none = no Save), the head's Clear all.
 ``pm.web.dt.audit`` serves it as ``dt_audit("ce")`` and uses ``ce_stats`` / ``clear_action`` for the page head;
 ``num`` and ``is_swap`` are shared with it (this module imports nothing from ``audit``); ``num`` also with
 ``agents_usage``.
@@ -12,7 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
 
@@ -73,6 +74,7 @@ class Ce:
     stats: list
     clear: dict
     swap: bool
+    issue: dict | None  # issue_action: the details' Save button (label, title, project / projects); None = none
 
 
 def _req(g: Mapping) -> str:
@@ -96,7 +98,20 @@ def _issue(g: Mapping, label: str, pages: list[str]) -> tuple[str, str]:
     return "Client error: " + cut(str(g.get("msg") or "(no message)"), 90), "\n".join(lines)
 
 
-def erow(g: Mapping, now: float) -> ERow:
+def issue_action(targets: Sequence[str]) -> dict | None:
+    """The Save-as-issue button of every row (None when no project keeps issues in the tracker). One project: its
+    name is in the label and ``project``; several: js/audit.js asks which one from ``projects`` (a JSON list)."""
+    names = [str(t) for t in targets]
+    if not names:
+        return None
+    if len(names) == 1:
+        return {"label": f"Save as {names[0]} issue", "project": names[0], "projects": "",
+                "title": f"Add an issue with this error to the {names[0]} project"}
+    return {"label": "Save as issue…", "project": "", "projects": json.dumps(names),
+            "title": "Add an issue with this error to a tracker project you pick"}
+
+
+def erow(g: Mapping, now: float, issue: Mapping | None = None) -> ERow:
     kind = str(g.get("kind") or "")
     label = KIND_LABELS.get(kind, kind)
     pages = [str(p) for p in (g.get("pages") or ())]
@@ -115,7 +130,7 @@ def erow(g: Mapping, now: float) -> ERow:
     msg = str(g.get("msg") or "(no message)")
     copy = msg + ("\n" + str(g["stack"]) if g.get("stack") else "")
     menu = menus.menu(menus.details(), menus.SEP, menus.item("copy", "Copy message and stack", "copy", copy=copy),
-                      menus.item("issue", "Save as pm issue", "plus", event="au:issue"))
+                      menus.item("issue", issue["label"], "plus", event="au:issue") if issue else None)
     req = _req(g)
     return ERow(id=rid, msg=msg, kind=kind, kind_label=label, dot=KIND_DOTS.get(kind, "failed"),
                 req="" if not req or str(g.get("url") or "") in msg else req, pages=", ".join(pages),
@@ -163,7 +178,8 @@ def ce(ctx: Mapping) -> Ce:
              "cur": kind == k, "count": num(counts.get(k, 0))} for k in kinds]
     page = int(g.get("page") or 1)
     now = time.time()
-    rows = [erow(r, now) for r in g.get("rows") or ()]
+    issue = issue_action(ctx.get("issue_projects") or ())
+    rows = [erow(r, now, issue) for r in g.get("rows") or ()]
     empty = ""
     if not rows:
         empty = ("Nothing matches." if q or kind != "all" else
@@ -172,4 +188,4 @@ def ce(ctx: Mapping) -> Ce:
               entries=int(counts.get("all") or 0), page=page,
               newer=ce_url(kind, q, page - 1, "/audit") if page > 1 else "",
               older=ce_url(kind, q, page + 1, "/audit") if g.get("has_older") else "", empty=empty,
-              stats=ce_stats(g), clear=clear_action(), swap=is_swap(ctx))
+              stats=ce_stats(g), clear=clear_action(), swap=is_swap(ctx), issue=issue)

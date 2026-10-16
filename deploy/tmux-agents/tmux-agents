@@ -1,277 +1,1406 @@
-#!/usr/bin/env bash
-# tmux-agents — spawn coding agents in tmux panes/windows, send them prompts,
-# and let them reply back to the pane that asked. Pure bash + tmux.
-#
-# State: pane user options (@agent_name, @agent_kind) live in tmux itself, so
-# agents persist as long as the tmux server does. Message envelopes live in
-# $TA_STATE/msgs/<id>.{meta,prompt,reply}.
-set -euo pipefail
+#!/usr/bin/env python3
+"""tmux-agents: spawn coding agents in tmux windows, send them prompts, and let
+them reply back to the pane that asked. Python 3 stdlib + tmux.
 
-TA_STATE=${TA_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/tmux-agents}
-MSGS=$TA_STATE/msgs
-mkdir -p "$MSGS"
+State: pane user options (@agent_name, @agent_kind, @agent_mode, @agent_id) live
+in tmux itself, so agents persist as long as the tmux server does. Message
+envelopes live in $TA_STATE/msgs/<id>.{meta,prompt,out,reply}; messages that
+could not be pasted (busy pane) wait in $TA_STATE/inbox/<pane>/<id>.pending.
+Claims (who works on what) live in pm.db and are reached through `pmctl`.
 
-die() { echo "tmux-agents: $*" >&2; exit 1; }
-need_tmux() { [[ -n ${TMUX:-} ]] || die "not inside tmux (TMUX unset)"; }
+Every tmux / pmctl / git call: argv list, no shell, timeout.
+"""
+from __future__ import annotations
 
-usage() {
-cat <<'U'
+import concurrent.futures
+import datetime
+import fcntl
+import functools
+import hashlib
+import json
+import os
+import re
+import secrets
+import shutil
+import sqlite3
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+USAGE = """\
 tmux-agents <cmd> [args]
   spawn NAME [--agent devin|claude|codex|shell] [--mode quick|session]
-             [--where pane|window|session]
-             [--cwd DIR] [--perm MODE] [--split h|v] [--focus] [--cmd 'CMD']
+             [--session SESSION] [--cwd DIR] [--perm MODE] [--focus] [--cmd 'CMD']
              [--wait-ready SEC] [--] [PROMPT]
-        --mode quick (default): split pane, closes itself ~3s after it replies;
-          result is recorded in $TA_STATE (see `log`). For one-shot tasks.
-        --mode session: new window, stays open for follow-ups. For long work.
-        --where overrides the placement. An existing NAME is reused. Optional PROMPT is
-        sent right after the agent is ready.
-  send NAME [-f FILE] [--no-reply] [--raw] [--] [TEXT | stdin]
-        Deliver a prompt. Default wraps it in an envelope telling the agent to
-        run `tmux-agents reply <id> ...` when finished (reply lands in the
-        pane that called send). --raw pastes TEXT verbatim, no envelope.
-        Prints the message id.
-  reply ID [-f FILE] [--] [TEXT | stdin]
-        Called by the receiving agent: store result, paste it into the origin
-        pane (long results: pasted as a file path).
+        Always a new window (detached unless --focus) in SESSION (default: the
+        caller's session; created detached if missing). remain-on-exit is on, so
+        the window stays when the agent quits; only `kill` closes it. A live NAME
+        is reused, a dead one is respawned in place. --mode is a label (quick =
+        what `run` uses). --where pane / --split are deprecated (window anyway).
+  send TARGET [-f FILE] [--no-reply] [--raw] [--now] [--] [TEXT | stdin]
+        Deliver a prompt: after a short settle (TA_DELIVER_QUIET=0.8 s of no
+        change, at most TA_DELIVER_SETTLE=3 s; busy TUIs queue input) it is
+        pasted, unless the pane shows an interactive prompt/menu. Then it is
+        held: queued in the pane's inbox and pasted by a detached per-pane
+        retrier once the prompt clears (up to TA_DELIVER_MAX=1800 s, else it
+        stays in the inbox). --now pastes at once, no checks. Default wraps it
+        in an envelope asking for `tmux-agents reply <id> ...`; --raw pastes
+        TEXT verbatim. Prints the message id.
+  reply ID [--status done|failed|blocked] [--now] [-f FILE] [--] [TEXT | stdin]
+        Called by the receiving agent: store the result and paste it into the
+        origin pane (long results: pasted as a file path).
+  inbox [--all] [--pane %ID]   Print this pane's pending messages and mark them read.
+  broadcast [--project NAME | --cwd-under DIR] [--kind K] [-f FILE] [--] [TEXT | stdin]
+        --no-reply send to every live agent pane under the dir, except yourself.
   wait ID [--timeout SEC]      Block until ID has a reply (exit 124 on timeout).
   result ID                    Print the stored reply.
-  read NAME [-n LINES]         Capture the pane's visible text (+scrollback).
-  idle NAME [--quiet SEC] [--timeout SEC]  Wait until pane output stops changing.
-  run NAME [spawn opts] -- PROMPT   quick one-shot: spawn, send, wait, print reply
-  log [N]                      Last N recorded replies (id, agent, time, summary)
-  ls                           List named agent panes.
-  kill NAME                    Close the agent's pane/window.
+  read TARGET [-n LINES]       Capture the pane's visible text (+scrollback).
+  idle TARGET [--quiet SEC] [--timeout SEC]  Wait until pane output stops changing.
+  run NAME [spawn opts] -- PROMPT   spawn (--mode quick), send, wait, print the reply
+  log [N]                      Last N recorded replies (time, id, agent, status, summary)
+  ls [--all]                   Agent windows (--all: also untagged agents from pm.db / claude).
+  kill TARGET [--force]        Close the agent's window (--force: also untagged panes).
   whoami                       Print this pane's id and agent name.
   id                           Print the pm agent id for $TMUX_PANE (pm.db live row, else the
                                claude hash of $CLAUDE_CODE_SESSION_ID); empty + exit 1 if unknown.
-U
-}
+ coordination (claims in pm.db through pmctl; exit 2 when pmctl is missing or fails):
+  claim "title" [--path GLOB ...] [--issue N]   announce work; owners of overlapping claims get an FYI
+  done N [--commit SHA] [--note TEXT]           close claim cN; owners of overlapping claims get an FYI
+  merge-check [--base B]                        before merging: exit 0 clear, 1 overlap, 2 error
+  board [ARGS]                                  pmctl claim list
+TARGET = @agent_name, %pane, or pm agent id (claude-7cd08a).
+"""
 
-# ---- helpers ---------------------------------------------------------------
-pane_of() { # NAME|%id -> pane id
-  local n=$1
-  if [[ $n == %* ]]; then tmux display -p -t "$n" '#{pane_id}' 2>/dev/null || return 1; return; fi
-  tmux list-panes -a -F '#{pane_id} #{@agent_name}' | awk -v n="$n" '$2==n{print $1; exit}' | grep . || return 1
-}
-alive() { tmux display -p -t "$1" '#{pane_dead}' 2>/dev/null | grep -qx 0; }
-newid() { printf '%s-%04x' "$(date +%H%M%S)" $((RANDOM)); }
+KINDS = ("devin", "claude", "codex", "shell")
+STATUSES = ("done", "failed", "blocked")
+SEP = "\t"
+PANE_FIELDS = ("pane_id", "pane_pid", "pane_dead", "@agent_name", "@agent_kind", "@agent_mode", "@agent_id",
+               "session_name", "window_index", "window_id", "pane_current_path", "pane_current_command")
+MSG_ID = re.compile(r"[A-Za-z0-9._-]+")
 
-# Paste text into a pane as one bracketed paste, then submit with Enter.
-# The delay lets TUIs finish ingesting the paste before Enter (else it's eaten).
-paste_submit() { # pane file
-  local pane=$1 file=$2 buf="ta-$$-$RANDOM"
-  tmux load-buffer -b "$buf" "$file"
-  tmux paste-buffer -p -d -b "$buf" -t "$pane"
-  sleep "${TA_SUBMIT_DELAY:-0.6}"
-  tmux send-keys -t "$pane" Enter
-}
+# Interactive prompts / menus: never paste into a pane whose bottom TA_PROMPT_LINES lines match one of these
+# (the paste would answer the prompt). Busy TUIs are fine: Claude Code, Devin and Codex queue pasted input.
+# (name, scope, regex); scope "text" = the bottom lines, "last" = the last non-blank line only. Extend here.
+_BOX = r"[\s│┃|]*"  # dialog borders before a menu line
+PROMPT_PATTERNS = [
+    # Claude Code permission dialog / AskUserQuestion / plan approval, Codex approval: a cursor on "1." and a "2."
+    ("numbered menu", "text", r"^" + _BOX + r"[❯›>▶→»]\s*1[.)]\s+\S.*\n(?:.*\n){0,8}?" + _BOX + r"2[.)]\s+\S", 0),
+    ("choice menu", "text", r"^" + _BOX + r"[❯›>▶→»]\s*(Yes|No|Allow|Deny|Approve|Reject|Accept|Decline)\b", 0),
+    # dialog questions only (line start, fixed verbs): an agent's own "Should I ...?" in its transcript is no prompt
+    ("proceed question", "text", r"^" + _BOX + r"(Do you want to|Would you like to) (proceed|continue|make|create|run|"
+                                 r"allow|apply|delete|overwrite|fetch|use|execute)\b[^\n]*\?", 0),
+    ("trust dialog", "text", r"Do you trust the (files|authors|contents)", 0),
+    ("yes/no", "text", r"[(\[]\s*(y/n|y/N|Y/n|yes/no|Y/N)\s*[)\]]", re.I),
+    ("approval", "text", (r"\b(Allow once|Allow always|Always allow|Allow for this session|"
+                          r"[Ww]aiting for (your )?(approval|confirmation))\b"), 0),
+    ("select footer", "text", (r"\b(Enter to (select|confirm|submit)|Press enter to (confirm|continue|select)|"
+                               r"Esc to cancel|↑/↓ to (navigate|select))\b"), re.I),
+    ("press a key", "last", r"^" + _BOX + r"(Press|Hit) (Enter|Return|any key)\b", re.I),
+    ("password", "last", r"(password|passphrase|passcode|PIN)\b[^\n]{0,60}:\s*$", re.I),
+    ("question", "last", r"\w[^\n]*\?\s*$", 0),  # shell `read -p "Continue? "`, `[sudo] ...?`
+]
+PROMPTS = [(n, scope, re.compile(rx, fl | re.M)) for n, scope, rx, fl in PROMPT_PATTERNS]
 
-read_body() { # remaining args -> body on stdout (file, text, or stdin)
-  local f=""
-  while (($#)); do case $1 in -f) f=$2; shift 2;; --) shift; break;; *) break;; esac; done
-  if [[ -n $f ]]; then cat "$f"
-  elif (($#)); then printf '%s' "$*"
-  elif [[ ! -t 0 ]]; then cat
-  else die "no message (give TEXT, -f FILE or stdin)"; fi
-}
 
-agent_cmd() { # kind perm -> command line
-  local kind=$1 perm=$2
-  case $kind in
-    devin)  echo "devin --permission-mode ${perm:-smart}" ;;
-    claude) echo "claude --permission-mode ${perm:-auto} --allowedTools 'Bash(tmux-agents *)'" ;;
-    codex)  echo "codex" ;;
-    shell)  echo "" ;;
-    *) die "unknown agent kind: $kind" ;;
-  esac
-}
+class Fail(Exception):
+    def __init__(self, msg: str, code: int = 1):
+        super().__init__(msg)
+        self.code = code
 
-# ---- commands --------------------------------------------------------------
-cmd_spawn() {
-  need_tmux
-  local name=${1:-}; [[ -n $name ]] || die "spawn NAME"; shift
-  local kind=devin where="" mode=quick cwd=$PWD perm="" split=h focus=0 cmd="" ready=${TA_READY:-4} prompt=""
-  while (($#)); do case $1 in
-    --agent) kind=$2; shift 2;; --mode) mode=$2; shift 2;; --where) where=$2; shift 2;; --cwd) cwd=$2; shift 2;;
-    --perm) perm=$2; shift 2;; --split) split=$2; shift 2;; --focus) focus=1; shift;;
-    --cmd) cmd=$2; shift 2;; --wait-ready) ready=$2; shift 2;;
-    --) shift; prompt="$*"; break;; *) prompt="$*"; break;;
-  esac; done
 
-  local pane
-  if pane=$(pane_of "$name") && alive "$pane"; then
-    echo "reusing $name ($pane)" >&2
-  else
-    [[ -n $cmd ]] || cmd=$(agent_cmd "$kind" "$perm")
-    if [[ -z $where ]]; then case $mode in quick) where=pane;; session) where=window;; *) die "--mode quick|session";; esac; fi
-    local d=(-d); ((focus)) && d=()
-    case $where in
-      pane)    pane=$(tmux split-window "${d[@]}" -"$split" -c "$cwd" -P -F '#{pane_id}');;
-      window)  pane=$(tmux new-window  "${d[@]}" -n "$name" -c "$cwd" -P -F '#{pane_id}');;
-      session) pane=$(tmux new-session -d -s "ta-$name" -c "$cwd" -P -F '#{pane_id}');;
-      *) die "--where pane|window|session";;
-    esac
-    tmux set-option -p -t "$pane" @agent_name "$name"
-    tmux set-option -p -t "$pane" @agent_kind "$kind"
-    tmux set-option -p -t "$pane" @agent_mode "$mode"
-    if [[ $mode == session ]]; then
-      # keep the pane (and its output) if the agent exits
-      tmux set-option -p -t "$pane" remain-on-exit on 2>/dev/null || tmux set-option -w -t "$pane" remain-on-exit on
-    fi
-    tmux select-pane -t "$pane" -T "$name" 2>/dev/null || true
-    [[ -n $cmd ]] && { tmux send-keys -t "$pane" -l "$cmd"; tmux send-keys -t "$pane" Enter; }
-    echo "spawned $name ($kind) in $pane" >&2
-    sleep "$ready"
-  fi
-  echo "$pane"
-  if [[ -n $prompt ]]; then cmd_send "$name" -- "$prompt"; fi
-}
+def die(msg: str, code: int = 1):
+    raise Fail(msg, code)
 
-cmd_send() {
-  need_tmux
-  local name=${1:-}; [[ -n $name ]] || die "send NAME ..."; shift
-  local reply=1 raw=0 args=()
-  while (($#)); do case $1 in
-    --no-reply) reply=0; shift;; --raw) raw=1; reply=0; shift;;
-    -f) args+=(-f "$2"); shift 2;; --) shift; args+=(-- "$@"); break;; *) args+=("$1"); shift;;
-  esac; done
-  local pane; pane=$(pane_of "$name") || die "no agent named '$name'"
-  alive "$pane" || die "pane $pane for '$name' is dead"
-  local id; id=$(newid)
-  local body; body=$(read_body "${args[@]}")
-  printf '%s' "$body" > "$MSGS/$id.prompt"
-  local from=${TMUX_PANE:-}
-  {
-    echo "id=$id"; echo "to=$pane"; echo "from=$from"
-    echo "from_name=$(tmux display -p -t "${from:-$pane}" '#{@agent_name}' 2>/dev/null || true)"
-    echo "sent=$(date -Is)"
-  } > "$MSGS/$id.meta"
 
-  local out=$MSGS/$id.out
-  if ((raw)); then printf '%s' "$body" > "$out"
-  elif ((reply)); then
-    cat > "$out" <<E
-[tmux-agents request id=$id from pane ${from:-?}]
-$body
+def warn(msg: str):
+    print(f"tmux-agents: {msg}", file=sys.stderr)
 
----
-When you have finished, send your result back to the requester by running this
-shell command (it is the only way they will see it; keep the summary concise,
-and put long output in a file and mention its path):
-  tmux-agents reply $id "<what you did and the result>"
-If you fail or are blocked, reply the same way and say so.
-E
-  else printf '%s\n\n[tmux-agents id=%s, no reply expected]' "$body" "$id" > "$out"; fi
 
-  paste_submit "$pane" "$out"
-  echo "$id"
-}
-
-cmd_reply() {
-  need_tmux
-  local id=${1:-}; [[ -n $id ]] || die "reply ID ..."; shift
-  [[ -f $MSGS/$id.meta ]] || die "unknown message id $id"
-  local body; body=$(read_body "$@")
-  printf '%s\n' "$body" > "$MSGS/$id.reply"
-  local from; from=$(sed -n 's/^from=//p' "$MSGS/$id.meta")
-  local who=${TMUX_PANE:+$(tmux display -p -t "$TMUX_PANE" '#{@agent_name}')}
-  [[ -n $from ]] && alive "$from" || { echo "origin pane gone; stored at $MSGS/$id.reply" >&2; return 0; }
-  local out=$MSGS/$id.rout max=${TA_INLINE_MAX:-1500}
-  if ((${#body} <= max)); then
-    printf '[tmux-agents reply id=%s from %s]\n%s' "$id" "${who:-agent}" "$body" > "$out"
-  else
-    printf '[tmux-agents reply id=%s from %s] Result too long to inline (%d chars); read the file: %s\nPreview: %s...' \
-      "$id" "${who:-agent}" "${#body}" "$MSGS/$id.reply" "${body:0:300}" > "$out"
-  fi
-  printf '%s\t%s\t%s\t%s\n' "$(date -Is)" "$id" "${who:-agent}" "$(printf '%s' "$body" | tr '\n' ' ' | cut -c1-200)" >> "$TA_STATE/log.tsv"
-  paste_submit "$from" "$out"
-  echo "replied to $from"
-  # quick agents close their pane once the reply is delivered
-  if [[ -n ${TMUX_PANE:-} && $(tmux display -p -t "$TMUX_PANE" '#{@agent_mode}') == quick ]]; then
-    tmux run-shell -b "sleep ${TA_QUICK_LINGER:-3}; tmux kill-pane -t $TMUX_PANE"
-  fi
-}
-
-cmd_wait() {
-  local id=${1:-}; shift || true; local t=600
-  [[ ${1:-} == --timeout ]] && t=$2
-  local end=$((SECONDS + t))
-  while [[ ! -f $MSGS/$id.reply ]]; do ((SECONDS < end)) || exit 124; sleep 1; done
-  cat "$MSGS/$id.reply"
-}
-cmd_run() {
-  local name=${1:?NAME}; shift; local opts=()
-  while (($#)) && [[ $1 != -- ]]; do opts+=("$1"); shift; done
-  shift || true
-  cmd_spawn "$name" --mode quick "${opts[@]}" >/dev/null
-  local id; id=$(cmd_send "$name" -- "$*")
-  cmd_wait "$id" --timeout "${TA_RUN_TIMEOUT:-900}"
-}
-cmd_log() { tail -n "${1:-10}" "$TA_STATE/log.tsv" 2>/dev/null | awk -F'\t' '{printf "%s  %s  %-10s %s\n",$1,$2,$3,$4}'; }
-cmd_result() { cat "$MSGS/${1:?id}.reply"; }
-
-cmd_read() {
-  local name=${1:?NAME}; shift; local n=200
-  [[ ${1:-} == -n ]] && n=$2
-  local pane; pane=$(pane_of "$name") || die "no agent '$name'"
-  tmux capture-pane -p -J -t "$pane" -S "-$n" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
-}
-
-cmd_idle() {
-  local name=${1:?NAME}; shift; local quiet=3 t=300
-  while (($#)); do case $1 in --quiet) quiet=$2; shift 2;; --timeout) t=$2; shift 2;; *) shift;; esac; done
-  local pane; pane=$(pane_of "$name") || die "no agent '$name'"
-  local end=$((SECONDS + t)) last="" cur still=0
-  while ((SECONDS < end)); do
-    cur=$(tmux capture-pane -p -t "$pane" | md5sum)
-    if [[ $cur == "$last" ]]; then ((++still >= quiet)) && return 0; else still=0; last=$cur; fi
-    sleep 1
-  done
-  return 124
-}
-
-cmd_ls() {
-  tmux list-panes -a -F '#{@agent_name}|#{pane_id}|#{@agent_kind}|#{session_name}:#{window_index}|#{?pane_dead,dead,live}|#{pane_current_command}' |
-    awk -F'|' '$1!=""{printf "%-14s %-6s %-7s %-12s %-5s %s\n",$1,$2,$3,$4,$5,$6}'
-}
-
-cmd_kill() {
-  local pane; pane=$(pane_of "${1:?NAME}") || die "no agent '$1'"
-  tmux kill-pane -t "$pane"
-}
-
-cmd_whoami() { need_tmux; echo "${TMUX_PANE} $(tmux display -p -t "$TMUX_PANE" '#{@agent_name}')"; }
-
-cmd_id() {
-  TA_PM_DB=${TA_PM_DB:-$HOME/.local/state/pm/pm.db} python3 -I -c '
-import hashlib, os, sqlite3, sys
-pane = os.environ.get("TMUX_PANE", "")
-db = os.environ["TA_PM_DB"]
-if pane and os.path.exists(db):
+def env_f(name: str, default: float) -> float:
     try:
-        con = sqlite3.connect("file:" + db + "?mode=ro", uri=True, timeout=2)
-        row = con.execute("SELECT id FROM agent_records WHERE last_pane=? AND ended_at IS NULL"
-                          " ORDER BY last_seen DESC LIMIT 1", (pane,)).fetchone()
-        con.close()
-        if row and row[0]:
-            print(row[0]); sys.exit(0)
-    except sqlite3.Error:
-        pass
-ident = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-if ident:
-    h = hashlib.sha256(("claude\0" + ident).encode()).hexdigest()[:6]
+        return float(os.environ.get(name) or default)
+    except ValueError:
+        return default
+
+
+def num(v: str, flag: str) -> float:
+    try:
+        return float(v)
+    except ValueError:
+        die(f"{flag} needs a number")
+
+
+def now_iso() -> str:
+    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+# ---- paths -----------------------------------------------------------------
+def state_dir() -> Path:
+    s = os.environ.get("TA_STATE")
+    if s:
+        return Path(s)
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local/state")
+    return Path(base) / "tmux-agents"
+
+
+def msgs_dir() -> Path:
+    d = state_dir() / "msgs"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def inbox_dir(key: str) -> Path:
+    return state_dir() / "inbox" / re.sub(r"[^A-Za-z0-9%@$._-]", "_", key)
+
+
+def pm_db() -> str:
+    return os.environ.get("TA_PM_DB") or str(Path.home() / ".local/state/pm/pm.db")
+
+
+# ---- tmux ------------------------------------------------------------------
+def tmux_argv(*args: str) -> list[str]:
+    argv = [os.environ.get("TA_TMUX") or "tmux"]
+    sock = os.environ.get("TA_TMUX_SOCKET")
+    if sock:
+        argv += ["-L", sock]
+    return argv + list(args)
+
+
+def tmux(*args: str, timeout: float = 10, check: bool = True) -> str:
+    try:
+        p = subprocess.run(tmux_argv(*args), capture_output=True, text=True, timeout=timeout, errors="replace")
+    except FileNotFoundError:
+        die("tmux not found (TA_TMUX overrides the binary)")
+    except subprocess.TimeoutExpired:
+        if check:
+            die(f"tmux {args[0]} timed out")
+        return ""
+    if p.returncode != 0:
+        if check:
+            die(f"tmux {args[0]}: {p.stderr.strip() or 'failed'}")
+        return ""
+    return p.stdout
+
+
+def tmux_ok(*args: str, timeout: float = 10) -> bool:
+    try:
+        return subprocess.run(tmux_argv(*args), capture_output=True, timeout=timeout).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def list_panes() -> list[dict]:
+    fmt = SEP.join("#{%s}" % f for f in PANE_FIELDS)
+    panes = []
+    for line in tmux("list-panes", "-a", "-F", fmt, check=False).splitlines():
+        parts = line.split(SEP)
+        if len(parts) != len(PANE_FIELDS):
+            continue
+        d = dict(zip(PANE_FIELDS, parts, strict=True))
+        d["dead"] = d["pane_dead"] == "1"
+        panes.append(d)
+    return panes
+
+
+def pane_info(pane: str) -> dict | None:
+    return next((p for p in list_panes() if p["pane_id"] == pane), None)
+
+
+def alive(pane: str) -> bool:
+    return tmux("display", "-p", "-t", pane, "#{pane_dead}", check=False).strip() == "0"
+
+
+def pane_opt(pane: str, opt: str) -> str:
+    return tmux("display", "-p", "-t", pane, "#{%s}" % opt, check=False).strip()
+
+
+def set_pane_opt(pane: str, opt: str, value: str):
+    tmux("set-option", "-p", "-t", pane, opt, value, check=False)
+
+
+def own_pane() -> str:
+    return os.environ.get("TMUX_PANE", "")
+
+
+# ---- pm ids ----------------------------------------------------------------
+def mint(kind: str, ident: str) -> str:
+    """pm's id for a session identity (pm.agents.registry.mint_id)."""
+    h = hashlib.sha256((kind + "\0" + ident).encode()).hexdigest()[:6]
     if h.isdigit():
         h = "a" + h[1:]
-    print("claude-" + h); sys.exit(0)
-sys.exit(1)
-'
-}
+    return f"{kind}-{h}"
 
-c=${1:-}; shift || true
-case $c in
-  spawn) cmd_spawn "$@";; send) cmd_send "$@";; reply) cmd_reply "$@";;
-  run) cmd_run "$@";; log) cmd_log "$@";; wait) cmd_wait "$@";; result) cmd_result "$@";; read) cmd_read "$@";;
-  idle) cmd_idle "$@";; ls) cmd_ls;; kill) cmd_kill "$@";; whoami) cmd_whoami;; id) cmd_id;;
-  ""|-h|--help|help) usage;; *) usage; die "unknown command: $c";;
-esac
+
+def db_query(sql: str, params: tuple = ()) -> list[tuple]:
+    """Read-only pm.db query; [] when the db is missing or unreadable (works with pm down)."""
+    db = pm_db()
+    if not os.path.exists(db):
+        return []
+    try:
+        con = sqlite3.connect("file:" + db + "?mode=ro", uri=True, timeout=2)
+        try:
+            return con.execute(sql, params).fetchall()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return []
+
+
+@functools.cache
+def self_id() -> str:
+    """Exactly the old `tmux-agents id`: pm.db live row for $TMUX_PANE, else the claude session hash."""
+    pane = os.environ.get("TMUX_PANE", "")
+    if pane:
+        rows = db_query("SELECT id FROM agent_records WHERE last_pane=? AND ended_at IS NULL"
+                        " ORDER BY last_seen DESC LIMIT 1", (pane,))
+        if rows and rows[0][0]:
+            return rows[0][0]
+    ident = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    if ident:
+        return mint("claude", ident)
+    return ""
+
+
+def db_live_records() -> dict[str, tuple[str, str]]:
+    """pane -> (pm id, kind) of live pm.db agent records (newest per pane)."""
+    out: dict[str, tuple[str, str]] = {}
+    for rid, kind, pane in db_query("SELECT id, kind, last_pane FROM agent_records WHERE ended_at IS NULL"
+                                    " ORDER BY last_seen DESC"):
+        if pane and rid and pane not in out:
+            out[pane] = (rid, kind or "")
+    return out
+
+
+class Procs:
+    """One pass over /proc: comm, start time, children."""
+
+    def __init__(self, root: str = "/proc"):
+        self.root = root
+        self.comm: dict[int, str] = {}
+        self.start: dict[int, str] = {}
+        self.kids: dict[int, list[int]] = {}
+        try:
+            names = os.listdir(root)
+        except OSError:
+            names = []
+        for n in names:
+            if not n.isdigit():
+                continue
+            try:
+                with open(f"{root}/{n}/stat") as f:
+                    s = f.read()
+            except OSError:
+                continue
+            r = s.rfind(")")
+            fields = s[r + 2:].split()
+            if len(fields) < 20:
+                continue
+            pid = int(n)
+            self.comm[pid] = s[s.find("(") + 1:r]
+            self.start[pid] = fields[19]  # field 22 of stat: start time
+            self.kids.setdefault(int(fields[1]), []).append(pid)
+
+    def argv0(self, pid: int) -> str:
+        try:
+            with open(f"{self.root}/{pid}/cmdline", "rb") as f:
+                return os.path.basename(f.read().split(b"\0")[0].decode(errors="replace"))
+        except OSError:
+            return ""
+
+    def is_claude(self, pid: int) -> bool:
+        return self.comm.get(pid) == "claude" or self.argv0(pid) == "claude"
+
+    def bfs(self, pid: int):
+        queue, seen = [pid], {pid}
+        while queue:
+            p = queue.pop(0)
+            yield p
+            for c in sorted(self.kids.get(p, [])):
+                if c not in seen:
+                    seen.add(c)
+                    queue.append(c)
+
+    def environ_var(self, pid: int, name: str) -> str:
+        try:
+            with open(f"{self.root}/{pid}/environ", "rb") as f:
+                data = f.read()
+        except OSError:
+            return ""
+        key = name.encode() + b"="
+        for item in data.split(b"\0"):
+            if item.startswith(key):
+                return item[len(key):].decode(errors="replace")
+        return ""
+
+
+def claude_ident(procs: Procs, pid: int) -> str:
+    """Claude sessionId of a claude pid: ~/.claude/sessions/<pid>.json (pid + start time checked, like
+    pm), else CLAUDE_CODE_SESSION_ID in the environ of the process or a descendant."""
+    sdir = Path(os.environ.get("TA_CLAUDE_SESSIONS") or Path.home() / ".claude/sessions")
+    try:
+        data = json.loads((sdir / f"{int(pid)}.json").read_text())
+        if (isinstance(data, dict) and data.get("pid") == pid and str(data.get("procStart")) == procs.start.get(pid)
+                and isinstance(data.get("sessionId"), str) and data["sessionId"]):
+            return data["sessionId"]
+    except (OSError, ValueError):
+        pass
+    for p in procs.bfs(pid):
+        v = procs.environ_var(p, "CLAUDE_CODE_SESSION_ID")
+        if v:
+            return v
+    return ""
+
+
+def scan_claude(pane: dict, procs: Procs) -> str:
+    """pm id of the shallowest claude process below the pane, or ""."""
+    try:
+        root = int(pane["pane_pid"])
+    except ValueError:
+        return ""
+    for p in procs.bfs(root):
+        if procs.is_claude(p):
+            ident = claude_ident(procs, p)
+            return mint("claude", ident) if ident else ""
+    return ""
+
+
+class Agents:
+    """Agent panes of the server: tagged (@agent_name) ones, plus pm.db / claude-scan discoveries."""
+
+    def __init__(self):
+        self.panes = list_panes()
+        self._db: dict[str, tuple[str, str]] | None = None
+        self._procs: Procs | None = None
+        self._scan: dict[str, str] = {}
+
+    @property
+    def db(self) -> dict[str, tuple[str, str]]:
+        if self._db is None:
+            self._db = db_live_records()
+        return self._db
+
+    @property
+    def procs(self) -> Procs:
+        if self._procs is None:
+            self._procs = Procs()
+        return self._procs
+
+    def scan(self, p: dict) -> str:
+        if p["pane_id"] not in self._scan:
+            self._scan[p["pane_id"]] = "" if p["dead"] else scan_claude(p, self.procs)
+        return self._scan[p["pane_id"]]
+
+    def pm_id(self, p: dict) -> str:
+        if p["@agent_id"]:
+            return p["@agent_id"]
+        rec = self.db.get(p["pane_id"])
+        return rec[0] if rec else self.scan(p)
+
+    def kind(self, p: dict) -> str:
+        if p["@agent_kind"]:
+            return p["@agent_kind"]
+        rec = self.db.get(p["pane_id"])
+        if rec and rec[1]:
+            return rec[1]
+        return "claude" if self.pm_id(p).startswith("claude-") else ""
+
+    def listing(self, all_: bool) -> list[tuple[dict, str]]:
+        out = []
+        for p in self.panes:
+            if p["@agent_name"]:
+                out.append((p, self.pm_id(p)))
+            elif all_:
+                pid = self.pm_id(p)
+                if pid:
+                    out.append((p, pid))
+        return out
+
+    def resolve(self, target: str) -> dict | None:
+        if not target:
+            return None
+        if target.startswith("%"):
+            return next((p for p in self.panes if p["pane_id"] == target), None)
+        named = [p for p in self.panes if p["@agent_name"] == target]
+        if named:
+            return next((p for p in named if not p["dead"]), named[0])
+        # pm agent id: (a) @agent_id tag, (b) pm.db last_pane if alive, (c) claude process scan
+        hit = next((p for p in self.panes if p["@agent_id"] == target and not p["dead"]), None)
+        if hit:
+            return hit
+        for (pane,) in db_query("SELECT last_pane FROM agent_records WHERE id=? AND ended_at IS NULL"
+                                " ORDER BY last_seen DESC", (target,)):
+            p = next((q for q in self.panes if q["pane_id"] == pane and not q["dead"]), None)
+            if p:
+                return p
+        if target.startswith("claude-"):
+            for p in self.panes:
+                if self.scan(p) == target:
+                    if p["@agent_name"] and not p["@agent_id"]:
+                        set_pane_opt(p["pane_id"], "@agent_id", target)
+                    return p
+        return None
+
+
+def resolve(target: str, need_alive: bool = False) -> dict:
+    p = Agents().resolve(target)
+    if p is None:
+        die(f"no agent '{target}' (name, %pane or pm id)")
+    if need_alive and p["dead"]:
+        die(f"pane {p['pane_id']} for '{target}' is dead")
+    return p
+
+
+@functools.cache
+def own_name() -> str:
+    pane = own_pane()
+    return pane_opt(pane, "@agent_name") if pane else ""
+
+
+def tag_self(pmid: str):
+    """Put our own pm id on our own pane so others can address us by it (never touches other panes)."""
+    pane = own_pane()
+    if pane and pmid and not pane_opt(pane, "@agent_id"):
+        set_pane_opt(pane, "@agent_id", pmid)
+
+
+# ---- messages --------------------------------------------------------------
+def new_id() -> str:
+    d = msgs_dir()
+    while True:
+        mid = f"{time.strftime('%H%M%S')}-{secrets.randbelow(0x10000):04x}"
+        if not (d / f"{mid}.meta").exists():
+            return mid
+
+
+def read_meta(mid: str) -> dict:
+    """key=value lines (same format as the bash version, so old messages still read)."""
+    f = msgs_dir() / f"{mid}.meta"
+    if not MSG_ID.fullmatch(mid) or not f.is_file():
+        die(f"unknown message id {mid}")
+    meta = {}
+    for line in f.read_text(errors="replace").splitlines():
+        k, sep, v = line.partition("=")
+        if sep:
+            meta[k] = v
+    return meta
+
+
+def write_meta(mid: str, meta: dict):
+    f = msgs_dir() / f"{mid}.meta"
+    tmp = f.with_name(f"{mid}.meta.{os.getpid()}.tmp")
+    tmp.write_text("".join(f"{k}={str(v).replace(chr(10), ' ')}\n" for k, v in meta.items()))
+    os.replace(tmp, f)
+
+
+def update_meta(mid: str, **kv):
+    meta = read_meta(mid)
+    meta.update(kv)
+    write_meta(mid, meta)
+
+
+def read_body(args: list[str], file: str | None) -> str:
+    if file:
+        try:
+            return Path(file).read_text()
+        except OSError as e:
+            die(f"cannot read {file}: {e.strerror}")
+    if args:
+        return " ".join(args)
+    if not sys.stdin.isatty():
+        return sys.stdin.read()
+    die("no message (give TEXT, -f FILE or stdin)")
+
+
+def pending(key: str) -> list[Path]:
+    d = inbox_dir(key)
+    return sorted(d.glob("*.pending")) if d.is_dir() else []
+
+
+def own_inbox_keys() -> list[str]:
+    return list(dict.fromkeys(k for k in (own_pane(), self_id()) if k))
+
+
+def sender_label() -> str:
+    name, pmid = own_name(), self_id()
+    bits = ([f"name={name}"] if name else []) + ([f"pm id={pmid}"] if pmid else [])
+    return f"pane {own_pane() or '?'}" + (f" ({', '.join(bits)})" if bits else "")
+
+
+# ---- delivery --------------------------------------------------------------
+def snapshot(pane: str) -> tuple[str, str, bool] | None:
+    """(visible screen, cursor, dead) of a pane in one tmux call; None if the pane is gone."""
+    out = tmux("capture-pane", "-p", "-t", pane, ";", "display", "-p", "-t", pane,
+               "#{cursor_x},#{cursor_y} #{pane_dead}", timeout=5, check=False)
+    if not out:
+        return None
+    body, _, last = out.rstrip("\n").rpartition("\n")
+    cur, _, dead = last.rpartition(" ")
+    return body, cur, dead == "1"
+
+
+def wait_quiet(pane: str, quiet: float, limit: float) -> str:
+    """"quiet" once the screen is unchanged for `quiet` s; "busy" after `limit` s; "dead" if it died/went."""
+    end = time.monotonic() + limit
+    step = max(0.1, min(0.5, quiet / 4))
+    last, since = None, time.monotonic()
+    while True:
+        snap = snapshot(pane)
+        if snap is None or snap[2]:
+            return "dead"
+        t = time.monotonic()
+        if snap[:2] != last:
+            last, since = snap[:2], t
+        elif t - since >= quiet:
+            return "quiet"
+        if t >= end:
+            return "busy"
+        time.sleep(step)
+
+
+def prompt_showing(screen: str) -> str:
+    """Name of the first PROMPT_PATTERNS entry the bottom TA_PROMPT_LINES of `screen` match, or ""."""
+    lines = screen.rstrip("\n").split("\n")
+    while lines and not lines[-1].strip():
+        lines.pop()
+    lines = lines[-int(env_f("TA_PROMPT_LINES", 15)):]
+    text = "\n".join(lines) + "\n"
+    last = lines[-1] if lines else ""
+    for name, scope, rx in PROMPTS:
+        if rx.search(last if scope == "last" else text):
+            return name
+    return ""
+
+
+def pane_prompt(pane: str) -> str | None:
+    """Prompt name ("" = none) shown in a live pane; None if the pane is dead or gone."""
+    snap = snapshot(pane)
+    if snap is None or snap[2]:
+        return None
+    return prompt_showing(snap[0])
+
+
+class PaneLock:
+    """Non-blocking-with-deadline flock in $TA_STATE/locks: `paste` (no two pastes interleave) or
+    `retry` (one background retrier per pane)."""
+
+    def __init__(self, pane: str, kind: str, limit: float):
+        d = state_dir() / "locks"
+        d.mkdir(parents=True, exist_ok=True)
+        self.f = open(d / f"{re.sub(r'[^A-Za-z0-9]', '_', pane)}.{kind}.lock", "w")
+        self.got = False
+        end = time.monotonic() + limit
+        while True:
+            try:
+                fcntl.flock(self.f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.got = True
+                return
+            except OSError:
+                if time.monotonic() >= end:
+                    return
+                time.sleep(0.1)
+
+    def close(self):
+        self.f.close()
+
+
+def paste_submit(pane: str, file: Path):
+    """One bracketed paste, then Enter; the delay lets TUIs ingest the paste first (else Enter is eaten)."""
+    buf = f"ta-{os.getpid()}-{secrets.token_hex(3)}"
+    tmux("load-buffer", "-b", buf, str(file))
+    tmux("paste-buffer", "-p", "-d", "-b", buf, "-t", pane)
+    time.sleep(env_f("TA_SUBMIT_DELAY", 0.6))
+    tmux("send-keys", "-t", pane, "Enter")
+
+
+def deliver_max() -> float:
+    return env_f("TA_DELIVER_MAX", 1800)
+
+
+def queued(pane: str, fresh: bool = True) -> list[Path]:
+    """Pending messages of a pane in send order; fresh = younger than TA_DELIVER_MAX (the retrier's queue),
+    else the given-up ones that stay in the inbox."""
+    cutoff = time.time() - deliver_max()
+    out = []
+    for f in pending(pane):
+        try:
+            st = f.stat()
+        except OSError:
+            continue
+        if (st.st_mtime >= cutoff) == fresh:
+            out.append((st.st_mtime_ns, f.name, f))
+    return [f for *_, f in sorted(out)]
+
+
+def start_retrier(pane: str):
+    """Detached `_deliver PANE` (exits once the queue is empty or after TA_DELIVER_MAX; the retry lock keeps
+    it to one per pane). No permanent daemon."""
+    try:
+        subprocess.Popen([sys.executable, os.path.abspath(__file__), "_deliver", pane], start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         close_fds=True)
+    except OSError as e:
+        warn(f"could not start the background deliverer: {e.strerror}; the message stays in the inbox")
+
+
+def hold(pane: str, mid: str, file: Path, why: str) -> str:
+    d = inbox_dir(pane)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{mid}.pending").write_text(file.read_text())
+    update_meta(mid, status="pending", pending=str(d / f"{mid}.pending"), held=why)
+    start_retrier(pane)
+    warn(f"held: {pane} {why}; message {mid} queued, will deliver when it clears "
+         f"(within {deliver_max():g}s, else it stays in `tmux-agents inbox`)")
+    return "held"
+
+
+def deliver(pane: str, mid: str, file: Path, now: bool = False) -> str:
+    """Paste `file` into `pane` unless it shows an interactive prompt. Busy TUIs are fine (they queue the
+    input): wait at most TA_DELIVER_SETTLE s for TA_DELIVER_QUIET s of no change, then paste anyway.
+    Prompt, dead pane, or older messages still queued -> held in the inbox for the background retrier.
+    --now skips every check. Returns "delivered" or "held"; recorded in msgs/<mid>.meta."""
+    if now:
+        lock = PaneLock(pane, "paste", 5)
+        try:
+            paste_submit(pane, file)
+        finally:
+            lock.close()
+        update_meta(mid, status="delivered", delivered=now_iso())
+        return "delivered"
+    if queued(pane):
+        return hold(pane, mid, file, "has older messages queued")
+    lock = PaneLock(pane, "paste", env_f("TA_DELIVER_SETTLE", 3) + 5)
+    if not lock.got:
+        lock.close()
+        return hold(pane, mid, file, "is taking another delivery")
+    try:
+        st = wait_quiet(pane, env_f("TA_DELIVER_QUIET", 0.8), env_f("TA_DELIVER_SETTLE", 3))
+        prompt = pane_prompt(pane) if st != "dead" else None
+        if prompt == "":
+            paste_submit(pane, file)
+            update_meta(mid, status="delivered", delivered=now_iso())
+            return "delivered"
+    finally:
+        lock.close()
+    return hold(pane, mid, file, "is dead or gone" if prompt is None else f"shows a prompt ({prompt})")
+
+
+def retry_loop(pane: str) -> bool:
+    """Body of `_deliver`: paste queued messages in order whenever no prompt shows. True = queue drained."""
+    end = time.monotonic() + deliver_max()
+    every = env_f("TA_RETRY_INTERVAL", 3)
+    while time.monotonic() < end:
+        items = queued(pane)
+        if not items:
+            return True
+        if pane_info(pane) is None:
+            return False  # pane gone (or server down): leave them in the inbox
+        lock = PaneLock(pane, "paste", 5)
+        try:
+            if lock.got and pane_prompt(pane) == "":
+                f = items[0]
+                try:
+                    text = f.read_text()
+                except OSError:
+                    continue  # read by `inbox` meanwhile
+                out = f.with_suffix(".sending")
+                out.write_text(text)
+                paste_submit(pane, out)
+                out.unlink(missing_ok=True)
+                f.unlink(missing_ok=True)
+                try:
+                    update_meta(f.stem, status="delivered", delivered=now_iso(), by="retrier")
+                except Fail:
+                    pass
+                time.sleep(env_f("TA_DELIVER_QUIET", 0.8))  # let the TUI take it before the next one
+                continue
+        finally:
+            lock.close()
+        time.sleep(every)
+    return False
+
+
+def cmd_deliver(args):
+    """Hidden: the detached per-pane retrier started by a held delivery."""
+    if not args:
+        return
+    pane = args[0]
+    while True:
+        lock = PaneLock(pane, "retry", 0)
+        if not lock.got:
+            return  # another retrier owns this pane
+        try:
+            drained = retry_loop(pane)
+        finally:
+            lock.close()
+        # a message queued between our last look and the unlock would wait for nobody: look once more
+        if not drained or not queued(pane):
+            return
+
+
+def make_message(pane: dict, body: str, mode: str) -> tuple[str, Path]:
+    """Write msgs/<id>.{prompt,meta,out}; mode = request | noreply | raw."""
+    mid = new_id()
+    d = msgs_dir()
+    (d / f"{mid}.prompt").write_text(body)
+    write_meta(mid, {"id": mid, "to": pane["pane_id"], "from": own_pane(), "from_name": own_name(),
+                     "from_id": self_id(), "to_name": pane["@agent_name"], "kind": mode, "sent": now_iso()})
+    waiting = len(queued(pane["pane_id"], fresh=False))
+    note = f"\n[{waiting} older message(s) for you are in your inbox: run `tmux-agents inbox`]" if waiting else ""
+    who = sender_label()
+    if mode == "raw":
+        text = body
+    elif mode == "request":
+        text = (f"[tmux-agents request id={mid} from {who}]\n{body}\n\n---\n"
+                "When you have finished, send your result back to the requester by running this\n"
+                "shell command (it is the only way they will see it; keep the summary concise,\n"
+                "and put long output in a file and mention its path):\n"
+                f'  tmux-agents reply {mid} "<what you did and the result>"\n'
+                f"If you fail or are blocked, reply the same way with --status failed|blocked and say why.{note}\n")
+    else:
+        text = f"{body}\n\n[tmux-agents id={mid} from {who}, no reply expected]{note}"
+    out = d / f"{mid}.out"
+    out.write_text(text)
+    return mid, out
+
+
+def send(pane: dict, body: str, mode: str, now: bool = False) -> tuple[str, str]:
+    mid, out = make_message(pane, body, mode)
+    return mid, deliver(pane["pane_id"], mid, out, now=now)
+
+
+def send_many(panes: list[dict], texts: dict[str, str], mode: str = "noreply") -> list[tuple[dict, str, str]]:
+    """Send texts[pane_id] to each pane in parallel (the settle waits overlap)."""
+    if not panes:
+        return []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(panes))) as ex:
+        futs = [(p, ex.submit(send, p, texts[p["pane_id"]], mode)) for p in panes]
+        res = []
+        for p, f in futs:
+            try:
+                mid, st = f.result()
+            except Fail as e:
+                mid, st = "", f"failed: {e}"
+            res.append((p, mid, st))
+        return res
+
+
+def inbox_hint():
+    if own_pane():
+        n = sum(len(pending(k)) for k in own_inbox_keys())
+        if n:
+            warn(f"{n} pending message(s) for you; run `tmux-agents inbox`")
+
+
+# ---- arg parsing -----------------------------------------------------------
+def take(args: list[str], i: int, flag: str) -> str:
+    if i + 1 >= len(args):
+        die(f"{flag} needs a value")
+    return args[i + 1]
+
+
+def parse_opts(args: list[str], flags: set[str], valued: set[str]) -> tuple[dict, list[str]]:
+    """Options anywhere before `--`; everything else is the message text (as in the bash version)."""
+    opts: dict = {}
+    rest: list[str] = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--":
+            rest += args[i + 1:]
+            break
+        if a in flags:
+            opts[a] = True
+            i += 1
+        elif a in valued:
+            opts.setdefault(a, []).append(take(args, i, a))
+            i += 2
+        else:
+            rest.append(a)
+            i += 1
+    return opts, rest
+
+
+def one(opts: dict, key: str, default=None):
+    v = opts.get(key)
+    return v[-1] if v else default
+
+
+# ---- commands --------------------------------------------------------------
+def agent_cmd(kind: str, perm: str) -> str:
+    if kind == "devin":
+        return f"devin --permission-mode {perm or 'smart'}"
+    if kind == "claude":
+        return f"claude --permission-mode {perm or 'auto'} --allowedTools 'Bash(tmux-agents *)'"
+    if kind == "codex":
+        return "codex"
+    if kind == "shell":
+        return ""
+    die(f"unknown agent kind: {kind}")
+
+
+def spawn(name: str, args: list[str]) -> tuple[str, str]:
+    """Create (or reuse / respawn) the agent window NAME -> (pane id, prompt)."""
+    kind, mode, cwd, perm, cmd, session = "devin", "session", os.getcwd(), "", None, None
+    focus, ready, prompt = False, env_f("TA_READY", 4), ""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--focus":
+            focus = True
+            i += 1
+            continue
+        if a == "--":
+            prompt = " ".join(args[i + 1:])
+            break
+        if not a.startswith("--"):
+            prompt = " ".join(args[i:])
+            break
+        v = take(args, i, a)
+        if a == "--agent":
+            kind = v
+        elif a == "--mode":
+            mode = v
+        elif a == "--cwd":
+            cwd = v
+        elif a == "--perm":
+            perm = v
+        elif a == "--cmd":
+            cmd = v
+        elif a == "--session":
+            session = v
+        elif a == "--wait-ready":
+            ready = num(v, a)
+        elif a == "--where":
+            if v == "pane":
+                warn("--where pane is deprecated: agents always get their own window")
+            elif v == "session":
+                session = session or f"ta-{name}"
+            elif v != "window":
+                die("--where pane|window|session")
+        elif a == "--split":
+            warn("--split is deprecated: agents always get their own window")
+        else:
+            die(f"unknown spawn option {a}")
+        i += 2
+    if mode not in ("quick", "session"):
+        die("--mode quick|session")
+    if cmd is None:
+        cmd = agent_cmd(kind, perm)
+    cwd = os.path.abspath(os.path.expanduser(cwd))
+    if not os.path.isdir(cwd):
+        die(f"--cwd {cwd}: not a directory")
+
+    olds = [p for p in Agents().panes if p["@agent_name"] == name]
+    live = next((p for p in olds if not p["dead"]), None)
+    if live is not None:
+        warn(f"reusing {name} ({live['pane_id']})")
+        return live["pane_id"], prompt
+    if olds:
+        pane = olds[0]["pane_id"]
+        tmux("respawn-pane", "-t", pane, "-c", cwd)
+        warn(f"respawned dead {name} in {pane}")
+    else:
+        if session is None:
+            if not os.environ.get("TMUX"):
+                die("not inside tmux (TMUX unset): give --session NAME")
+            tgt = ["-t", own_pane()] if own_pane() else []
+            target = tmux("display", "-p", *tgt, "#{session_id}").strip() + ":"
+        else:
+            target = f"={session}:"
+        d = [] if focus else ["-d"]
+        if session is None or tmux_ok("has-session", "-t", f"={session}"):
+            pane = tmux("new-window", *d, "-t", target, "-n", name, "-c", cwd, "-P", "-F", "#{pane_id}").strip()
+        else:
+            pane = tmux("new-session", "-d", "-s", session, "-n", name, "-c", cwd, "-P", "-F", "#{pane_id}").strip()
+    # persistent: the window (and its output) stays when the agent or its shell exits
+    tmux("set-option", "-w", "-t", pane, "remain-on-exit", "on")
+    for opt, val in (("@agent_name", name), ("@agent_kind", kind), ("@agent_mode", mode), ("@agent_id", "")):
+        tmux("set-option", "-p", "-t", pane, opt, val)
+    tmux("select-pane", "-t", pane, "-T", name, check=False)
+    if cmd:
+        tmux("send-keys", "-t", pane, "-l", cmd)
+        tmux("send-keys", "-t", pane, "Enter")
+    info = pane_info(pane) or {}
+    warn(f"spawned {name} ({kind}) in {pane} ({info.get('session_name', '?')}:{info.get('window_index', '?')})")
+    if ready > 0:
+        time.sleep(ready)
+    p = pane_info(pane)
+    if p and kind == "claude":
+        pmid = Agents().pm_id(p)
+        if pmid:
+            set_pane_opt(pane, "@agent_id", pmid)
+    return pane, prompt
+
+
+def cmd_spawn(args):
+    if not args or args[0].startswith("-"):
+        die("spawn NAME ...")
+    pane, prompt = spawn(args[0], args[1:])
+    print(pane, flush=True)
+    if prompt:
+        cmd_send([args[0], "--", prompt])
+
+
+def cmd_send(args):
+    if not args:
+        die("send TARGET ...")
+    opts, rest = parse_opts(args[1:], {"--no-reply", "--raw", "--now"}, {"-f"})
+    mode = "raw" if "--raw" in opts else ("noreply" if "--no-reply" in opts else "request")
+    pane = resolve(args[0], need_alive=True)
+    body = read_body(rest, one(opts, "-f"))
+    mid, _ = send(pane, body, mode, now="--now" in opts)
+    print(mid)
+
+
+def cmd_reply(args):
+    if not args:
+        die("reply ID ...")
+    mid = args[0]
+    meta = read_meta(mid)
+    opts, rest = parse_opts(args[1:], {"--now"}, {"-f", "--status"})
+    status = one(opts, "--status", "done")
+    if status not in STATUSES:
+        die("--status done|failed|blocked")
+    body = read_body(rest, one(opts, "-f"))
+    d = msgs_dir()
+    reply = d / f"{mid}.reply"
+    reply.write_text(body if body.endswith("\n") else body + "\n")
+    who = own_name() or self_id() or "agent"
+    summary = re.sub(r"[\t\r\n]+", " ", body)[:200]
+    with open(state_dir() / "log.tsv", "a") as f:
+        f.write(f"{now_iso()}\t{mid}\t{who}\t{summary}\t{status}\n")
+    update_meta(mid, replied=now_iso(), reply_status=status)
+    frm = meta.get("from", "")
+    if not frm or not alive(frm):
+        warn(f"origin pane gone; stored at {reply}")
+        return
+    head = f"[tmux-agents reply id={mid} from {who} status={status}]"
+    if len(body) <= int(env_f("TA_INLINE_MAX", 1500)):
+        text = f"{head}\n{body}"
+    else:
+        text = (f"{head} Result too long to inline ({len(body)} chars); read the file: {reply}\n"
+                f"Preview: {body[:300]}...")
+    out = d / f"{mid}.rout"
+    out.write_text(text)
+    # the reply rides on the request's meta: status=delivered|pending then describes the reply
+    st = deliver(frm, mid, out, now="--now" in opts)
+    print(f"replied to {frm}" if st == "delivered" else f"reply stored; held for {frm} (queued, will deliver)")
+
+
+def cmd_inbox(args):
+    opts, _ = parse_opts(args, {"--all"}, {"--pane"})
+    keys = [one(opts, "--pane")] if "--pane" in opts else own_inbox_keys()
+    if not keys:
+        die("not inside tmux (TMUX_PANE unset): give --pane %ID")
+    items: list[Path] = []
+    for k in keys:
+        d = inbox_dir(k)
+        if d.is_dir():
+            items += list(d.glob("*.pending")) + (list(d.glob("*.read")) if "--all" in opts else [])
+    items.sort(key=lambda p: (p.stat().st_mtime, p.name))
+    if not items:
+        warn("inbox empty")
+        return
+    for f in items:
+        mid = f.stem
+        try:
+            meta = read_meta(mid)
+        except Fail:
+            meta = {}
+        frm = meta.get("from_name") or meta.get("from_id") or meta.get("from") or "?"
+        tag = "pending" if f.suffix == ".pending" else "read"
+        print(f"--- message {mid} from {frm} sent {meta.get('sent', '?')} [{tag}] ---")
+        print(f.read_text(errors="replace").rstrip("\n"))
+        print()
+        if f.suffix == ".pending":
+            f.rename(f.with_suffix(".read"))
+            if meta:
+                update_meta(mid, status="read", read=now_iso())
+
+
+def project_dirs(name: str) -> list[Path]:
+    """Project dir from pm.toml (dev_root/NAME or an extra project), else ~/dev/NAME; plus its work trees."""
+    cfg = Path(os.environ.get("TA_PM_CONFIG") or Path.home() / ".config/pm/pm.toml")
+    dev_root, extra = Path.home() / "dev", []
+    try:
+        import tomllib  # 3.11+; without it only ~/dev/NAME is known
+        data = tomllib.loads(cfg.read_text())
+        if isinstance(data.get("dev_root"), str):
+            dev_root = Path(data["dev_root"]).expanduser()
+        extra = [Path(e).expanduser() for e in data.get("extra_projects", []) if isinstance(e, str)]
+    except (ImportError, OSError, ValueError):
+        pass
+    if (dev_root / name).is_dir():
+        root = dev_root / name
+    else:
+        root = next((e for e in extra if e.name == name and e.is_dir()), None)
+    if root is None:
+        cand = Path.home() / "dev" / name
+        if not cand.is_dir():
+            die(f"unknown project '{name}' (not under {dev_root}, not in extra_projects)")
+        root = cand
+    roots = [root.resolve()]
+    try:  # work trees of the project can live outside it
+        p = subprocess.run(["git", "-C", str(root), "worktree", "list", "--porcelain"], capture_output=True,
+                           text=True, timeout=5)
+        roots += [Path(ln[9:]).resolve() for ln in p.stdout.splitlines() if ln.startswith("worktree ")]
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return list(dict.fromkeys(roots))
+
+
+def under(path: str, roots: list[Path]) -> bool:
+    if not path:
+        return False
+    rp = Path(path).resolve()
+    return any(rp == r or r in rp.parents for r in roots)
+
+
+def cmd_broadcast(args):
+    opts, rest = parse_opts(args, set(), {"--project", "--cwd-under", "--kind", "-f"})
+    if "--project" in opts and "--cwd-under" in opts:
+        die("give --project or --cwd-under, not both")
+    roots = None
+    if "--project" in opts:
+        roots = project_dirs(one(opts, "--project"))
+    elif "--cwd-under" in opts:
+        roots = [Path(one(opts, "--cwd-under")).expanduser().resolve()]
+    kind = one(opts, "--kind")
+    body = read_body(rest, one(opts, "-f"))
+    ag = Agents()
+    targets = [p for p, _ in ag.listing(all_=True)
+               if not p["dead"] and p["pane_id"] != own_pane()
+               and (roots is None or under(p["pane_current_path"], roots))
+               and (not kind or ag.kind(p) == kind)]
+    if not targets:
+        warn("no matching live agent panes")
+        return
+    for p, mid, st in send_many(targets, {p["pane_id"]: body for p in targets}):
+        print(f"{mid or '-'}\t{p['@agent_name'] or ag.pm_id(p) or '-'}\t{p['pane_id']}\t{st}")
+
+
+def cmd_wait(args):
+    if not args:
+        die("wait ID [--timeout SEC]")
+    mid, t = args[0], 600.0
+    if len(args) > 2 and args[1] == "--timeout":
+        t = num(args[2], "--timeout")
+    read_meta(mid)
+    f = msgs_dir() / f"{mid}.reply"
+    end = time.monotonic() + t
+    while not f.exists():
+        if time.monotonic() >= end:
+            raise Fail("", 124)
+        time.sleep(0.5)
+    sys.stdout.write(f.read_text())
+
+
+def cmd_result(args):
+    if not args:
+        die("result ID")
+    f = msgs_dir() / f"{args[0]}.reply"
+    if not MSG_ID.fullmatch(args[0]) or not f.is_file():
+        die(f"no reply for {args[0]}")
+    sys.stdout.write(f.read_text())
+
+
+def cmd_read(args):
+    if not args:
+        die("read TARGET [-n LINES]")
+    n = int(num(args[2], "-n")) if len(args) > 2 and args[1] == "-n" else 200
+    p = resolve(args[0])
+    print(tmux("capture-pane", "-p", "-J", "-t", p["pane_id"], "-S", f"-{n}").rstrip("\n"))
+
+
+def cmd_idle(args):
+    if not args:
+        die("idle TARGET [--quiet SEC] [--timeout SEC]")
+    opts, _ = parse_opts(args[1:], set(), {"--quiet", "--timeout"})
+    p = resolve(args[0])
+    st = wait_quiet(p["pane_id"], num(one(opts, "--quiet", "3"), "--quiet"),
+                    num(one(opts, "--timeout", "300"), "--timeout"))
+    if st == "busy":
+        raise Fail("", 124)
+    if st == "dead":
+        die(f"pane {p['pane_id']} is dead")
+
+
+def cmd_run(args):
+    if not args or "--" not in args[1:]:
+        die("run NAME [spawn opts] -- PROMPT")
+    name, rest = args[0], args[1:]
+    k = rest.index("--")
+    prompt = " ".join(rest[k + 1:])
+    if not prompt:
+        die("run NAME [spawn opts] -- PROMPT")
+    pane, _ = spawn(name, ["--mode", "quick", *rest[:k]])
+    p = pane_info(pane)
+    if p is None or p["dead"]:
+        die(f"pane {pane} for '{name}' is dead")
+    mid, _ = send(p, prompt, "request")
+    cmd_wait([mid, "--timeout", str(env_f("TA_RUN_TIMEOUT", 900))])
+
+
+def cmd_log(args):
+    n = int(num(args[0], "N")) if args else 10
+    f = state_dir() / "log.tsv"
+    if not f.is_file():
+        return
+    for line in f.read_text(errors="replace").splitlines()[-n:]:
+        c = line.split("\t") + [""] * 5
+        print(f"{c[0]}  {c[1]}  {c[2]:<10} {c[4] or 'done':<7} {c[3]}")
+
+
+def short(path: str) -> str:
+    home = str(Path.home())
+    return "~" + path[len(home):] if path == home or path.startswith(home + "/") else path
+
+
+def cmd_ls(args):
+    ag = Agents()
+    rows = ag.listing(all_="--all" in args)
+    print(f"{'NAME':<14} {'PM ID':<14} {'PANE':<6} {'KIND':<7} {'SESSION:WIN':<14} {'STATE':<5} CWD")
+    for p, pmid in rows:
+        if p["@agent_name"] and pmid and not p["@agent_id"]:
+            set_pane_opt(p["pane_id"], "@agent_id", pmid)  # our own window: remember the id it was found by
+        print(f"{p['@agent_name'] or '-':<14} {pmid or '-':<14} {p['pane_id']:<6} {ag.kind(p) or '-':<7} "
+              f"{p['session_name'] + ':' + p['window_index']:<14} {'dead' if p['dead'] else 'live':<5} "
+              f"{short(p['pane_current_path'])}")
+
+
+def cmd_kill(args):
+    if not args:
+        die("kill TARGET [--force]")
+    p = resolve(args[0])
+    if not p["@agent_name"] and "--force" not in args:
+        die(f"pane {p['pane_id']} was not spawned by tmux-agents; use kill --force")
+    tmux("kill-pane", "-t", p["pane_id"])
+
+
+def cmd_whoami(_args):
+    if not os.environ.get("TMUX"):
+        die("not inside tmux (TMUX unset)")
+    print(f"{own_pane()} {own_name()}")
+
+
+def cmd_id(_args):
+    pmid = self_id()
+    if not pmid:
+        raise Fail("", 1)
+    print(pmid)
+
+
+# ---- coordination (pmctl) ---------------------------------------------------
+def pmctl_path() -> str:
+    exe = os.environ.get("TA_PMCTL") or "pmctl"
+    path = exe if os.sep in exe else shutil.which(exe)
+    if not path or not os.access(path, os.X_OK):
+        die(f"pmctl not found ({exe}): claims live in pm.db and need pm's pmctl on this host "
+            "(TA_PMCTL overrides the path)", 2)
+    return path
+
+
+def unknown_cmd(rc: int, err: str, sub: str):
+    if rc != 0 and "invalid choice" in err and f"'{sub}'" in err:  # argparse (pmctl exits 1 or 2)
+        die(f"this pmctl has no `{sub}` command yet (update pm / polymux)", 2)
+
+
+def pmctl(args: list[str], ok_codes=(0,)) -> tuple[int, dict]:
+    """pmctl --json ARGS -> (exit code, parsed JSON); exit 2 with a clear message on any trouble."""
+    argv = [pmctl_path(), "--json", *args]
+    sub = next((a for a in args if a in ("claim", "merge-check")), args[0])
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        die(f"pmctl {sub} timed out", 2)
+    except OSError as e:
+        die(f"pmctl: {e.strerror}", 2)
+    err = p.stderr.strip()
+    unknown_cmd(p.returncode, err, sub)
+    if p.returncode not in ok_codes:
+        die(f"pmctl {sub} failed (exit {p.returncode}): {err or p.stdout.strip()}", 2)
+    try:
+        data = json.loads(p.stdout)
+    except ValueError:
+        die(f"pmctl {sub}: no JSON output: {p.stdout.strip()[:200]}", 2)
+    if not isinstance(data, dict):
+        die(f"pmctl {sub}: unexpected JSON", 2)
+    return p.returncode, data
+
+
+def split_project(args: list[str]) -> tuple[list[str], list[str]]:
+    """Pull `--project P` out of args (forwarded as pmctl's global option)."""
+    if "--project" in args:
+        i = args.index("--project")
+        return ["--project", take(args, i, "--project")], args[:i] + args[i + 2:]
+    return [], args
+
+
+def paths_of(c: dict) -> str:
+    return ", ".join(c.get("paths") or []) or "whole repo"
+
+
+def claim_line(c: dict) -> str:
+    pane = f" pane {c['pane']}" if c.get("pane") else ""
+    stale = " [stale]" if c.get("stale") else ""
+    return f"c{c.get('num')} {c.get('agent')} '{c.get('title')}' on {c.get('branch')} ({paths_of(c)}){pane}{stale}"
+
+
+def notify_claims(claims: list[dict], text_for) -> None:
+    """--no-reply FYI to the pane of each overlapping claim (one message per pane)."""
+    ag = Agents()
+    targets, texts = [], {}
+    for c in claims:
+        pane = c.get("pane") or ""
+        if not pane or pane == own_pane():
+            continue
+        p = next((q for q in ag.panes if q["pane_id"] == pane and not q["dead"]), None)
+        if p is None:
+            print(f"  c{c.get('num')}: pane {pane} is gone; not notified")
+            continue
+        if pane not in texts:
+            targets.append(p)
+            texts[pane] = []
+        texts[pane].append(text_for(c))
+    for p, mid, st in send_many(targets, {k: "\n".join(v) for k, v in texts.items()}):
+        print(f"  notified {p['@agent_name'] or p['pane_id']} ({p['pane_id']}): {mid or '-'} {st}")
+
+
+def my_handle(claim: dict) -> str:
+    """How others address us: pm id (also tagged on our own pane), else name, else pane."""
+    pmid = self_id() or claim.get("agent") or ""
+    if pmid == "agent":
+        pmid = ""
+    tag_self(pmid)
+    return pmid or own_name() or own_pane() or "?"
+
+
+def cmd_claim(args):
+    proj, args = split_project(args)
+    if not args or args[0].startswith("-"):
+        die('claim "title" [--path GLOB ...] [--issue N]')
+    opts, rest = parse_opts(args[1:], set(), {"--path", "--issue", "--branch", "--worktree"})
+    if rest:
+        die(f"unexpected argument: {rest[0]}")
+    pm_args = [*proj, "claim", "add", args[0]]
+    for g in opts.get("--path", []):
+        pm_args += ["--path", g]
+    for k in ("--issue", "--branch", "--worktree"):
+        if k in opts:
+            pm_args += [k, one(opts, k)]
+    _, res = pmctl(pm_args)
+    c = res.get("claim") or {}
+    overlaps = res.get("overlaps") or []
+    print(f"c{c.get('num')}")
+    me = my_handle(c)
+    for o in overlaps:
+        print(f"overlap: {claim_line(o)}")
+    notify_claims(overlaps, lambda o: (
+        f"agent {me} claimed c{c.get('num')} '{c.get('title')}' on {c.get('branch')}, overlapping your "
+        f"c{o.get('num')} ({paths_of(o)}); coordinate via tmux-agents send {me}"))
+
+
+def cmd_done(args):
+    proj, args = split_project(args)
+    if not args:
+        die("done N [--commit SHA] [--note TEXT]")
+    n = args[0].lstrip("c")
+    opts, rest = parse_opts(args[1:], set(), {"--commit", "--note"})
+    if rest:
+        die(f"unexpected argument: {rest[0]}")
+    pm_args = [*proj, "claim", "done", n]
+    for k in ("--commit", "--note"):
+        if k in opts:
+            pm_args += [k, one(opts, k)]
+    _, res = pmctl(pm_args)
+    c = res.get("claim") or {}
+    overlaps = res.get("overlaps") or []
+    sha = c.get("commit") or one(opts, "--commit") or ""
+    print(f"c{c.get('num', n)} done" + (f" in {sha}" if sha else ""))
+    me = my_handle(c)
+    for o in overlaps:
+        print(f"overlap: {claim_line(o)}")
+    notify_claims(overlaps, lambda o: (
+        f"agent {me} finished c{c.get('num', n)} '{c.get('title')}' in {sha or '(no commit given)'}, "
+        f"overlapping your c{o.get('num')} ({paths_of(o)}); rebase before merging"))
+
+
+def cmd_merge_check(args):
+    proj, args = split_project(args)
+    opts, rest = parse_opts(args, set(), {"--base"})
+    if rest:
+        die(f"unexpected argument: {rest[0]}", 2)
+    pm_args = [*proj, "merge-check"] + (["--base", one(opts, "--base")] if "--base" in opts else [])
+    rc, r = pmctl(pm_args, ok_codes=(0, 1))
+    files = r.get("files") or []
+    print(f"{r.get('branch')} -> {r.get('base')}: {len(files)} file(s) changed")
+    if r.get("base_moved"):
+        print(f"warning: {r.get('base')} has {r.get('behind')} commit(s) not in this branch; "
+              f"rebase/merge {r.get('base')} first")
+    claims = r.get("claims") or []
+    if claims:
+        print("overlapping claims of other agents:")
+        for c in claims:
+            print(f"  {claim_line(c)}")
+    wts = r.get("worktrees") or []
+    if wts:
+        print("other work trees touching these files:")
+        for w in wts:
+            print(f"  {w.get('path')} ({w.get('branch')}): {', '.join(w.get('files') or [])}")
+    if rc == 0:
+        print("clear: no overlapping claims or work trees")
+        return
+    print("OVERLAP: message the claim owners (tmux-agents send <agent>) or ask the user; "
+          "do not merge over it unasked")
+    raise Fail("", rc)
+
+
+def cmd_board(args):
+    proj, args = split_project(args)
+    js = ["--json"] if "--json" in args else []
+    argv = [pmctl_path(), *js, *proj, "claim", "list", *[a for a in args if a != "--json"]]
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        die(f"pmctl claim list: {e}", 2)
+    unknown_cmd(p.returncode, p.stderr, "claim")
+    sys.stdout.write(p.stdout)
+    sys.stderr.write(p.stderr)
+    if p.returncode:
+        raise Fail("", p.returncode)
+
+
+COMMANDS = {
+    "spawn": cmd_spawn, "send": cmd_send, "reply": cmd_reply, "inbox": cmd_inbox, "broadcast": cmd_broadcast,
+    "wait": cmd_wait, "result": cmd_result, "read": cmd_read, "idle": cmd_idle, "run": cmd_run, "log": cmd_log,
+    "ls": cmd_ls, "kill": cmd_kill, "whoami": cmd_whoami, "id": cmd_id, "claim": cmd_claim, "done": cmd_done,
+    "merge-check": cmd_merge_check, "board": cmd_board, "_deliver": cmd_deliver,
+}
+HINT_CMDS = {"send", "reply", "broadcast", "claim", "done", "merge-check", "board", "ls", "wait"}
+
+
+def main(argv: list[str]) -> int:
+    c = argv[0] if argv else ""
+    if c in ("", "-h", "--help", "help"):
+        sys.stdout.write(USAGE)
+        return 0
+    try:
+        fn = COMMANDS.get(c)
+        if fn is None:
+            sys.stdout.write(USAGE)
+            die(f"unknown command: {c}")
+        fn(argv[1:])
+        if c in HINT_CMDS:
+            inbox_hint()
+        return 0
+    except Fail as e:
+        if str(e):
+            warn(str(e))
+        return e.code
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -42,6 +42,14 @@ def test_build_each_kind(settings):
     for k in (AgentKind.CODEX, AgentKind.DEVIN, AgentKind.CURSOR):
         a = L.build_command(Launch("p", k, prompt="--evil"), settings)
         assert a[0].endswith(f"/.local/bin/{k.value}") and a[-2:] == ["--", "--evil "]
+    agy = L.build_command(Launch("p", AgentKind.ANTIGRAVITY, "gemini-4-argon-medium", "plan", None, "hi -x",
+                                 effort="high", permission_extra="sandbox"), settings)
+    assert agy[0].endswith("/.local/bin/agy")
+    assert agy[1:] == ["--model", "gemini-4-argon-medium", "--mode", "plan", "--sandbox", "--effort", "high",
+                       "-i", "hi -x"]
+    # agent_bins accepts both "antigravity" and "agy"
+    s2 = dataclasses.replace(settings, agent_bins={"agy": "/x/agy"})
+    assert L.agent_binary(s2, AgentKind.ANTIGRAVITY) == "/x/agy"
 
 
 @pytest.mark.parametrize("word", ["doctor", "update", "logout"])
@@ -49,13 +57,17 @@ def test_one_word_prompt_is_never_a_subcommand(settings, word):
     """Claude / cursor-agent run ``<cli> -- doctor`` as the doctor subcommand; a trailing space stops it."""
     for k in AgentKind:
         if k in L.MODEL_FLAG:
-            assert L.build_command(Launch("p", k, prompt=word), settings)[-2:] == ["--", word + " "]
+            flag = "-i" if k is AgentKind.ANTIGRAVITY else "--"
+            assert L.build_command(Launch("p", k, prompt=word), settings)[-2:] == [flag, word + " "]
 
 
 def test_prompt_args():
     pa = L.prompt_args
     assert pa("") == [] and pa("hi there") == ["--", "hi there"]
     assert pa("doctor") == ["--", "doctor "] and pa("--help") == ["--", "--help "]  # never a subcommand / flag
+    assert pa("hi there", AgentKind.ANTIGRAVITY) == ["-i", "hi there"]
+    assert pa("--version", "antigravity") == ["-i", "--version "]
+    assert L.apply_prompt_commands(AgentKind.ANTIGRAVITY, "/plan x", None) == ("x", "plan")
     with pytest.raises(L.LaunchError):
         pa("a\0b")
 
@@ -94,6 +106,7 @@ BYPASS = {
     AgentKind.CODEX: ("bypass", ["--dangerously-bypass-approvals-and-sandbox"]),
     AgentKind.DEVIN: ("dangerous", ["--permission-mode", "dangerous"]),
     AgentKind.CURSOR: ("yolo", ["--yolo"]),
+    AgentKind.ANTIGRAVITY: ("dangerously-skip-permissions", ["--dangerously-skip-permissions"]),
 }
 
 
@@ -143,8 +156,21 @@ def test_form_spec_covers_cli_modes(settings):
     assert keys["codex"] >= {"read-only", "workspace-write", "danger-full-access", "bypass"}
     assert keys["devin"] == {"auto", "accept-edits", "smart", "dangerous"}
     assert keys["cursor-agent"] == {"plan", "ask", "auto-review", "yolo"}
+    assert keys["antigravity"] == {"accept-edits", "auto", "plan", "dangerously-skip-permissions"}
     assert {o["key"] for o in spec["codex"]["extra"]["options"]} >= {"on-request", "never"}
+    assert {o["key"] for o in spec["antigravity"]["extra"]["options"]} == {"sandbox"}
     assert all(m["help"] for v in spec.values() for m in v["modes"])
+
+
+def test_redirect_hint_only_names_another_known_project(settings):
+    known = ("app", "app-core", "site")
+    assert L.redirect_hint(settings, "app", known) == ""  # empty map (the default): no hint
+    s = dataclasses.replace(settings, launch_redirects={"app": "app-core", "site": "gone", "app-core": "app-core"})
+    assert L.redirect_hint(s, "app", known) == "app-core"
+    assert L.redirect_hint(s, "site", known) == ""  # target is not a known project
+    assert L.redirect_hint(s, "app-core", known) == ""  # same project
+    assert L.redirect_hint(s, "other", known) == ""  # no entry
+    assert L.redirect_hint(dataclasses.replace(settings, launch_redirects={"app": 3}), "app", known) == ""
 
 
 def test_extra_models_extend_and_are_accepted(settings):
@@ -213,14 +239,17 @@ def test_command_string_quoted(fake_tmux, tmp_path, stand_in):
     import os
     os.environ["FAKE_TMUX_OUT"] = "@3"
     try:
+        L._find_session, find = (lambda settings, project: "$3"), L._find_session
         L.launch_agent(s, Launch("proj", AgentKind.CODEX, prompt="a b'; id #"),
                        Project("proj", str(proj)))
     finally:
+        L._find_session = find
         del os.environ["FAKE_TMUX_OUT"]
     log = s.extras["log"].read_text().split("---\n")
     nw = [c.split("\n") for c in log if c.startswith("-L") and "new-window" in c][-1]
+    nw = nw[:nw.index(";")]  # then the same sequence sets remain-on-exit and the name
     # the fake tmux has no default-shell: the /bin/sh fallback, argv as "$@"
-    assert nw[nw.index("--") + 1:-1] == ["/bin/sh", "-c", 'exec "$@"', "sh", str(b), "--", "a b'; id #"]
+    assert nw[nw.index("--") + 1:] == ["/bin/sh", "-c", 'exec "$@"', "sh", str(b), "--", "a b'; id #"]
 
 
 def fish_tmux(s, tmp_path):
@@ -247,7 +276,7 @@ sleep 30
 
 
 def test_launch_under_fish_default_shell_keeps_config_and_argv(private_tmux, tmp_path):
-    """The tmux default-shell is fish, which reads sh quoting differently. Launch and a split still run
+    """The tmux default-shell is fish, which reads sh quoting differently. Every launch still runs
     the agent through fish (config.fish applies: SSH_AUTH_SOCK, mise, PATH), but with the argv as $argv, so an
     sh-quoted prompt that would break out under fish stays one argument."""
     out = tmp_path / "argv.out"
@@ -271,8 +300,9 @@ def test_launch_under_fish_default_shell_keeps_config_and_argv(private_tmux, tmp
     first = L.launch_agent(s, launch, p)  # new-window
     _wait_argv(out, want)
     out.unlink()
-    L.launch_agent(s, launch, p, split_pane=first.pane_id)  # split-window
+    second = L.launch_agent(s, launch, p)  # another window of its own
     _wait_argv(out, want)
+    assert second.window_id != first.window_id
     assert not marker.exists()
 
 
@@ -352,50 +382,61 @@ def _panes(s, session, window=None):
             for w in se.windows if window in (None, w.id) for p in w.panes]
 
 
-def test_split_pane_adds_a_pane_to_the_source_window(private_tmux, tmp_path, stand_in):
-    b, out = stand_in
+QUICK_AGENT = """#!/bin/sh
+for a in "$@"; do printf '%s\\n' "$a"; done > {out}
+"""
+
+
+def test_launch_window_stays_when_the_agent_quits(private_tmux, tmp_path):
+    """Every launch gets its own window (never a split) whose remain-on-exit is on: the agent's pane stays,
+    dead, after it quits, so its output can still be read; the next launch opens another window."""
+    out = tmp_path / "argv.out"
+    b = tmp_path / "fakeagent"
+    b.write_text(QUICK_AGENT.format(out=out))
+    b.chmod(0o755)
     s = dataclasses.replace(cfg(private_tmux, b), state_dir=tmp_path / "st")
     proj = tmp_path / "proj"
     proj.mkdir()
     p = Project("proj", str(proj))
-    src = L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), p)
-    res = L.launch_agent(s, Launch("proj", AgentKind.CLAUDE, prompt="hello"), p, split_pane=src.pane_id)
-    assert res.window_id == src.window_id and res.window_name == src.window_name
-    assert res.session_id == src.session_id and res.pane_id.startswith("%") and res.pane_id != src.pane_id
-    assert set(_panes(s, "proj", src.window_id)) == {src.pane_id, res.pane_id}
+    first = L.launch_agent(s, Launch("proj", AgentKind.CLAUDE, prompt="hello"), p)
+    assert tmuxctl.run(s, ["show-options", "-w", "-v", "-t", first.window_id, "remain-on-exit"]).strip() == "on"
+    dead = None
     for _ in range(50):
-        if out.exists() and out.read_text():
+        dead = [pn for se in tmuxctl.list_sessions(s) for w in se.windows if w.id == first.window_id
+                for pn in w.panes]
+        if dead and dead[0].dead:
             break
         time.sleep(0.1)
+    assert [pn.id for pn in dead] == [first.pane_id] and dead[0].dead  # window kept, its one pane dead
     assert out.read_text() == "--\nhello \n"  # one-word prompt: trailing space
+    second = L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), p)
+    assert second.window_id != first.window_id and second.session_id == first.session_id
+    assert set(_panes(s, "proj", first.window_id)) == {first.pane_id}  # nothing split into the old window
+    assert set(_panes(s, "proj", second.window_id)) == {second.pane_id}
     con = sqlite3.connect(s.db_file)
-    assert con.execute("select count(*) from launches where window_id=?", (res.window_id,)).fetchone()[0] == 2
+    assert con.execute("select count(*) from launches").fetchone()[0] == 2
 
 
-def test_split_pane_refuses_pm_session_and_unknown_pane(private_tmux, tmp_path, stand_in):
+def test_launch_has_no_split_pane(settings):
+    with pytest.raises(TypeError):
+        L.launch_agent(settings, Launch("proj", AgentKind.CLAUDE), Project("proj", "/tmp"), split_pane="%1")
+    assert not hasattr(tmuxctl, "split_pane")
+
+
+def test_launch_argv_new_window_with_remain_on_exit(fake_tmux, tmp_path, stand_in, monkeypatch):
     b, _ = stand_in
-    s = dataclasses.replace(cfg(private_tmux, b), state_dir=tmp_path / "st")
+    s = cfg(fake_tmux, b)
     proj = tmp_path / "proj"
     proj.mkdir()
-    p = Project("proj", str(proj))
-    tmuxctl.new_session(s, "pm-x", str(proj))
-    (pane,) = _panes(s, "pm-x")
-    with pytest.raises(L.LaunchError, match="pm session"):
-        L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), p, split_pane=pane)
-    assert _panes(s, "pm-x") == [pane]
-    with pytest.raises(L.LaunchError, match="not found"):
-        L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), p, split_pane="%99999")
-    with pytest.raises(tmuxctl.TmuxError):
-        L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), p, split_pane="@1")
-
-
-def test_split_pane_argv(fake_tmux, monkeypatch):
-    s = cfg(fake_tmux, "/bin/true")
-    monkeypatch.setenv("FAKE_TMUX_OUT", "/bin/bash")  # the default-shell tmux reports
-    tmuxctl.split_pane(s, "%4", "/work", ["/x/cmd", "a b'; c"])
-    log = s.extras["log"].read_text().split("---\n")
-    assert [c for c in log if "split-window" in c][-1].split("\n")[2:-1] == [
-        "split-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "%4", "-c", "/work", "--",
-        "/bin/bash", "-c", 'exec "$@"', "bash", "/x/cmd", "a b'; c"]
-    with pytest.raises(tmuxctl.TmuxError):
-        tmuxctl.split_pane(s, "-t", "/work", ["x", "y"])
+    monkeypatch.setattr(L, "_find_session", lambda settings, project: "$4")
+    monkeypatch.setenv("FAKE_TMUX_OUT", "@6 %8")
+    r = L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), Project("proj", str(proj)))
+    assert (r.session_id, r.window_id, r.pane_id) == ("$4", "@6", "%8")
+    log = [c.split("\n")[2:-1] for c in s.extras["log"].read_text().split("---\n") if c]
+    (call,) = [c for c in log if c[0] in ("new-window", "set-option", "rename-window", "split-window")]
+    assert call[:7] == ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "$4:"]
+    assert "split-window" not in call
+    tail = call[-13:]  # the same sequence: "; set-option ... ; rename-window ..."
+    tmp = call[call.index("-n") + 1]
+    assert tail == [";", "set-option", "-w", "-t", f"$4:={tmp}", "remain-on-exit", "on",
+                    ";", "rename-window", "-t", f"$4:={tmp}", "--", "agent-claude"]

@@ -84,6 +84,8 @@ _CURSOR = (
 )
 _AGY = (
     _c("/context", "Show context usage by category", output="panel"),
+    _c("/usage", "Show plan usage limits", output="panel"),
+    _c("/quota", "Show model quota", output="panel"),
     _c("/credits", "Show credits", output="panel"),
     _c("/model", "Switch model", "action"),
     _c("/effort", "Set reasoning effort", "action"),

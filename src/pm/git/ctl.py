@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 
 from pm.core.cache import SWR
@@ -13,7 +12,6 @@ from pm.core.models import GitStatus
 from pm.core.proc import ProcError, ProcTimeout, run_argv
 
 GIT_BIN = "git"
-REMOTE = "gitdev"
 TIMEOUT_S = 20.0
 NET_TIMEOUT_S = 60.0
 ALLOWED = frozenset(
@@ -116,7 +114,7 @@ def _check_remote_args(rest: list[str], allowed_hosts) -> None:
     raise GitDenied(f"git remote form not allowed: {rest[:1]}")
 
 
-def _check_args(args: list[str], allowed_hosts=DEFAULT_GIT_HOSTS) -> None:
+def _check_args(args: list[str], allowed_hosts=DEFAULT_GIT_HOSTS, push_remote: str | None = None) -> None:
     if not args or args[0] not in ALLOWED:
         raise GitDenied(f"git subcommand not allowed: {args[:1]}")
     if args[0] == "remote":
@@ -131,8 +129,8 @@ def _check_args(args: list[str], allowed_hosts=DEFAULT_GIT_HOSTS) -> None:
             raise GitDenied(f"forced refspec not allowed: {a}")
     if args[0] == "push":
         rest = [a for a in args[1:] if not a.startswith("-")]
-        if not rest or rest[0] != REMOTE:
-            raise GitDenied("push only to gitdev")
+        if push_remote is None or not rest or rest[0] != check_remote_name(push_remote):
+            raise GitDenied("push only to the configured push remote")
 
 
 def check_listed(args: list[str], allowed: frozenset[str]) -> None:
@@ -167,13 +165,14 @@ def git_env(*, clean: bool = True, index: str | None = None) -> dict[str, str]:
 def run_git(
     path: str | Path, args: list[str], *, timeout: float = TIMEOUT_S, check: bool = True,
     allowed_hosts: tuple[str, ...] | list[str] = DEFAULT_GIT_HOSTS,
-    allowed: frozenset[str] | None = None, extra_env: dict[str, str] | None = None,
+    allowed: frozenset[str] | None = None, extra_env: dict[str, str] | None = None, push_remote: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """One git call in ``path``: argv list, fixed binary, timeout, ``git_env`` (+ ``extra_env``), the ~/.cfg /
-    ~/.agents-git checks. ``allowed`` None: the ``ALLOWED`` rules (remote forms, push to gitdev only, no force);
-    a set (``OPS_ALLOWED``, ...): ``check_listed``. Failures raise GitError (``check``: a non-zero exit too)."""
+    ~/.agents-git checks. ``allowed`` None: the ``ALLOWED`` rules (remote forms, push only to ``push_remote``,
+    None refuses every push; no force); a set (``OPS_ALLOWED``, ...): ``check_listed``. Failures raise GitError
+    (``check``: a non-zero exit too)."""
     if allowed is None:
-        _check_args(list(args), allowed_hosts)
+        _check_args(list(args), allowed_hosts, push_remote)
     else:
         check_listed(list(args), allowed)
     repo = check_repo_path(path)
@@ -239,7 +238,9 @@ def current_branch(path: str | Path) -> str | None:
     return b if cp.returncode == 0 and b and b != "HEAD" else None
 
 
-def status(path: str | Path) -> GitStatus | None:
+def status(path: str | Path, *, remote: str) -> GitStatus | None:
+    """Branch, dirty count, last commit and ahead/behind against ``remote``/<branch>; None off-repo or on error."""
+    check_remote_name(remote)
     try:
         _guard(path)
         if not is_repo(path):
@@ -254,12 +255,12 @@ def status(path: str | Path) -> GitStatus | None:
         except ValueError:
             last_ts = 0.0
         remotes = run_git(path, ["remote"], check=False).stdout.split()
-        has = REMOTE in remotes
+        has = remote in remotes
         ahead = behind = 0
         if has and branch:
             cp = run_git(
                 path,
-                ["rev-list", "--left-right", "--count", f"HEAD...refs/remotes/{REMOTE}/{branch}"],
+                ["rev-list", "--left-right", "--count", f"HEAD...refs/remotes/{remote}/{branch}"],
                 check=False,
             )
             if cp.returncode == 0:
@@ -299,23 +300,6 @@ def commit_log(path: str | Path, n: int = 5) -> list[dict[str, str]]:
                 ts = 0.0
             out.append({"sha": p[0], "hash": p[1], "author": p[2], "ts": ts, "subject": p[4]})
     return out
-
-
-def commit_url_base(path: str | Path, hosts: tuple[str, ...] | list[str] = DEFAULT_GIT_HOSTS) -> str | None:
-    """``https://<host>/<owner>/<repo>/commit/`` from the gitdev remote when its host is in ``hosts``, else None."""
-    if not hosts:
-        return None
-    try:
-        cp = run_git(path, ["remote", "get-url", REMOTE], check=False)
-    except GitError:
-        return None
-    url = cp.stdout.strip() if cp.returncode == 0 else ""
-    for host in hosts:
-        h = re.escape(host)
-        m = re.match(rf"^(?:(?:ssh://)?git@{h}(?::\d+)?[:/]|https://{h}/)([\w.-]+/[\w.-]+?)(?:\.git)?/?$", url)
-        if m:
-            return f"https://{host}/{m.group(1)}/commit/"
-    return None
 
 
 def dirty_files(path: str | Path, limit: int = 60) -> tuple[list[tuple[str, str]], int]:
@@ -421,72 +405,6 @@ def worktrees(path: str | Path) -> list[dict[str, str]]:
     return out
 
 
-def fetch(path: str | Path) -> str:
-    return run_git(path, ["fetch", REMOTE], timeout=NET_TIMEOUT_S).stderr.strip()
-
-
-def pull_ff_only(path: str | Path) -> str:
-    branch = current_branch(path)
-    if not branch:
-        raise GitError("detached HEAD")
-    return run_git(path, ["pull", "--ff-only", REMOTE, branch], timeout=NET_TIMEOUT_S).stdout.strip()
-
-
-def push_gitdev(path: str | Path) -> str:
-    branch = current_branch(path)
-    if not branch:
-        raise GitError("detached HEAD")
-    cp = run_git(path, ["push", REMOTE, branch], timeout=NET_TIMEOUT_S)
-    return (cp.stderr or cp.stdout).strip()
-
-
-@dataclass(frozen=True)
-class RemoteInfo:
-    name: str
-    fetch_url: str
-    push_url: str
-
-
-def remotes(path: str | Path) -> list[RemoteInfo]:
-    """``git remote -v`` as rows (name, fetch url, push url); [] on any git error."""
-    try:
-        cp = run_git(path, ["remote", "-v"], check=False)
-    except GitError:
-        return []
-    fetch: dict[str, str] = {}
-    push: dict[str, str] = {}
-    for ln in cp.stdout.splitlines():
-        m = re.fullmatch(r"(\S+)\t(.*) \((fetch|push)\)", ln)
-        if m:
-            (fetch if m.group(3) == "fetch" else push)[m.group(1)] = m.group(2)
-    return [RemoteInfo(n, u, push.get(n, u)) for n, u in fetch.items()]
-
-
-def _remote_names(path: str | Path) -> list[str]:
-    return run_git(path, ["remote"], check=False).stdout.split()
-
-
-def remote_add(path: str | Path, name: str, url: str, allowed_hosts=DEFAULT_GIT_HOSTS) -> None:
-    check_remote_name(name)
-    if name in _remote_names(path):
-        raise GitError("remote already exists")
-    run_git(path, ["remote", "add", "--", name, url], allowed_hosts=allowed_hosts)
-
-
-def remote_set_url(path: str | Path, name: str, url: str, allowed_hosts=DEFAULT_GIT_HOSTS) -> None:
-    check_remote_name(name)
-    if name not in _remote_names(path):
-        raise GitError("no such remote")
-    run_git(path, ["remote", "set-url", "--", name, url], allowed_hosts=allowed_hosts)
-
-
-def remote_remove(path: str | Path, name: str) -> None:
-    check_remote_name(name)
-    if name not in _remote_names(path):
-        raise GitError("no such remote")
-    run_git(path, ["remote", "remove", "--", name])
-
-
 # ------------------------------------------------------------------ tracker glue (pmctl hooks / render --stage)
 MERGE_DRIVER = {"merge.pmctl.name": "pm tracker: take a branch's new/ticked items and CHANGELOG / FEATURES drafts, re-render BACKLOG.md / TODO.md / CHANGELOG.md / FEATURES.md",
                 "merge.pmctl.driver": "pmctl render --merge %O %A %B %P"}
@@ -580,11 +498,15 @@ def merge_head(repo_path: str | Path) -> str | None:
     return _rev(repo_path, "MERGE_HEAD")
 
 
+def branch_name_ok(name: str) -> bool:
+    """Branch-like ref name (``main``, ``gitdev/main``): no leading ``-``/``/``/``.``, ``..``, ``//``, ``/``/``.lock`` end."""
+    return (isinstance(name, str) and bool(_BRANCH.match(name)) and not name.startswith(("-", "/", "."))
+            and ".." not in name and "//" not in name and not name.endswith(("/", ".lock")))
+
+
 def branch_exists(repo_path: str | Path, branch: str) -> bool:
-    """``refs/heads/<branch>`` exists (``branch`` checked like a ref name; a bad name is False)."""
-    if not _BRANCH.match(branch or "") or branch.startswith(("-", "/", ".")) or ".." in branch or "//" in branch:
-        return False
-    return _rev(repo_path, f"refs/heads/{branch}") is not None
+    """``refs/heads/<branch>`` exists (``branch`` checked by ``branch_name_ok``; a bad name is False)."""
+    return branch_name_ok(branch) and _rev(repo_path, f"refs/heads/{branch}") is not None
 
 
 def merge_file(repo_path: str | Path, current: str | Path, base: str | Path, other: str | Path) -> bool:

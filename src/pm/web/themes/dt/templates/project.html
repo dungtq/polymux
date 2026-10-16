@@ -30,7 +30,7 @@
 {% block content %}
 {%- set v = dt_project() -%}
 {%- if v %}
-<div class="pj-lay{{ ' navc' if v.navc }}" id="pj-lay" data-pj="{{ v.name }}" data-pj-base="{{ v.base }}">
+<div class="pj-lay{{ ' navc' if v.navc }}" id="pj-lay" data-pj="{{ v.name }}" data-pj-base="{{ v.base }}" data-pj-remote="{{ v.remote }}">
 {% include "project/_sidebar.html" %}
 <div class="pj-main" id="pj-main">
 {% include "project/_head.html" %}

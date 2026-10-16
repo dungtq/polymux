@@ -31,6 +31,14 @@ def test_stop_stopped_and_gone(fake_tmux, monkeypatch):
     assert stop.stop_agent(fake_tmux, mk("a", "%9"), sleep=lambda s: None).status == "gone"
 
 
+def test_stop_and_exit_dead_pane_is_stopped(fake_tmux, monkeypatch):
+    """An agent window kept by remain-on-exit: the pane stays, dead, with the agent's command name."""
+    sep = tmuxctl.SEP
+    monkeypatch.setenv("FAKE_TMUX_OUT", sep.join(["$1", "s", "0", "@1", "0", "w", "1", "%5", "1", "node", "/",
+                                                  "1", "t", "1"]))
+    assert stop.stop_agent(fake_tmux, mk("a", "%5"), sleep=lambda s: None).status == "stopped"
+
+
 def test_stop_bad_pane_id(fake_tmux):
     r = stop.stop_agent(fake_tmux, mk("a", "%5; rm"), sleep=lambda s: None)
     assert r.status == "error"

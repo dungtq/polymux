@@ -24,6 +24,7 @@ from pm.core import executors
 from pm.core.errors import Invalid, PmError
 from pm.core.models import Project, Tier
 from pm.git import ctl as gitctl
+from pm.git import remote as gitremote
 from pm.infra import stacks, unitctl
 from pm.projects import projects
 from pm.security.guard import CONTROL_TEXTS, client_of, csrf_session_guard, get_csrf, mutation_guard
@@ -230,9 +231,10 @@ def _project(request: Request, action: str, name: str) -> Project:
 
 
 async def _git_action(request: Request, action: str, name: str, fn, label: str):
+    """``fn(path, remote=<pm.toml push_remote>)`` in the collectors pool, audited."""
     p = _project(request, action, name)
     try:
-        out = await executors.run_collectors(fn, p.path)
+        out = await executors.run_collectors(fn, p.path, remote=request.app.state.settings.push_remote)
     except gitctl.GitDenied:
         raise controlctl.refuse(request, action, name, 403, "git refused") from None
     except gitctl.GitError:
@@ -244,26 +246,27 @@ async def _git_action(request: Request, action: str, name: str, fn, label: str):
 @router.post("/p/{name}/git/fetch", response_class=HTMLResponse)
 async def git_fetch(request: Request, name: str,
                     _=Depends(mutation_guard("git_fetch", Tier.SAFE))):
-    return await _git_action(request, "git_fetch", name, gitctl.fetch, "Fetch")
+    return await _git_action(request, "git_fetch", name, gitremote.fetch, "Fetch")
 
 
 @router.post("/p/{name}/git/pull", response_class=HTMLResponse)
 async def git_pull(request: Request, name: str,
                    _=Depends(mutation_guard("git_pull", Tier.SAFE))):
-    return await _git_action(request, "git_pull", name, gitctl.pull_ff_only, "Pull (ff-only)")
+    return await _git_action(request, "git_pull", name, gitremote.pull_ff_only, "Pull (ff-only)")
 
 
-def _push_checked(path: str) -> str:
-    st = gitctl.status(path)
-    if st is None or not st.has_gitdev:
-        raise gitctl.GitDenied("no gitdev remote")
-    return gitctl.push_gitdev(path)
+def _push_checked(path: str, *, remote: str) -> str:
+    st = gitctl.status(path, remote=remote)
+    if st is None or not st.has_remote:
+        raise gitctl.GitDenied(f"no {remote} remote")
+    return gitremote.push(path, remote=remote)
 
 
 @router.post("/p/{name}/git/push", response_class=HTMLResponse)
 async def git_push(request: Request, name: str,
                    _=Depends(mutation_guard("git_push", Tier.SAFE))):
-    return await _git_action(request, "git_push", name, _push_checked, "Push to gitdev")
+    label = f"Push to {request.app.state.settings.push_remote}"
+    return await _git_action(request, "git_push", name, _push_checked, label)
 
 
 @router.post("/p/{name}/pin")

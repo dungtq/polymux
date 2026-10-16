@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-10-17 (Antigravity file links read cleanly in chat)
+
+Links like [name](file:///path#L1-L3), which the Antigravity (agy) agent writes, no longer show as raw brackets and a URL in chat bubbles. They show as the name, with the path as a tooltip. They are not clickable.
+
+## 2026-10-17 (Antigravity chat sync and plan usage limits)
+
+- **Antigravity chat sync** — `antigravity.read_entries` and `read_latest` wait for in-progress streaming steps (`CORTEX_STEP_STATUS` 1/2/8/9 in field 4 of `step_payload`) to finish before advancing the ingest cursor, so replies and tool calls are never truncated mid-stream or dropped during the thinking phase (`items.FORMAT = 4`, `log.FORMAT = 2` re-ingest earlier truncated conversations). `locate` also matches open `presence/<uuid>.lock` file descriptors when `agy` is idle, and `classify_pane_text` recognizes Antigravity's 8-dot braille spinner and `esc to cancel` footer as `RUNNING`. (`src/pm/chat/sources/antigravity.py`, `src/pm/chat/items.py`, `src/pm/chat/log.py`, `src/pm/agents/state.py`, `tests/test_antigravity.py`)
+- **Antigravity plan limits and usage stats** — `/a/<id>/stats` now shows 5-hour and weekly plan limits for Antigravity agents (from `agy -p /usage --output-format json`, cached in `antigravity-limits.json` via `SWR`, tagging the active model's weekly bucket such as Argon for the summary bar) as well as reply count, tool calls, duration and cache hit % in the usage section; `/usage` and `/quota` are added to the Antigravity slash palette, and `-p`/`--print`/`models` runs are ignored by agent detection. (`src/pm/agents/limits.py`, `src/pm/agents/usage.py`, `src/pm/agents/slash.py`, `src/pm/agents/detect.py`, `src/pm/web/routes/chat.py`, `src/pm/web/themes/classic/templates/_stats.html`)
+
+## 2026-10-17 (Queued messages survive a pm restart)
+
+A message waiting for an agent is no longer failed as "agent gone" right after pm restarts. The one-minute wait now counts from pm start, so the first agent scan can finish.
+
+## 2026-10-17 (Fix Codex startup trust choice submission)
+
+- Codex startup folder and hook trust choices now send the selected digit followed by Enter, so clicking the trust row submits it instead of only moving the terminal selection.
+- Quit, Review hooks, and Continue without trusting keep their immediate digit shortcuts; no extra Enter reaches the next screen.
+- Regression coverage checks startup prompt parsing, rendered choice form values, and key delivery through the authenticated route.
+
+## 2026-10-17 (Composer messages reach an idle Cursor agent)
+
+A message sent from the composer to a Cursor agent no longer waits forever. An idle Cursor agent shows an arrow prompt ("Add a follow-up"), which pm did not recognise as idle, so the message stayed queued. It now counts as idle and is sent.
+
+## 2026-10-17 (Antigravity CLI launch from the web UI)
+
+- Launch form and quick launch now start Antigravity (`agy`): model list from `agy models`, permission modes (`accept-edits`, `auto`, `plan`, bypass `dangerously-skip-permissions`), reasoning effort (`low`..`max`), optional `--sandbox`, and `-i` (`--prompt-interactive`) for the initial prompt instead of `--` (which `agy` rejects).
+- Fork handoffs to Antigravity pass the handoff prompt with `-i`, and New Chat strips `-i` / `--prompt-interactive` and `--conversation` when restarting an Antigravity process.
+
+## 2026-10-17 (Cursor launch follows the process's own chat)
+
+Launching cursor-agent treated every process in a directory as the newest store.db there, so the new tmux window opened as an older chat that was still being written. A live process is now the store it has open. Until that file is open, it is not attached to another chat.
+
+## 2026-10-17 (Per-project agent memory: pmctl memory, shared by every agent kind, synced with Claude Code's memory dirs)
+
+- `pmctl memory add|set|show|list|rm|search|context|sync`: one memory per project in pm.db (`tk_memory`), shared by
+  every agent kind and every git work tree of the project; type `user` memories with `--global` apply everywhere.
+  Writes are audited (fail closed) and work while the web service is down.
+- `pmctl memory context` prints a one-line-per-memory index for session start; `pmctl memory sync [--all]` keeps
+  Claude Code's own memory dirs (main tree and each work tree) in step both ways: files Claude wrote are imported
+  by hash (pm.db wins a conflict, the file version is kept as a `-conflict-<time>` copy), then every memory is
+  rendered back with its `MEMORY.md` index. A summary goes to `state_dir/memory/<project>.md`. Nothing is ever
+  written inside a repo; symlinks are refused; files are 0600.
+- New pm.toml key `claude_dir` (default `~/.claude`). `encode_cwd` moved to `pm.core.fsutil`; `timefmt.iso` is the
+  shared ISO helper.
+
 ## 2026-10-17 (Builder md links open; clearer not-found message)
 
 - dt Builder: .md links in the chat open in the markdown reader (they did nothing: Builder has no docked reader).
@@ -8,6 +53,17 @@
 ## 2026-10-16 (Markdown reader finds files from the folders an agent worked in)
 
 - The markdown reader also finds relative .md links an agent wrote while working in another folder or project: folders it cd'd into, the project a (deleted) worktree belongs to, a unique match in another project, or a unique file of that name inside its project. Hidden folders stay refused (#249).
+
+## 2026-10-16 (Leak check for commits and pushes)
+
+- `tools/leakcheck.sh`: checks the lines a commit or push adds against a private pattern file (`$PM_PRIVATE_PATTERNS`
+  or `~/.config/pm/private-patterns.txt`, one regex per line, `path:` and `src:` kinds). `--install` adds a
+  pre-commit step and a pre-push hook; hits show `file:line` and the pattern number with the match masked. Without a
+  pattern file it warns and passes, so contributors are not blocked.
+- `tools/check.sh` (and CI) scan the tracked tree with a small public set `tools/leak-public.txt`: private-key
+  headers, `.env` / `*.db` / token files, `/home/<user>/` paths and 10.x addresses outside tests.
+- `pmctl hooks install`: the pre-commit hook now also runs every executable in `.git/hooks/pre-commit.d/` after the
+  tracker render, so other checks can chain onto it.
 
 ## 2026-10-16 (dt: row links, ended sessions in the aside, search popups and project quick look, backlog bulk add and quick edit, md reader)
 

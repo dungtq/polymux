@@ -29,7 +29,11 @@ class Settings:
     # git remotes panel: URL hosts a project remote may point at;
     # pm.toml `git_allowed_hosts = ["git.example.lan", ...]`; also the hosts commit hashes link to. user_ssh_dir: ~/.ssh, listed read-only (*.pub only).
     git_allowed_hosts: tuple[str, ...] = ()
+    # the one remote pm's git actions fetch, pull and push (never forced); a git remote name, checked at app start
+    push_remote: str = "origin"
     user_ssh_dir: Path = Path.home() / ".ssh"
+    # Claude Code's home (``projects/<encoded cwd>/memory`` = its per-directory memory, synced by `pmctl memory sync`)
+    claude_dir: Path = Path.home() / ".claude"
     tmux_bin: str = "tmux"
     tmux_socket: str | None = None  # -L name; tests set a private one
     tier_ceiling: Tier = Tier.MESSAGE
@@ -119,10 +123,12 @@ class Settings:
     # empty = "agent"
     actor_cmd: tuple[str, ...] = ()
     # New project dialog (projects/newproject.py): templates [{name, description, files = {"rel/path": "text"}}]
-    # ("{name}" in a file = the project name). git_remote_template: URL of the new project's gitdev remote, "{name}"
+    # ("{name}" in a file = the project name). git_remote_template: URL of the new project's push_remote, "{name}"
     # = the project name (e.g. "git@git.example.lan:me/{name}.git"); "" = the remote step is skipped
     project_templates: list = field(default_factory=lambda: [{"name": "empty"}])
     git_remote_template: str = ""
+    # Launch form hint: project -> the project its code work usually belongs in (e.g. {pm = "polymux"}); {} = none
+    launch_redirects: dict = field(default_factory=dict)
     # UI theme (pm.web.themes): "classic" = today's UI; plugin themes by name; unknown = classic + a warning
     theme: str = "classic"
     # plugins (entry-point group "pm.plugins", pm.web.plugins): false = load none (env PM_NO_PLUGINS=1 too).
@@ -175,6 +181,11 @@ class Settings:
         """Tracker issue images (``<sha>.<ext>``, hard links or copies of uploads)."""
         return self.state_dir / "tracker"
 
+    @property
+    def memory_dir(self) -> Path:
+        """Agent memory renders for agents without a memory dir of their own (``<project>.md``)."""
+        return self.state_dir / "memory"
+
 
 EXTRAS_FIELDS = (
     "agent_bins", "agent_models", "allow_bypass", "worktree_root", "snippets", "alerts_host", "disable_poll",
@@ -184,7 +195,8 @@ EXTRAS_FIELDS = (
 
 
 def _convert(key: str, val):
-    if key in {"dev_root", "state_dir", "token_file", "dev_token_file", "totp_file", "user_ssh_dir"}:
+    if key in {"dev_root", "state_dir", "token_file", "dev_token_file", "totp_file", "user_ssh_dir",
+               "claude_dir"}:
         return Path(val).expanduser()
     if key == "extra_projects":
         return tuple(Path(v).expanduser() for v in val)
@@ -197,6 +209,8 @@ def _convert(key: str, val):
         return Tier(int(val))
     if key == "plugins":
         return _plugin_tables(val)
+    if key == "launch_redirects":
+        return _redirect_map(val)
     return val
 
 
@@ -211,6 +225,20 @@ def _plugin_tables(val) -> dict:
             out[name] = dict(cfg)
         else:
             log.warning("config: [plugins.%s] is not a table, ignored", name)
+    return out
+
+
+def _redirect_map(val) -> dict:
+    """``launch_redirects``: keep the ``project = "other project"`` pairs; anything else is logged and dropped."""
+    if not isinstance(val, dict):
+        log.warning("config: launch_redirects is not a table, ignored")
+        return {}
+    out = {}
+    for src, dst in val.items():
+        if isinstance(src, str) and isinstance(dst, str) and src and dst and src != dst:
+            out[src] = dst
+        else:
+            log.warning("config: launch_redirects entry %r = %r ignored", src, dst)
     return out
 
 

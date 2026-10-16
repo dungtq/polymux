@@ -84,8 +84,8 @@
       Unread badges (the app-icon badge) -> classic js/inbox.js calls navigator.setAppBadge / clearAppBadge from the
         Inbox count; dt sets no app badge, so deleting this include drops it
       js/reload.js -> pm-project sessions: the classic composer's reload notice row ([data-cmp-reload], classic
-        pmreload.js from composer_scripts(), GET /pm/reload-need) and its "Restart pm" htmx form; dt js/reload.js
-        only waits after that POST -#}
+        pmreload.js from composer_scripts(), GET /pm/reload-need: refresh only); a needed restart is dt
+        js/reload.js's own "new code" state -#}
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/chat.css">
 <link rel="stylesheet" href="/static/css/chat-items.css">

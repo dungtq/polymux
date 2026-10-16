@@ -4,7 +4,7 @@
     dt_audit("page") (pm.web.dt.audit): stats line, head actions (Export CSV on Activity, Clear all on Client
     errors), tabs (links). The components: _audit_list.html (#au-act) and _client_errors.html (#au-ce); their live
     swaps send the head's stats line and the Export link out of band. Read-only page: the only POSTs are Clear all
-    (client error log) and Save as pm issue (js/audit.js). -#}
+    (client error log) and Save as issue to a tracker project (js/audit.js). -#}
 {% extends "base.html" %}
 {%- import "parts/_head.html" as ph -%}
 {%- import "parts/_tabs.html" as pt -%}

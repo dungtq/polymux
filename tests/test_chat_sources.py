@@ -178,6 +178,35 @@ def test_cursor_locate_newest_and_read(tmp_path):
     assert cursor.locate("/no/such", tmp_path) is None
 
 
+def _hold(proc: Path, pid: int, db: Path, name: str = "4") -> None:
+    fd = proc / str(pid) / "fd"
+    fd.mkdir(parents=True, exist_ok=True)
+    os.symlink(db, fd / name)
+
+
+def test_cursor_locate_uses_the_open_store_not_the_newest(tmp_path):
+    """A live cursor-agent is the chat it has open, even when a newer store exists in the same cwd."""
+    old = mkchat(tmp_path, CWD, "11111111-1111-4111-8111-111111111111",
+                 [{"role": "assistant", "content": [{"type": "text", "text": "mine"}]}],
+                 mtime=time.time() - 9000)
+    mkchat(tmp_path, CWD, "22222222-2222-4222-8222-222222222222",
+           [{"role": "assistant", "content": [{"type": "text", "text": "other"}]}],
+           mtime=time.time())
+    proc = tmp_path / "proc"
+    _hold(proc, 77, old)
+    assert cursor.locate(CWD, tmp_path, 77, proc) == old
+    assert chat_sources.session_file(AgentKind.CURSOR, pid=77, cwd=CWD, home=tmp_path, proc_root=proc) == old
+    wal = old.with_name("store.db-wal")
+    wal.write_bytes(b"")
+    _hold(proc, 78, wal)
+    assert cursor.locate(CWD, tmp_path, 78, proc) == old
+    assert cursor.locate(CWD, tmp_path, 79, proc) is None  # live, nothing open: not the newest file
+    _hold(proc, 80, tmp_path / "elsewhere" / "store.db")
+    assert cursor.locate(CWD, tmp_path, 80, proc) is None
+    _hold(proc, 81, old.parent.parent / ".." / "store.db")
+    assert cursor.locate(CWD, tmp_path, 81, proc) is None
+
+
 def test_cursor_read_is_readonly(tmp_path):
     db = mkchat(tmp_path, CWD, "c", [{"role": "assistant", "content": "plain string"}])
     before = db.read_bytes()
@@ -212,10 +241,26 @@ def test_chat_view_devin_prose_not_ran_command(dhome, tmp_path, monkeypatch, set
     assert "Ran Command" not in v.last_text
 
 
+def _bind_cursor(monkeypatch, tmp_path, db, pid=100):
+    """Point chat_view's session lookup at the store this pid has open."""
+    proc = tmp_path / "proc-cursor"
+    _hold(proc, pid, db)
+    real = chat_sources.session_file
+
+    def sf(kind, **kw):
+        if kind == AgentKind.CURSOR:
+            kw["proc_root"] = proc
+        return real(kind, **kw)
+
+    monkeypatch.setattr(chat_sources, "session_file", sf)
+
+
 def test_chat_view_cursor_and_codex(tmp_path, monkeypatch, settings):
     monkeypatch.setenv("HOME", str(tmp_path))
     codex._CACHE.clear()
-    mkchat(tmp_path, CWD, "c", [{"role": "assistant", "content": [{"type": "text", "text": "cursor says hi"}]}])
+    db = mkchat(tmp_path, CWD, "33333333-3333-4333-8333-333333333333",
+                [{"role": "assistant", "content": [{"type": "text", "text": "cursor says hi"}]}])
+    _bind_cursor(monkeypatch, tmp_path, db)
     v = chat.chat_view(settings, agent(AgentKind.CURSOR), "  $ ls\n\n→ x\n")
     assert (v.source, v.last_text) == ("transcript", "cursor says hi")
     now = time.time()
@@ -228,7 +273,9 @@ def test_chat_view_cursor_and_codex(tmp_path, monkeypatch, settings):
 
 def test_pane_newer_than_store_while_running(tmp_path, monkeypatch, settings):
     monkeypatch.setenv("HOME", str(tmp_path))
-    mkchat(tmp_path, CWD, "c", [{"role": "assistant", "content": [{"type": "text", "text": "old reply"}]}])
+    db = mkchat(tmp_path, CWD, "44444444-4444-4444-8444-444444444444",
+                [{"role": "assistant", "content": [{"type": "text", "text": "old reply"}]}])
+    _bind_cursor(monkeypatch, tmp_path, db)
     pane = "  old reply\n\n  $ ls\n    out\n\n  brand new streaming prose here\n\n→ next\n"
     v = chat.chat_view(settings, agent(AgentKind.CURSOR, state=AgentState.RUNNING), pane)
     assert v.source == "pane" and v.last_text == "brand new streaming prose here"

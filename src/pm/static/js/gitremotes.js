@@ -1,5 +1,6 @@
-/* Remove gitdev needs a typed confirmation: ask in-page (pmPrompt), put the answer into the hidden
-   typed-answer field and submit. The server checks it again. Other removals use the htmx confirm attribute. */
+/* Remove the push remote (pm.toml push_remote) needs a typed confirmation: ask in-page (pmPrompt), put the
+   answer into the hidden typed-answer field and submit. The server checks it again. Other removals use the htmx
+   confirm attribute. */
 (function () {
   'use strict';
   document.addEventListener('click', function (e) {

@@ -2,9 +2,9 @@ from pm.chat.text import clean_text as _clean
 
 
 def test_clean_drops_banner_block_glyphs():
-    out = _clean(" ▐▛███▜▌  Claude Code v2.1\n ▝▜█████▛▘  Sonnet 5.5\n  ▘▘ ▝▝  ~/dev/pm", 500)
+    out = _clean(" ▐▛███▜▌  Claude Code v2.1\n ▝▜█████▛▘  Sonnet 5.5\n  ▘▘ ▝▝  ~/dev/app", 500)
     assert not any("▀" <= c <= "▟" for c in out)
-    assert "Claude Code v2.1" in out and "~/dev/pm" in out
+    assert "Claude Code v2.1" in out and "~/dev/app" in out
 
 
 def test_drawer_remarks_open_row_after_list_swap():

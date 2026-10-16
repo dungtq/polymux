@@ -77,3 +77,11 @@ def test_image_paths_in_code_and_links_open_the_viewer(tmp_path, monkeypatch):
     assert f"<code>{shots}/a.png</code>" in out and "gone.png</code></p>" in out.replace("\n", "")
     assert f'href="{shots}' not in out
     assert 'class="chat-img"' not in r("`/etc/passwd.png`", uploads=up)
+
+
+def test_file_links_are_not_links():
+    out = r("fixed in [ `launch.py` ](file:///home/u/wt/launch.py#L22-L24) and <file:///etc/passwd> ![x](file:///a.png)")
+    assert 'class="md-file" title="/home/u/wt/launch.py#L22-L24"' in out
+    assert "<code>launch.py</code> </span>" in out
+    assert "<a " not in out and "href" not in out and "<img" not in out
+    assert "[ " not in out  # no raw markdown left on screen

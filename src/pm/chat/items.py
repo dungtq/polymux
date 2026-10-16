@@ -59,8 +59,9 @@ _SCHEMA = (
 )
 # itemsync's parsing format: a cursor written by an older format re-reads its conversation once
 # (2 = mid-turn queued_command prompts become user items, 2026-10-12;
-#  3 = narration thinking becomes text items, background tasks stay running until notified, 2026-10-12)
-FORMAT = 3
+#  3 = narration thinking becomes text items, background tasks stay running until notified, 2026-10-12;
+#  4 = Antigravity waits for streaming steps to finish before ingesting, 2026-10-17)
+FORMAT = 4
 
 
 def connect(settings: Settings) -> sqlite3.Connection:

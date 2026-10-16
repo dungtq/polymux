@@ -6,7 +6,10 @@
     [data-l-open] with this page's project; the href is the no-JS fallback), aside toggle, account menu (its Settings
     opens the Settings popup: [data-sp-open], js/settings-popup.js; a plain link on /settings itself).
     Context: shell, cur_tab (base.html). Key labels are platform-specific, so titles carry none; keys.js may add
-    them from data-k-title (the key table is the one source). -#}
+    them from data-k-title (the key table is the one source).
+    data-rl-*: the core's restart hooks for js/reload.js: data-rl-ok (POST /service/reload would run: the Reload pm
+    item and the bar's Restart pm), data-rl-unit (the by-hand command otherwise), and the "new code" verdict at
+    render (pm_code(): data-rl-need, data-rl-msg, data-rl-head; later ones come as the pm_code event). -#}
 {%- set ic = "/static/t/dt/icons.svg#" -%}
 {%- set _l = shell.nav | selectattr("key", "equalto", "notifications") | list -%}{%- set bell = _l[0] if _l else none -%}
 {%- set _lp = project.name if (project is defined and project and project.name is defined)
@@ -14,7 +17,9 @@
 {%- set ntabs = shell.tabs | length + 1 -%}
 {%- set _onset = shell.foot | selectattr("key", "equalto", "settings") | selectattr("cur") | list -%}
 {%- set _oninbox = shell.nav | selectattr("key", "equalto", "inbox") | selectattr("cur") | list -%}
-<header class="x-top">
+{%- set _rl_ok = reload_ok is defined and reload_ok -%}{%- set _pc = pm_code() if pm_code is defined else none -%}
+<header class="x-top"{% if _rl_ok %} data-rl-ok{% endif %} data-rl-unit="{{ reload_unit if reload_unit is defined else 'pm.service' }}"
+  {%- if _pc %} data-rl-need="{{ _pc.need }}" data-rl-msg="{{ _pc.msg }}"{% if _pc.head %} data-rl-head="{{ _pc.head }}"{% endif %}{% endif %}>
   <div class="x-lead">
     <button class="x-ib x-sbtg" type="button" data-act="side" aria-controls="x-side" aria-label="Sidebar" title="Sidebar" data-k-title="mod+B"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}side-l"/></svg></button>
     {% if cur_tab %}<a class="x-ib x-back" href="{{ shell.home.href }}" aria-label="Back to {{ shell.home.title }}" title="Back to {{ shell.home.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}back"/></svg></a>
@@ -52,7 +57,7 @@
       {%- for name, label in (ui_themes if ui_themes is defined else []) if name != (ui_theme if ui_theme is defined else "dt") %}
       <a href="?ui={{ name | urlencode }}" role="menuitem" title="Switch this browser to the {{ label }} UI"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}swap"/></svg>{{ label }} UI</a>
       {%- endfor %}
-      {% if not (dev_banner is defined and dev_banner) %}<form method="post" action="/service/reload" hx-post="/service/reload" hx-swap="none" hx-confirm="Reload (restart) the pm service? The UI is unavailable for a few seconds.">
+      {% if _rl_ok %}<form method="post" action="/service/reload" hx-post="/service/reload" hx-swap="none" hx-confirm="Reload (restart) the pm service? The UI is unavailable for a few seconds.">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button type="submit" role="menuitem"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}refresh"/></svg>Reload pm</button>
       </form>{% endif %}

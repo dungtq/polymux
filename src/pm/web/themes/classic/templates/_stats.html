@@ -42,7 +42,7 @@
   {% else %}<p class="stats-foot muted">Context window size is an estimate (200k, or 1M when the chat already exceeds 200k). Amber from {{ 60 }}%, red from {{ 80 }}%.</p>{% endif %}
   {% if lim %}
   <section class="lim" aria-label="Usage limits">
-    <h3 class="usg-h">Usage limits <span class="muted">Claude plan</span></h3>
+    <h3 class="usg-h">Usage limits <span class="muted">{{ src }} plan</span></h3>
     <ul class="lim-list">{% for w in lim %}
       <li class="lim-item lvl-{{ w.level }}" title="{{ w.name }}: {{ w.pct }}% used{% if w.reset == 'reset' %}, window has reset{% elif w.reset %}, resets {{ w.reset }}{% if w.abs %} ({{ w.abs }}){% endif %}{% endif %}">{% if w.when %}<details class="lim-d"><summary class="lim-row" title="Click for the reset time"><span class="lim-l">{{ w.name }}</span><progress class="stats-bar lim-bar" max="100" value="{{ w.pct }}">{{ w.pct }}%</progress><span class="lim-p">{{ w.pct }}% used</span></summary><p class="lim-r muted">{% if w.when == "reset" %}Window has reset{% else %}Resets {{ w.when }} &middot; {{ w.abs }}{% endif %}</p></details>{% else %}<div class="lim-row"><span class="lim-l">{{ w.name }}</span><progress class="stats-bar lim-bar" max="100" value="{{ w.pct }}">{{ w.pct }}%</progress><span class="lim-p">{{ w.pct }}% used</span></div>{% endif %}</li>{% endfor %}
     </ul>

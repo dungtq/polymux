@@ -47,6 +47,11 @@ dialog.l-dlg[open]{display:flex;flex-direction:column}
 .l-two{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s4);align-items:start}
 .l-help{margin:var(--s2) 0 0;color:var(--muted);font-size:var(--fs-s)}
 .l-help.warn{color:var(--waiting-fg)}
+/* the launch_redirects hint: question and button wrap as two boxes with a row gap; a long project name breaks in
+   the question and ellipsizes in the button (its title keeps the full name) */
+[data-l-hint]>.l-help{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2)}
+[data-l-hint]>.l-help>span{min-width:0;overflow-wrap:anywhere}
+.l-dlg button[data-l-switch]{max-width:100%;min-width:0}
 .l-fld{display:flex;align-items:center;gap:var(--s2);margin:var(--s2) 0 0;font-size:var(--fs-ui)}
 .l-fld>span{flex:0 0 auto;color:var(--muted)}
 .l-fld input.x-in{flex:1 1 auto;min-width:0}

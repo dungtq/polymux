@@ -14,6 +14,8 @@ from pathlib import Path
 import pytest
 
 from pm.core import timefmt
+from pm.projects.tracker import mdimport
+from pm.projects.tracker import views as tracker_views
 from pm.web import themes
 from pm.web.dt import DtTheme, audit
 
@@ -58,7 +60,15 @@ def aenv(settings, snap):
     errs.append({"ts": NOW - 5, "client": "1.2.3.4", "kind": "fetch", "page": "/", "url": "/qchat/send",
                  "method": "POST", "status": 429, "msg": "POST /qchat/send → 429", "line": 0, "col": 0})
     settings.client_errors_file.write_text("".join(json.dumps(e) + "\n" for e in reversed(errs)))
+    _tracker(settings, "alpha")  # one tracker project: Save as alpha issue
     return make_env(settings, RealDt())
+
+
+def _tracker(s, *names: str) -> None:
+    for name in names:
+        (s.dev_root / name).mkdir()
+        (s.dev_root / name / "BACKLOG.md").write_text("## Inbox\n\n- [ ] first\n")
+        mdimport.import_project(s, name, s.dev_root / name, files=("backlog",))
 
 
 def _rows(html: str) -> list[str]:
@@ -207,9 +217,10 @@ def test_clear_all_is_the_cores_guarded_post(aenv):
 # ---------------------------------------------------------------- the page's JS and CSS
 def test_js_uses_the_shared_post_and_toasts_after_ok():
     js = JS.read_text(encoding="utf-8")
-    assert "pm7.menus.exec(btn, it)" in js and "'/p/pm/issues'" in js and "pm7.fail(" in js
-    assert "pm7.menus.run(" in js and "'au:issue'" in js
-    assert js.index("pm7.fail('Save as pm issue'") < js.index("pm7.toast('Saved as issue #'")
+    assert "pm7.menus.exec(btn, it)" in js and "'/p/' + encodeURIComponent(p) + '/issues'" in js and "pm7.fail(" in js
+    assert "pm7.menus.run(" in js and "'au:issue'" in js and "/p/pm" not in js
+    assert "pm7.confirm({" in js and "data-au-projects" in js and "'audit.issueProject'" in js
+    assert js.index("pm7.fail('Save as ' + p + ' issue'") < js.index("pm7.toast('Saved as issue #'")
     assert "innerHTML" not in js and "setInterval" not in js
     assert len(js.splitlines()) <= 500 and max(map(len, js.splitlines())) <= 120
 
@@ -228,6 +239,33 @@ def test_save_issue_menu_item_reaches_the_details_button(aenv):
     assert _menu(html, rid)["issue"]["event"] == "au:issue"
     i = html.index(f'data-p-det-for="{rid}"')
     assert "data-au-issue" in html[i:html.index("</dl>", i) + 2000]
+
+
+def test_save_issue_one_tracker_project_names_it(aenv):
+    html = aenv.c.get("/audit?tab=errors").text
+    assert _menu(html, _rows(html)[0])["issue"]["label"] == "Save as alpha issue"
+    assert html.count('data-au-project="alpha"') == 2 and "data-au-projects" not in html
+    assert ">Save as alpha issue</button>" in html and "Save as pm issue" not in html
+    m = re.search(r'data-au-title="([^"]*)" data-au-body="([^"]*)"', html)
+    r = aenv.post("/p/alpha/issues", headers={"X-Requested-With": "fetch"}, title=unescape(m.group(1)),
+                  body=unescape(m.group(2)))  # what js/audit.js sends (pm7.fetch)
+    assert r.status_code == 200 and r.json()["num"] == 2 and r.json()["project"] == "alpha"
+
+
+def test_save_issue_several_tracker_projects_ask(aenv):
+    _tracker(aenv.s, "beta")
+    html = aenv.c.get("/audit/client-errors", headers={**HX, "HX-Target": "au-ce"}).text
+    assert _menu(html, _rows(html)[0])["issue"]["label"] == "Save as issue…"
+    m = re.findall(r'data-au-issue [^>]*data-au-projects="([^"]*)"', html)
+    assert len(m) == 2 and json.loads(unescape(m[0])) == ["alpha", "beta"] and "data-au-project=" not in html
+
+
+def test_save_issue_hidden_without_a_tracker_project(aenv, monkeypatch):
+    monkeypatch.setattr(tracker_views, "issue_projects", lambda s: [])
+    html = aenv.c.get("/audit?tab=errors").text
+    rows = _rows(html)
+    assert len(rows) == 2 and "data-au-issue" not in html and "Save as" not in html
+    assert all("issue" not in _menu(html, r) for r in rows) and "copy" in _menu(html, rows[0])
 
 
 def test_css_sets_only_its_tables_and_au_classes():

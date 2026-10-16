@@ -68,7 +68,7 @@
     const o = e.template.selectedOptions[0];
     if (o && o.getAttribute('data-desc')) q('[data-pj-tpl]').textContent = o.getAttribute('data-desc');
     const git = e.git.checked;
-    pm7.$$('[data-pj-gitdep]', f).forEach((l) => {  // data-pj-never: gitdev remote not configured, stays off
+    pm7.$$('[data-pj-gitdep]', f).forEach((l) => {  // data-pj-never: no git_remote_template, stays off
       const off = !git || l.hasAttribute('data-pj-never');
       l.classList.toggle('off', off);
       l.querySelector('input').disabled = off;

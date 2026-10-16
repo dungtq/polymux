@@ -78,9 +78,11 @@ def test_build_list_view_and_rows(settings):
 
 
 def test_build_section_and_system_lines(settings):
-    p = dts.build({"request": req("security"), "git_hosts": ("git.example",), "gitdev": "gitdev"}, settings)
+    p = dts.build({"request": req("security"), "git_hosts": ("git.example",)}, settings)
     assert p.view == "sec" and p.cur == "access"
-    assert p.git[1].value == "git.example"
+    assert (p.git[0].value, p.git[0].help, p.git[1].value) == ("origin", "push_remote", "git.example")
+    p = dts.build({"request": req("security")}, dataclasses.replace(settings, push_remote="gitdev"))
+    assert p.git[0].value == "gitdev"
     labels = [line.label for line in p.system]
     assert labels == ["Status", "Config file", "State folder", "ntfy topics", "Tier ceiling", "Alert thresholds"]
     assert "none" in p.system[1].value  # no pm.toml in the test settings

@@ -184,6 +184,9 @@ def test_gone_agent(s, monkeypatch):
     assert outbox.get(s, fresh.id).state == "saved"
     old = outbox.add(s, "claude-8", "y", now=time.time() - deliver.GONE_S - 5)
     run(d.tick())
+    assert outbox.get(s, old.id).state == "saved"  # pm just started: the first agent scan may not be in yet
+    d.started = time.time() - deliver.GONE_S - 5
+    run(d.tick())
     g = outbox.get(s, old.id)
     assert g.state == "failed" and g.error == "agent gone"
     assert w.sent == []

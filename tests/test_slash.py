@@ -119,6 +119,65 @@ def test_slash_output_route(fake, monkeypatch):
     assert "CONTEXT" not in audit_text(st)
 
 
+def test_pending_marker():
+    assert slash_output._pending(["Fetching account usage…", "Daily 0% used"])
+    assert slash_output._pending(["Loading billing options..."])
+    assert not slash_output._pending(["CONTEXT 12%", "Daily 12% used"])
+    assert not slash_output._pending([])
+
+
+def test_slash_output_pending_placeholder_resolves(fake, monkeypatch):
+    """A 'Fetching…' placeholder stays on screen unchanged for two polls; the card must keep
+    polling past the early-exit until the real output replaces it (devin /usage)."""
+    st, calls, agent = fake
+    snap_with(monkeypatch, [agent])
+    app, c, sess, tok, st = mk_client(st)
+    app.include_router(slash_output.router)
+    monkeypatch.setattr(slash_output, "WINDOW_S", 0.3)
+    monkeypatch.setattr(slash_output, "WINDOW_PENDING_S", 2.0)
+    monkeypatch.setattr(slash_output, "POLL_S", 0.05)
+    state = {"n": 0}
+
+    def pane_text(settings, pane, lines=200):
+        state["n"] += 1
+        if state["n"] == 1:
+            return "old\n"
+        if state["n"] < 6:
+            return "old\nFetching account usage…\nDaily 0% used\n"
+        return "old\nDaily 12% used · resets in 3h\nWeekly 4% used\n"
+
+    monkeypatch.setattr(services, "pane_text", pane_text)
+    r = post(c, tok, "/a/claude-1/message", text="/context")
+    m = re.search(r'since=([A-Za-z0-9_-]+)', r.text)
+    r2 = c.get(f"/a/claude-1/slash-output?since={m.group(1)}")
+    assert r2.status_code == 200
+    assert "Daily 12% used" in r2.text and "Fetching" not in r2.text
+    assert state["n"] >= 6
+
+
+def test_slash_output_pending_caps_at_extended_window(fake, monkeypatch):
+    """A placeholder that never resolves still returns (bounded), not an infinite poll."""
+    st, calls, agent = fake
+    snap_with(monkeypatch, [agent])
+    app, c, sess, tok, st = mk_client(st)
+    app.include_router(slash_output.router)
+    monkeypatch.setattr(slash_output, "WINDOW_S", 0.3)
+    monkeypatch.setattr(slash_output, "WINDOW_PENDING_S", 0.4)
+    monkeypatch.setattr(slash_output, "POLL_S", 0.05)
+
+    state = {"n": 0}
+
+    def pane_text(settings, pane, lines=200):
+        state["n"] += 1
+        return "old\n" if state["n"] == 1 else "old\nFetching account usage…\n"
+
+    monkeypatch.setattr(services, "pane_text", pane_text)
+    r = post(c, tok, "/a/claude-1/message", text="/context")
+    m = re.search(r'since=([A-Za-z0-9_-]+)', r.text)
+    r2 = c.get(f"/a/claude-1/slash-output?since={m.group(1)}")
+    assert r2.status_code == 200 and "Fetching account usage" in r2.text
+
+
 def test_slash_output_requires_login(fake, monkeypatch):
     st, calls, agent = fake
     snap_with(monkeypatch, [agent])

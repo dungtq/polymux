@@ -11,8 +11,10 @@ from pm.core import db as pmdb
 from pm.core import executors, timefmt
 from pm.core.config import Settings, load_settings
 from pm.core.models import Agent, AgentState
+from pm.git import ctl as gitctl
 from pm.infra import snapshot as services
-from pm.notify import agentlive, alerts, events, watchdog
+from pm.infra import unitctl
+from pm.notify import agentlive, alerts, events, reloadneed, watchdog
 from pm.notify import feed as ntfy_feed
 from pm.security import auth
 from pm.security.mask import configure as configure_mask
@@ -78,9 +80,32 @@ def _ntfy_on_new(app: FastAPI, settings: Settings):
     return on_new
 
 
+def _check_push_remote(settings: Settings) -> None:
+    """pm.toml ``push_remote`` must be a git remote name pm accepts (``gitctl.check_remote_name``), else no start."""
+    try:
+        gitctl.check_remote_name(settings.push_remote)
+    except gitctl.GitDenied:
+        raise ValueError(f"pm.toml push_remote {settings.push_remote!r} is not a valid git remote name") from None
+
+
+def _head_subject(root) -> str | None:
+    """``reloadneed``'s ``head_fn``: the subject of the checkout's last commit (notify never imports git)."""
+    last = gitctl.commit_log(root, 1)
+    return last[0]["subject"] if last else None
+
+
+def _page_globals(settings: Settings) -> dict:
+    """Jinja globals set once per app: ``dev_banner``, and the "New code: restart pm" bar's (both themes):
+    ``reload_ok`` (POST /service/reload would run), ``reload_unit`` (the by-hand restart command otherwise),
+    ``pm_code`` (the watcher's verdict, no IO)."""
+    return {"dev_banner": bool(settings.dev_banner), "reload_ok": unitctl.reload_allowed(settings),
+            "reload_unit": settings.reload_unit or "pm.service", "pm_code": reloadneed.code}
+
+
 def create_app(settings: Settings | None = None, *, plugin_eps=None) -> FastAPI:
     """The pm app. ``plugin_eps``: entry points to load instead of the installed ``pm.plugins`` (tests)."""
     settings = settings or load_settings()
+    _check_push_remote(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -105,6 +130,7 @@ def create_app(settings: Settings | None = None, *, plugin_eps=None) -> FastAPI:
             pastsessions.start(app, services.published)
             ntfy_feed.start(app, on_new=_ntfy_on_new(app, settings))
             pmdb.start_backup(app)
+            reloadneed.start(app, app.state.hub.publish, head_fn=_head_subject)
             get_agent, is_idle, publish = _agent_access(app, settings)
             deliver.start(app, is_idle=is_idle, get_agent=get_agent, publish=publish)
             chat_agent, chat_idle = _chat_access(settings, get_agent, is_idle)
@@ -122,6 +148,7 @@ def create_app(settings: Settings | None = None, *, plugin_eps=None) -> FastAPI:
             await pastsessions.stop(app)
             await ntfy_feed.stop(app)
             await pmdb.stop_backup(app)
+            await reloadneed.stop(app)
             if wd is not None:
                 await wd.stop()
             app.state.watchdog = None
@@ -129,7 +156,7 @@ def create_app(settings: Settings | None = None, *, plugin_eps=None) -> FastAPI:
     app = FastAPI(title="pm", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
     app.add_middleware(themes.UIThemeMiddleware, default=settings.theme)  # ?ui= / cookie pm_ui: the look per request
-    pages_router_env.globals["dev_banner"] = bool(settings.dev_banner)
+    pages_router_env.globals.update(_page_globals(settings))
     timefmt.configure(settings)  # GUI timestamps use settings.display_utc_offset_h (UTC+7)
     # /events needs these even when polling is disabled (tests, private instances)
     app.state.hub = events.Hub()

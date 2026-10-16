@@ -8,6 +8,7 @@ or stored on the snapshot.
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import math
 import threading
@@ -141,15 +142,15 @@ def _refresh_slow(settings: Settings, st: _State, base: list[Project], now: floa
     budget = max(SLOW_MIN_PER_BUILD, math.ceil(len(base) * dt / ttl) + 1)
     todo = missing + expired[:budget]
     if todo:
-        infos = list(executors.fanout.map(_slow_one, todo))
+        infos = list(executors.fanout.map(functools.partial(_slow_one, remote=settings.push_remote), todo))
         for path, info in zip(todo, infos):
             cache[path] = (now, info)
     return {k: v[1] for k, v in cache.items()}
 
 
-def _slow_one(path: str) -> tuple:
+def _slow_one(path: str, *, remote: str) -> tuple:
     try:
-        git = gitctl.status(path)
+        git = gitctl.status(path, remote=remote)
     except Exception:  # noqa: BLE001 - one bad repo must not blank the page
         git = None
     try:

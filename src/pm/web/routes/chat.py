@@ -59,7 +59,7 @@ async def agent_stats(request: Request, agent_id: str) -> Response:
     settings = deps.settings(request)
     st = None if ended else await executors.run_tmux(chat_stats.stats_for, agent, settings)
     usage = None if ended or st is None else await executors.run_tmux(panel_data, agent, settings)
-    lim = limits.read_limits(settings.state_dir) if agent.kind.value == "claude" and not ended else []
+    lim = [] if ended else await executors.run_tmux(limits.for_agent, agent, settings, st.model if st else "")
     resp = html(request, "_stats.html", agent=agent, st=st, u=usage, lim=lim, human=human_tokens,
                  n=lambda v: f"{v:,}", compact_cmd=slash.compact_cmd(agent.kind.value))
     # unchanged fragment: 204 (nodiff.js keeps the DOM as it is), so the panel never flashes

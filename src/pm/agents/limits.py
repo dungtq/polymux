@@ -1,10 +1,9 @@
-"""Claude plan usage limits (5-hour, weekly, per-model weekly) for the agent page.
+"""Plan usage limits (5-hour, weekly, per-model weekly) for the agent page (Claude and Antigravity).
 
-Source: the `rate_limits` object Claude Code hands to a status line script (stdin JSON). Claude Code
-exposes no other local source and pm never touches the OAuth token. `tools/pm-statusline.sh`
-copies that object to `<state_dir>/claude-limits.json`; this module only reads that file.
-Known keys: `five_hour`, `seven_day`; any `seven_day_<model>` key (opus, sonnet, ...) is shown as
-a per-model weekly window when present. Each window: `used_percentage` (0-100), `resets_at` (epoch s).
+Claude source: the ``rate_limits`` object Claude Code hands to ``tools/pm-statusline.sh`` (stdin JSON),
+written to ``<state_dir>/claude-limits.json``.
+Antigravity source: ``agy -p /usage --output-format json``, cached in ``<state_dir>/antigravity-limits.json``
+and refreshed via ``SWR`` at most once per ``AGY_FRESH_S``.
 """
 
 from __future__ import annotations
@@ -17,10 +16,18 @@ from datetime import datetime
 from pathlib import Path
 
 from pm.core import timefmt
+from pm.core.cache import SWR
+from pm.core.fsutil import atomic_write
+from pm.core.models import AgentKind
+from pm.core.proc import ProcError, run_argv
 
 FILE = "claude-limits.json"
+AGY_FILE = "antigravity-limits.json"
+AGY_FRESH_S = 180
+AGY_TIMEOUT_S = 5.0
 STALE_S = 6 * 3600  # older than this and the numbers are not trusted
 _MODEL_KEY = re.compile(r"^seven_day_([a-z0-9_]{1,24})$")
+_AGY_SWR = SWR(max_entries=4)
 
 
 @dataclass(frozen=True)
@@ -105,3 +112,98 @@ def read_limits(state_dir: Path, now: float | None = None) -> list[Window]:
             if w:
                 out.append(w)
     return out
+
+
+def parse_agy_usage(raw: str | bytes | dict) -> dict[str, dict[str, float]]:
+    """Parse ``agy -p /usage --output-format json`` into ``{bucket_id: {used_percentage, resets_at}}``."""
+    try:
+        obj = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+    except ValueError:
+        return {}
+    if not isinstance(obj, dict):
+        return {}
+    groups = ((obj.get("command") or {}).get("data") or {}).get("groups") if "command" in obj else None
+    if not isinstance(groups, list):
+        return {k: v for k, v in obj.items() if isinstance(k, str) and isinstance(v, dict) and "used_percentage" in v}
+    out: dict[str, dict[str, float]] = {}
+    for g in groups:
+        for b in (g.get("buckets") if isinstance(g, dict) else None) or ():
+            if not isinstance(b, dict):
+                continue
+            bid, rem = b.get("id"), b.get("remaining_fraction")
+            if not isinstance(bid, str) or isinstance(rem, bool) or not isinstance(rem, (int, float)):
+                continue
+            rt = b.get("reset_time")
+            try:
+                ra = datetime.fromisoformat(rt).timestamp() if isinstance(rt, str) and rt else 0.0
+            except ValueError:
+                ra = 0.0
+            out[bid] = {"used_percentage": round(max(0.0, min(1.0, 1.0 - float(rem))) * 100.0, 2), "resets_at": ra}
+    return out
+
+
+def _fetch_agy_limits(state_dir: Path, settings) -> bool:
+    from pm.agents import launch
+
+    try:
+        bin_path = launch.agent_binary(settings, AgentKind.ANTIGRAVITY)
+        r = run_argv([bin_path, "-p", "/usage", "--output-format", "json"], timeout=AGY_TIMEOUT_S, text=True)
+        data = parse_agy_usage(r.stdout) if r.returncode == 0 and r.stdout else {}
+        if not data:
+            return False
+        Path(state_dir).mkdir(parents=True, exist_ok=True)
+        atomic_write(Path(state_dir) / AGY_FILE, json.dumps(data).encode())
+        return True
+    except (ProcError, OSError, ValueError):
+        return False
+
+
+def read_agy_limits(state_dir: Path, model: str = "", now: float | None = None, settings=None) -> list[Window]:
+    """Antigravity plan windows (5h, weekly, Argon/3P weekly); [] when nothing usable is stored."""
+    now = time.time() if now is None else now
+    path = Path(state_dir) / AGY_FILE
+    if settings is not None:
+        try:
+            age = now - path.stat().st_mtime
+        except OSError:
+            age = STALE_S + 1
+        if age >= AGY_FRESH_S:
+            _AGY_SWR.get(str(path), lambda: _fetch_agy_limits(state_dir, settings), AGY_FRESH_S, STALE_S)
+    try:
+        if now - path.stat().st_mtime > STALE_S:
+            return []
+        data = parse_agy_usage(path.read_text())
+    except OSError:
+        return []
+    if not data:
+        return []
+    ml = (model or "").lower()
+    is_3p = any(k in ml for k in ("claude", "gpt", "o1", "o3"))
+    five_id = "3p-5h" if is_3p and "3p-5h" in data else "gemini-5h"
+    week_id = ("3p-weekly" if is_3p and "3p-weekly" in data
+               else "gemini-argon-wtu-weekly" if "argon" in ml and "gemini-argon-wtu-weekly" in data
+               else "gemini-weekly")
+    specs = (
+        ("gemini-5h", "5h limit", "5-hour limit", True),
+        ("gemini-weekly", "Week limit", "Weekly limit", True),
+        ("gemini-argon-wtu-weekly", "Argon week limit", "Argon weekly limit", True),
+        ("3p-5h", "3P 5h limit", "3P 5-hour limit", is_3p),
+        ("3p-weekly", "3P week limit", "3P weekly limit", is_3p),
+    )
+    out: list[Window] = []
+    for key, label, name, always in specs:
+        tag = "5" if key == five_id else "W" if key == week_id else ""
+        w = _window(label, name, data.get(key), now, tag)
+        if w and (always or w.pct > 0 or tag):
+            out.append(w)
+    return out
+
+
+def for_agent(agent, settings, model: str = "", now: float | None = None) -> list[Window]:
+    """Plan usage windows for ``agent`` (Claude or Antigravity)."""
+    kind = agent.kind.value
+    if kind == "claude":
+        return read_limits(settings.state_dir, now)
+    if kind == "antigravity":
+        return read_agy_limits(settings.state_dir, model=model, now=now, settings=settings)
+    return []

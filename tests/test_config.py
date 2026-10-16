@@ -86,6 +86,16 @@ def test_missing_file_gives_defaults(tmp_path):
     assert config.DEFAULT_CONFIG.name == "pm.toml"
 
 
+def test_claude_dir_default_and_memory_dir(tmp_path):
+    from helpers import NEUTRAL_DEFAULTS, SITE
+
+    assert NEUTRAL_DEFAULTS["claude_dir"] == Path.home() / ".claude"
+    assert Settings().claude_dir == SITE["claude_dir"] and not SITE["claude_dir"].exists()  # tests: never ~/.claude
+    s = _load(tmp_path, 'claude_dir = "~/elsewhere/.claude"\nstate_dir = "/srv/pm-state"\n')
+    assert s.claude_dir == Path.home() / "elsewhere/.claude"
+    assert s.memory_dir == Path("/srv/pm-state/memory")
+
+
 def test_ntfy_defaults_match_notify_constants():
     """config cannot import notify (cycle); the typed defaults must stay equal to notify's constants."""
     from helpers import NEUTRAL_DEFAULTS
@@ -116,7 +126,8 @@ def test_neutral_defaults_and_origin_from_base_url(tmp_path):
     assert NEUTRAL_DEFAULTS == {
         "base_url": "http://127.0.0.1:8093", "allowed_origins": (),  # () = (base_url,)
         "git_allowed_hosts": (), "builder_frame_hosts": (), "ntfy_url": "", "ntfy_topic_url": "",
-        "ntfy_pm_topic_url": "", "display_utc_offset_h": 0.0, "vm_protected": ()}
+        "ntfy_pm_topic_url": "", "display_utc_offset_h": 0.0, "vm_protected": (),
+        "claude_dir": Path.home() / ".claude"}
     s = _load(tmp_path, 'base_url = "https://pm.example.lan/"\n')
     assert s.allowed_origins == ("https://pm.example.lan",)
     s = _load(tmp_path, 'base_url = "https://a.lan"\nallowed_origins = ["https://b.lan"]\n')
@@ -146,3 +157,22 @@ def test_config_file_is_the_load_path_never_from_toml(tmp_path, warns):
     assert s.port == 9000 and s.config_file is not None and s.config_file.name != "evil.toml"
     assert s.config_file.exists() and "config_file" in " ".join(warns())
     assert Settings(config_file=missing) == Settings()  # not part of equality
+
+
+def test_push_remote_default_and_override(tmp_path, warns):
+    assert Settings().push_remote == "origin"
+    assert _load(tmp_path, 'push_remote = "gitdev"\n').push_remote == "gitdev"
+    assert _load(tmp_path, '[extras]\npush_remote = "x"\n').push_remote == "origin"  # typed key, not an extra
+    assert warns() == ["config: unknown extras key 'push_remote'"]
+
+
+def test_launch_redirects_keeps_valid_pairs(tmp_path, warns):
+    assert Settings().launch_redirects == {}
+    s = _load(tmp_path, 'launch_redirects = { app = "app-core", "my site" = "site", bad = 3, "" = "x", self = "self",'
+                        ' empty = "" }\n')
+    assert s.launch_redirects == {"app": "app-core", "my site": "site"} and s.extras == {}
+    assert warns() == ["config: launch_redirects entry 'bad' = 3 ignored", "config: launch_redirects entry '' = 'x' "
+                       "ignored", "config: launch_redirects entry 'self' = 'self' ignored",
+                       "config: launch_redirects entry 'empty' = '' ignored"]
+    assert _load(tmp_path, 'launch_redirects = ["app"]\n').launch_redirects == {}
+    assert warns()[-1] == "config: launch_redirects is not a table, ignored"

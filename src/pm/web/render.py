@@ -213,6 +213,7 @@ def page_ctx(request: Request) -> dict:
         "composer_send_key": lambda: prefs.composer_prefs(settings)["send_key"],
         "ui_theme": themes.current() or _default_theme,
         "ui_themes": [(t.name, t.label or t.name) for t in themes.all_themes()],
+        "push_remote": settings.push_remote,  # the one remote pm fetches, pulls and pushes (pm.toml)
         "request": request,
     }
 
@@ -266,9 +267,10 @@ def fragment(request: Request, html: str, headers: dict[str, str] | None = None)
 def git_remotes_html(request: Request, name: str, path, notice: str = "", ok: bool = True) -> str:
     """The ``_git_remotes.html`` panel (remotes list, add form, ssh key) for one project."""
     from pm.git import ctl as gitctl
+    from pm.git import remote as gitremote
     from pm.infra import sshkeys
     st = request.app.state.settings
     hosts = tuple(st.git_allowed_hosts) or gitctl.DEFAULT_GIT_HOSTS
     return get_template("_git_remotes.html").render(
-        **page_ctx(request), project_name=name, remotes=gitctl.remotes(path), notice=notice,
-        notice_ok=ok, gitdev=gitctl.REMOTE, hosts=hosts, pub=sshkeys.managed_key(st))
+        **page_ctx(request), project_name=name, remotes=gitremote.remotes(path), notice=notice,
+        notice_ok=ok, hosts=hosts, pub=sshkeys.managed_key(st))

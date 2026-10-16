@@ -202,6 +202,18 @@ def test_issue_rows_has_no_per_project_cap(tk):
     assert out["total"] == views.ISSUES_LIMIT + 22 and len(out["rows"]) == out["total"]
 
 
+def test_issue_projects_are_main_projects_with_a_tracker_backlog(tk):
+    assert views.issue_projects(tk) == []  # nothing imported yet
+    _three(tk)
+    (tk.dev_root / "todo-only").mkdir()
+    (tk.dev_root / "todo-only" / "TODO.md").write_text("- [ ] t\n")
+    mdimport.import_project(tk, "todo-only", tk.dev_root / "todo-only", files=("todo",))
+    mdimport.import_text(tk, "gone", "backlog", "## Inbox\n\n- [ ] not a registered project\n")
+    assert views.is_tracker(tk, "todo-only", "todo") and not views.is_tracker(tk, "todo-only", "backlog")
+    assert views.issue_projects(tk) == ["other", "proj"]  # not plain (file mode), todo-only, gone
+    assert views.issue_rows(tk)["projects"] == views.issue_projects(tk)
+
+
 def test_open_issue_counts(tk):
     _three(tk)
     assert views.open_issue_counts(tk) == {"proj": 2, "other": 1}

@@ -30,9 +30,11 @@ TTL_S = 30.0
 MAX_TOKENS = 32
 POLL_S = 0.5
 WINDOW_S = 2.5
+WINDOW_PENDING_S = 8.0  # cap while the output still shows a "fetching" placeholder (e.g. devin /usage)
 SCAN_LINES = 80
 MAX_OUT_LINES = 60
 MAX_OUT_CHARS = 6000
+_PENDING = re.compile(r"(?i)\b(fetching|loading|waiting)\b|…|\.\.\.\s*$")
 _TOKEN = re.compile(r"^[A-Za-z0-9_-]{8,32}$")
 _AGENT_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
@@ -58,6 +60,11 @@ def new_lines(before: list[str], after: list[str]) -> list[str]:
         else:
             out.append(ln)
     return out
+
+
+def _pending(lines: list[str]) -> bool:
+    """True when the capture still holds a placeholder line (command still fetching its output)."""
+    return any(_PENDING.search(ln) for ln in lines)
 
 
 def _bound(lines: list[str]) -> list[str]:
@@ -107,19 +114,20 @@ async def slash_output(request: Request, agent_id: str, since: str = "") -> Resp
     before, settings = entry[1], deps.settings(request)
     best: list[str] = []
     last: list[str] | None = None
-    deadline = time.monotonic() + WINDOW_S
+    start = time.monotonic()
     await asyncio.sleep(POLL_S)
     while True:
         text = await executors.run_tmux(services.pane_text, settings, agent.pane_id, SCAN_LINES)
         if text is None:
             break
         cur = new_lines(before, _lines(text))
-        if len(cur) >= len(best):
-            best = cur
-        if cur and cur == last:
+        if len(cur) >= len(best) or (cur and _pending(best) and not _pending(cur)):
+            best = cur  # second arm: the placeholder resolved into shorter real output
+        pending = _pending(best)
+        if cur and cur == last and not pending:
             break
         last = cur
-        if time.monotonic() >= deadline:
+        if time.monotonic() - start >= (WINDOW_PENDING_S if pending else WINDOW_S):
             break
         await asyncio.sleep(POLL_S)
     store.pop(since, None)

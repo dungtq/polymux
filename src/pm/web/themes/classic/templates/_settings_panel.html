@@ -134,9 +134,9 @@
 <section id="git" class="set-section">
 <h2 class="set-h">Git</h2>
 <div class="card set-sec">
-  <div class="set-row"><span class="set-main set-line">Default remote</span><span class="mono">{{ gitdev }}</span></div>
+  <div class="set-row"><span class="set-main set-line">Default remote</span><span class="mono">{{ push_remote }}</span></div>
   <div class="set-row"><span class="set-main set-line">Allowed remote hosts</span><span class="mono">{{ git_hosts | join(', ') }}</span></div>
-  <p class="small muted">pm pushes only to <span class="mono">{{ gitdev }}</span>; other remotes are never fetched or pushed by pm. Remotes are edited on each project page. Hosts are set with <span class="mono">git_allowed_hosts</span> in pm.toml.</p>
+  <p class="small muted">pm pushes only to <span class="mono">{{ push_remote }}</span>; other remotes are never fetched or pushed by pm. Remotes are edited on each project page. Hosts are set with <span class="mono">git_allowed_hosts</span> in pm.toml.</p>
 </div>
 </section>
 

@@ -19,6 +19,7 @@ MAX_NESTING = 20
 _SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.\-]*):")
 _OK_SCHEMES = {"http", "https", "mailto"}
 _CTRL_RE = re.compile(r"[\x00-\x20\x7f-\x9f]")
+_FILE_RE = re.compile(r"^file://", re.I)
 
 
 def _safe_url(url: str) -> bool:
@@ -33,14 +34,29 @@ def _safe_url(url: str) -> bool:
     return ":" not in head
 
 
+def _file_links(state) -> None:
+    """``[name](file:///abs/path#L1-L3)`` (agy writes these) is no link a browser may follow: the
+    pair is rendered as ``<span class="md-file" title="/abs/path#L1-L3">`` around the text."""
+    for tok in state.tokens:
+        opened = False
+        for ch in tok.children or ():
+            if ch.type == "link_open" and _FILE_RE.match(ch.attrGet("href") or ""):
+                ch.tag, ch.attrs, opened = "span", {"class": "md-file", "title": _FILE_RE.sub("", ch.attrGet("href"))}, True
+            elif ch.type == "link_close" and opened:
+                ch.tag, opened = "span", False
+
+
 def _build() -> MarkdownIt:
     md = MarkdownIt("commonmark", {"html": False, "linkify": False, "breaks": True})
     md.enable("table").enable("strikethrough")
     md.options["maxNesting"] = MAX_NESTING
-    md.validateLink = _safe_url  # type: ignore[method-assign]
+    md.validateLink = lambda url: _safe_url(url) or bool(_FILE_RE.match(url or ""))  # type: ignore[method-assign]
+    md.core.ruler.push("file_links", _file_links)
 
     def link_open(self, tokens, idx, options, env):
         tok = tokens[idx]
+        if tok.tag == "span":  # a file:// reference (_file_links)
+            return self.renderToken(tokens, idx, options, env)
         href = tok.attrGet("href") or ""
         local = upload_name(href, env.get("uploads")) if href.startswith("/") else None
         if local:  # [shot](/tmp/claude-1000/x.png): open in the in-page viewer (imgview.js)

@@ -2,7 +2,9 @@
  * - after its own topbar Reload (then it waits for pm and reloads itself, the user asked for it), or
  * - after one of its own htmx requests got 502/503/504 from nginx (then it waits until pm answers and
  *   offers "Reload now"; it never reloads by itself, so idle or waking tabs are left alone).
- * Status 0 (aborted request, sleeping laptop, navigation) is ignored. */
+ * Status 0 (aborted request, sleeping laptop, navigation) is ignored.
+ * "New code" bar #pmcode (base.html; shown at render from pm_code()): pm's code is newer than the process. Shown
+ * live on the pm_code event (live.js); its Restart pm form is a guarded htmx POST, then the restart wait below. */
 (function () {
   'use strict';
   var bar = document.getElementById('reloadbar');
@@ -16,6 +18,7 @@
   if (row) { txt = row.querySelector('.pmr-t'); btn = row.querySelector('.pmr-act'); bar = row; }
   var MAXWAIT = 90000;
   var mode = '', seenDown = false, since = 0, timer = 0, busy = false;
+  var code = document.getElementById('pmcode');
 
   function reloadTop() { try { (window.top || window).location.reload(); } catch (e) { location.reload(); } }
   function show(msg, label, keep) {
@@ -52,6 +55,7 @@
   function schedule(ms) { clearTimeout(timer); timer = setTimeout(ping, ms); }
   function begin() {
     mode = 'restart'; seenDown = false; since = Date.now();
+    if (code) code.hidden = true;
     btn.setAttribute('data-act', 'reload');
     show('Restarting pm... this page reloads when it is back.', ''); schedule(1000);
   }
@@ -60,6 +64,13 @@
   btn.addEventListener('click', function () {
     if (btn.getAttribute('data-act') === 'retry') { begin(); return; }
     reloadTop();
+  });
+  document.addEventListener('pm:pm_code', function (e) {
+    var j = e.detail || {};
+    if (!code || mode || j.need !== 'restart') return;
+    if (j.msg) code.querySelector('.pc-t').textContent = j.msg;
+    code.querySelector('.pc-h').textContent = j.head || '';
+    code.hidden = false;
   });
   document.addEventListener('htmx:afterRequest', function (e) {
     var d = e.detail || {}, cfg = d.requestConfig || {}, pi = d.pathInfo || {}, x = d.xhr;

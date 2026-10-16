@@ -1,9 +1,10 @@
 /* dt theme (pm v7) live updates: the page's ONLY EventSource('/events'), owned here (never inside swapped DOM).
    Opened when the page has body[data-live] (the dt shell always has it). Classic stream types (agent_state,
-   agent_added, agent_removed, inbox, chat_items, chat_outbox) are re-dispatched on document as `pm:<type>` with the
-   parsed JSON as detail, so hx-trigger="pm:<type> from:document" in shell and un-ported classic content works; the
-   `ui` type becomes `pm7:ui` ({area, rev}). Also fired: pm:live-open ({again}), pm:live-error, pm7:resync (after a
-   reopen or a server `reset`: the shell re-reads its tabs and session list).
+   agent_added, agent_removed, inbox, chat_items, chat_outbox, pm_code) are re-dispatched on document as `pm:<type>`
+   with the parsed JSON as detail, so hx-trigger="pm:<type> from:document" in shell and un-ported classic content
+   works (pm:pm_code is the "new code" state of js/reload.js); the `ui` type becomes `pm7:ui` ({area, rev}).
+   Also fired: pm:live-open ({again}), pm:live-error, pm7:resync (after a reopen or a server `reset`: the shell
+   re-reads its tabs and session list).
    Ported from classic live.js: no native auto-reconnect (it has no backoff): 3-30 s jittered backoff, `recycle`
    reopens at once, `bye` (another tab took the slot) waits 20-40 s, the stream is released 30 s after the tab was
    hidden and on pagehide, reopened on show / bfcache restore. A reopened EventSource cannot send Last-Event-ID (the
@@ -15,7 +16,7 @@
   if (!window.EventSource) return;
   const URL_ = '/events';
   const HIDDEN_MS = 30000;
-  const TYPES = ['agent_state', 'agent_added', 'agent_removed', 'inbox', 'chat_items', 'chat_outbox'];
+  const TYPES = ['agent_state', 'agent_added', 'agent_removed', 'inbox', 'chat_items', 'chat_outbox', 'pm_code'];
   const REFRESH = '#inbox, #chat, #pane, #proj-live';
   let es = null, retryTimer = 0, hideTimer = 0, fails = 0, opened = 0, gone = false;
 

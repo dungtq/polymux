@@ -96,6 +96,12 @@ def now() -> datetime:
     return datetime.now(UTC).astimezone(_tz)
 
 
+def iso(epoch) -> str | None:
+    """ISO 8601 (seconds) in the display offset; None for 0 / bad input (JSON "not set")."""
+    d = _dt(epoch)
+    return d.isoformat(timespec="seconds") if d is not None else None
+
+
 def tz() -> timezone:
     """The display timezone (fixed offset)."""
     return _tz

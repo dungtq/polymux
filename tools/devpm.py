@@ -160,6 +160,17 @@ def write_limits(state: Path, limits: str) -> None:
     (state / "claude-limits.json").write_text(json.dumps(lim))
 
 
+# (source, name, description); one long description so the project page skills table wraps
+FIXTURE_SKILLS = (
+    ("agents", "notify", "Send a desktop or push notification when a long task finishes or fails. Use when the user asks "
+     "to be told when a build, test run or deploy is done, or mentions a notification, an alert or a topic."),
+    ("agents", "deploy-check", "Before a deploy, check that the tests pass, the version is bumped and the config has no "
+     "local values."),
+    ("claude", "short", "Tiny."),
+    ("claude", "release-notes", "Draft release notes from the commits since the last tag, grouped by feature and fix."),
+)
+
+
 def seed(port: int, limits: str) -> dict:
     root = root_of(port)
     home, state, projects = root / "home", root / "state", root / "projects"
@@ -168,12 +179,7 @@ def seed(port: int, limits: str) -> dict:
     for d in (home / ".config/pm", home / ".claude/sessions", home / ".claude/projects", state, projects):
         d.mkdir(parents=True, exist_ok=True)
     # fixture skills (global, agents + claude) so the project page skills table has rows
-    for src, name, desc in (
-        ("agents", "ntfy", "Publish and subscribe on the local ntfy server. Use when sending a notification, finishing a CLI or Cursor agent task, or when the user mentions ntfy, ntfy publish, ntfy subscribe, or topic lab/agent."),
-        ("agents", "dev-stacks", "When deploying a new Docker or local web stack under ~/dev, update the .stignore for root-owned data directories."),
-        ("claude", "short", "Tiny."),
-        ("claude", "macos-config", "Pull Linux home configs onto a Mac with macOS-config-sync.sh. Use whenever the user mentions macOS, a Mac, Darwin, Homebrew fish, Ghostty/Kitty/WezTerm on the Mac."),
-    ):
+    for src, name, desc in FIXTURE_SKILLS:
         sd = home / f".{src}/skills" / name
         sd.mkdir(parents=True, exist_ok=True)
         (sd / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {desc}\n---\n\n# {name}\n")

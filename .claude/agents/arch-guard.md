@@ -59,6 +59,9 @@ Input: the worktree path and base (default `main`). Review `git diff <base>...HE
    missing tests, a user-visible change not described (the maintainer adds the CHANGELOG entry).
    dt diffs also: theme logic in a core route, core code importing `pm.web.dt`, `pm.web.dt` importing a classic
    route module, a second dialog/menu/toast/filter/ticker implementation, storage keys outside `pm.v7.*`.
+   Public core: no code, default, test fixture or doc names a host, user, private project or private service;
+   a feature that needs such a value reads it from a new pm.toml option whose default is empty (or a plugin).
+   FAIL on a hard-coded one.
 3. Only report issues introduced or made worse by this diff. Pre-existing debt is noted in one line,
    not as a failure.
 

@@ -17,8 +17,9 @@ def line(i, t, tag="/x", **kw):
 
 
 @pytest.fixture
-def st(tmp_path):
+def st(tmp_path, monkeypatch):
     ntfy_feed.reset()
+    monkeypatch.setattr(ntfy_feed, "_transport", None)  # undone after the test, whatever serve() set
     dev = tmp_path / "dev"
     (dev / "pm").mkdir(parents=True)
     (dev / "pm" / "sub").mkdir()
@@ -26,7 +27,6 @@ def st(tmp_path):
     from pm.core.config import Settings
     s = Settings(dev_root=dev, extra_projects=(dev / "pm" / "sub",), state_dir=tmp_path)
     yield s
-    ntfy_feed._transport = None
     ntfy_feed.reset()
 
 

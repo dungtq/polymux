@@ -34,22 +34,29 @@ def test_reload_js_contract():
 
 RELOAD_HARNESS = r"""
 const src = require('fs').readFileSync(process.argv[1], 'utf8'), scen = process.argv[2];
+const topAttrs = process.argv[3] ? JSON.parse(process.argv[3]) : null;  // header.x-top data-rl-* (null: embed)
 let now = 1000, reloads = 0;
 const timers = [], toasts = [], calls = [], health = [], docLs = {};
 globalThis.setTimeout = (fn, ms) => { timers.push({ fn: fn, at: now + (ms || 0) }); return timers.length; };
 globalThis.clearTimeout = (id) => { if (id && timers[id - 1]) timers[id - 1].fn = null; };
 Date.now = () => now;
 globalThis.AbortController = class { constructor() { this.signal = {}; } abort() {} };
-class N {
+class N {  // textContent as in the DOM: setting it drops the children, reading it joins theirs
   constructor(tag, cls) { this.tag = tag; this.className = cls || ''; this.kids = []; this.attrs = {};
-    this.hidden = false; this.textContent = ''; this.ls = {}; }
+    this.hidden = false; this.text = ''; this.ls = {}; }
+  get textContent() { return this.text + this.kids.map((k) => k.textContent).join(''); }
+  set textContent(v) { this.text = String(v); this.kids = []; }
   setAttribute(k, v) { this.attrs[k] = String(v); } getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   append(...k) { this.kids.push(...k); } appendChild(k) { this.kids.push(k); } prepend(k) { this.kids.unshift(k); }
   addEventListener(t, f) { this.ls[t] = f; } scrollIntoView() {}
   querySelector(sel) { return this.kids.find((k) => k.className.split(' ').includes(sel.slice(1))) || null; }
 }
 const main = new N('main');
+const top = topAttrs && new N('header', 'x-top');
+if (top) Object.keys(topAttrs).forEach((k) => top.setAttribute(k, topAttrs[k]));
+if (top) top.hasAttribute = (k) => k in top.attrs;
 globalThis.document = { addEventListener: (t, f) => { docLs[t] = f; },
+  querySelector: (sel) => sel === 'header.x-top' ? top : null,
   getElementById: (id) => id === 'main' ? main : main.kids.find((k) => k.id === id) || null };
 globalThis.window = { pm7: {}, location: { reload: () => { reloads++; } } };
 window.top = window;
@@ -57,14 +64,23 @@ const pm7 = window.pm7;
 pm7.el = (tag, cls) => new N(tag, cls);
 pm7.icon = () => null;
 pm7.toast = (t) => toasts.push(t);
+const asked = [];
+let answer = true;
+pm7.confirm = (o) => { asked.push(o.title); return Promise.resolve(answer); };
+pm7.fail = (what, r) => { toasts.push(what + ' ' + (r ? r.status : 'none')); return Promise.resolve(''); };
+const readies = [];
+pm7.ready = (fn) => readies.push(fn);
+let refuse = false;
 pm7.fetch = (url) => {
   calls.push(url);
+  if (url === '/service/reload' && refuse) return Promise.resolve({ ok: false, status: 403 });
   if (url === '/healthz') return Promise.resolve({ ok: health.length ? health.shift() : true, status: 200 });
   const st = /boom(\d+)/.exec(url);
   const status = st ? Number(st[1]) : 200;
   return Promise.resolve({ ok: status < 300, status: status });
 };
 eval(src);
+readies.forEach((fn) => fn());
 async function flush() { for (let i = 0; i < 20; i++) await Promise.resolve(); }
 async function advance(ms) {
   const end = now + ms;
@@ -106,6 +122,30 @@ const hz = () => calls.filter((c) => c === '/healthz').length;
     out.calls = hz();
     await advance(60000);
     out.after = hz();
+  } else if (scen === 'code') {
+    out.first = [text(), btn()];  // from header.x-top at load
+    docLs['pm:pm_code']({ detail: { need: 'restart', msg: 'New code: restart pm to load it.', head: '<b>x</b>' } });
+    out.live = [text(), btn(), bar().kids[1].getAttribute('data-act'), calls.length];
+    answer = false;
+    await bar().kids[1].ls.click(); await flush();
+    out.no = [asked.length, calls.length, pm7.reload.state()];  // cancelled: nothing posted
+    answer = true;
+    await bar().kids[1].ls.click(); await flush();
+    out.yes = [asked.length, calls.slice(), pm7.reload.state(), text()];
+    docLs['pm:pm_code']({ detail: { need: 'restart', msg: 'again' } });
+    out.during = text();  // the restart wait owns the bar
+  } else if (scen === 'codefail') {
+    docLs['pm:pm_code']({ detail: { need: 'restart', msg: 'm' } });
+    refuse = true;
+    await bar().kids[1].ls.click(); await flush();
+    out.failed = [toasts.slice(), pm7.reload.state(), btn()];
+  } else if (scen === 'nocode') {
+    docLs['pm:pm_code']({ detail: { need: 'restart', msg: 'New code: restart pm to load it.', head: 'fix x' } });
+    out.text = [text(), btn()];
+    const t = bar() && bar().kids[0];
+    out.cmd = t ? t.kids.map((k) => [k.tag, k.className, k.textContent]) : [];
+    pm7.reload.wait();  // the next state's text drops the command span
+    out.next = t ? [t.kids.length, text()] : [];
   } else if (scen === 'htmx') {
     docLs['htmx:afterRequest']({ detail: { successful: false, requestConfig: { path: '/service/reload' },
       xhr: { status: 403 } } });
@@ -122,9 +162,9 @@ const hz = () => calls.filter((c) => c === '/healthz').length;
 """
 
 
-def _reload(scen: str) -> dict:
-    out = subprocess.run(["node", "-e", RELOAD_HARNESS, str(JS / "reload.js"), scen], capture_output=True, text=True,
-                         check=True)
+def _reload(scen: str, top: dict | None = None) -> dict:
+    argv = ["node", "-e", RELOAD_HARNESS, str(JS / "reload.js"), scen] + ([json.dumps(top)] if top is not None else [])
+    out = subprocess.run(argv, capture_output=True, text=True, check=True)
     return json.loads(out.stdout)
 
 
@@ -158,6 +198,65 @@ def test_reload_htmx_requests():
     assert o["refused"] == [["Reload pm failed (HTTP 403). pm was not restarted."], "", ""]
     assert o["down"] == "down"
     assert o["restart"][0] == "restart" and o["restart"][1].startswith("pm is restarting")
+
+
+@node
+def test_new_code_bar_restarts_only_after_a_confirmed_click():
+    o = _reload("code", {"data-rl-ok": "", "data-rl-unit": "pm.service", "data-rl-need": "restart",
+                         "data-rl-msg": "New code: restart pm to load it.", "data-rl-head": "first"})
+    assert o["first"] == ["New code: restart pm to load it. Latest commit: first", "Restart pm"]
+    assert o["live"] == ["New code: restart pm to load it. Latest commit: <b>x</b>", "Restart pm", "restart", 0]
+    assert o["no"] == [1, 0, ""]  # pm7.confirm said no: nothing posted
+    assert o["yes"][:3] == [2, ["/service/reload"], "restart"] and o["yes"][3].startswith("pm is restarting")
+    assert o["during"].startswith("pm is restarting")
+
+
+@node
+def test_new_code_bar_refused_restart_toasts_and_waits_for_nothing():
+    o = _reload("codefail", {"data-rl-ok": "", "data-rl-unit": "pm.service"})
+    assert o["failed"] == [["Reload pm failed. pm was not restarted 403"], "", "Restart pm"]
+
+
+@node
+def test_new_code_bar_without_reload_shows_the_command():
+    o = _reload("nocode", {"data-rl-unit": "pm-dev.service"})
+    assert o["text"] == ["New code: restart pm to load it. Latest commit: fix x · Run: "
+                         "systemctl --user restart pm-dev.service", ""]
+    assert o["cmd"] == [["span", "mono", "systemctl --user restart pm-dev.service"]]  # the command in a .mono child
+    assert o["next"] == [0, "pm is restarting… this page reloads when it is back."]
+    assert _reload("nocode")["text"] == ["", ""]  # embed (no header.x-top): no "new code" state
+
+
+def _top(**glob) -> str:
+    import jinja2
+
+    from pm.web.dt import shell
+    from pm.web.dt.stores import TabState
+
+    from .conftest import agent, make_snap
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(TPL), autoescape=True)
+    env.globals.update(glob)
+    sh = shell.build(make_snap([agent("claude-aaa111", "alpha")]), TabState(), "/")
+    html = env.get_template("shell/_top.html").render(shell=sh, cur_tab=None, csrf="tok", dev_banner=False)
+    return html[html.index("<header"):html.index(">", html.index("<header")) + 1], html
+
+
+def test_top_carries_the_restart_hooks():
+    head, html = _top(reload_ok=True, reload_unit="pm.service", pm_code=lambda: None)
+    assert "data-rl-ok" in head and 'data-rl-unit="pm.service"' in head and "data-rl-need" not in head
+    assert 'action="/service/reload"' in html  # the account menu's Reload pm
+    verdict = {"need": "restart", "msg": "New code: restart pm to load it.", "head": 'fix "x" <y>'}
+    head, html = _top(reload_ok=False, reload_unit="pm.service", pm_code=lambda: verdict)
+    assert "data-rl-ok" not in head and 'action="/service/reload"' not in html  # gated by reload_ok, not dev_banner
+    assert 'data-rl-need="restart"' in head and 'data-rl-msg="New code: restart pm to load it."' in head
+    assert 'data-rl-head="fix &#34;x&#34; &lt;y&gt;"' in head
+    head, _ = _top()  # globals missing (a bare render): no hooks, no crash
+    assert "data-rl-ok" not in head and "data-rl-need" not in head
+
+
+def test_live_js_forwards_pm_code():
+    src = (JS / "live.js").read_text(encoding="utf-8")
+    assert "'chat_outbox', 'pm_code']" in src
 
 
 def test_classic_service_worker_and_app_badge_are_removal_debt():

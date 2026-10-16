@@ -62,6 +62,13 @@ def test_selected_todo_must_be_free():
     assert launch.build(ctx(todo_selected=1)).todo_sel is None  # in progress: not preselected
 
 
+def test_redirect_hint_only_for_another_listed_project():
+    assert launch.build(ctx()).hint == "" and launch.EMPTY.hint == ""
+    assert launch.build(ctx(launch_data={**DATA, "hint": "beta"})).hint == "beta"
+    assert launch.build(ctx(launch_data={**DATA, "hint": "gone"})).hint == ""  # not in the picker
+    assert launch.build(ctx(launch_data={**DATA, "hint": "alpha"})).hint == ""  # the current project
+
+
 def test_broken_context_gives_the_empty_view(monkeypatch):
     def boom(c):
         raise TypeError("boom")
@@ -84,6 +91,25 @@ def test_form_posts_to_the_project_and_carries_its_data():
                         h)
     assert radios == [("claude", ""), ("codex", " checked"), ("devin", "")]
     assert "logged in" not in h  # the core has no login state: none is shown
+
+
+def test_redirect_hint_line_only_when_set():
+    assert "data-l-hint" not in render_form() and "data-l-switch" not in render_form()
+    h = render_form(launch_data={**DATA, "hint": "beta"})
+    assert re.search(r'</div>\n<div class="l-bd" data-l-hint><p class="l-help">'
+                     r'<span>Work on <b>beta</b> code\?</span> '
+                     r'<button type="button" class="x-btn sm" data-l-switch="beta" title="[^"]*beta">'
+                     r'<span class="ell">Launch in beta</span></button></p></div>\n', h)  # label ellipsizes, title whole
+    assert h.index("data-l-hint") < h.index('id="p-tab-l-new"')  # under the title row, above the tabs
+    h = render_form(projects=["alpha", "<b>"], launch_data={**DATA, "hint": "<b>"})
+    assert 'data-l-switch="&lt;b&gt;"' in h and '<span class="ell">Launch in &lt;b&gt;</span>' in h  # autoescaped
+
+
+def test_launch_js_switch_sets_the_picker_and_loads():
+    js = (JS / "launch.js").read_text()
+    branch = js[js.index("t.closest('[data-l-switch]')"):]
+    branch = branch[:branch.index("return;")]
+    assert "$('[data-l-proj]').value = p" in branch and "load(p)" in branch
 
 
 def test_running_line_todo_tab_and_foot():

@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
-      # ruff + architecture check (incl. the dt theme's static tree), the same gate as `make check`
+      # ruff + public leak scan + architecture check (incl. the dt theme's static tree), the same gate as `make check`
       - name: Check
         run: ./tools/check.sh
 

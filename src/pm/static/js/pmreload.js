@@ -1,20 +1,19 @@
 /* pm project only: after an agent response (pm:agent_state, debounced) and on load, ask
- * GET /pm/reload-need whether pm needs a service restart (Python/templates changed) or only a
- * browser refresh (static files changed / service already restarted). Read-only polling by event. */
+ * GET /pm/reload-need whether this page needs a browser refresh (static files changed / service already
+ * restarted). A needed service restart is the page bar #pmcode (reload.js, pm_code event), not this row.
+ * Read-only polling by event. */
 (function () {
   'use strict';
   var box = document.querySelector('[data-cmp-reload]');  // the composer's notice row
   if (!box || !window.fetch) return;
-  var t = box.querySelector('.pmr-t'), rf = box.querySelector('.pmr-refresh'), rs = box.querySelector('.pmr-restart');
+  var t = box.querySelector('.pmr-t'), rf = box.querySelector('.pmr-refresh');
   var served = box.getAttribute('data-served') || '0', timer = 0, busy = false;
   function show(j) {
     if (box.hasAttribute('data-lock')) return;  // reload.js owns the row while restarting / waiting
-    if (!j || j.need === 'none') { box.hidden = true; return; }
+    if (!j || j.need !== 'refresh') { box.hidden = true; return; }
     t.textContent = j.msg;
     box.setAttribute('data-need', j.need);
-    rf.hidden = j.need !== 'refresh' && !!rs;  // with a restart button, a restart is the action
-    if (j.need === 'restart' && !rs) rf.hidden = true;  // dev instance: no restart button, text only
-    if (rs) rs.hidden = j.need !== 'restart';
+    rf.hidden = false;
     box.hidden = false;
   }
   function check() {

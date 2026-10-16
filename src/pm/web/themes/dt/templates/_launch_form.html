@@ -3,7 +3,8 @@
     (shell/_launch.html) and loaded again when the project picker changes. View model: dt_launch()
     (pm.web.dt.launch); the model list, efforts, permission modes, templates and worktree hints are launch_data,
     a JSON attribute on the form (data-l-data) that js/launch.js reads.
-    Order: title row with the project picker · tabs New agent | From TODO · running agents (one warning line) ·
+    Order: title row with the project picker · the launch_redirects hint (v.hint: "Launch in <project>",
+    data-l-switch picks it) · tabs New agent | From TODO · running agents (one warning line) ·
     Agent cards (kind colour; the core has no login state) · Model + Effort · Permissions (a sentence per mode; bypass
     needs "I understand", confirm_bypass) · Runs in + optional worktree branch · Prompt (templates, @ files, attach) ·
     foot: what is remembered, Launch in background (open=0), Launch (open=1, mod+Enter).
@@ -22,7 +23,8 @@
   </select>
   <span class="sp"></span>
   <button class="x-ib" type="button" data-act="close" aria-label="Close" title="Close"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}x"/></svg></button>
-</div>
+</div>{% if v.hint %}
+<div class="l-bd" data-l-hint><p class="l-help"><span>Work on <b>{{ v.hint }}</b> code?</span> <button type="button" class="x-btn sm" data-l-switch="{{ v.hint }}" title="Open the launch form for {{ v.hint }}"><span class="ell">Launch in {{ v.hint }}</span></button></p></div>{% endif %}
 {{ pt.tabs([{"key": "l-new", "label": "New agent", "controls": "l-pnew", "cur": true},
             {"key": "l-todo", "label": "From TODO", "controls": "l-ptodo", "count": v.todo_free}], "Launch", cls="l-tabs") }}
 {%- call pt.panel("l-pnew", "l-new", cur=true) %}

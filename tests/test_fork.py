@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from helpers import audit_text, fake, mk_client, post, snap_with  # noqa: F401
+from helpers import audit_text, fake, mk_client, new_window_call, post, snap_with  # noqa: F401
 from helpers import pages_env as env  # noqa: F401  (fixture)
 from jinja2 import Environment, FileSystemLoader
 
@@ -63,11 +63,10 @@ def test_argv_handoff(fake, tmp_path):
         k, argv, mode = fork.build_argv(st, ag(kind, "abc", str(f)))
         assert k == name and mode == "handoff" and argv[:2] == [b[name], "--"]
         assert str(f) in argv[2] and len(argv) == 3
-    # antigravity kind string works without the enum member; binary comes from agent_bins
     class A:  # duck typed record
         kind, ident, transcript, cwd = "agy", "c1", str(f), "/"
     k, argv, mode = fork.build_argv(st, A)
-    assert k == "antigravity" and argv[0] == b["antigravity"] and mode == "handoff"
+    assert k == "antigravity" and argv[:2] == [b["antigravity"], "-i"] and mode == "handoff"
     # codex without a uuid degrades to handoff
     st, b2 = bins(st, tmp_path, "codex")
     assert fork.build_argv(st, ag(AgentKind.CODEX, "weird", str(f)))[2] == "handoff"
@@ -115,10 +114,14 @@ def test_route_window_and_audit(fake, monkeypatch, tmp_path):
     monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
     r = post(c, tok, f"/a/{rid}/fork")
     assert r.status_code == 200 and "Forked" in r.text and "agent-claude-fork" in r.text
-    nw = next(x for x in calls if x[0] == "new-window")
+    nw = new_window_call(calls)
     assert "-d" in nw and not any(x[0] == "split-window" for x in calls)  # background window only
     assert nw[nw.index("-n") + 1] == "agent-claude-fork" and nw[nw.index("-c") + 1] == str(proj)
     assert nw[nw.index("--") + 1:][5:] == ["--resume", UUID, "--fork-session"]  # sh -c 'exec "$@"' sh bin ...
+    raw = next(x for x in calls if x[0] == "new-window")  # the same tmux call keeps the window when it quits
+    tmp = f"$9:={raw[raw.index('-n') + 1]}"
+    assert raw[raw.index(";"):] == [";", "set-option", "-w", "-t", tmp, "remain-on-exit", "on",
+                                    ";", "rename-window", "-t", tmp, "--", "agent-claude-fork"]
     log = audit_text(st)
     assert "agent_fork" in log and "native" in log and UUID[:8] in log and UUID not in log
 
@@ -153,7 +156,7 @@ def test_route_handoff_devin(fake, monkeypatch, tmp_path):
     st, calls, c, tok, rid, proj = route_env(fake, monkeypatch, tmp_path, AgentKind.DEVIN, "d1", str(f))
     monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
     assert post(c, tok, f"/a/{rid}/fork").status_code == 200
-    nw = next(x for x in calls if x[0] == "new-window")
+    nw = new_window_call(calls)
     assert str(f) in nw[-1] and "--resume" not in nw[-1] and "handoff" in audit_text(st)
 
 
@@ -179,7 +182,7 @@ def test_route_ended_record(fake, monkeypatch, tmp_path):
     snap_with(monkeypatch, [])
     monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
     assert post(c, tok, f"/a/{rid}/fork").status_code == 200
-    assert next(x for x in calls if x[0] == "new-window")[-1] == "--fork-session"
+    assert new_window_call(calls)[-1] == "--fork-session"
 
 
 def test_argv_with_prompt(fake, tmp_path):
@@ -201,7 +204,7 @@ def test_route_fork_and_send(fake, monkeypatch, tmp_path):
     monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
     r = post(c, tok, f"/a/{rid}/fork", text="explore option two")
     assert r.status_code == 200 and "Forked" in r.text
-    nw = next(x for x in calls if x[0] == "new-window")
+    nw = new_window_call(calls)
     assert nw[nw.index("--") + 1:][5:] == ["--resume", UUID, "--fork-session", "--", "explore option two"]
     log = audit_text(st)
     assert '"len":18' in log and "explore" not in log
@@ -215,7 +218,7 @@ def test_route_fork_and_send_handoff_and_ended(fake, monkeypatch, tmp_path):
     snap_with(monkeypatch, [])
     monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: [])
     assert post(c, tok, f"/a/{rid}/fork", text="and add tests").status_code == 200
-    last = next(x for x in calls if x[0] == "new-window")[-1]
+    last = new_window_call(calls)[-1]
     assert str(f) in last and "and add tests" in last and "handoff" in audit_text(st)
 
 

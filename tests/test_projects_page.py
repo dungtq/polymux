@@ -8,6 +8,7 @@ from helpers import pages_env as env  # noqa: F401  (fixture)
 from pm.agents import sorting
 from pm.core.models import GitStatus, Project, TodoProgress
 from pm.git import ctl as gitctl
+from pm.git import remote as gitremote
 from pm.projects import projects
 
 
@@ -87,10 +88,13 @@ def test_project_page_commits(env, monkeypatch):
     login(s, c)
     commits = [{"sha": "a" * 40, "hash": "aaaaaaa", "author": "dt", "ts": 1.0, "subject": "Fix <x>"}]
     monkeypatch.setattr(gitctl, "commit_log", lambda p, n=5: commits)
-    monkeypatch.setattr(gitctl, "commit_url_base", lambda p, h=(): "https://git.example.test/dt/alpha/commit/")
+    seen = []
+    monkeypatch.setattr(gitremote, "commit_url_base",
+                        lambda p, h=(), *, remote: seen.append(remote) or "https://git.example.test/dt/alpha/commit/")
     h = c.get("/p/alpha/git/panel").text
     assert f'href="https://git.example.test/dt/alpha/commit/{"a" * 40}"' in h and "Fix &lt;x&gt;" in h
-    monkeypatch.setattr(gitctl, "commit_url_base", lambda p, h=(): None)
+    assert seen == ["origin"]  # pm.toml push_remote (default)
+    monkeypatch.setattr(gitremote, "commit_url_base", lambda p, h=(), *, remote: None)
     h = c.get("/p/alpha/git/panel").text
     assert "aaaaaaa" in h and "git.example.test/dt/alpha/commit" not in h
 

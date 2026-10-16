@@ -123,7 +123,7 @@ Backlog, ntfy `/ntfy` (T/ntfy.html), Audit, Servers.
 | ended composer | The composer of an ended session: empty box = Resume / Fork; with text = Resume and send (the session resumes with it as its opening message, the page switches to live, same id) / Fork and send | `[data-composer=ended]`, `[data-cmp-alt]` (Fork); POST /a/<id>/resume or /fork with `text` | resume box |
 | key pad | Special-key buttons (Esc, Enter, arrows) | `.keypad`, `.keybtn`, `.keygroup` | keys |
 | slash card | `/` command picker above the composer (Launch: below it; quick chat: its skills, also mid-text) | `.slash-list` picker (root `data-slash`), `.slash-card-wrap[data-cmp-slash-card]` command output; T/_slash_card.html, J/slash.js | slash menu |
-| continue popup | "Continue in a new chat" under a reply: default message or a new prompt (the composer, Ctrl/Cmd+Enter = Start; four canned chips), new window or split pane | `pmConfirm` with `.cpop`; composer `[data-composer=continue]` cloned from `<template id="cmp-continue">`; J/continuepop.js, C/chat-continue.css | continue dialog |
+| continue popup | "Continue in a new chat" under a reply: default message or a new prompt (the composer, Ctrl/Cmd+Enter = Start; four canned chips); the new chat always opens in its own tmux window | `pmConfirm` with `.cpop`; composer `[data-composer=continue]` cloned from `<template id="cmp-continue">`; J/continuepop.js, C/chat-continue.css | continue dialog |
 | snippets menu | Canned text menu on the Send caret (+ Save as issue) | `.csend-more[data-snip]` -> `.snipmenu.pop` (pm.popover); J/snippets.js, issue-save.js | snippets |
 | model pill | One pill "<model> <effort>" that opens a menu (current model, Effort, More models) above the composer | `.modelbar.mpick`, `.mp-pill`, `.mp-menu.pop` (pm.popover), `.mp-row`; J/modelpick.js | model select, model bar, effort select |
 | token status | Context/usage line above the composer | `#chat-stats` `details.tokbar` / `.cstat` (loads `/a/<id>/stats`) | token row, stats row, usage line |
@@ -144,7 +144,7 @@ The ended composer has only the notice line and the box (Resume / Fork). Page-le
 | doc body | Rendered markdown | T/_project_doc.html `.pj-doc.md`, `.pj-meta`, `.pj-note` | |
 | files browser | Read-only file tree | T/_project_files.html, `.pj-files` | Browse |
 | git status | Dirty-file view | tab `dirty`, T/_dirty.html | dirty |
-| git remotes panel | Remotes / gitdev state in the git card [flux] | project.html git block (`no gitdev remote` warning) | remotes |
+| git remotes panel | Remotes / push remote (`push_remote`) state in the git card [flux] | project.html git block (`no <push_remote> remote` warning) | remotes |
 | tmux section | Sessions of this project | `#proj-live` (T/_project_live.html) | live, sessions |
 | tmux session row | One session, expandable | `.lrow.srow` (`.srow-tg` chevron, `.srow-act`) | session row |
 | window row | A window/pane inside an expanded session (table `.tx-w`; `/tmux/<s>` redirects to `/tmux?open=<s>`, no separate session page; the window name links to the terminal, the agent name to the chat; the expanded row only carries Kill session) | rows under `.srow`; T/_tmux_session_rows.html | tmux window |

@@ -2,8 +2,9 @@
 
 All mutations: POST + CSRF + Origin + session + tier 1 + audit (``git_remote_add|set_url|remove``).
 URLs are validated in ``gitctl`` (ssh shapes only, host allow-list ``git_allowed_hosts``) and passed
-after ``--``. Pushing stays gitdev-only; other remotes are never fetched or pushed by pm. Audit detail
-carries the remote name and URL host only, never the full URL.
+after ``--``. Pushing stays on pm.toml ``push_remote`` only; other remotes are never fetched or pushed by pm.
+Removing ``push_remote`` needs its name typed as ``confirm``. Audit detail carries the remote name and URL host
+only, never the full URL.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from pm.core import executors
 from pm.core.models import Tier
 from pm.git import ctl as gitctl
+from pm.git import remote as gitremote
 from pm.infra import sshkeys
 from pm.security.auth import require_session
 from pm.security.guard import mutation_guard
@@ -28,6 +30,10 @@ _NOSTORE = {"Cache-Control": "no-store"}
 
 def _hosts(request: Request) -> tuple[str, ...]:
     return tuple(request.app.state.settings.git_allowed_hosts) or gitctl.DEFAULT_GIT_HOSTS
+
+
+def _push_remote(request: Request) -> str:
+    return request.app.state.settings.push_remote
 
 
 def _panel(request: Request, name: str, path, notice: str = "", ok: bool = True) -> str:
@@ -58,8 +64,9 @@ async def git_panel(request: Request, name: str):
     def build() -> str:
         return get_template("_project_git.html").render(
             **page_ctx(request), project=project, project_name=project.name,
-            commits=gitctl.commit_log(project.path, 5), commit_base=gitctl.commit_url_base(project.path, _hosts(request)),
-            remotes=gitctl.remotes(project.path), notice="", notice_ok=True, gitdev=gitctl.REMOTE,
+            commits=gitctl.commit_log(project.path, 5),
+            commit_base=gitremote.commit_url_base(project.path, _hosts(request), remote=_push_remote(request)),
+            remotes=gitremote.remotes(project.path), notice="", notice_ok=True,
             hosts=_hosts(request), pub=sshkeys.managed_key(request.app.state.settings))
 
     return HTMLResponse(await executors.run_collectors(build), headers=_NOSTORE)
@@ -105,13 +112,13 @@ async def _mutate(request: Request, action: str, name: str, fn, label: str, want
 @router.post("/p/{name}/git/remote/add", response_class=HTMLResponse)
 async def remote_add(request: Request, name: str,
                      _=Depends(mutation_guard("git_remote_add", Tier.SAFE))):
-    return await _mutate(request, "git_remote_add", name, gitctl.remote_add, "Add remote", True)
+    return await _mutate(request, "git_remote_add", name, gitremote.remote_add, "Add remote", True)
 
 
 @router.post("/p/{name}/git/remote/set-url", response_class=HTMLResponse)
 async def remote_set_url(request: Request, name: str,
                          _=Depends(mutation_guard("git_remote_set_url", Tier.SAFE))):
-    return await _mutate(request, "git_remote_set_url", name, gitctl.remote_set_url, "Set url", True)
+    return await _mutate(request, "git_remote_set_url", name, gitremote.remote_set_url, "Set url", True)
 
 
 @router.post("/p/{name}/git/remote/remove", response_class=HTMLResponse)
@@ -119,12 +126,13 @@ async def remote_remove(request: Request, name: str,
                         _=Depends(mutation_guard("git_remote_remove", Tier.SAFE))):
     action = "git_remote_remove"
     rname = (await controlctl.form(request, "name")).strip()
-    if rname == gitctl.REMOTE and (await controlctl.form(request, "confirm")).strip() != gitctl.REMOTE:
+    push_remote = _push_remote(request)
+    if rname == push_remote and (await controlctl.form(request, "confirm")).strip() != push_remote:
         project_of(request, name)
         controlctl.done(request, action, f"{name}:{rname}", "denied", {"reason": "confirm"})
-        return await _render(request, name, "Removing gitdev needs the typed confirmation.", False)
+        return await _render(request, name, f"Removing {push_remote} needs the typed confirmation.", False)
     return await _mutate(request, action, name, _remove_fn, "Remove remote", False)
 
 
 def _remove_fn(path, rname):
-    gitctl.remote_remove(path, rname)
+    gitremote.remote_remove(path, rname)

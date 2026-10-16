@@ -77,6 +77,14 @@ def test_parse_devin_families_and_aliases():
                    ("claude-opus-5-5-high", "Claude Opus 5.5 High", "Claude Opus 5.5")]
 
 
+def test_parse_antigravity():
+    t = "gemini-4-argon-medium\tGemini 4 Argon (Medium)\ngemini-4-argon-high\tGemini 4 Argon (High)\n"
+    assert catalog.parse_antigravity(t) == [
+        ("gemini-4-argon-medium", "Gemini 4 Argon (Medium)", "gemini-4-argon", ""),
+        ("gemini-4-argon-high", "Gemini 4 Argon (High)", "gemini-4-argon", ""),
+    ]
+
+
 def _sync_submit(monkeypatch):
     """executors.fanout.submit runs the job at once; returns the list of submitted jobs."""
     jobs = []
@@ -192,7 +200,8 @@ def test_real_clis_models_and_modes_accepted(tmp_path):
     from pm.agents import launch
     s = dataclasses.replace(_settings(tmp_path), state_dir=tmp_path)
     ran = 0
-    for kind in (AgentKind.CLAUDE, AgentKind.CODEX, AgentKind.DEVIN, AgentKind.CURSOR):
+    for kind in (AgentKind.CLAUDE, AgentKind.CODEX, AgentKind.DEVIN, AgentKind.CURSOR,
+                 AgentKind.ANTIGRAVITY):
         if not pathlib.Path(launch.agent_binary(s, kind)).exists():
             continue
         ran += 1
@@ -202,7 +211,7 @@ def test_real_clis_models_and_modes_accepted(tmp_path):
         assert not bad, bad[:3]
         every = [*launch._MODES[kind].items(), *launch._BYPASS_MODES.get(kind, {}).items(),
                  *launch._EXTRA.get(kind, {}).items()]
-        if kind is AgentKind.CLAUDE:
+        if kind in (AgentKind.CLAUDE, AgentKind.ANTIGRAVITY):
             every += [(e, ["--effort", e]) for e in launch.EFFORTS[kind]]
         for mode, argv in every:
             r = subprocess.run([launch.agent_binary(s, kind), *argv, "--version"],

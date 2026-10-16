@@ -1,6 +1,8 @@
 /* dt markdown reader (DESIGN.md §6.19, §7; user issue #250): dialog#x-md (shell/_mdview.html), a modal centred on
    the screen (full screen on phones) over any page. Today opened by aside.js for the .md links of the aside chat
-   (classic chat-md.js in the aside's embed posts {pm: 'drawer', act: 'md', id, path}).
+   (classic chat-md.js in the aside's embed posts {pm: 'drawer', act: 'md', id, path}), and for a chat's .md links
+   (classic chat-md.js a[data-md]) on a page without classic's docked reader #mdpane (Builder): there chat-md.js
+   finds no pane and does nothing, so this file opens them here (capture phase, before chat-md.js).
    Globals: pm7.md = {open(agentId, path) -> bool, current() -> path | null}.
      open: loads GET /a/<id>/md?path= (the server's rendered, escaped markdown: div.mdv[data-path] > div.md; a
      relative path is looked up in the agent's folder, its project, then the files its chat named) into
@@ -15,8 +17,8 @@
   'use strict';
   const pm7 = window.pm7, d = document;
   const AGENT = /^[A-Za-z0-9][\w.:@-]{0,79}$/, SCHEME = /^[a-z][a-z0-9+.-]*:/i, MIN = 10, MAX = 32;
-  const MISSING = 'File not available: not found in the agent\'s folder, its project or the files its chat named, ' +
-    'or it is in a hidden folder.';
+  const MISSING = 'Not found: pm looked in the agent\'s folder, its project, the files its chat named and the ' +
+    'folders it worked in. Files in hidden folders never open.';
   let agent = '', cur = '', seq = 0;
   const D = () => d.getElementById('x-md');
   const q = (sel) => { const x = D(); return x ? x.querySelector(sel) : null; };
@@ -130,6 +132,16 @@
       if (a) link(a, e);
     });
   });
+
+  /* a chat's .md link where classic has no docked reader (Builder): open it here */
+  d.addEventListener('click', (e) => {
+    const t = e.target, a = t && t.closest ? t.closest('a[data-md]') : null;
+    if (!a || d.getElementById('mdpane') || (D() && D().contains(a))) return;
+    const host = a.closest('[data-agent]') || d.querySelector('[data-agent]');
+    if (!host || !open(host.getAttribute('data-agent'), a.getAttribute('data-md') || '')) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
 
   pm7.md = { open: open, current: () => (D() && D().open && cur ? cur : null) };
 })();

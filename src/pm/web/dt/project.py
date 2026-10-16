@@ -140,6 +140,7 @@ class ProjectView:
     ended_total: int
     agents_n: int
     need: int
+    remote: str  # pm.toml push_remote (#pj-lay data-pj-remote: js/project.js, js/pjsettings.js)
     plans: list[PlanRow] = field(default_factory=list)
     plans_total: int = 0
     docs: Docs | None = None
@@ -189,7 +190,7 @@ def side(ctx: Mapping, cur: str, now: float, window: float) -> list[SideProject]
 
 
 # ------------------------------------------------------------------ head, tiles, tabs
-def git_parts(git) -> tuple[str, str, str]:
+def git_parts(git, remote: str) -> tuple[str, str, str]:
     """(branch, summary, tone) of a GitStatus: "3 dirty · ↓2 to pull · ↑1 to push" or "clean · in sync"."""
     if git is None:
         return "–", "not a git repository", ""
@@ -203,17 +204,18 @@ def git_parts(git) -> tuple[str, str, str]:
     if git.ahead:
         bits.append(f"↑{git.ahead} to push")
     if not bits:
-        bits.append("clean · " + ("in sync" if git.has_gitdev else "no gitdev remote"))
+        bits.append("clean · " + ("in sync" if git.has_remote else f"no {remote} remote"))
     return git.branch or "detached", " · ".join(bits), tone
 
 
-def git_menu(name: str, git) -> list[dict]:
-    """Git ▾: fetch, pull, push to gitdev. Each item is a page event (js/project.js): it asks the core what it will do
-    first (GET /p/<name>/git/plan, fetch: a fixed text), shows that in a confirm, then posts."""
+def git_menu(name: str, git, remote: str) -> list[dict]:
+    """Git ▾: fetch, pull, push to ``remote`` (pm.toml push_remote). Each item is a page event (js/project.js): it
+    asks the core what it will do first (GET /p/<name>/git/plan, fetch: a fixed text), shows that in a confirm, then
+    posts."""
     if git is None:
         return [menus.item("none", "Not a git repository", "branch", disabled=True, why="no .git here")]
-    why = "" if git.has_gitdev else "no gitdev remote"
-    remotes = menus.item("remotes", "Remotes…", "link", note="add gitdev" if why else "", event="pj:git")
+    why = "" if git.has_remote else f"no {remote} remote"
+    remotes = menus.item("remotes", "Remotes…", "link", note=f"add {remote}" if why else "", event="pj:git")
 
     def it(id_: str, label: str, icon: str, note: str = "") -> dict:
         if why:
@@ -221,19 +223,19 @@ def git_menu(name: str, git) -> list[dict]:
         return menus.item(id_, label, icon, note=note, event="pj:git")
 
     return menus.menu(
-        it("fetch", "Fetch from gitdev", "refresh"), it("pull", "Pull (fast-forward only)", "down"),
-        it("push", "Push to gitdev", "up", "never forced"),
+        it("fetch", f"Fetch from {remote}", "refresh"), it("pull", "Pull (fast-forward only)", "down"),
+        it("push", f"Push to {remote}", "up", "never forced"),
         menus.SEP,
         menus.item("tab", "Open the Git tab", "branch", event="pj:git"), remotes)
 
 
-def actions(p, base: str, hidden, stop_n: int) -> list[dict]:
+def actions(p, base: str, hidden, stop_n: int, remote: str) -> list[dict]:
     """Head actions: Launch agent (the one green; pm7.launch dialog, else the launch page), Git ▾ (a menu), Restart
     stack (a compose stack only), Stop agents (typed PANIC; disabled without live agents)."""
     out = [{"label": "Launch agent", "icon": "plus", "href": f"{base}/launch", "pri": True,
             "title": f"Launch an agent in {p.name}", "attrs": {"data-pj-launch": p.name}},
            {"label": "Git", "icon": "branch", "title": f"Git actions for {p.name}",
-            "attrs": {"data-menu": json.dumps(git_menu(p.name, p.git)), "aria-haspopup": "menu",
+            "attrs": {"data-menu": json.dumps(git_menu(p.name, p.git, remote)), "aria-haspopup": "menu",
                       "aria-expanded": "false", "data-pj-git": p.name}}]
     out.append({"label": "Settings", "icon": "gear", "title": f"Project settings of {p.name}",
                 "attrs": {"data-pj-settings": f"{base}/settings/panel"}})
@@ -248,8 +250,8 @@ def actions(p, base: str, hidden, stop_n: int) -> list[dict]:
     return out
 
 
-def stats(p, n: int, running: int, need: int) -> list:
-    br, summary, tone = git_parts(p.git)
+def stats(p, n: int, running: int, need: int, remote: str) -> list:
+    br, summary, tone = git_parts(p.git, remote)
     out: list = [plural(n, "agent"), f"{running} running"]
     if need:
         out.append({"text": f"{need} need{'s' if need == 1 else ''} you", "cls": "warn"})
@@ -259,14 +261,14 @@ def stats(p, n: int, running: int, need: int) -> list:
     return out
 
 
-def tiles(ctx: Mapping, p, n: int, running: int, need: int, unread: int) -> list[Tile]:
-    _, summary, tone = git_parts(p.git)
+def tiles(ctx: Mapping, p, n: int, running: int, need: int, unread: int, remote: str) -> list[Tile]:
+    br, summary, tone = git_parts(p.git, remote)
     todo, backlog, st = ctx.get("todo") or {}, ctx.get("backlog") or {}, p.stack
     t_open, t_all = int(todo.get("open_n") or 0), int(todo.get("total") or 0)
     agents_sub = (f"{need} need you · " if need else "") + f"{unread} unread"
     return [
         Tile("agents", "Agents", str(n), f"{running} running", agents_sub, "warn" if need else ""),
-        Tile("git", "Git", git_parts(p.git)[0], "", summary, tone),
+        Tile("git", "Git", br, "", summary, tone),
         Tile("todo", "TODO", str(t_open) if t_all else "–", f"open of {t_all}" if t_all else "",
              "refused: symlink" if todo.get("blocked") else ("TODO.md" if t_all else "no TODO items")),
         issues_tile(backlog),
@@ -454,12 +456,14 @@ def build(ctx: Mapping, settings, now: float | None = None) -> ProjectView:
         t["cur"] = t["key"] == cur
     sd = side(ctx, p.name, now, window)
     plans, plans_total = plan_rows(ctx, base, now)
+    remote = settings.push_remote if settings is not None else ""
     return ProjectView(
-        name=p.name, path=p.path, base=base, cur_tab=cur, navc=navc, stats=stats(p, n, running, need),
-        actions=actions(p, base, hidden, len(ctx.get("stop_agents") or ())),
-        tiles=tiles(ctx, p, n, running, need, unread), tabs=tab_items, side=sd, side_total=len(sd),
+        name=p.name, path=p.path, base=base, cur_tab=cur, navc=navc, stats=stats(p, n, running, need, remote),
+        actions=actions(p, base, hidden, len(ctx.get("stop_agents") or ()), remote),
+        tiles=tiles(ctx, p, n, running, need, unread, remote), tabs=tab_items, side=sd, side_total=len(sd),
         groups=agent_groups(ctx, settings, now, window), ended=ended_rows(ctx, now),
-        ended_total=int(ctx.get("ended_total") or 0), agents_n=n, need=need, plans=plans, plans_total=plans_total,
+        ended_total=int(ctx.get("ended_total") or 0), agents_n=n, need=need, remote=remote, plans=plans,
+        plans_total=plans_total,
         docs=docs(ctx, base, hidden), hidden=hidden, links=link_groups(ctx),
         sessions=None if "live" in hidden else sessions(ctx, p, settings, now))
 

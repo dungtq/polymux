@@ -17,7 +17,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from pm.core import prefs
 from pm.core.models import AgentKind
-from pm.git import ctl as gitctl
 from pm.infra import servers_store, sshkeys
 from pm.security.passkey import manager_of
 from pm.web.plugins import settings_sections_html
@@ -35,7 +34,7 @@ def context(request: Request) -> dict:
         prefs=prefs.load(st.settings.prefs_file), agents=AGENTS,
         pm_key=sshkeys.managed_key(st.settings), user_keys=sshkeys.user_keys(st.settings),
         servers=servers_store.load(st.settings), srv_results=servers_store.RESULTS,
-        git_hosts=st.settings.git_allowed_hosts, gitdev=gitctl.REMOTE,
+        git_hosts=st.settings.git_allowed_hosts,
         notify_rules=prefs.NOTIFY_RULES, composer=prefs.composer_prefs(st.settings), now=time.time(),
         plugin_sections=settings_sections_html(request))
 

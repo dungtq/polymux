@@ -127,6 +127,10 @@ def test_classify():
     assert c("done\n│ > \n  ? for shortcuts")[0] is I
     assert c("")[0] is U
     assert c("hello world")[0] is U
+    cur = lambda t: classify_pane_text(t, AgentKind.CURSOR)[0]  # noqa: E731
+    assert cur("done\n\n  → Add a follow-up\n\n  Grok 4.7 · 86.3%\n  ~/proj · main") is I
+    assert cur("  → Plan, search, build anything\n  ~/proj · main") is I
+    assert cur("  → Add a follow-up\n  ctrl+c to stop") is R
     for t in ("Allow?", "esc to interrupt", "Error: x"):
         assert 0 < c(t)[1] < 1
 
@@ -278,3 +282,18 @@ def test_failed_line_is_the_newest_failing_line():
     assert failed_line("ok\nError: first\nmore\nAPI Error: 529 overloaded\n> ") == "API Error: 529 overloaded"
     assert failed_line("all good\n> ") == "" and failed_line(None) == ""
     assert failed_line("Error: too old\n" + "x\n" * 10) == ""  # only the tail counts, like classify_pane_text
+
+
+def test_dead_pane_is_never_an_agent(tmp_path):
+    """A pane kept after its process exited (remain-on-exit window) is skipped even when its old pid now
+    belongs to a live agent process (pid reuse); the live pane next to it is still found."""
+    import dataclasses
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    mkproc(proc, 1, 0, "init", ["init"])
+    mkproc(proc, 22, 1, "codex", ["/home/u/.local/bin/codex"])
+    mkproc(proc, 30, 1, "codex", ["/home/u/.local/bin/codex"])
+    dead = dataclasses.replace(pane(22, 1), dead=True)
+    a = detect_agents([dead, pane(30, 2)], sessions_dir=tmp_path / "none", proc_root=proc, home=tmp_path / "h")
+    assert [x.pane_id for x in a] == ["%2"]
+    assert detect_agents([dead], sessions_dir=tmp_path / "none", proc_root=proc, home=tmp_path / "h") == []

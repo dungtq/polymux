@@ -1,8 +1,9 @@
 """Cursor agent: ``~/.cursor/chats/<md5(cwd)>/<chat uuid>/store.db`` (SQLite).
 
-The chat dir is md5 of the cwd; the newest ``store.db`` (by stat, including its
-``-wal``) wins. The DB is opened read-only (``mode=ro``) and only JSON blobs
-(``{"role": ...}`` rows, at most 256 KB in total, newest first) are read.
+A live process is the ``store.db`` it has open (its fd). With no process, the newest
+``store.db`` in that cwd's chat dir wins (stat, including its ``-wal``). The DB is
+opened read-only (``mode=ro``) and only JSON blobs (``{"role": ...}`` rows, at most
+256 KB in total, newest first) are read.
 
 ``read_entries`` (pm.chat.log) walks the JSON blobs by rowid: user rows (the ``<user_query>``
 part; ``<user_info>`` context rows are skipped), assistant rows (``text``, ``reasoning`` as
@@ -23,6 +24,7 @@ from .common import (
     CHUNK_ROWS,
     FIRST_ROWS,
     TAIL_BYTES,
+    UUID_RE,
     Chunk,
     Latest,
     RawEntry,
@@ -35,6 +37,7 @@ from .common import (
 _RECENT = 6
 _MAX_ROWS = 80
 _MAX_BLOB = 128 * 1024
+_FD_CAP = 512
 
 
 def chat_dir(cwd: str, home: Path) -> Path:
@@ -42,9 +45,7 @@ def chat_dir(cwd: str, home: Path) -> Path:
     return home / ".cursor" / "chats" / hashlib.md5(cwd.encode()).hexdigest()
 
 
-def locate(cwd: str, home: Path) -> Path | None:
-    if not cwd:
-        return None
+def _newest(cwd: str, home: Path) -> Path | None:
     base = chat_dir(cwd, home)
     try:
         names = os.listdir(base)
@@ -57,6 +58,47 @@ def locate(cwd: str, home: Path) -> Path | None:
         if m and (best is None or m > best[0]):
             best = (m, db)
     return best[1] if best else None
+
+
+def _from_fds(pid: int, cwd: str, home: Path, proc_root: Path) -> Path | None:
+    """``store.db`` this process has open under this cwd's chat dir; None when it has none."""
+    base = chat_dir(cwd, home)
+    try:
+        names = os.listdir(proc_root / str(pid) / "fd")
+    except OSError:
+        return None
+    prefix = str(base) + os.sep
+    best: tuple[float, Path] | None = None
+    for n in names[:_FD_CAP]:
+        try:
+            target = os.readlink(proc_root / str(pid) / "fd" / n)
+        except OSError:
+            continue
+        if target.endswith("-wal") or target.endswith("-shm"):
+            target = target[:target.rfind("-")]
+        if not target.startswith(prefix) or not target.endswith(os.sep + "store.db"):
+            continue
+        chat = target[len(prefix):-len(os.sep + "store.db")]
+        if not UUID_RE.fullmatch(chat):
+            continue
+        db = base / chat / "store.db"
+        t = mtime(db)
+        if t and (best is None or t > best[0]):
+            best = (t, db)
+    return best[1] if best else None
+
+
+def locate(cwd: str, home: Path, pid: int = 0, proc_root: Path | None = None) -> Path | None:
+    """Chat store for ``cwd``.
+
+    ``pid > 1``: the ``store.db`` that process has open. None when it has not opened one yet,
+    so a new agent is not bound to another chat that is merely the newest file in the directory.
+    No live process: the newest ``store.db`` (including its ``-wal``)."""
+    if not cwd:
+        return None
+    if pid > 1:
+        return _from_fds(pid, cwd, home, proc_root or Path("/proc"))
+    return _newest(cwd, home)
 
 
 def _connect(path: Path) -> sqlite3.Connection:

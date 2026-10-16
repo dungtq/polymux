@@ -83,15 +83,22 @@ tmux display-message -p '#{version}'   # running server
 Then pin the absolute path in `pm.toml`:
 
 ```toml
-tmux_bin = "/home/you/.local/share/mise/installs/tmux/3.5a/tmux"
+tmux_bin = "/home/<user>/.local/share/mise/installs/tmux/3.5a/tmux"
 ```
 
 Update it and restart pm after every tmux upgrade.
 
 ### git remote name
 
-pm's git panel fetches, pulls and pushes the remote named `gitdev`. In each
-project, add your push remote under that name:
+pm's git panel fetches, pulls and pushes one remote per project: the one named
+by `push_remote` in pm.toml (default `origin`). Use another name when your
+projects keep their push remote under it:
+
+```toml
+push_remote = "gitdev"
+```
+
+and add that remote in each project:
 
 ```sh
 git remote add gitdev git@git.example.lan:you/project.git
@@ -185,10 +192,11 @@ yourself; pm never edits it.
 
 ## 10. tmux-agents (optional)
 
-`deploy/tmux-agents/` holds a small bash script that prints the pm agent id
-of the current pane (`tmux-agents id`) and can also spawn agents in tmux and
-pass messages between them. pm uses only `id`: `pmctl` records it as the
-author of a tracker change.
+`deploy/tmux-agents/` holds a single-file Python script that prints the pm
+agent id of the current pane (`tmux-agents id`). It can also spawn agents in
+their own tmux windows, pass messages between them, and coordinate parallel
+work through `pmctl claim` and `pmctl merge-check`. pm uses only `id`: `pmctl`
+records it as the author of a tracker change.
 
 ```sh
 install -m 755 deploy/tmux-agents/tmux-agents ~/.local/bin/tmux-agents

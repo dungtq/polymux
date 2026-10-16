@@ -1,11 +1,14 @@
 """POST /a/{id}/ask: free-text answer / note into an open AskUserQuestion form (keys worked out from the pane)."""
 import hashlib
+from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from helpers import audit_text, fake, mk_client, post, snap_with  # noqa: F401  (fake is a fixture)
 
 from pm.agents import message as msg
-from pm.core.models import Tier
+from pm.chat.ask import find_ask
+from pm.core.models import AgentKind, Tier
 from pm.tmux import ctl as tmuxctl
 from pm.web.routes import ask as routes_ask
 
@@ -31,6 +34,26 @@ def keys_sent(calls):
 
 def typed(calls):
     return [a[-1] for a in calls if a[:2] == ["send-keys", "-l"]]
+
+
+@pytest.mark.parametrize("fixture,index,keys", [
+    ("codex_folder_trust.txt", 0, ["1", "Enter"]),
+    ("codex_folder_trust.txt", 1, ["2"]),
+    ("codex_hooks_review.txt", 0, ["1"]),
+    ("codex_hooks_review.txt", 1, ["2", "Enter"]),
+    ("codex_hooks_review.txt", 2, ["3"]),
+])
+def test_codex_startup_choice_delivery(fake, monkeypatch, fixture, index, keys):
+    st, calls, agent = fake
+    agent = replace(agent, id="codex-1", kind=AgentKind.CODEX)
+    pane = (Path(__file__).resolve().parent.parent / "fixtures" / "chat" / fixture).read_text().splitlines()
+    c, tok, st, calls = client((st, calls, agent), monkeypatch, pane)
+    ask, _ = find_ask(pane)
+    r = post(c, tok, "/a/codex-1/key", key=ask.options[index].key)
+    assert r.status_code == 200
+    assert keys_sent(calls) == keys and not typed(calls)
+    log = audit_text(st)
+    assert "agent_key" in log and "Trust and continue" not in log and "Hooks need review" not in log
 
 
 def test_other_answer_presses_type_something_then_text(fake, monkeypatch):

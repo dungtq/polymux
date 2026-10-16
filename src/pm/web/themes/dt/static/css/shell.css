@@ -181,7 +181,11 @@ html body.x.x-embed>.x-main{overflow:visible}
 .x-embed .x-page{max-width:none;padding:var(--s2) var(--s3) 0}
 .x-lock{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);padding:var(--s2) var(--s5);
   border-bottom:1px solid var(--line);background:var(--waiting-soft);color:var(--waiting-fg);font-size:var(--fs-ui)}
-.x-lock>svg.i{width:var(--icon-sm);height:var(--icon-sm)}
+.x-lock>svg.i{flex:none;width:var(--icon-sm);height:var(--icon-sm)}
+/* reload bar text keeps a real basis: on a phone it stays on the icon's line and wraps inside itself; the
+   unlock bar keeps its packed look */
+.x-rl>.x-lock-t{flex:1 1 12em;min-width:0;overflow-wrap:anywhere}
+.x-rl>svg.i{align-self:flex-start;margin-top:calc((1lh - var(--icon-sm)) / 2)}  /* level with line 1 */
 .x-lock-f{display:flex;gap:var(--s2);margin:0}
 .x-lock input.x-in:not([type=checkbox]){width:9em}
 .x-lock-msg{flex-basis:100%;color:var(--fg)}

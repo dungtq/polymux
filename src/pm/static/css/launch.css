@@ -24,6 +24,8 @@
 .launch-compact .f-custom, .launch-compact .f-count, .launch-compact .mode-help, .launch-compact .bypass-warn, .launch-compact .f-prompt, .launch-compact .more-opts, .launch-compact .launch-actions { grid-column: 1 / -1; }
 .launch-compact .f-count { display: none; }
 .launch-compact .mode-help, .launch-compact .f-hint { margin: 0; font-size: 12px; }
+/* the hint's "Launch in <project>" switch: an inline text link (.textlink), one line, ellipsis on a long name */
+.f-hint .textlink { font-size: inherit; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; text-align: left; }
 .launch-compact .mode-help:empty { display: none; }
 .launch-compact .bypass-warn { font-size: 12px; padding: 6px 8px; margin: 0; }
 .launch-compact .bypass-warn p { margin: 0 0 4px; }
@@ -87,3 +89,9 @@
 [data-composer=launch] .cbox textarea { min-height: 6.5em; }
 [data-composer=launch] .slash-list { top: 100%; bottom: auto; margin: var(--s1) 0 0; }
 [data-composer=launch] .flash-inline:empty { display: none; }
+/* touch: the hint's "Launch in" link gets a --ctl-h (40px) target, same line height; the hint's margin keeps it off
+   the Project select above. Kept after the narrow-touch block above. */
+@media (pointer: coarse) {
+  .f-hint .textlink { padding: calc((var(--ctl-h) - 1lh) / 2) 0; margin: calc((1lh - var(--ctl-h)) / 2) 0; }
+  .launch-compact .f-hint { margin: var(--s1) 0; }
+}

@@ -153,12 +153,9 @@ Plain `http://` works only on `127.0.0.1` / `localhost`, because the session
 cookie is `Secure`. For any other address put pm behind a TLS reverse proxy
 (see [docs/INSTALL.md](docs/INSTALL.md)).
 
-pm's git panel fetches, pulls and pushes the remote named `gitdev`. Add your
-push remote under that name in each project:
-
-```sh
-git remote add gitdev git@git.example.lan:you/project.git
-```
+pm's git panel fetches, pulls and pushes one remote per project: `origin`
+unless pm.toml sets another name with `push_remote` (see
+[docs/CONFIG.md](docs/CONFIG.md)). Push is never forced.
 
 ## Requirements
 

@@ -26,7 +26,8 @@ from .kit import render_launch_form
 THEME = themes.HERE / "dt"
 NOW = 1_000_000.0
 SETTINGS = SimpleNamespace(idle_after_s=28800, dev_root="/srv/dev", project_templates=[{"name": "empty"}],
-                           git_remote_template="git@git.example:dt/{name}.git", allow_bypass=False)
+                           git_remote_template="git@git.example:dt/{name}.git", allow_bypass=False,
+                           push_remote="gitdev")
 
 
 def ag(id_, project, state=AgentState.RUNNING):
@@ -36,7 +37,7 @@ def ag(id_, project, state=AgentState.RUNNING):
 
 AGENTS = [ag("claude-aaaaa1", "alpha"), ag("codex-bbbbb2", "alpha", AgentState.WAITING),
           ag("claude-ccccc3", "beta", AgentState.IDLE)]
-ALPHA = Project("alpha", "/srv/dev/alpha", git=GitStatus("main", dirty=3, ahead=1, behind=2, has_gitdev=True),
+ALPHA = Project("alpha", "/srv/dev/alpha", git=GitStatus("main", dirty=3, ahead=1, behind=2, has_remote=True),
                 todo=TodoProgress(1, 3), stack=StackStatus(1, 2), agent_ids=("claude-aaaaa1", "codex-bbbbb2"))
 BETA = Project("beta", "/srv/dev/beta", git=GitStatus(None), agent_ids=("claude-ccccc3",))
 GAMMA = Project("gamma site", "/srv/dev/gamma site")
@@ -111,6 +112,8 @@ def test_rows():
     assert a.meta == "main · 3 dirty · 2 agents · TODO 1/3" and g.meta == "no git"
     assert b.branch == "no branch" and b.pinned and not a.pinned and b.active == ""
     assert g.href == "/p/gamma%20site" and g.git_title == "Not a git repository"
+    assert "no gitdev remote" not in a.git_title and b.git_title.endswith("no gitdev remote")  # pm.toml push_remote
+    assert build().remote == "gitdev"
 
 
 def test_row_menu_pin_is_a_guarded_post():
@@ -150,7 +153,7 @@ def test_new_form():
         {"name": "uv", "description": "Python", "files": {"a.py": "x"}}]}))
     assert nf.root == "/srv/dev" and nf.templates == [{"name": "uv", "description": "Python"}]
     assert "other" not in nf.kinds and "claude" in nf.kinds and "claude" in nf.modes
-    assert nf.remote == "git@git.example:dt/<name>.git"
+    assert nf.remote == "git@git.example:dt/<name>.git" and nf.remote_name == "gitdev"
 
 
 def test_bind_never_raises(monkeypatch):
@@ -228,13 +231,14 @@ def test_page_and_dialog(env):
         assert hook in html
 
 
-def test_gitdev_remote_box_off_when_not_configured(env):
+def test_remote_box_off_when_not_configured(env):
     def box(settings):
         env.globals["dt_projects"] = lambda part="list": projects.new_form(settings)
         html = env.get_template("projects/_new.html").render(csrf="tok")
         return re.search(r'<label class="p-chk[^"]*"[^>]*>\s*<input type="checkbox" name="remote"[^>]*>', html).group(0)
     on = box(SETTINGS)
     assert " checked" in on and "disabled" not in on and "data-pj-never" not in on
+    assert "<code>gitdev</code> remote" in env.get_template("projects/_new.html").render(csrf="tok")
     off = box(SimpleNamespace(**{**vars(SETTINGS), "git_remote_template": ""}))
     assert " checked" not in off and " disabled" in off and "data-pj-never" in off and "p-chk off" in off
     js = (THEME / "static" / "js" / "newproject.js").read_text()

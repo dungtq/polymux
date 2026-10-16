@@ -1,6 +1,6 @@
 """dt project view, Git / Stack / VMs tabs (docs/themes/dt/PRD.md §6.4, PARTS.md §14): the VMs view model
 (pm.web.dt.pjops), the dt _project_vms.html fragment, the three tab partials (content only, own assets), and the
-rules of their scripts: every git mutation asks the plan first, push is gitdev's route only, no force path, no
+rules of their scripts: every git mutation asks the plan first, push is the push remote's route only, no force path, no
 innerHTML, no own fetch / timer. The shared helpers of js/pjops.js (params, result) run in node."""
 
 from __future__ import annotations

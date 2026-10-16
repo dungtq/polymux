@@ -11,7 +11,19 @@ from pathlib import Path
 from pm.core import db, timefmt
 from pm.core.config import Settings, load_settings
 from pm.core.errors import Invalid, NotFound
-from pm.projects.tracker import cli_docs, gitglue, issues, mdgen, mdimport, resolve, schema, store, views
+from pm.projects.tracker import (
+    cli_claims,
+    cli_docs,
+    cli_memory,
+    gitglue,
+    issues,
+    mdgen,
+    mdimport,
+    resolve,
+    schema,
+    store,
+    views,
+)
 
 MAX_INPUT = store.MAX_BODY + 1
 
@@ -306,6 +318,7 @@ def do_backup(ctx: Ctx) -> int:
 
 COMMANDS = {"issue": issue, "backlog": issue, "todo": todo, "render": render, "import": do_import, "hooks": hooks,
             "change": cli_docs.change, "feature": cli_docs.feature,
+            "claim": cli_claims.claim, "merge-check": cli_claims.merge_check, "memory": cli_memory.memory_cmd,
             "backup": do_backup}
 
 
