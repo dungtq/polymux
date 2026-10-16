@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Antigravity file links read cleanly in chat)
+
+Links like [name](file:///path#L1-L3), which the Antigravity (agy) agent writes, no longer show as raw brackets and a URL in chat bubbles. They show as the name, with the path as a tooltip. They are not clickable.
+
 ## 2026-10-17 (Antigravity chat sync and plan usage limits)
 
 - **Antigravity chat sync** — `antigravity.read_entries` and `read_latest` wait for in-progress streaming steps (`CORTEX_STEP_STATUS` 1/2/8/9 in field 4 of `step_payload`) to finish before advancing the ingest cursor, so replies and tool calls are never truncated mid-stream or dropped during the thinking phase (`items.FORMAT = 4`, `log.FORMAT = 2` re-ingest earlier truncated conversations). `locate` also matches open `presence/<uuid>.lock` file descriptors when `agy` is idle, and `classify_pane_text` recognizes Antigravity's 8-dot braille spinner and `esc to cancel` footer as `RUNNING`. (`src/pm/chat/sources/antigravity.py`, `src/pm/chat/items.py`, `src/pm/chat/log.py`, `src/pm/agents/state.py`, `tests/test_antigravity.py`)
