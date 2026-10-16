@@ -22,12 +22,16 @@ def strip_wrappers(text: str) -> str:
     return _WRAP.sub("", text or "").strip("\n")
 
 
-# A message another agent sent with `tmux-agents` (request / reply / no-reply notice), as that tool pastes it.
-_PEER_REQ = re.compile(r"\A\[tmux-agents request id=(\S+) from ([^\]\n]+)\]\n(.*?)\n*---\nWhen you have finished,.*\Z", re.S)
-_PEER_REPLY = re.compile(r"\A\[tmux-agents reply id=(\S+) from (.+?) status=(\w+)\][ \n](.*)\Z", re.S)
-_PEER_NOTICE = re.compile(r"\A(.*?)\n*\[tmux-agents id=(\S+) from ([^\]\n]+?), no reply expected\]", re.S)
+# Messages other agents sent with `tmux-agents` (request / reply / no-reply notice), as that tool pastes them; several
+# queued ones can arrive as one user message.
+_NOTE = r"(?:\s*\[\d+ older message\(s\) for you[^\]]*\])?"
+_NEXT = r"\[tmux-agents (?:request|reply) "
+_PEER_REQ = re.compile(r"\[tmux-agents request id=(\S+) from ([^\]\n]+)\]\n(.*?)---\nWhen you have finished,.*?(?:say why\.|\Z)" + _NOTE, re.S)
+_PEER_REPLY = re.compile(r"\[tmux-agents reply id=(\S+) from (.+?) status=(\w+)\][ \n]((?:(?!\n" + _NEXT + r").)*)", re.S)
+_PEER_NOTICE = re.compile(r"((?:(?!" + _NEXT + r").)*?)\[tmux-agents id=(\S+?)(?: from ([^\]\n]+?))?, no reply expected\]" + _NOTE, re.S)
 _PEER_ID = re.compile(r"\b(?:pm id=)?((?:claude|codex|devin|cursor-agent|antigravity)-[0-9a-f]{6})\b")
 _PEER_NAME = re.compile(r"name=([^,)]+)")
+_PEER_NOTE_END = re.compile(r"\[\d+ older message\(s\) for you[^\]]*\]\s*\Z")
 PEER_KINDS = ("claude", "codex", "devin", "cursor-agent", "antigravity")
 
 
@@ -40,24 +44,34 @@ class PeerMessage:
     status: str = ""  # reply: done | failed | blocked ...
 
 
-def parse_peer(text: str) -> PeerMessage | None:
-    """The ``tmux-agents`` message in ``text`` (the whole message), else None."""
-    t = strip_wrappers(text or "").strip()
-    if not t.startswith("[tmux-agents ") and "[tmux-agents id=" not in t[-300:]:
-        return None
-    if m := _PEER_REQ.match(t):
-        role, who, body, status = "request", m.group(2), m.group(3), ""
-    elif m := _PEER_REPLY.match(t):
-        role, who, body, status = "reply", m.group(2), m.group(4), m.group(3)
-    elif m := _PEER_NOTICE.match(t):
-        role, who, body, status = "notice", m.group(3), m.group(1), ""
-    else:
-        return None
-    body = re.sub(r"\n*\[\d+ older message\(s\) for you[^\]]*\]\s*\Z", "", body).strip()
+def _peer(role: str, who: str, body: str, status: str = "") -> PeerMessage:
     pid, name = _PEER_ID.search(who), _PEER_NAME.search(who)
     sender = pid.group(1) if pid else (name.group(1).strip() if name else who.strip())
     kind = next((k for k in PEER_KINDS if pid and pid.group(1).startswith(k + "-")), "other")
-    return PeerMessage(role, sender, kind, body, status)
+    return PeerMessage(role, sender, kind, _PEER_NOTE_END.sub("", body).strip(), status)
+
+
+def parse_peers(text: str) -> list[PeerMessage] | None:
+    """The ``tmux-agents`` messages that make up ``text`` (all of it), in order; None when any part is not one."""
+    t = strip_wrappers(text or "").strip()
+    if "[tmux-agents " not in t:
+        return None
+    out: list[PeerMessage] = []
+    pos = 0
+    while pos < len(t):
+        pos += len(t[pos:]) - len(t[pos:].lstrip())
+        if pos >= len(t):
+            break
+        if m := _PEER_REQ.match(t, pos):
+            out.append(_peer("request", m.group(2), m.group(3)))
+        elif m := _PEER_REPLY.match(t, pos):
+            out.append(_peer("reply", m.group(2), m.group(4), m.group(3)))
+        elif m := _PEER_NOTICE.match(t, pos):
+            out.append(_peer("notice", m.group(3) or "agent", m.group(1)))  # older tool versions sent no "from"
+        else:
+            return None
+        pos = m.end()
+    return out or None
 
 
 def clip_text(text: str, limit: int) -> str:

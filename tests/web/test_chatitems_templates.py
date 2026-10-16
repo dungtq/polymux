@@ -371,7 +371,12 @@ def test_tmux_agents_message_renders_as_message_from_bubble_in_the_senders_colou
     out = jenv.get_template("_chatitems.html").render(mode="poll", agent=_agent(), ended=False, blocks=blocks(items),
                                                      outbox=None, model_name="opus-5-5", now=3.0)
     first, second = out.split('id="i-2"')
-    assert 'class="chat-bubble ci-user ci-peer" data-kind="devin"' in first
+    assert 'class="ci-user ci-peers"' in first and 'class="chat-bubble ci-peer" data-kind="devin"' in first
     assert "Message from: <bdi" in first and "devin-44fd82" in first and "reply · done" in first
     assert "<strong>it</strong>" in first and "tmux-agents" not in first
     assert "ci-peer" not in second and "<strong>You</strong>" in second
+    two = "n1\n\n[tmux-agents id=1-1 from pane %1 (pm id=codex-37cdc3), no reply expected]\n\n[tmux-agents reply id=2-2 from claude-aaaaaa status=done]\nr2"
+    out = jenv.get_template("_chatitems.html").render(
+        mode="poll", agent=_agent(), ended=False, outbox=None, model_name="opus-5-5", now=3.0,
+        blocks=blocks([ChatItem(seq=1, rev=1, uid="a", conv="c", kind="user", turn="t", ts=1.0, text=two)]))
+    assert re.findall(r'data-kind="(\w+)"', out) == ["codex", "claude"] and out.count('id="i-1"') == 1

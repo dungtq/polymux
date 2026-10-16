@@ -24,7 +24,7 @@
 (function () {
   'use strict';
   var pm = window.pm = window.pm || {};
-  var HIST_CAP = 100, HIST_SRC = '#ci .ci-user:not(.ci-peer) .chat-copy[data-raw]', SLOTS = ['[data-cmp-flash]', '[data-cmp-slash-card]'];
+  var HIST_CAP = 100, HIST_SRC = '#ci .ci-user:not(.ci-peers) .chat-copy[data-raw]', SLOTS = ['[data-cmp-flash]', '[data-cmp-slash-card]'];
 
   // ---- pure helpers (tested under node) ----
   // History: bubbles in page order, then this page's sends not shown yet; blanks dropped, consecutive repeats folded,
