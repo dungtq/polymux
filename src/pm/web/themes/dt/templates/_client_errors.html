@@ -3,7 +3,8 @@
     in the details) · foot · key hints. Rendered inside audit.html (?tab=errors, server-side first paint) and, alone,
     as the core's GET /audit/client-errors (the filter box; pm7:refresh after Clear all, the core's ce-refresh). Like
     #au-act it takes #au-head (stats, Clear all) out of band from that answer (hx-select-oob). Kind segments are links
-    (a full page load keeps the URL true). Save as pm issue (POST /p/pm/issues) and Clear all: js/audit.js.
+    (a full page load keeps the URL true). Save as issue (POST /p/<project>/issues; cv.issue = the tracker projects,
+    none = no button) and Clear all: js/audit.js.
     View model dt_audit("ce") (pm.web.dt.audit_errors). -#}
 {%- import "parts/_head.html" as ph -%}{%- import "parts/_filter.html" as pf -%}{%- import "parts/_seg.html" as ps -%}
 {%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pmenu -%}
@@ -38,7 +39,9 @@
     {{ tb.kv(r.kv) }}
     {% call tb.dacts() %}
       <button class="x-btn sm" type="button" data-au-run="copy"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}copy"/></svg>Copy message and stack</button>
-      <button class="x-btn sm" type="button" data-au-issue data-au-title="{{ r.issue_title }}" data-au-body="{{ r.issue_body }}" title="Add an issue to the pm project with this error"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg>Save as pm issue</button>
+      {%- if cv.issue %}
+      <button class="x-btn sm" type="button" data-au-issue data-au-title="{{ r.issue_title }}" data-au-body="{{ r.issue_body }}"{% if cv.issue.project %} data-au-project="{{ cv.issue.project }}"{% else %} data-au-projects="{{ cv.issue.projects }}"{% endif %} title="{{ cv.issue.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}plus"/></svg>{{ cv.issue.label }}</button>
+      {%- endif %}
     {% endcall %}
   {% endcall %}
   {%- endfor %}

@@ -7,6 +7,7 @@ import pytest
 from helpers import login, make_client, make_settings
 
 from pm.core.models import AuditEntry
+from pm.projects.tracker import mdimport
 from pm.security.audit import AuditLog
 from pm.web.routes import auditpage
 
@@ -83,6 +84,29 @@ def test_audit_page_context_tabs_counts_and_errors(env, monkeypatch):
     assert seen["tab"] == "activity" and seen["f_cat"] == "control" and seen["ap"].total == 1
     assert seen["tab_counts"]["errors"] == 1  # the page's one query filters both tabs ("/p/pv")
     assert seen["ap"].counts == {"all": 1, "ok": 0, "denied": 1, "refused": 0, "failed": 1, "attempt": 0}
+
+
+def test_client_errors_context_names_the_tracker_projects(env, monkeypatch):
+    """``issue_projects``: where a client error can be saved as an issue (main projects with a tracker BACKLOG)."""
+    s, c = env
+    login(s, c)
+    seen = {}
+    real = auditpage.ce_ctx
+
+    async def spy(*a, **kw):
+        seen.update(await real(*a, **kw))
+        return seen
+
+    monkeypatch.setattr(auditpage, "ce_ctx", spy)
+    assert c.get("/audit?tab=errors").status_code == 200 and seen["issue_projects"] == []
+    for name in ("zeta", "alpha", "plain"):
+        (s.dev_root / name).mkdir()
+        (s.dev_root / name / "BACKLOG.md").write_text("## Inbox\n\n- [ ] one\n")
+    for name in ("zeta", "alpha"):
+        mdimport.import_project(s, name, s.dev_root / name, files=("backlog",))
+    seen.clear()
+    assert c.get("/audit/client-errors", headers={"HX-Request": "true"}).status_code == 200
+    assert seen["issue_projects"] == ["alpha", "zeta"]
 
 
 def test_classic_page_ignores_the_tab_param(env):
