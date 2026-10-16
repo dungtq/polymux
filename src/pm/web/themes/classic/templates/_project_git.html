@@ -5,7 +5,7 @@
   <div class="pj-gitacts">
     {{ action_form(csrf, gbase ~ "/git/fetch", "Git fetch") }}
     {{ action_form(csrf, gbase ~ "/git/pull", "Git pull") }}
-    {{ action_form(csrf, gbase ~ "/git/push", "Git push", confirm="Push to gitdev?") }}
+    {{ action_form(csrf, gbase ~ "/git/push", "Git push", confirm="Push to " ~ push_remote ~ "?") }}
   </div>
   <div class="tabs pj-subtabs tabs-line" role="tablist" aria-label="Git" data-tabs-key="pm.pjgit.sub">
     <button type="button" class="tab pj-sub" role="tab" data-tab="status" aria-selected="false">Git status{% if project.git and project.git.dirty %} <span class="pj-n">{{ project.git.dirty }}</span>{% endif %}</button>
@@ -14,7 +14,7 @@
   </div>
   <section class="pj-subpanel" data-subpanel="status" data-src="{{ gbase }}/view/dirty" role="tabpanel" hidden><p class="muted small">Loading...</p></section>
   <section class="pj-subpanel" data-subpanel="history" role="tabpanel">
-    <div>{{ git_badge(project.git) }}{% if project.git and not project.git.has_gitdev %} <span class="small warn">no gitdev remote</span>{% endif %}</div>
+    <div>{{ git_badge(project.git) }}{% if project.git and not project.git.has_remote %} <span class="small warn">no {{ push_remote }} remote</span>{% endif %}</div>
     <h3 class="commits-h">Last {{ commits | length }} commit{{ '' if commits | length == 1 else 's' }}</h3>
     {% if commits %}
     <ul class="commits" aria-label="Recent commits">

@@ -11,6 +11,7 @@ from pm.core import db as pmdb
 from pm.core import executors, timefmt
 from pm.core.config import Settings, load_settings
 from pm.core.models import Agent, AgentState
+from pm.git import ctl as gitctl
 from pm.infra import snapshot as services
 from pm.notify import agentlive, alerts, events, watchdog
 from pm.notify import feed as ntfy_feed
@@ -78,9 +79,18 @@ def _ntfy_on_new(app: FastAPI, settings: Settings):
     return on_new
 
 
+def _check_push_remote(settings: Settings) -> None:
+    """pm.toml ``push_remote`` must be a git remote name pm accepts (``gitctl.check_remote_name``), else no start."""
+    try:
+        gitctl.check_remote_name(settings.push_remote)
+    except gitctl.GitDenied:
+        raise ValueError(f"pm.toml push_remote {settings.push_remote!r} is not a valid git remote name") from None
+
+
 def create_app(settings: Settings | None = None, *, plugin_eps=None) -> FastAPI:
     """The pm app. ``plugin_eps``: entry points to load instead of the installed ``pm.plugins`` (tests)."""
     settings = settings or load_settings()
+    _check_push_remote(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

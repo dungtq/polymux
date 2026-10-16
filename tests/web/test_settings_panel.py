@@ -45,7 +45,10 @@ def test_context_is_the_panel_data(fake_tmux, tmp_path):
     c, _ = _client(fake_tmux, tmp_path)
     ctx = settings_panel.context(_req(c))
     assert {"sessions", "passkeys", "prefs", "agents", "pm_key", "user_keys", "servers", "srv_results", "git_hosts",
-            "gitdev", "notify_rules", "composer", "now", "plugin_sections"} <= set(ctx)
+            "notify_rules", "composer", "now", "plugin_sections"} <= set(ctx)
+    assert "gitdev" not in ctx  # the push remote comes from page_ctx (push_remote)
+    h = c.get("/settings/panel").text
+    assert 'Default remote</span><span class="mono">origin</span>' in h and "pm pushes only to" in h
     assert "notice" not in ctx and "csrf" not in ctx  # page_ctx and notice are added by the renderer
     assert [r["current"] for r in ctx["sessions"]] == [True]
 

@@ -10,8 +10,8 @@
      an error toast and the form keeps what was typed; HTTP errors via pm7.fail. A saved settings form that changed
      a checkbox (what the page shows: tabs, Docs choices, the links row) reloads the page with #settings, which
      reopens the panel and shows the toast (one-shot pm7.store key pj.saved).
-   - remove ([data-pjr-rm]): typed remote name (V7-SEC-6; gitdev also needs confirm=gitdev at the core), then POST
-     <base>/git/remote/remove {name, confirm}.
+   - remove ([data-pjr-rm]): typed remote name (V7-SEC-6; the push remote, #pj-lay[data-pj-remote] = pm.toml
+     push_remote, also needs confirm=<name> at the core), then POST <base>/git/remote/remove {name, confirm}.
    - the pm key ⋯ (copy, Generate key) is parts.js: its refresh reloads #git-remotes (hx-get on pm7:refresh).
    Globals: pm7.pjs = {open(what: 'settings' | 'remotes', opener)}. No timer, no keydown listener. */
 (function () {
@@ -100,10 +100,10 @@
   async function remove(btn) {
     const panel = btn.closest('#git-remotes'), rn = btn.getAttribute('data-pjr-rm');
     if (!panel || !rn) return;
-    const gitdev = rn === 'gitdev';
+    const push = rn === attr('data-pj-remote');
     const ok = await pm7.confirm({ title: 'Remove remote ' + rn + ' of ' + attr('data-pj') + '?', typed: rn,
       ok: 'Remove remote', danger: true, opener: btn, undo: 'Add it again with its url to undo.',
-      body: gitdev ? 'pm pushes only to gitdev: Fetch, Pull and Push stay off until you add it again.'
+      body: push ? 'pm pushes only to ' + rn + ': Fetch, Pull and Push stay off until you add it again.'
         : 'git forgets this remote and its url. The repository on the server does not change.' });
     if (!ok) return;
     send(panel, panel.getAttribute('data-pjr') + '/git/remote/remove', { name: rn, confirm: rn }, 'Remove remote');

@@ -23,9 +23,9 @@ from .conftest import FAIL, IDLE, NOW, RUN, WAIT, agent, make_env
 from .kit import WORK, Doc, one
 
 THEME = themes.HERE / "dt"
-SETTINGS = SimpleNamespace(idle_after_s=28800, terminal_enabled=False)
+SETTINGS = SimpleNamespace(idle_after_s=28800, terminal_enabled=False, push_remote="gitdev")
 
-GIT = GitStatus("main", dirty=3, ahead=1, behind=0, has_gitdev=True)
+GIT = GitStatus("main", dirty=3, ahead=1, behind=0, has_remote=True)
 
 
 def proj(name="alpha", git=GIT, stack=None, path="/dev/alpha"):
@@ -108,17 +108,21 @@ def test_restart_stack_and_stop_disabled():
 
 
 def test_git_menu_items_ask_first():
-    items = {i["id"]: i for i in project.git_menu("alpha", GIT) if not i.get("sep")}
+    items = {i["id"]: i for i in project.git_menu("alpha", GIT, "gitdev") if not i.get("sep")}
     assert [k for k in items] == ["fetch", "pull", "push", "tab", "remotes"]
+    assert (items["fetch"]["label"], items["push"]["label"]) == ("Fetch from gitdev", "Push to gitdev")
     assert all(i["event"] == "pj:git" for i in items.values())  # js/project.js plans, confirms, then posts
     assert not any("post" in i for i in items.values())  # no direct POST from the menu: the plan comes first
-    off = {i["id"]: i for i in project.git_menu("alpha", GitStatus("main")) if not i.get("sep")}
-    assert off["push"]["disabled"] and off["push"]["why"] == "no gitdev remote" and "event" not in off["push"]
-    assert off["remotes"]["event"] == "pj:git" and off["remotes"]["note"] == "add gitdev"  # the way to add it
-    assert project.git_menu("alpha", None)[0]["disabled"]
+    off = {i["id"]: i for i in project.git_menu("alpha", GitStatus("main"), "origin") if not i.get("sep")}
+    assert off["push"]["disabled"] and off["push"]["why"] == "no origin remote" and "event" not in off["push"]
+    assert off["remotes"]["event"] == "pj:git" and off["remotes"]["note"] == "add origin"  # the way to add it
+    assert project.git_menu("alpha", None, "origin")[0]["disabled"]
     v = build()
     menu = json.loads(v.actions[1]["attrs"]["data-menu"])
     assert [i.get("id") for i in menu if not i.get("sep")] == ["fetch", "pull", "push", "tab", "remotes"]
+    assert v.remote == "gitdev" and {i.get("id"): i for i in menu}["push"]["label"] == "Push to gitdev"
+    assert project.git_parts(GitStatus("main"), "origin")[1] == "clean · no origin remote"
+    assert project.git_parts(GitStatus("main", has_remote=True), "origin")[1] == "clean · in sync"
 
 
 def test_tiles_and_tabs():
@@ -360,6 +364,7 @@ def test_page_head_settings_links_and_tmux_tab(tmux_env, monkeypatch):
     r = tmux_env.c.get("/p/alpha")
     assert r.status_code == 200, r.text[:300]
     doc = Doc(r.text)
+    assert doc.one("div", id="pj-lay")["data-pj-remote"] == "origin"  # pm.toml push_remote (js/project.js)
     gear = doc.one("button", data_pj_settings="/p/alpha/settings/panel")
     assert gear["title"] == "Project settings of alpha"
     ext = doc.one("a", href="https://docs.example/f")
@@ -407,28 +412,31 @@ def test_settings_panel_is_the_dt_override_and_saves(tmux_env):
 
 
 def test_remotes_panel_is_the_dt_override(tmux_env, monkeypatch):
-    from pm.git import ctl as gitctl
+    from pm.git import remote as gitremote
     url = "git@git.example.com:you/alpha.git"
-    monkeypatch.setattr(gitctl, "remotes", lambda _p: [gitctl.RemoteInfo("origin", url, url),
-                                                        gitctl.RemoteInfo("gitdev", url, url)])
+    monkeypatch.setattr(gitremote, "remotes", lambda _p: [gitremote.RemoteInfo("gitdev", url, url),
+                                                           gitremote.RemoteInfo("origin", url, url)])
     r = tmux_env.c.get("/p/alpha/git/remotes")
     assert r.status_code == 200
     doc = Doc(r.text)
     box = doc.one("div", id="git-remotes")
     assert box["hx-get"] == "/p/alpha/git/remotes" and box["hx-trigger"] == "pm7:refresh"
-    assert [x["data-row-id"] for x in doc.find("div", data_row_id=True)] == ["gitdev", "origin"]  # gitdev first
+    # the push remote (pm.toml push_remote, default origin) first, marked default
+    assert [x["data-row-id"] for x in doc.find("div", data_row_id=True)] == ["origin", "gitdev"]
+    chip = r.text.index('title="pm pushes only to this remote">default</span>')
+    assert r.text.index('data-row-id="origin"') < chip < r.text.index('data-row-id="gitdev"')
     rm = doc.one("button", data_pjr_rm="gitdev")
     assert rm["aria-label"] == "Remove remote gitdev" and rm["title"] == "Remove remote gitdev"
     assert doc.one("form", data_pjs_form="add")["action"] == "/p/alpha/git/remote/add"
     assert len(doc.find("form", data_pjs_form="set-url")) == 2
-    r = tmux_env.post("/p/alpha/git/remote/remove", name="gitdev", confirm="")  # gitdev wants the typed name
+    r = tmux_env.post("/p/alpha/git/remote/remove", name="origin", confirm="")  # the push remote wants the typed name
     assert Doc(r.text).one("p", data_pjs_flash=True)["data-pjs-flash"] == "bad"
 
 
 def test_remotes_panel_without_remotes_has_no_empty_table(tmux_env, monkeypatch):
     """M3: no remote = one muted line, no table (its hidden phone header left an empty band with two rules)."""
-    from pm.git import ctl as gitctl
-    monkeypatch.setattr(gitctl, "remotes", lambda _p: [])
+    from pm.git import remote as gitremote
+    monkeypatch.setattr(gitremote, "remotes", lambda _p: [])
     r = tmux_env.c.get("/p/alpha/git/remotes")
     assert r.status_code == 200 and 'role="table"' not in r.text and 'class="p-gh"' not in r.text
     assert Doc(r.text).one("p", class_="pjr-none") and "No remotes yet." in r.text
@@ -492,3 +500,11 @@ def test_pjsettings_js_and_deep_links_rules():
     for key in ("'browse'", "'view'", "'skill'", "'issues'", "'backlog'", "'issue'"):
         assert key in pj
     assert "pm7.backlog.reader(name(), issue)" in pj and "typed: n," in pj and "/tmux/close-all" in pj
+
+
+def test_scripts_take_the_remote_name_from_the_server():
+    """pm.toml push_remote: project.js / pjsettings.js read #pj-lay[data-pj-remote], pjgit.js the status JSON."""
+    js = {f: (THEME / "static" / "js" / f).read_text() for f in ("project.js", "pjsettings.js", "pjgit.js")}
+    assert not any("gitdev" in t for t in js.values())
+    assert "data-pj-remote" in js["project.js"] and "data-pj-remote" in js["pjsettings.js"]
+    assert "S.view.remote" in js["pjgit.js"]

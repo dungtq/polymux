@@ -14,9 +14,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
 from pm.core import executors
 from pm.notify import clienterrors
+from pm.projects.tracker import views as tracker_views
 from pm.security import audit_view
 from pm.security.guard import get_audit
-from pm.web.deps import AUTH, is_navigation
+from pm.web.deps import AUTH, is_navigation, settings
 from pm.web.listing import wants_fragment
 from pm.web.render import fragment, get_template, html, page_ctx
 
@@ -35,16 +36,18 @@ def _qs(kind: str, q: str, page: int) -> str:
 
 async def ce_ctx(request: Request, ce_kind: str = "all", ce_q: str = "", ce_page: int = 1) -> dict:
     """Template context of the Client errors panel: ``ce`` (raw page: rows, total, page, has_older, start),
-    ``ce_groups`` (``ClientErrorLog.grouped``), ``ce_kind``, ``ce_q``, ``kinds``, ``qs``, ``ce_page_size``.
+    ``ce_groups`` (``ClientErrorLog.grouped``), ``ce_kind``, ``ce_q``, ``kinds``, ``qs``, ``ce_page_size`` and
+    ``issue_projects`` (the tracker projects an error can be saved to as an issue; ``tracker_views.issue_projects``).
     Shared by the panel fragment and the /audit first paint; inputs are cleaned here."""
     ce_kind = ce_kind if ce_kind in clienterrors.KINDS else "all"
     ce_q = " ".join(ce_q.split())[:60]
     ce_page = min(max(ce_page, 1), 100)
-    log = clienterrors.app_log(request.app.state)
-    ce, groups = await executors.run_collectors(
-        lambda: (log.page(ce_page, ce_kind, ce_q), log.grouped(ce_page, ce_kind, ce_q)))
+    log, st = clienterrors.app_log(request.app.state), settings(request)
+    ce, groups, targets = await executors.run_collectors(
+        lambda: (log.page(ce_page, ce_kind, ce_q), log.grouped(ce_page, ce_kind, ce_q),
+                 tracker_views.issue_projects(st)))
     return dict(ce=ce, ce_groups=groups, ce_kind=ce_kind, ce_q=ce_q, kinds=clienterrors.KINDS, qs=_qs,
-                ce_page_size=clienterrors.PAGE_SIZE)
+                ce_page_size=clienterrors.PAGE_SIZE, issue_projects=targets)
 
 
 @router.get("/audit", response_class=HTMLResponse, dependencies=AUTH)

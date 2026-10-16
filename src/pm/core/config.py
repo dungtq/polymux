@@ -29,6 +29,8 @@ class Settings:
     # git remotes panel: URL hosts a project remote may point at;
     # pm.toml `git_allowed_hosts = ["git.example.lan", ...]`; also the hosts commit hashes link to. user_ssh_dir: ~/.ssh, listed read-only (*.pub only).
     git_allowed_hosts: tuple[str, ...] = ()
+    # the one remote pm's git actions fetch, pull and push (never forced); a git remote name, checked at app start
+    push_remote: str = "origin"
     user_ssh_dir: Path = Path.home() / ".ssh"
     tmux_bin: str = "tmux"
     tmux_socket: str | None = None  # -L name; tests set a private one
@@ -119,7 +121,7 @@ class Settings:
     # empty = "agent"
     actor_cmd: tuple[str, ...] = ()
     # New project dialog (projects/newproject.py): templates [{name, description, files = {"rel/path": "text"}}]
-    # ("{name}" in a file = the project name). git_remote_template: URL of the new project's gitdev remote, "{name}"
+    # ("{name}" in a file = the project name). git_remote_template: URL of the new project's push_remote, "{name}"
     # = the project name (e.g. "git@git.example.lan:me/{name}.git"); "" = the remote step is skipped
     project_templates: list = field(default_factory=lambda: [{"name": "empty"}])
     git_remote_template: str = ""

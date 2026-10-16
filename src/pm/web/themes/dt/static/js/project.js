@@ -10,8 +10,9 @@
      agents; a click on an agent row (a[data-pj-ag]) opens its chat in the aside (a modified click follows the link).
    - head: [data-pj-launch] opens the Launch dialog (pm7.launch.open({project})) when it is there; Git ▾ items fire
      pj:git {item}: fetch / pull / push first show what they will do (GET <base>/git/plan?action=, fetch: fixed
-     text), then post (a pull whose plan says "clash" uses /git/pull-stash); Restart stack (plain confirm) and Stop
-     agents (typed PANIC, POST /panic scope=project:<name>). Toasts only after the server said OK (V7-CODE-5).
+     text; the remote's name is #pj-lay[data-pj-remote], pm.toml push_remote), then post (a pull whose plan says
+     "clash" uses /git/pull-stash); Restart stack (plain confirm) and Stop agents (typed PANIC, POST /panic
+     scope=project:<name>). Toasts only after the server said OK (V7-CODE-5).
      Git ▾ Remotes… opens the remotes panel (pm7.pjs, js/pjsettings.js). tmux tab: Close all ([data-pj-closeall],
      typed project name, POST <base>/tmux/close-all, then #pj-agents refreshes and carries #pj-tmux out of band).
    - Files ([data-pj-files]): the core fragment loads on first show (once, also from #browse=); a[data-pj-in] links
@@ -36,6 +37,7 @@
   const lay = () => d.getElementById('pj-lay');
   const base = () => { const l = lay(); return l ? l.getAttribute('data-pj-base') : ''; };
   const name = () => { const l = lay(); return l ? l.getAttribute('data-pj') : ''; };
+  const remote = () => { const l = lay(); return (l && l.getAttribute('data-pj-remote')) || 'the remote'; };
   const plain = (e) => !(e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
   const label = (k) => (pm7.keys ? pm7.keys.label(k) : k);
   function load(url, target) {
@@ -211,12 +213,13 @@
       if (now && fresh) now.replaceWith(d.importNode(fresh, true));
     });
   }
-  const GIT = { fetch: 'Fetch from gitdev', pull: 'Pull (fast-forward only)', push: 'Push to gitdev' };
+  const GIT = { fetch: (r) => 'Fetch from ' + r, pull: () => 'Pull (fast-forward only)', push: (r) => 'Push to ' + r };
   async function git(act, btn) {
     if (act === 'tab') { tab('git'); return; }
     if (act === 'remotes') { if (pm7.pjs) pm7.pjs.open('remotes', btn); return; }
     if (!GIT[act]) return;
-    let p = { text: 'Fetch new commits from gitdev. Your files and branches do not change.', risk: 'safe' };
+    const rn = remote(), label = GIT[act](rn);
+    let p = { text: 'Fetch new commits from ' + rn + '. Your files and branches do not change.', risk: 'safe' };
     if (act !== 'fetch') {
       let r;
       try { r = await pm7.fetch(base() + '/git/plan?action=' + act); } catch (e) { r = null; }
@@ -225,11 +228,11 @@
       if (p.blocked) { pm7.toast(p.text, '', { ms: 4000 }); return; }
     }
     const typed = p.risk === 'typed' && p.confirm ? p.confirm : undefined;
-    const ok = await pm7.confirm({ title: GIT[act] + ' · ' + name(), body: p.text, ok: GIT[act].split(' (')[0],
+    const ok = await pm7.confirm({ title: label + ' · ' + name(), body: p.text, ok: label.split(' (')[0],
       typed: typed, opener: btn });
     if (!ok) return;
     const url = act === 'pull' && p.guard === 'clash' ? base() + '/git/pull-stash' : base() + '/git/' + act;
-    if (await post(url, typed ? { confirm: typed } : {}, GIT[act])) {
+    if (await post(url, typed ? { confirm: typed } : {}, label)) {
       const sec = d.getElementById('pj-t-git');
       if (sec && window.htmx) window.htmx.trigger(sec, 'pm7:refresh');
       refreshHead();

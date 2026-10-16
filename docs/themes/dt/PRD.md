@@ -220,8 +220,9 @@ Must: tabs Activity · Client errors; filter (action, target, detail, client); R
 (Denied red); category select; Attempts switch; Grouped / Raw (runs folded with a summary); days as headings
 with "N denied or failed"; row opens to every key, client, session, raw entries, Copy as JSON, Only this action;
 targets link (tmux id → terminal tab, agent → chat, issue → project); Export CSV. Client errors: one row per
-message and page with count, kind, pages, last seen; masked stack; Save as pm issue; Clear all (asks; never
-touches the audit log). Audit is read-only.
+message and page with count, kind, pages, last seen; masked stack; Save as issue (to the one tracker project, or
+the one picked when there are several; hidden when there is none); Clear all (asks; never touches the audit log).
+Audit is read-only.
 
 ### 6.11 Settings (page and popup, same code)
 

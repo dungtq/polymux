@@ -9,9 +9,14 @@ Never point anything here at the user's default tmux server: settings are built 
 """
 
 import base64
+import contextlib
 import dataclasses
+import os
 import re
+import socket
+import subprocess
 import time
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -64,6 +69,89 @@ def apply_site_defaults() -> None:
     for k, v in SITE.items():
         d[_INIT_FIELDS.index(k)] = v
     Settings.__init__.__defaults__ = tuple(d)
+
+
+# ------------------------------------------------------------------ test isolation (no network, no stray sockets)
+# Hosts under example.test never resolve; the session fixture in conftest.py answers them with an empty 200
+# so background ntfy threads do not log ConnectError warnings.
+FAKE_HTTP_DOMAIN = "example.test"
+
+
+def is_fake_host(host: str) -> bool:
+    host = (host or "").lower().rstrip(".")
+    return host == FAKE_HTTP_DOMAIN or host.endswith("." + FAKE_HTTP_DOMAIN)
+
+
+# ``private_tmux`` names its server ``pmtest-<pid>-<hex6>``. Only these names are ever swept;
+# ``pmtest-dev-*`` (a live dev instance), ``pmtest-fake`` and the like never match.
+PMTEST_SOCK_RE = re.compile(r"^pmtest-(\d+)-[0-9a-f]{6}$")
+
+
+def tmux_socket_dir() -> Path:
+    return Path(os.environ.get("TMUX_TMPDIR") or "/tmp") / f"tmux-{os.getuid()}"
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists, owned by someone else
+    return True
+
+
+def _server_listening(path: Path) -> bool:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as c:
+        c.settimeout(1.0)
+        try:
+            c.connect(str(path))
+        except OSError:
+            return False
+    return True
+
+
+def kill_private_tmux(name: str, path: Path | None = None) -> None:
+    """``tmux -S <socket> kill-server`` (it may already be gone), then remove the socket file."""
+    assert PMTEST_SOCK_RE.match(name), name
+    path = path or tmux_socket_dir() / name
+    with contextlib.suppress(subprocess.TimeoutExpired, OSError):
+        subprocess.run(["tmux", "-S", str(path), "kill-server"], timeout=10, check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    with contextlib.suppress(OSError):
+        path.unlink(missing_ok=True)
+
+
+def sweep_pmtest_sockets(sock_dir: Path | None = None) -> int:
+    """Remove ``pmtest-<pid>-<hex6>`` sockets left by this run or by a pytest process that is gone.
+
+    A live other pid (another pytest in another worktree) is left alone. A dead server's socket is just
+    unlinked; ``kill-server`` only runs when something still listens on it. Returns how many were removed.
+    """
+    sock_dir = sock_dir or tmux_socket_dir()
+    try:
+        names = os.listdir(sock_dir)
+    except OSError:
+        return 0
+    me, alive, n = os.getpid(), {}, 0
+    for name in names:
+        m = PMTEST_SOCK_RE.match(name)
+        if not m:
+            continue
+        pid = int(m.group(1))
+        if pid != me:
+            if pid not in alive:
+                alive[pid] = _pid_alive(pid)
+            if alive[pid]:
+                continue
+        path = sock_dir / name
+        if _server_listening(path):
+            kill_private_tmux(name, path)
+        else:
+            with contextlib.suppress(OSError):
+                path.unlink(missing_ok=True)
+        n += 1
+    return n
 
 
 # ------------------------------------------------------------------ settings / app / login

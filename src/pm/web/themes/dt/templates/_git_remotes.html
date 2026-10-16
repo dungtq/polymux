@@ -1,16 +1,16 @@
 {#- dt override of the core's remotes panel (pm.web.render.git_remotes_html: GET /p/<name>/git/remotes, the answer of
     POST .../git/remote/add | set-url | remove, and the Git block of _project_settings.html). Context: project_name,
-    remotes (name, fetch_url, push_url), notice, notice_ok, gitdev, hosts, pub (pm's ssh key), csrf. A grid table:
-    Remote (gitdev first, chip "default") · Url (an inline set-url form) · remove (no table at all while there is no
-    remote: one muted line, so the phone shows no empty header band); then the add form, the url rules
-    and pm's key (⋯: copy it, or generate it). js/pjsettings.js posts the forms with pm7.fetch and swaps the panel
-    with the answer; [data-pjr-rm] asks first: typed remote name (the core also wants confirm=gitdev for gitdev).
-    The notice decides the toast (data-pjs-flash ok | bad; screen-reader only). The key's ⋯ items come from
-    dt_project("panels") (pm.web.dt.project.Panels). #git-remotes reloads itself on pm7:refresh (after Generate
-    key). -#}
+    remotes (name, fetch_url, push_url), notice, notice_ok, push_remote (page_ctx), hosts, pub (pm's ssh key),
+    csrf. A grid table: Remote (push_remote first, chip "default") · Url (an inline set-url form) · remove (no table
+    at all while there is no remote: one muted line, so the phone shows no empty header band); then the add form,
+    the url rules and pm's key (⋯: copy it, or generate it). js/pjsettings.js posts the forms with pm7.fetch and
+    swaps the panel with the answer; [data-pjr-rm] asks first: typed remote name (the core also wants
+    confirm=<name> for push_remote). The notice decides the toast (data-pjs-flash ok | bad; screen-reader only).
+    The key's ⋯ items come from dt_project("panels") (pm.web.dt.project.Panels). #git-remotes reloads itself on
+    pm7:refresh (after Generate key). -#}
 {%- import "parts/_table.html" as tb -%}{%- import "parts/_menu.html" as pm -%}
 {%- set pn = project_name | urlencode -%}{%- set panels = dt_project("panels") -%}
-{%- set ordered = (remotes | selectattr("name", "equalto", gitdev) | list) + (remotes | rejectattr("name", "equalto", gitdev) | list) -%}
+{%- set ordered = (remotes | selectattr("name", "equalto", push_remote) | list) + (remotes | rejectattr("name", "equalto", push_remote) | list) -%}
 <div id="git-remotes" class="pjr" data-pjr="/p/{{ pn }}" hx-get="/p/{{ pn }}/git/remotes" hx-trigger="pm7:refresh" hx-swap="outerHTML">
 {%- if notice %}
 <p class="vh" role="status" data-pjs-flash="{{ 'ok' if notice_ok else 'bad' }}">{{ notice }}</p>
@@ -20,7 +20,7 @@
   {{ tb.gh([{"label": "Remote"}, {"label": "Fetch url"}, {"sr": "Actions"}]) }}
   {%- for r in ordered %}
   {% call tb.row(r.name, cur=loop.first, title=("push: " ~ r.push_url) if r.push_url != r.fetch_url else none) %}
-    {% call tb.name(r.name) %}{% if r.name == gitdev %}<span class="chip" title="pm pushes only to this remote">default</span>{% endif %}{% endcall %}
+    {% call tb.name(r.name) %}{% if r.name == push_remote %}<span class="chip" title="pm pushes only to this remote">default</span>{% endif %}{% endcall %}
     {% call tb.cell("pjr-u") %}<form class="pjr-edit" method="post" action="/p/{{ pn }}/git/remote/set-url" data-pjs-form="set-url">
       <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ r.name }}">
       <input class="x-in mono" name="url" value="{{ r.fetch_url }}" maxlength="400" autocomplete="off" spellcheck="false" required aria-label="Url of {{ r.name }}">
@@ -31,16 +31,16 @@
   {%- endfor %}
 {% endcall %}
 {%- else %}
-<p class="pjr-none">No remotes yet. Add {{ gitdev }} below: pm pushes only there.</p>
+<p class="pjr-none">No remotes yet. Add {{ push_remote }} below: pm pushes only there.</p>
 {%- endif %}
 <form class="pjr-add" method="post" action="/p/{{ pn }}/git/remote/add" data-pjs-form="add">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <input class="x-in mono pjr-n" name="name" maxlength="32" placeholder="name" value="{{ '' if remotes | selectattr('name', 'equalto', gitdev) | list else gitdev }}" autocomplete="off" spellcheck="false" required aria-label="New remote name">
+  <input class="x-in mono pjr-n" name="name" maxlength="32" placeholder="name" value="{{ '' if remotes | selectattr('name', 'equalto', push_remote) | list else push_remote }}" autocomplete="off" spellcheck="false" required aria-label="New remote name">
   <input class="x-in mono" name="url" maxlength="400" placeholder="git@{{ hosts[0] if hosts else 'git.example.com' }}:owner/repo.git" autocomplete="off" spellcheck="false" required aria-label="New remote url">
   <button class="x-btn sm" type="submit">Add remote</button>
 </form>
 <p class="pjs-hint">Urls: <span class="mono">ssh://git@host/path</span> or <span class="mono">git@host:path</span>
-  {%- if hosts %} on {{ hosts | join(", ") }}{% else %}; no git host is allowed yet (pm.toml <span class="mono">git_allowed_hosts</span>){% endif %}. pm pushes only to <span class="mono">{{ gitdev }}</span>.</p>
+  {%- if hosts %} on {{ hosts | join(", ") }}{% else %}; no git host is allowed yet (pm.toml <span class="mono">git_allowed_hosts</span>){% endif %}. pm pushes only to <span class="mono">{{ push_remote }}</span>.</p>
 <div class="pjr-key">
   <span class="pjs-l">pm ssh key</span>
   {%- if pub %}

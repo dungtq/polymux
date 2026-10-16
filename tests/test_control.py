@@ -155,31 +155,50 @@ def git(*a, cwd):
                         "GIT_COMMITTER_EMAIL": "t@t"})
 
 
-def test_git_flow_and_push_gitdev_only(env, tmp_path):
-    st, *_ = env
+def _repo_with(st, tmp_path, *remotes):
     repo = st.dev_root / "proj"
     git("init", "-b", "main", cwd=repo)
     (repo / "a").write_text("1")
     git("add", "a", cwd=repo)
     git("commit", "-m", "m", cwd=repo)
-    other = tmp_path / "other.git"
-    other.mkdir()
-    git("init", "--bare", cwd=other)
-    git("remote", "add", "origin", str(other), cwd=repo)
-    app, c, sess, tok, st = client(st)
-    r = post(c, tok, "/p/proj/git/push")  # no gitdev remote -> refused
+    bares = {}
+    for name in remotes:
+        bare = tmp_path / f"{name}.git"
+        bare.mkdir()
+        git("init", "--bare", "-b", "main", cwd=bare)
+        git("remote", "add", name, str(bare), cwd=repo)
+        bares[name] = bare
+    return repo, bares
+
+
+def test_git_flow_and_push_only_to_push_remote(env, tmp_path):
+    from dataclasses import replace
+    st, *_ = env
+    repo, bares = _repo_with(st, tmp_path, "origin")
+    app, c, sess, tok, st = client(replace(st, push_remote="gitdev"))
+    r = post(c, tok, "/p/proj/git/push")  # no gitdev remote (origin is not the push remote) -> refused
     assert r.status_code == 403
-    assert not list(other.glob("refs/heads/*"))
+    assert not list(bares["origin"].glob("refs/heads/*"))
     bare = tmp_path / "bare.git"
     bare.mkdir()
     git("init", "--bare", "-b", "main", cwd=bare)
     git("remote", "add", "gitdev", str(bare), cwd=repo)
-    assert post(c, tok, "/p/proj/git/push").status_code == 200
-    assert (bare / "refs/heads/main").exists()
+    r = post(c, tok, "/p/proj/git/push")
+    assert r.status_code == 200 and "Push to gitdev ok." in r.text
+    assert (bare / "refs/heads/main").exists() and not list(bares["origin"].glob("refs/heads/*"))
     assert post(c, tok, "/p/proj/git/fetch").status_code == 200
     assert post(c, tok, "/p/proj/git/pull").status_code == 200
     log = "\n".join(audit_lines(st))
     assert "git_push" in log and "git_fetch" in log and "git_pull" in log
+
+
+def test_git_push_default_remote_is_origin(env, tmp_path):
+    st, *_ = env
+    repo, bares = _repo_with(st, tmp_path, "origin", "gitdev")
+    app, c, sess, tok, st = client(st)
+    r = post(c, tok, "/p/proj/git/push")
+    assert r.status_code == 200 and "Push to origin ok." in r.text
+    assert (bares["origin"] / "refs/heads/main").exists() and not (bares["gitdev"] / "refs/heads/main").exists()
 
 
 def test_stack_restart(env):

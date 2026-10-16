@@ -4,7 +4,8 @@
 'typed'; with 'typed' the user types ``confirm``, the object's name), ``blocked`` (why it would be refused now;
 '' = it can run), ``guard`` ('dirty' | 'behind' | 'diverged' | 'clash' | 'unmerged' | 'conflict' | '') and
 ``requires``: the extra form fields the run needs (``untracked``, ``stash``, ``ff_only``, ``unmerged``; for
-``pull``, ``stash`` means the stash-pull-pop route). Push and pull compare with gitdev as of the last fetch.
+``pull``, ``stash`` means the stash-pull-pop route). Push and pull compare with ``remote`` (pm.toml ``push_remote``,
+passed by the caller) as of the last fetch.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from pathlib import Path
 
 from pm.core.errors import Invalid, PmError
 from pm.git import ctl, ops
+from pm.git import remote as gitremote
 from pm.git.ops import StatusDetail
 
 Args = Mapping[str, object]
@@ -157,70 +159,70 @@ def plan_merge(top: Path, st: StatusDetail, branch: str) -> Plan:
                          "and nothing changes.", "typed", branch, guard="diverged", requires={"ff_only": "0"})
 
 
-def plan_branch_delete(top: Path, st: StatusDetail, name: str) -> Plan:
+def plan_branch_delete(top: Path, st: StatusDetail, name: str, remote: str) -> Plan:
     ops.local_branch(top, name)
     if st.branch == name:
         return _blocked("branch-delete", "cannot delete the current branch")
     _, unique = ops.ahead_behind(top, f"refs/heads/{name}")
     if not unique:
         return Plan("branch-delete", f"Delete branch {name}: every commit of it is in {_on(st)}.", "typed", name)
-    up = f"refs/remotes/{ctl.REMOTE}/{name}"
+    up = f"refs/remotes/{remote}/{name}"
     pushed = ops.has_ref(top, up) and ops.run(top, ["rev-list", "--count", f"{up}..refs/heads/{name}"],
                                               check=False).stdout.strip() == "0"
     return Plan("branch-delete", f"Delete branch {name}: {_n(unique, 'commit')} on it are not in {_on(st)}"
-                + (f"; {ctl.REMOTE} still has them." if pushed else " and are lost."), "typed", name, guard="unmerged",
+                + (f"; {remote} still has them." if pushed else " and are lost."), "typed", name, guard="unmerged",
                 requires={"unmerged": "1"})
 
 
-# ------------------------------------------------------------------ gitdev
-def _remote_ref(top: Path, st: StatusDetail, action: str) -> tuple[str, Plan | None]:
+# ------------------------------------------------------------------ the push remote
+def _remote_ref(top: Path, st: StatusDetail, action: str, remote: str) -> tuple[str, Plan | None]:
     if not st.branch:
         return "", _blocked(action, "detached HEAD: check out a branch first")
-    if ctl.REMOTE not in {r.name for r in ctl.remotes(top)}:
-        return "", _blocked(action, f"no {ctl.REMOTE} remote")
-    return f"refs/remotes/{ctl.REMOTE}/{st.branch}", None
+    if not gitremote.has_remote(top, remote):
+        return "", _blocked(action, f"no {remote} remote")
+    return f"refs/remotes/{remote}/{st.branch}", None
 
 
-def plan_push(top: Path, st: StatusDetail) -> Plan:
-    ref, stop = _remote_ref(top, st, "push")
+def plan_push(top: Path, st: StatusDetail, remote: str) -> Plan:
+    ref, stop = _remote_ref(top, st, "push", remote)
     if stop:
         return stop
     b = st.branch
     if not ops.has_ref(top, ref):
-        return Plan("push", f"Push {b} to {ctl.REMOTE} as a new branch. Never forced.")
+        return Plan("push", f"Push {b} to {remote} as a new branch. Never forced.")
     ahead, behind = ops.ahead_behind(top, ref)
     if ahead and behind:
-        return _blocked("push", f"{b} and {ctl.REMOTE}/{b} have diverged: merge them first (pm never force-pushes)",
+        return _blocked("push", f"{b} and {remote}/{b} have diverged: merge them first (pm never force-pushes)",
                         "diverged")
     if behind:
-        return _blocked("push", f"{ctl.REMOTE}/{b} has {_n(behind, 'new commit')}: pull first", "behind")
+        return _blocked("push", f"{remote}/{b} has {_n(behind, 'new commit')}: pull first", "behind")
     if not ahead:
-        return _blocked("push", f"nothing to push: {ctl.REMOTE}/{b} is up to date")
-    return Plan("push", f"Push {_n(ahead, 'commit')} on {b} to {ctl.REMOTE}/{b}. Never forced.")
+        return _blocked("push", f"nothing to push: {remote}/{b} is up to date")
+    return Plan("push", f"Push {_n(ahead, 'commit')} on {b} to {remote}/{b}. Never forced.")
 
 
-def plan_pull(top: Path, st: StatusDetail) -> Plan:
-    ref, stop = _remote_ref(top, st, "pull")
+def plan_pull(top: Path, st: StatusDetail, remote: str) -> Plan:
+    ref, stop = _remote_ref(top, st, "pull", remote)
     if stop:
         return stop
     b = st.branch
     if not ops.has_ref(top, ref):
-        return _blocked("pull", f"{ctl.REMOTE} has no branch {b} (fetch first)")
+        return _blocked("pull", f"{remote} has no branch {b} (fetch first)")
     ahead, behind = ops.ahead_behind(top, ref)
     if not behind:
-        return _blocked("pull", f"{b} is up to date with {ctl.REMOTE}/{b}")
+        return _blocked("pull", f"{b} is up to date with {remote}/{b}")
     if ahead:
-        return _blocked("pull", f"{b} and {ctl.REMOTE}/{b} have diverged: not a fast-forward", "diverged")
+        return _blocked("pull", f"{b} and {remote}/{b} have diverged: not a fast-forward", "diverged")
     if _busy(st):
         return _blocked("pull", "a merge is in progress", "conflict")
     incoming = set(ops.run(top, ["diff", "--name-only", "-z", f"HEAD...{ref}"]).stdout.split("\0")) - {""}
     clash = sorted(incoming & {p for f in st.files if not f.untracked for p in (f.path, f.orig) if p})
     if clash:
         return Plan("pull", f"Stash, pull and pop: your changes to {_names(clash)} clash with the incoming "
-                            f"{_n(behind, 'commit')}. pm stashes them, fast-forwards {b} from {ctl.REMOTE} and pops "
+                            f"{_n(behind, 'commit')}. pm stashes them, fast-forwards {b} from {remote} and pops "
                             "them back; if the pop clashes, the stash is kept.", "confirm", guard="clash",
                     requires={"stash": "1"})
-    return Plan("pull", f"Fast-forward {b} by {_n(behind, 'commit')} from {ctl.REMOTE}/{b}.")
+    return Plan("pull", f"Fast-forward {b} by {_n(behind, 'commit')} from {remote}/{b}.")
 
 
 # ------------------------------------------------------------------ dispatch
@@ -245,30 +247,32 @@ def _flag(args: Args, key: str) -> bool:
     return _s(args, key) in ("1", "true", "on")
 
 
-PLANS: dict[str, Callable[[Path, StatusDetail, Args], Plan]] = {
-    "stage": lambda t, st, a: plan_stage(t, st, _paths(a)),
-    "unstage": lambda t, st, a: plan_unstage(t, st, _paths(a)),
-    "discard": lambda t, st, a: plan_discard(t, st, _s(a, "path")),
-    "commit": lambda t, st, a: plan_commit(t, st, _s(a, "message")),
-    "stash": lambda t, st, a: plan_stash(t, st, _s(a, "message"), _flag(a, "untracked")),
-    "stash-pop": lambda t, st, a: plan_stash_pop(t, st, _index(a)),
-    "stash-drop": lambda t, st, a: plan_stash_drop(t, st, _index(a)),
-    "checkout": lambda t, st, a: plan_checkout(t, st, _s(a, "branch")),
-    "merge": lambda t, st, a: plan_merge(t, st, _s(a, "branch")),
-    "branch-delete": lambda t, st, a: plan_branch_delete(t, st, _s(a, "branch")),
-    "push": lambda t, st, a: plan_push(t, st),
-    "pull": lambda t, st, a: plan_pull(t, st),
+PLANS: dict[str, Callable[[Path, StatusDetail, Args, str], Plan]] = {
+    "stage": lambda t, st, a, r: plan_stage(t, st, _paths(a)),
+    "unstage": lambda t, st, a, r: plan_unstage(t, st, _paths(a)),
+    "discard": lambda t, st, a, r: plan_discard(t, st, _s(a, "path")),
+    "commit": lambda t, st, a, r: plan_commit(t, st, _s(a, "message")),
+    "stash": lambda t, st, a, r: plan_stash(t, st, _s(a, "message"), _flag(a, "untracked")),
+    "stash-pop": lambda t, st, a, r: plan_stash_pop(t, st, _index(a)),
+    "stash-drop": lambda t, st, a, r: plan_stash_drop(t, st, _index(a)),
+    "checkout": lambda t, st, a, r: plan_checkout(t, st, _s(a, "branch")),
+    "merge": lambda t, st, a, r: plan_merge(t, st, _s(a, "branch")),
+    "branch-delete": lambda t, st, a, r: plan_branch_delete(t, st, _s(a, "branch"), r),
+    "push": lambda t, st, a, r: plan_push(t, st, r),
+    "pull": lambda t, st, a, r: plan_pull(t, st, r),
 }
 
 
-def plan(path: str | Path, action: str, args: Args) -> Plan:
-    """The plan of ``action`` with ``args`` (paths / path / message / untracked / index / branch). A domain
-    refusal (unknown file, branch or stash, empty message, no author) comes back as a blocked plan."""
+def plan(path: str | Path, action: str, args: Args, *, remote: str) -> Plan:
+    """The plan of ``action`` with ``args`` (paths / path / message / untracked / index / branch); push, pull and
+    branch-delete look at ``remote``. A domain refusal (unknown file, branch or stash, empty message, no author)
+    comes back as a blocked plan."""
     if action not in PLANS:
         raise Invalid("unknown git action")
+    ctl.check_remote_name(remote)
     top = ops.top_of(path)
-    st = ops.status_at(top)
+    st = ops.status_at(top, remote=remote)
     try:
-        return PLANS[action](top, st, args)
+        return PLANS[action](top, st, args, remote)
     except PmError as e:
         return _blocked(action, str(e))

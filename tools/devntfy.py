@@ -17,13 +17,13 @@ def items(project: str) -> list[dict]:
     now = int(time.time())
     return [
         {"id": "devntfy01", "time": now - 120, "event": "message", "topic": "agent",
-         "title": "claude-7cd08a - Fix the login form", "message": "Fixed the form and added a test. All green.",
+         "title": "claude-1a2b3c - Fix the login form", "message": "Fixed the form and added a test. All green.",
          "tags": [project], "priority": 3},
         {"id": "devntfy02", "time": now - 900, "event": "message", "topic": "agent",
          "title": "codex-3fa91c - Refactor parser", "message": "Refactor done, 3 files touched.", "tags": ["/srv/other"],
          "priority": 3},
         {"id": "devntfy03", "time": now - 3600, "event": "message", "topic": "agent", "priority": 4,
-         "title": "claude-7cd08a - " + "An extremely long task title that keeps going " * 4,
+         "title": "claude-1a2b3c - " + "An extremely long task title that keeps going " * 4,
          "message": "A very long result message that must be clipped by the inbox row. " * 12,
          "tags": [project, "extra-tag"]},
         {"id": "devntfy04", "time": now - 7200, "event": "message", "topic": "agent",

@@ -146,3 +146,10 @@ def test_config_file_is_the_load_path_never_from_toml(tmp_path, warns):
     assert s.port == 9000 and s.config_file is not None and s.config_file.name != "evil.toml"
     assert s.config_file.exists() and "config_file" in " ".join(warns())
     assert Settings(config_file=missing) == Settings()  # not part of equality
+
+
+def test_push_remote_default_and_override(tmp_path, warns):
+    assert Settings().push_remote == "origin"
+    assert _load(tmp_path, 'push_remote = "gitdev"\n').push_remote == "gitdev"
+    assert _load(tmp_path, '[extras]\npush_remote = "x"\n').push_remote == "origin"  # typed key, not an extra
+    assert warns() == ["config: unknown extras key 'push_remote'"]

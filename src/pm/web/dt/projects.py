@@ -6,8 +6,8 @@
 view model (``pm.web.routes.pages.projects_page``: projects, cols, self_url, activity, ntfy_counts, stats, pins, q,
 flags, seg_counts, issue_counts, limit_*); agent states come from the poll loop's published snapshot. No file, tmux or
 network IO. ``dt_projects("new")`` is the dialog's form model (projects root, templates, agent kinds, permission
-modes, gitdev preview) from the settings only; the live plan and the run are the core's ``GET /p/new/plan`` and
-``POST /p/new/run`` (js/newproject.js).
+modes, the push remote and its URL preview) from the settings only; the live plan and the run are the core's
+``GET /p/new/plan`` and ``POST /p/new/run`` (js/newproject.js).
 
 Query parameters are the core's: ``q``, ``f`` (one segment: dirty | agents | todo | pinned), ``sort``, ``n``.
 """
@@ -88,6 +88,7 @@ class Page:
     empty_url: str | None
     empty_link: str
     self_url: str
+    remote: str  # pm.toml push_remote: what ahead / behind count against
 
 
 @dataclass(frozen=True)
@@ -96,7 +97,8 @@ class NewForm:
     templates: list[dict]  # [{name, description}]
     kinds: list[str]
     modes: dict  # launch.form_spec: {kind: {mode_label, modes: [{key, help, bypass}], extra, efforts}}
-    remote: str  # gitdev URL template with <name>, "" = not configured
+    remote: str  # git_remote_template with <name>, "" = not configured
+    remote_name: str  # pm.toml push_remote: the remote the step adds
 
 
 # ------------------------------------------------------------------ helpers
@@ -176,7 +178,7 @@ def _menu(p: Project, pinned: bool) -> list[dict]:
         menus.item("copy", "Copy folder path", "copy", copy=p.path))
 
 
-def row(p: Project, ctx: Mapping, agents: Mapping, now: float, window: float) -> Row:
+def row(p: Project, ctx: Mapping, agents: Mapping, now: float, window: float, remote: str) -> Row:
     pinned = p.name in (ctx.get("pins") or ())
     state, word = agent_state(p, agents, now, window)
     g, t, s = p.git, p.todo, p.stack
@@ -187,7 +189,7 @@ def row(p: Project, ctx: Mapping, agents: Mapping, now: float, window: float) ->
     else:
         git_title = " · ".join(x for x in (
             f"branch {branch}", f"{g.dirty} changed" if g.dirty else "clean", f"{g.ahead} ahead" if g.ahead else "",
-            f"{g.behind} behind" if g.behind else "", "" if g.has_gitdev else "no gitdev remote") if x)
+            f"{g.behind} behind" if g.behind else "", "" if g.has_remote else f"no {remote} remote") if x)
     n = len(p.agent_ids)
     meta = [(branch + (f" · {g.dirty} dirty" if g.dirty else "")) if g else "no git",
             f"{n} agent{'' if n == 1 else 's'}" if n else ""]
@@ -228,7 +230,8 @@ def build(ctx: Mapping, settings, now: float | None = None) -> Page:
     snap = services.published(settings) if settings is not None else None
     agents = {a.id: a for a in snap.agents} if snap is not None else {}
     window = float(getattr(settings, "idle_after_s", 0) or 0) or 28800.0
-    rows = [row(p, ctx, agents, now, window) for p in ctx.get("projects") or ()]
+    remote = settings.push_remote if settings is not None else ""
+    rows = [row(p, ctx, agents, now, window, remote) for p in ctx.get("projects") or ()]
     counts = ctx.get("seg_counts") or {}
     cur = flags[0] if len(flags) == 1 else ("" if not flags else None)
     segs = [{"key": k or "all", "label": lbl, "href": url_with(params, f=k or None, n=None),
@@ -240,7 +243,7 @@ def build(ctx: Mapping, settings, now: float | None = None) -> Page:
     return Page(stats=stats_of(ctx.get("stats") or "", int(ctx.get("total_all") or 0)), segs=segs, cols=cols,
                 sort=order, rows=rows, shown=shown, total=total,
                 more_url=url_with(params, n="all") if shown < total else None,
-                empty=empty, empty_url=eurl, empty_link=elink, self_url=self_url)
+                empty=empty, empty_url=eurl, empty_link=elink, self_url=self_url, remote=remote)
 
 
 def new_form(settings) -> NewForm:
@@ -250,7 +253,8 @@ def new_form(settings) -> NewForm:
     return NewForm(root=str(getattr(settings, "dev_root", "") or ""),
                    templates=[{"name": t["name"], "description": t["description"]}
                               for t in newproject.templates(settings)] if settings is not None else [],
-                   kinds=kinds, modes=launch_mod.form_spec(settings) if settings is not None else {}, remote=remote)
+                   kinds=kinds, modes=launch_mod.form_spec(settings) if settings is not None else {}, remote=remote,
+                   remote_name=settings.push_remote if settings is not None else "")
 
 
 # ------------------------------------------------------------------ Jinja global

@@ -74,10 +74,10 @@ class TmuxSession:
 class GitStatus:
     branch: str | None
     dirty: int = 0
-    ahead: int = 0  # vs gitdev/<branch>
+    ahead: int = 0  # vs <push_remote>/<branch>
     behind: int = 0
     last_commit: str = ""
-    has_gitdev: bool = False
+    has_remote: bool = False  # the repo has the push_remote (pm.toml)
     last_commit_ts: float = 0.0  # epoch seconds of HEAD commit; 0 when unknown (keep last: gitctl builds positionally)
 
 

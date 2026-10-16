@@ -9,9 +9,10 @@
       A failure stops the run there; nothing is undone and the summary says what was done and what was not.
     - First agent: kind select; model (from the Launch form's launch_data, GET /launch/form, when it can be read),
       effort and permission mode (data-pj-modes = launch.form_spec), prompt; a bypass mode needs "I understand".
-    Checkboxes send explicit 1 / 0 (the core's defaults are git, remote, readme on). The gitdev remote box is unticked
-    and disabled (data-pj-never) when pm.toml has no git_remote_template: the core would skip that step anyway. Docker stack, hostname and VM
-    fields come only with plugin steps; the core has none, so there are none here. Phone: full screen. -#}
+    Checkboxes send explicit 1 / 0 (the core's defaults are git, remote, readme on). The remote box (pm.toml
+    push_remote, nf.remote_name) is unticked and disabled (data-pj-never) when pm.toml has no git_remote_template:
+    the core would skip that step anyway. Docker stack, hostname and VM fields come only with plugin steps; the
+    core has none, so there are none here. Phone: full screen. -#}
 {%- set nf = dt_projects("new") -%}
 {%- set ic = "/static/t/dt/icons.svg#" -%}
 {%- if nf %}
@@ -33,7 +34,7 @@
       <fieldset class="pj-nfs"><legend>Files and git</legend>
         <label class="p-chk"><input type="checkbox" name="readme" value="1" checked> README.md with the project name</label>
         <label class="p-chk"><input type="checkbox" name="git" value="1" checked data-pj-git> git repository</label>
-        <label class="p-chk{{ ' off' if not nf.remote }}" data-pj-gitdep{% if not nf.remote %} data-pj-never{% endif %}><input type="checkbox" name="remote" value="1"{% if nf.remote %} checked{% else %} disabled{% endif %}> <span><code>gitdev</code> remote
+        <label class="p-chk{{ ' off' if not nf.remote }}" data-pj-gitdep{% if not nf.remote %} data-pj-never{% endif %}><input type="checkbox" name="remote" value="1"{% if nf.remote %} checked{% else %} disabled{% endif %}> <span><code>{{ nf.remote_name }}</code> remote
           {%- if nf.remote %} <small class="muted mono">{{ nf.remote }}</small>{% else %} <small class="muted">(not configured: git_remote_template in pm.toml)</small>{% endif %}</span></label>
         <label class="p-chk" data-pj-gitdep><input type="checkbox" name="commit" value="1"> First commit</label>
       </fieldset>

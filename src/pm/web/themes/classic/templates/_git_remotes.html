@@ -2,18 +2,18 @@
 {% if notice %}<p class="set-notice {{ 'ok' if notice_ok else 'warn' }}" role="status">{{ notice }}</p>{% endif %}
 <div class="gr-table" role="table" aria-label="Git remotes">
   <div class="gr-row gr-head" role="row"><span role="columnheader">Remote</span><span role="columnheader">Fetch url</span><span role="columnheader"></span></div>
-  {% for r in (remotes | selectattr("name", "equalto", gitdev) | list) + (remotes | rejectattr("name", "equalto", gitdev) | list) %}
+  {% for r in (remotes | selectattr("name", "equalto", push_remote) | list) + (remotes | rejectattr("name", "equalto", push_remote) | list) %}
   <div class="gr-row" role="row">
-    <span class="gr-name"><span class="mono" title="{{ r.name }}{% if r.push_url != r.fetch_url %} (push: {{ r.push_url }}){% endif %}">{{ r.name }}</span>{% if r.name == gitdev %} <span class="badge" title="pm pushes only to this remote">default</span>{% endif %}</span>
+    <span class="gr-name"><span class="mono" title="{{ r.name }}{% if r.push_url != r.fetch_url %} (push: {{ r.push_url }}){% endif %}">{{ r.name }}</span>{% if r.name == push_remote %} <span class="badge" title="pm pushes only to this remote">default</span>{% endif %}</span>
     <form class="gr-edit" method="post" action="/p/{{ project_name | urlencode }}/git/remote/set-url" hx-post="/p/{{ project_name | urlencode }}/git/remote/set-url" hx-target="#git-remotes" hx-swap="outerHTML">
       <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ r.name }}">
       <input class="mono" name="url" value="{{ r.fetch_url }}" maxlength="400" autocomplete="off" spellcheck="false" aria-label="Url of {{ r.name }}">
       <button type="submit" class="small">Save</button>
     </form>
-    <form class="gr-rm" method="post" action="/p/{{ project_name | urlencode }}/git/remote/remove" hx-post="/p/{{ project_name | urlencode }}/git/remote/remove" hx-target="#git-remotes" hx-swap="outerHTML"{% if r.name != gitdev %} hx-confirm="Remove remote {{ r.name }}?"{% endif %}>
+    <form class="gr-rm" method="post" action="/p/{{ project_name | urlencode }}/git/remote/remove" hx-post="/p/{{ project_name | urlencode }}/git/remote/remove" hx-target="#git-remotes" hx-swap="outerHTML"{% if r.name != push_remote %} hx-confirm="Remove remote {{ r.name }}?"{% endif %}>
       <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="name" value="{{ r.name }}">
-      {% if r.name == gitdev %}<input type="hidden" name="confirm" value="">{% endif %}
-      <button type="submit" class="small danger"{% if r.name == gitdev %} data-remote-typed="{{ gitdev }}"{% endif %}>Remove</button>
+      {% if r.name == push_remote %}<input type="hidden" name="confirm" value="">{% endif %}
+      <button type="submit" class="small danger"{% if r.name == push_remote %} data-remote-typed="{{ push_remote }}"{% endif %}>Remove</button>
     </form>
   </div>
   {% else %}<p class="small muted">No remotes.</p>{% endfor %}
@@ -24,7 +24,7 @@
   <input class="mono" name="url" maxlength="400" placeholder="git@{{ hosts[0] if hosts else 'git.example.com' }}:owner/repo.git" autocomplete="off" spellcheck="false" required aria-label="New remote url">
   <button type="submit" class="small">Add remote</button>
 </form>
-<p class="small muted">Urls: <span class="mono">ssh://git@host/path</span> or <span class="mono">git@host:path</span>; hosts: <span class="mono">{{ hosts | join(', ') }}</span>. pm pushes only to <span class="mono">{{ gitdev }}</span>.</p>
+<p class="small muted">Urls: <span class="mono">ssh://git@host/path</span> or <span class="mono">git@host:path</span>; hosts: <span class="mono">{{ hosts | join(', ') }}</span>. pm pushes only to <span class="mono">{{ push_remote }}</span>.</p>
 <div class="gr-key">
   <span class="small muted">SSH key for git</span>
   {% if pub %}
