@@ -57,6 +57,11 @@ provider's website, and I don't want to copy things back and forth between
 tools and machines. Everything should live in one place that I choose, and be
 there when I need it.
 
+Finally, I want it fast and not bloated. The core stays small on purpose. If
+you want another feature, build it as a plugin (pages, nav items, settings,
+themes, links; see "Theme and plugins" in [docs/CONFIG.md](docs/CONFIG.md)),
+so people who want it can install it and everyone else keeps a lean pm.
+
 ## Features
 
 | Area | What you get |
