@@ -15,6 +15,10 @@ A message sent from the composer to a Cursor agent no longer waits forever. An i
 - Launch form and quick launch now start Antigravity (`agy`): model list from `agy models`, permission modes (`accept-edits`, `auto`, `plan`, bypass `dangerously-skip-permissions`), reasoning effort (`low`..`max`), optional `--sandbox`, and `-i` (`--prompt-interactive`) for the initial prompt instead of `--` (which `agy` rejects).
 - Fork handoffs to Antigravity pass the handoff prompt with `-i`, and New Chat strips `-i` / `--prompt-interactive` and `--conversation` when restarting an Antigravity process.
 
+## 2026-10-17 (Cursor launch follows the process's own chat)
+
+Launching cursor-agent treated every process in a directory as the newest store.db there, so the new tmux window opened as an older chat that was still being written. A live process is now the store it has open. Until that file is open, it is not attached to another chat.
+
 ## 2026-10-17 (Per-project agent memory: pmctl memory, shared by every agent kind, synced with Claude Code's memory dirs)
 
 - `pmctl memory add|set|show|list|rm|search|context|sync`: one memory per project in pm.db (`tk_memory`), shared by
