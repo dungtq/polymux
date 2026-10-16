@@ -1,8 +1,10 @@
 # Changelog
 
-## 2026-10-17 (Agent thinking shows in the chat)
+## 2026-10-17 (Auto-exit keeps the agent's window (autoexit_close_window))
 
-The thinking of Antigravity (agy), Devin, Cursor and Codex agents now shows in the chat as a folded "Thought" row with its first line. Click it to read the full text. The Compact view hides these rows. Claude is unchanged. Conversations are read once again so earlier thinking appears.
+- An idle auto-exit no longer closes the agent's tmux window: it stays with its last output, like the window of
+  any agent that quits. New pm.toml key `autoexit_close_window` (default `false`); `true` restores the old
+  behaviour (close it when it holds nothing but the left-over shell). The audit line says `window_close: kept`.
 
 ## 2026-10-17 (Agent with a busy sub-agent stays Running)
 
