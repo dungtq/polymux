@@ -438,6 +438,20 @@ def with_transcripts(settings: Settings, since: float) -> list[Record]:
     return [_row(r) for r in rows]
 
 
+def of_kind_since(settings: Settings, kind: str, since: float) -> list[Record]:
+    """Records (live and ended, any project) of ``kind`` whose session was still going at ``since`` or later."""
+    try:
+        con = _connect(settings)
+        try:
+            rows = con.execute(f"SELECT {_COLS} FROM agent_records WHERE kind=? AND COALESCE(ended_at, last_seen) >= ? "
+                               "LIMIT 500", (kind, since)).fetchall()
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError):
+        return []
+    return [_row(r) for r in rows]
+
+
 def ended_sessions(settings: Settings, *, project: str | None = None, live_idents=(),
                    limit: int = 8, q: str = "", model_of=None) -> tuple[list[Record], int]:
     """Ended sessions of every kind, newest first: (rows, total). Claude rows need a UUID session

@@ -193,9 +193,9 @@ async def build_bell(request: Request, n: int = BELL_ROWS, unread_first: bool = 
 MAX_QUESTIONS = 8
 
 
-def agent_feeds(settings, ids, store, now: float, project_path: str | None = None) -> dict:
+def agent_feeds(settings, ids, store, now: float) -> dict:
     """{agent id: notify.owner.AgentFeed (newest item, unread count)}: one owner-mapping pass for the agent rows."""
-    return ntfy_owner.agent_feed(settings, ids, project_path, unread=lambda i: inbox.item_unread(store, i, now))
+    return ntfy_owner.agent_feed(settings, ids, unread=lambda i: inbox.item_unread(store, i, now))
 
 
 async def _pane_lines(settings, agents) -> tuple[dict, dict]:

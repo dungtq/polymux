@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Agent rows show the last ntfy message of any agent)
+
+An agent's ntfy message now shows as the row's last message when the agent tagged it with another project's path (a cursor-agent working in a polymux worktree) and when its title names only the kind (`devin - ...`, no agent id): the project page maps messages over the whole feed, and a kind-only title goes to the one session of that kind active at that time.
+
 ## 2026-10-17 (Per-project login accounts for Claude and Codex)
 
 pm.toml `[accounts]` names extra logins (`claude = ["work"]`, `codex = ["a1"]`); each gets its own login folder under the state dir, passed to the CLI as `CLAUDE_CONFIG_DIR` / `CODEX_HOME`. The agent's Auth row shows every account with its own status, Log in and Log out. Project settings choose the account new Claude/Codex agents use. Resume, fork and New chat keep the account the agent started with; an account removed from pm.toml is refused with a 400. Reading sessions and usage of non-default accounts is not supported yet.

@@ -152,34 +152,69 @@ def owner_for(settings: Settings, index: list[tuple[float, str, Owner]], title: 
     return title_owner(settings, title, recs) or find(index, title, when)
 
 
+_KIND_TITLE_RE = re.compile(r"^(claude|codex|devin|cursor-agent|antigravity) - ")
+KIND_SLACK_S = 120.0  # session start / end vs. message time
+KIND_MTIME_SLACK_S = 5.0  # an agent writes its session file after the publish call returns
+
+
+def _mtime(path: str) -> float:
+    try:
+        return Path(path).stat().st_mtime if path else 0.0
+    except OSError:
+        return 0.0
+
+
+def kind_owner(title: str, when: float, cands) -> str | None:
+    """Agent id for a title that names only the kind (`devin - ...`, an agent that could not read its id): the
+    one candidate of that kind whose session covers ``when`` and whose session file was written at or after it
+    (an agent idle since before the message did not send it). ``cands``: ``(record, session file mtime)`` of
+    every agent of the kind in any project, so a second one makes it ambiguous; None when none or several match."""
+    m = _KIND_TITLE_RE.match(title)
+    if not m:
+        return None
+    hits = [r.id for r, mt in cands if r.kind == m.group(1) and r.first_seen - KIND_SLACK_S <= when
+            and mt >= when - KIND_MTIME_SLACK_S and (r.ended_at is None or when <= r.ended_at + KIND_SLACK_S)]
+    return hits[0] if len(hits) == 1 else None
+
+
 @dataclass(frozen=True)
 class AgentFeed:
     item: NtfyItem  # the newest message the agent published
     unread: int = 0  # its messages the ``unread`` predicate of ``agent_feed`` counts
 
 
-def agent_feed(settings: Settings, ids, project_path: str | None = None, unread=None) -> dict[str, AgentFeed]:
-    """{agent id: AgentFeed} for the wanted ids in one owner-mapping pass over the feed; ``unread(item) -> bool``
-    (optional, e.g. ``inbox.item_unread`` with a loaded store) counts the agent's unread messages. {} when the
-    feed or transcripts are unavailable."""
-    items = ntfy_feed.recent(settings, project_path=project_path)
+def agent_feed(settings: Settings, ids, unread=None) -> dict[str, AgentFeed]:
+    """{agent id: AgentFeed} for the wanted ids in one owner-mapping pass over the whole feed (not one project's:
+    an agent may tag its message with another project's path, e.g. a worktree of the core repo); ``unread(item)
+    -> bool`` (optional, e.g. ``inbox.item_unread`` with a loaded store) counts the agent's unread messages. {}
+    when the feed or transcripts are unavailable."""
+    items = ntfy_feed.recent(settings)
     ids = set(ids)
     if not items or not ids:
         return {}
-    index = build_index(settings, min(i.time for i in items))
+    oldest = min(i.time for i in items)
+    index = build_index(settings, oldest)
     recs = title_records(settings, (i.title for i in items))
+    kind_recs: dict[str, list[tuple]] = {}  # kind -> every record of it, loaded once and only for a title naming just a kind
     newest: dict[str, NtfyItem] = {}
     counts: dict[str, int] = {}
     for it in items:  # newest first
         owner = owner_for(settings, index, it.title, it.time, recs)
-        if owner is None or owner.agent_id not in ids:
+        aid = owner.agent_id if owner else None
+        km = _KIND_TITLE_RE.match(it.title) if aid is None else None
+        if km:
+            if km.group(1) not in kind_recs:
+                kind_recs[km.group(1)] = [(r, _mtime(r.transcript)) for r in
+                                          registry.of_kind_since(settings, km.group(1), oldest - KIND_SLACK_S)]
+            aid = kind_owner(it.title, it.time, kind_recs[km.group(1)])
+        if aid is None or aid not in ids:
             continue
-        newest.setdefault(owner.agent_id, it)
+        newest.setdefault(aid, it)
         if unread is not None and unread(it):
-            counts[owner.agent_id] = counts.get(owner.agent_id, 0) + 1
+            counts[aid] = counts.get(aid, 0) + 1
     return {k: AgentFeed(v, counts.get(k, 0)) for k, v in newest.items()}
 
 
-def agent_ntfy(settings: Settings, ids, project_path: str | None = None) -> dict:
+def agent_ntfy(settings: Settings, ids) -> dict:
     """{agent id: newest NtfyItem it published}; {} when the feed or transcripts are unavailable."""
-    return {k: f.item for k, f in agent_feed(settings, ids, project_path).items()}
+    return {k: f.item for k, f in agent_feed(settings, ids).items()}

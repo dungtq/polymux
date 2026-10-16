@@ -204,17 +204,12 @@ async def _ended_ctx(settings, snap, project: str | None = None, limit: int = 50
     feed: dict = {}
     live_ids = set(live_ids)
     if rows or live_ids:
-        path = None
-        if project is not None:
-            proj = snap.project(project)
-            path = proj.path if proj else None
         try:
             from pm.web.ntfypanel import agent_feeds
 
             store = inbox.load(settings.state_dir)
             feed = await asyncio.wait_for(
-                executors.run_collectors(agent_feeds, settings, {r.id for r in rows} | live_ids, store, time.time(),
-                                         path),
+                executors.run_collectors(agent_feeds, settings, {r.id for r in rows} | live_ids, store, time.time()),
                 NTFY_COUNTS_TIMEOUT_S * 2)
         except Exception:  # noqa: BLE001 - timeout, bad feed: rows just show no ntfy text
             feed = {}
