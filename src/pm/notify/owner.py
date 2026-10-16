@@ -129,19 +129,27 @@ def find(index: list[tuple[float, str, Owner]], title: str, when: float) -> Owne
 _ID_TITLE_RE = re.compile(r"^([a-z][a-z0-9-]*-[0-9a-f]{6}) - ")
 
 
-def title_owner(settings: Settings, title: str) -> Owner | None:
-    """Owner by the agent id the title starts with (`claude-73e574 - ...`) when the registry knows it; no index."""
+def title_records(settings: Settings, titles) -> dict[str, registry.Record]:
+    """{agent id: Record} for the ids the titles start with, in one registry query (pass it to ``owner_for``)."""
+    return registry.get_many(settings, {m.group(1) for t in titles if (m := _ID_TITLE_RE.match(t))})
+
+
+def title_owner(settings: Settings, title: str, recs: dict | None = None) -> Owner | None:
+    """Owner by the agent id the title starts with (`claude-73e574 - ...`) when the registry knows it; no index.
+    ``recs``: ``title_records`` of the titles (no registry call here); None looks the id up."""
     m = _ID_TITLE_RE.match(title)
     if m:
-        rec = registry.get(settings, m.group(1))
+        rec = registry.get(settings, m.group(1)) if recs is None else recs.get(m.group(1))
         if rec is not None:
             return Owner(rec.id, rec.label or rec.id, rec.last_pane, not rec.ended, rec.transcript)
     return None
 
 
-def owner_for(settings: Settings, index: list[tuple[float, str, Owner]], title: str, when: float) -> Owner | None:
-    """Owner of a message: the agent id the title starts with (`claude-73e574 - ...`), else the transcript match."""
-    return title_owner(settings, title) or find(index, title, when)
+def owner_for(settings: Settings, index: list[tuple[float, str, Owner]], title: str, when: float,
+              recs: dict | None = None) -> Owner | None:
+    """Owner of a message: the agent id the title starts with (`claude-73e574 - ...`), else the transcript match.
+    ``recs``: see ``title_owner``."""
+    return title_owner(settings, title, recs) or find(index, title, when)
 
 
 @dataclass(frozen=True)
@@ -159,10 +167,11 @@ def agent_feed(settings: Settings, ids, project_path: str | None = None, unread=
     if not items or not ids:
         return {}
     index = build_index(settings, min(i.time for i in items))
+    recs = title_records(settings, (i.title for i in items))
     newest: dict[str, NtfyItem] = {}
     counts: dict[str, int] = {}
     for it in items:  # newest first
-        owner = owner_for(settings, index, it.title, it.time)
+        owner = owner_for(settings, index, it.title, it.time, recs)
         if owner is None or owner.agent_id not in ids:
             continue
         newest.setdefault(owner.agent_id, it)

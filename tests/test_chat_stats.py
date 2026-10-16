@@ -57,17 +57,17 @@ def test_ctx_pct(tmp_path, monkeypatch):
     from pm.chat.sources.common import Stats
 
     claude, cursor = NS(kind=NS(value="claude")), NS(kind=NS(value="cursor-agent"))
-    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None: Stats(ctx=120_005))
+    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None, locks=None: Stats(ctx=120_005))
     assert stats.ctx_pct(claude) == 60
     assert stats.ctx_pct(cursor) is None  # its numbers come from a pane read: skipped
-    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None: Stats())
+    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None, locks=None: Stats())
     assert stats.ctx_pct(claude) is None  # no reply yet: unknown, not 0
-    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None: Stats(pct_hint=37))
+    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None, locks=None: Stats(pct_hint=37))
     assert stats.ctx_pct(claude) == 37
-    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None: None)
+    monkeypatch.setattr(stats, "stats_for", lambda a, settings=None, locks=None: None)
     assert stats.ctx_pct(claude) is None
 
-    def boom(a, settings=None):
+    def boom(a, settings=None, locks=None):
         raise OSError("x")
     monkeypatch.setattr(stats, "stats_for", boom)
     assert stats.ctx_pct(claude) is None
