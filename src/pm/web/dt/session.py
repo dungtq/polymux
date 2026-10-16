@@ -22,6 +22,7 @@ from pm.web.dt import menus
 
 log = logging.getLogger(__name__)
 
+TAB_ICONS = {"chat": "chat", "sub": "bot", "pane": "tmux", "term": "term"}  # sprite ids, embed only
 RADIO_ORDER = ("chat", "pane", "term", "sub")  # the classic radios' DOM order (classic chat.js reads them)
 
 
@@ -31,7 +32,7 @@ class Session:
     state: str  # running | waiting | failed | idle | unknown | ended
     st: str  # the sub-tab shown first: chat | sub | pane | term
     tabs: list[dict]  # pt.tabs items (shown when more than one)
-    radios: list[tuple[str, bool]]  # (key, checked) of the classic radios #tab-<key>; [] in an embed / Builder / ended
+    radios: list[tuple[str, bool]]  # (key, checked) of the classic radios #tab-<key>; [] in Builder / ended
     menu: list[dict] = field(default_factory=list)
     bld: dict | None = None  # Builder toggle {"href", "on"}
     can_act: bool = False  # ended record / ended Builder: Resume / Fork work (a project and a resumable kind)
@@ -98,24 +99,30 @@ def ended_menu(agent, rec, can_act: bool) -> list[dict]:
 
 # ------------------------------------------------------------------ the three pages
 def live(ctx: Mapping, resumable: Sequence[str]) -> Session:
-    """The live agent page: first tab from ``?st=`` (only a tab that exists; an embed shows the chat only)."""
+    """The live agent page: first tab from ``?st=`` (only a tab that exists; the chat aside's embed has the same
+    tabs, with icons for its narrow header)."""
     agent, embed = ctx["agent"], bool(ctx.get("embed"))
     kind = _kind(agent)
     term, claude = bool(ctx.get("term_embed")), kind == "claude"
     keys = ["chat", "pane"] + (["sub"] if claude else []) + (["term"] if term else [])
     req = ctx.get("request")
     want = req.query_params.get("st", "chat") if req is not None else "chat"
-    st = want if want in keys and not embed else "chat"
+    st = want if want in keys else "chat"
     nsub = int(ctx.get("subagents_running") or 0)
-    tabs = [{"key": "chat", "label": "Chat", "controls": "c-pn-chat", "cur": st == "chat"}]
+    tabs = [{"key": "chat", "label": "Chat", "controls": "c-pn-chat", "cur": st == "chat", "title": "Chat"}]
     if claude:
         tabs.append({"key": "sub", "label": "Sub-agents", "controls": "c-pn-sub", "cur": st == "sub",
                      "count": nsub or None,
                      "title": f"{nsub} running" if nsub else "Work done by this session's sub-agents"})
-    tabs.append({"key": "pane", "label": "Pane", "controls": "c-pn-pane", "cur": st == "pane"})
+    tabs.append({"key": "pane", "label": "Pane", "controls": "c-pn-pane", "cur": st == "pane",
+                 "title": "Pane: the agent's tmux pane, keys and snippets"})
     if term:
-        tabs.append({"key": "term", "label": "Terminal", "controls": "c-pn-term", "cur": st == "term"})
-    radios = [] if embed else [(k, k == st) for k in RADIO_ORDER if k in keys]
+        tabs.append({"key": "term", "label": "Terminal", "controls": "c-pn-term", "cur": st == "term",
+                     "title": "Terminal (read-only)"})
+    if embed:  # the aside's header is 360px wide: the tabs can show as icons only (css/session.css)
+        for t in tabs:
+            t["icon"] = TAB_ICONS[t["key"]]
+    radios = [(k, k == st) for k in RADIO_ORDER if k in keys]
     bld = {"href": f"/a/{agent.id}/builder", "on": False} if (agent.cwd or ctx.get("project")) else None
     return Session(kind=kind, state=_state(agent), st=st, tabs=tabs, radios=radios, bld=bld,
                    menu=live_menu(agent, ctx.get("clear_cmd") or "", kind in resumable))

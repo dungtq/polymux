@@ -10,7 +10,7 @@
       mode   live | ended | builder;  a = the agent (id, project, cwd);  kind = agent kind word;  state = state word
       pill   short model name ("" = none);  tabs = pt.tabs items (shown when more than one);  bld = Builder toggle
              {"href", "on"} or none;  menu = parts/_menu.html items;  meta = sf.meta_line(...) markup;
-             embed = the aside iframe: a minimal line only (view, Aa, ⋯)
+             embed = the aside iframe: a compact line (tabs as icons / short labels, view, Aa, ⋯; README A29)
       kind, state, tabs, bld and menu come from the view model dt_session(mode, RESUMABLE) (pm.web.dt.session:
       the first sub-tab from ?st=, the ⋯ items of a live agent / an ended record, the Builder toggle).
     pane   the tmux pane id for the hidden classic hook span.agent-head[data-mode][data-agent] (agentmode.js reloads
@@ -60,8 +60,8 @@
     {%- if mode == 'ended' %}<span class="chip c-ended" title="Not running: read-only record">Ended</span>{% endif %}
   </span>
   {{ meta }}
-  {%- if tabs | length > 1 %}{{ pt.tabs(tabs, "Session views", cls="c-tabs") }}{% endif %}
   {%- endif %}
+  {%- if tabs | length > 1 %}{{ pt.tabs(tabs, "Session views", cls="c-tabs") }}{% endif %}
   <span class="sp"></span>
   <span class="c-chatonly">
     <span class="p-seg c-view" role="group" aria-label="Chat view"><button type="button" data-chat-view="detail" aria-pressed="false" title="Every reply and tool group as its own item">Detail</button><button type="button" data-chat-view="compact" aria-pressed="true" title="Working notes in one block, the final reply on its own">Compact</button></span>

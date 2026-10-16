@@ -38,6 +38,22 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
 .c-hd .c-tabs [role=tab][aria-selected=true]::after{bottom:-1px;background:var(--k,var(--accent))}
 .c-hd .c-tabs .c{color:var(--st-run);font-size:var(--fs-xs);font-weight:600}
 
+/* the chat aside's header (.c-hd.min, README A29): one row, the tabs (a scrolling strip) | Detail / Compact, Aa, ⋯
+   (these never shrink). Tabs are icons only below 640px of header width (the label stays for screen readers), their
+   label from there; the header is the container, so it follows the aside's width, not the window's */
+.c-hd.min{container:hd/inline-size}
+.c-hd.min .c-tabs{flex:1 1 auto;min-width:0;margin:0;overflow-x:auto;overflow-y:hidden}
+.c-hd.min:has(.c-tabs)>.sp{display:none}
+.c-hd.min .c-tabs [role=tab]{height:calc(var(--ib) + var(--s2) - 1px);padding:0 var(--s2);gap:var(--s1);
+  font-size:var(--fs-ui)}
+.c-hd.min .c-tabs [role=tab][aria-selected=true]::after{bottom:0}
+.c-hd.min .c-tabs svg.i{display:none}
+.c-hd.min .c-view button{padding:0 var(--s2);font-size:var(--fs-s)}
+@container hd (max-width:639px){
+  .c-hd.min .c-tabs svg.i{display:block;flex:0 0 auto}
+  .c-hd.min .c-tabs .t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}
+
 /* Detail | Compact (the shared .p-seg with buttons; classic chat-compact.js keeps aria-pressed) and Aa: only while the
    Chat tab shows */
 .c-chatonly{display:flex;align-items:center;gap:var(--s1);flex:0 0 auto}
@@ -55,6 +71,8 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
 .c-pn-pad{overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5) var(--s5)}
 .g-bar{display:flex;justify-content:flex-end;margin:0 0 var(--s2)}
 .c-term{flex:1 1 auto;width:100%;min-height:0;border:0;background:var(--pane-bg)}
+.c-sess.embed .c-pn-pad{padding:var(--s3) var(--s3) var(--s4)}
+.c-sess.embed .c-tfoot{padding:var(--s1) var(--s3)}
 .c-tfoot{flex:0 0 auto;margin:0;padding:var(--s1) var(--s5);border-top:1px solid var(--line2);color:var(--muted);
   font-size:var(--fs-s)}
 
@@ -86,7 +104,7 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
   .c-hd .c-meta{display:none}
 }
 @container pg (max-width:760px){
-  .c-hd .c-view{display:none}
+  .c-hd:not(.min) .c-view{display:none}
 }
 
 /* ---------- phone: the top bar shows the title; this line keeps the sub-tabs, composer toggle, Builder and ⋯ -------
@@ -102,7 +120,7 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
   /* Builder: an icon button as large as ⋯ (40px touch target) */
   .c-hd .c-cmpbtn,.c-hd .c-bbtn{width:var(--ib);height:var(--ib);padding:0}
   .c-hd .c-cmpbtn svg.i,.c-hd .c-bbtn svg.i{width:var(--icon);height:var(--icon)}
-  .c-hd.min>.sp,.c-hd:not(:has(.c-tabs))>.sp{display:block}
+  .c-hd:not(:has(.c-tabs))>.sp{display:block}
   .c-chat{padding:var(--s3) var(--s3) var(--s2)}
   .c-comp{padding:0 var(--s2) calc(var(--s2) + env(safe-area-inset-bottom))}
   .c-pn-pad{padding:var(--s3) var(--s3) var(--s4)}
@@ -134,8 +152,6 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
 /* its New Chat / Fork / Builder / Exit buttons live in the header (⋯, Builder); kept in the DOM as the ⋯ menu's
    click targets (classic newchat.js) */
 .c-sess .composer .cstat .agent-actions,.c-sess .composer .mrow .mb-act{display:none}
-/* the aside iframe shows the Chat only: the Keys button would flip to a Pane tab that is not there */
-.c-sess.embed .composer [data-keys]{display:none}
 
 /* reader / canvas (#mdpane): docked as a grid column with the classic divider (.cs-div: 1px hairline, accent on
    hover and drag), full height of the split instead of sticky under a window scroll; floating over the chat when

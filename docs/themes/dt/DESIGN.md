@@ -141,8 +141,9 @@ Geometry in `LAYOUT.md` §2. Contracts:
 - Session row: open-in-tab dot (5 px accent), state dot, id, working word or age. Current = `--accent-soft`.
 - Tab: state dot, name, × (hover or current), kind top edge 2 px on the current tab; home tab fixed width,
   never closes; overflow scrolls with a fade.
-- Aside head: dot, name, kind chip, Open as tab, Close. Resize edge = 1 px hairline, 2–3 px accent on hover,
-  focus and drag; arrow keys move 1 %, double-click resets.
+- Aside head: dot, name, kind chip, Open as tab, Close; below it the iframe's own compact session header (README
+  A29: the view tabs as icons, Detail / Compact, Aa, ⋯; one 40 px row, the tabs scroll, labels from 640 px).
+  Resize edge = 1 px hairline, 2–3 px accent on hover, focus and drag; arrow keys move 1 %, double-click resets.
 
 ### 6.2 Page head (`p-head`)
 `h1` (1.25rem/600), stats line (muted) on the same line or under, page actions right. At most one green button.

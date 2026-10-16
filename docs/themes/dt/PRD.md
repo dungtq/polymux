@@ -62,7 +62,8 @@ One user (the owner). Verify on these screens (`LAYOUT.md` §1):
   toggle, account menu (Settings full page, Keyboard shortcuts, Dark/light, Reload pm, Stop ALL agents, Log out).
 - **Tabs**: tab 0 = the current page (pinned, never closes, fixed width). Other tabs = one session each (agent
   chat, or a read-only tmux terminal). Opening an already open session focuses it.
-- **Chat aside**: one agent chat at the right of any page; same composer as the tab.
+- **Chat aside**: one agent chat at the right of any page; same composer and the same view tabs (Chat, Sub-agents,
+  Pane, Terminal) as the tab, in a compact header (README A29).
 - **Phone**: bottom nav Inbox · Projects · tmux · Alerts · More (= sidebar drawer); session tab hides the
   bottom nav; tabs button opens a sheet; swipe the title for next/previous tab.
 

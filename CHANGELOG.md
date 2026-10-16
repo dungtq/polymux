@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-17 (dt: view tabs and the Sub-agents / Pane / Terminal panels back in the chat aside)
+
+The chat aside's header shows the session's tabs again: Chat, Sub-agents (Claude), Pane and Terminal (icons only below 640 px of header width), next to Detail / Compact, Aa and ⋯. The Sub-agents list, the Pane with its keypad, snippets and Interrupt, and the read-only Terminal render in the aside; the composer's Keys button flips to Pane again. The aside opens on Chat or the `?st=` tab.
+
+## 2026-10-17 (Agent rows show the last ntfy message of any agent)
+
+An agent's ntfy message now shows as the row's last message when the agent tagged it with another project's path (a cursor-agent working in a polymux worktree) and when its title names only the kind (`devin - ...`, no agent id): the project page maps messages over the whole feed, and a kind-only title goes to the one session of that kind active at that time.
+
+## 2026-10-17 (Per-project login accounts for Claude and Codex)
+
+pm.toml `[accounts]` names extra logins (`claude = ["work"]`, `codex = ["a1"]`); each gets its own login folder under the state dir, passed to the CLI as `CLAUDE_CONFIG_DIR` / `CODEX_HOME`. The agent's Auth row shows every account with its own status, Log in and Log out. Project settings choose the account new Claude/Codex agents use. Resume, fork and New chat keep the account the agent started with; an account removed from pm.toml is refused with a 400. Reading sessions and usage of non-default accounts is not supported yet.
+
 ## 2026-10-17 (dt: chat aside only on the main pages, not on a full chat page)
 
 dt theme: the chat aside is now used on the main pages only (Inbox, Projects, tmux, ...). On a session's own full chat page (/a/<id>, Builder, /term/s<n>) the remembered aside is no longer restored beside the chat (it comes back on the next main page), the top-bar Chat aside button is hidden, and opening a chat from search, a notification or a list opens its tab instead; ⌘L / the toggle there only say so; btw still opens in the aside. ⌘⇧L ("to aside") now closes the session tab and goes to the home tab, where the aside shows it.

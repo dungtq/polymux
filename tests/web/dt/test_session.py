@@ -78,7 +78,7 @@ def test_phone_composer_toggle(live):
         # the same bordered icon button as Builder next to it (x-btn sm; phone size in css/session.css)
         assert {"x-btn", "sm"} <= set(b["class"].split()), url
         assert re.search(r"data-c-cmp[^>]*>\s*<svg[^>]*><use href=\S+#edit", src), url
-    assert not Doc(page(live, f"/a/{AID}?embed=1")).find(data_c_cmp=True)  # the aside's iframe keeps its composer
+    assert not Doc(page(live, f"/a/{AID}?embed=1")).find(data_c_cmp=True)  # the aside's iframe shows its composer
 
 
 def test_live_tabs_drive_the_classic_radios(live):
@@ -127,14 +127,39 @@ def test_live_first_tab_from_query(live, st, want):
     assert "hidden" not in doc.one(id=f"c-pn-{want}")
 
 
-def test_embed_is_chat_and_composer_only(live):
-    doc = Doc(page(live, f"/a/{AID}?embed=1"))
+def test_embed_has_the_tabs_panels_and_composer(live):
+    # README A29: the chat aside's iframe has the same tabs and panels in a compact header (.c-hd.min)
+    src = page(live, f"/a/{AID}?embed=1")
+    doc = Doc(src)
     assert "min" in doc.one("header", class_="c-hd")["class"]
-    assert not doc.find(role="tab", data_p_tab=True) and not doc.find("input", name="agent-tab")
+    tabs = doc.find(role="tab", data_p_tab=True)
+    assert [t["data-p-tab"] for t in tabs] == ["chat", "sub", "pane"]
+    assert [t["aria-selected"] for t in tabs] == ["true", "false", "false"]
+    for t in tabs:  # icon-only at narrow widths: an icon and a title (the label stays in the DOM for readers)
+        assert doc.one(id=t["aria-controls"])["role"] == "tabpanel"
+        assert t["title"] and f'id="p-tab-{t["data-p-tab"]}"' in src
+    assert len(re.findall(r'<button class="p-tab"[^>]*>\s*<svg class="i"', src)) == 3
+    assert {r["id"] for r in doc.find("input", name="agent-tab")} == {"tab-chat", "tab-pane", "tab-sub"}
+    for hook in ("c-pn-sub", "c-pn-pane", "keypad-wrap", "sa-body"):
+        doc.one(id=hook)
+    assert doc.find("form", class_="keyform") and doc.find("button", class_="danger")  # keypad, Interrupt
+    assert doc.find(data_keys=True)  # the composer's Keys button flips to the Pane tab
+    # still hidden in the aside: id, meta, Builder, composer toggle, move-to-aside
     assert not doc.find("h1", class_="c-nm") and not doc.find(class_="c-bbtn") and not doc.find(data_c_toaside=True)
-    assert not doc.find(id="c-pn-pane") and not doc.find(id="keypad-wrap")
+    assert not doc.find(data_c_cmp=True) and not doc.find(class_="c-id") and not doc.find(data_c_meta=True)
     doc.one("section", class_="composer", data_composer="live")
     doc.one("button", class_="c-more")
+    doc.one("button", data_c_font=True)
+    # the full page has no icons in its tabs
+    assert not re.search(r'<button class="p-tab"[^>]*>\s*<svg', page(live, f"/a/{AID}"))
+
+
+@pytest.mark.parametrize(("st", "want"), [("pane", "pane"), ("sub", "sub"), ("term", "chat"), ("nope", "chat")])
+def test_embed_first_tab_from_query(live, st, want):
+    doc = Doc(page(live, f"/a/{AID}?embed=1&st={st}"))
+    assert [t["data-p-tab"] for t in doc.find(role="tab", aria_selected="true", data_p_tab=True)] == [want]
+    assert [r["id"] for r in doc.find("input", name="agent-tab") if "checked" in r] == [f"tab-{want}"]
+    assert "hidden" not in doc.one(id=f"c-pn-{want}")
 
 
 def test_classic_page_scripts_in_order(live):
@@ -238,7 +263,19 @@ def test_page_files_static_rules():
     # V7-CODE-7: one ResizeObserver on the chat scroller; the setting arrives as head.js's pm7:look event
     assert "subtree" not in js and "setInterval" not in js and "MutationObserver" not in js
     assert "'pm7:look'" in js
+    # the aside's iframe: starts on ?st= or Chat, a focus without a click (aside.js, ⌘L) selects Chat first
+    assert "x-embed" in js and "tabBtn('chat')" in js and "'pointerdown'" in js
     assert "localStorage" not in js and "fetch(" not in js  # pm7.store / pm7.fetch only (V7-ISO-6, V7-CODE-6)
+    # the chat aside's compact header (README A29): .min is the container, the tabs scroll in one row and are as tall
+    # as the header (not the 44px phone tab), the spacer does not push them, Detail / Compact shows (only the full
+    # page's header drops it on a narrow main), the Keys button is no longer hidden
+    assert ".c-hd.min{container:hd/inline-size}" in css
+    assert re.search(r"\.c-hd\.min \.c-tabs\{[^}]*flex:1 1 auto;min-width:0;[^}]*overflow-x:auto", css)
+    assert re.search(r"\.c-hd\.min \.c-tabs \[role=tab\]\{height:calc\(var\(--ib\) \+ var\(--s2\) - 1px\)", css)
+    assert ".c-hd.min:has(.c-tabs)>.sp{display:none}" in css and "@container hd (max-width:639px)" in css
+    assert ".c-hd:not(:has(.c-tabs))>.sp{display:block}" in phone and ".c-hd.min>.sp" not in css
+    assert ".c-hd:not(.min) .c-view{display:none}" in css and ".c-hd .c-view{display:none}" not in css
+    assert "[data-keys]" not in css
     for name in ("agent.html", "agent_ended.html", "builder.html", "session/_frame.html"):
         tpl = (THEME / "templates" / name).read_text()
         assert not re.search(r"<script(?![^>]*\bsrc=)|\sstyle=|\son[a-z]+=", tpl), name  # CSP (V7-SEC-2)
@@ -248,7 +285,7 @@ def test_page_files_static_rules():
 # ------------------------------------------------- js/session.js in node: chat end pin, composer toggle, jump buttons
 SESSION_JS = THEME / "static/js/session.js"
 HARNESS = r"""
-const L = [], RO = [], DB = [];
+const L = [], RO = [], DB = [], W = [];
 function el(cls, attrs) {
   const c = new Set(cls), a = Object.assign({}, attrs || {});
   return { id: '', value: '', style: { setProperty() {}, removeProperty() {} },
@@ -261,10 +298,12 @@ function el(cls, attrs) {
 const root = el([]), sess = el(['c-sess'], { 'data-agent': 'claude-1' }), box = el(['c-comp']);
 const btn = el(['c-cmpbtn'], { 'aria-expanded': 'false' }), ta = el([]);
 box.querySelector = (q) => (q === '[data-cmp-input]' ? ta : null);
-const sc = el(['c-chat']), jump = el(['c-jump']);
+const sc = el(['c-chat']), jump = el(['c-jump']), body = el([]), chatTab = el([], { 'aria-selected': 'false' });
+let clicks = 0;
+chatTab.click = () => { clicks += 1; };
 Object.assign(sc, { scrollHeight: 2000, clientHeight: 600, scrollTop: 1400 });
 sc.matches = (q) => q === '.c-sess [data-ci-scroll]';
-globalThis.window = { location: { href: 'http://h/a/claude-1' }, addEventListener() {},
+globalThis.window = { location: { href: 'http://h/a/claude-1' }, addEventListener: (t, f) => W.push([t, f]),
   requestAnimationFrame: () => 1,
   ResizeObserver: class { constructor(f) { RO.push(f); } observe(t) { RO.push(t); } },
   pm7: { $$: (q) => (q === '.c-hd [data-c-cmp]' ? [btn] : []), store: { get: (k, d) => d, set() {} },
@@ -272,9 +311,9 @@ globalThis.window = { location: { href: 'http://h/a/claude-1' }, addEventListene
          debounce: (f, ms) => { const x = { f, ms, armed: 0 }; DB.push(x); return () => { x.armed += 1; }; } } };
 Object.assign(globalThis, { ResizeObserver: window.ResizeObserver, getComputedStyle: () => ({}) });
 globalThis.document = { documentElement: root, addEventListener: (t, f, o) => L.push([t, f, o]),
-  getElementById: () => null,
+  getElementById: () => null, body, activeElement: body,
   querySelector: (q) => (q.indexOf('[data-ci-scroll]') >= 0 ? sc : q.indexOf('.c-comp') >= 0 ? box
-    : q === '.c-sess' ? sess : q === '.c-jump' ? jump : null) };
+    : q === '.c-sess' ? sess : q === '.c-jump' ? jump : q.indexOf('data-p-tab="chat"') >= 0 ? chatTab : null) };
 eval(require('fs').readFileSync(process.argv[1], 'utf8'));
 const scroll = (top) => { sc.scrollTop = top; L.filter((x) => x[0] === 'scroll').forEach((x) => x[1]({ target: sc })); };
 const resize = (h) => { sc.clientHeight = h; RO[0]([]); };
@@ -337,3 +376,39 @@ def test_jump_buttons_show_while_the_chat_scrolls():
     assert got[3] is False
     assert got[4] == [False, 3]
     assert got[5][0] is True and got[5][1] > 3 and got[5][2] == 0
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_embed_focus_without_a_click_selects_the_chat_tab():
+    # README A29: aside.js puts the cursor into the composer (⌘L) with contentWindow.focus(); on a Pane tab the
+    # composer is hidden, so the Chat tab is selected first. Not on the full page, not on a click into the iframe.
+    got = run_session("""
+      const focus = W.find((x) => x[0] === 'focus')[1], down = L.find((x) => x[0] === 'pointerdown')[1];
+      focus(); const a = clicks;                                   // the full page: nothing
+      body.classList.add('x-embed');
+      focus(); const b = clicks;                                   // the aside's iframe, no click: Chat
+      chatTab.attrs['aria-selected'] = 'true'; focus(); const c = clicks;   // already Chat
+      chatTab.attrs['aria-selected'] = 'false'; down(); focus(); const d = clicks;   // the user clicked in
+      console.log(JSON.stringify([a, b, c, d]));""")
+    assert got == [0, 1, 1, 1]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_embed_window_refocus_does_not_switch_the_tab():
+    # alt-tab back (the whole browser window lost focus: blur with the shell not focused) or a tab shown again
+    # (hidden): the next focus is the browser's, not aside.js's; focus moving to the shell (blur, shell focused) is not
+    got = run_session("""
+      const on = (t) => W.find((x) => x[0] === t)[1], focus = on('focus'), blur = on('blur');
+      const vis = L.find((x) => x[0] === 'visibilitychange')[1], down = L.find((x) => x[0] === 'pointerdown')[1];
+      body.classList.add('x-embed');
+      window.parent = { document: { hasFocus: () => false } };
+      blur(); focus(); const a = clicks;                           // alt-tab and back: stays on the Pane tab
+      focus(); const b = clicks;                                   // only the first focus after it is skipped
+      window.parent = { document: { hasFocus: () => true } };
+      blur(); focus(); const c = clicks;                           // focus went to the shell, aside.js gives it back
+      document.hidden = true; vis(); document.hidden = false;
+      focus(); const d = clicks;                                   // the tab was hidden: skipped
+      window.parent = { document: { hasFocus: () => false } };
+      blur(); down(); focus(); const e = clicks;                   // a click clears the mark (and is a click)
+      console.log(JSON.stringify([a, b, c, d, e]));""")
+    assert got == [0, 1, 2, 2, 2]

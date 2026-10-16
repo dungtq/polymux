@@ -48,6 +48,9 @@ def test_base_loads_the_aside_assets_also_in_embed():
         js = re.findall(r'<script src="/static/t/dt/js/([^"]+)"', html)
         assert js.index("aside.js") == js.index("live.js") + 1
     assert 'id="x-aside"' not in embed
+    # the session tabs of the aside's iframe (README A29) need parts.js (tab clicks); the shell's own scripts stay out
+    js = re.findall(r'<script src="/static/t/dt/js/([^"]+)"', embed)
+    assert "parts.js" in js and "keys.js" not in js and "btw.js" not in js and "tabs.js" not in js
 
 
 # ---------------------------------------------------------------- head.js (before paint)

@@ -6,6 +6,10 @@
      follow them back (composer Keys, chat.js restoring its last tab); ?st=<key> picks the first tab (server) and
      is kept in the URL (history.replaceState); Builder's phone Chat | Preview labels get aria-selected (the
      classic radios behind them take the keyboard);
+   - the chat aside's iframe (body.x-embed) has the same tabs (README A29): it ignores classic chat.js's remembered
+     tab (the Pane tab the full page last showed): the aside opens on ?st= or Chat, so the chat is what the user
+     sees there; a window focus without a click (aside.js putting the cursor into the composer, ⌘L) first selects the
+     Chat tab, where the composer is;
    - state dot + word follow pm:agent_state (dt live.js);
    - Aa: chat text size menu (pm.v7.chat.size, 10-32px or auto -> --chat-size on .c-sess, which classic .chat-text
      reads); the reader's A- / A+ (data-md-zoom) -> pm.v7.chat.md -> --md-size;
@@ -33,6 +37,7 @@
   const sess = () => d.querySelector('.c-sess');
   const aid = () => { const s = sess(); return s ? s.getAttribute('data-agent') : ''; };
   const toast = (t, err) => pm7.toast && pm7.toast(t, '', err ? { error: true } : undefined);
+  const embed = () => !!d.body && d.body.classList.contains('x-embed');
   const BTW = /^\/btw(?:\s+([\s\S]*))?$/i;
 
   /* ---------- sub-tabs <-> classic radios ---------- */
@@ -75,9 +80,23 @@
     const want = new URL(window.location.href).searchParams.get('st');
     const b = want ? tabBtn(want) : null;
     if (b) { if (b.getAttribute('aria-selected') !== 'true') b.click(); toRadio(want); }
+    else if (embed()) toRadio('chat');  // not chat.js's remembered Pane tab (the server rendered Chat)
     else fromRadio(d.querySelector('input.c-radio:checked'));
     bldTabs();
   }
+  /* a click into the iframe also focuses its window: only a focus without one is aside.js's. The window regaining
+     focus (alt-tab back, the tab shown again) is not aside.js's either: its blur / hidden marks the next focus */
+  let ptr = 0, away = false;
+  const parentHasFocus = () => { try { return !!window.parent.document.hasFocus(); } catch (e) { return false; } };
+  d.addEventListener('pointerdown', () => { ptr = Date.now(); away = false; }, true);
+  d.addEventListener('visibilitychange', () => { if (d.hidden) away = true; });
+  window.addEventListener('blur', () => { away = !parentHasFocus(); });  // focus moved to the shell: not away
+  window.addEventListener('focus', () => {
+    if (away) { away = false; return; }
+    if (!embed() || Date.now() - ptr < 500 || d.activeElement !== d.body) return;
+    const b = tabBtn('chat');
+    if (b && b.getAttribute('aria-selected') !== 'true') b.click();
+  });
 
   /* ---------- live state ---------- */
   d.addEventListener('pm:agent_state', (e) => {
