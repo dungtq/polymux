@@ -123,7 +123,8 @@
 </dialog>
 {%- endmacro %}
 
-{# above the box: slash command output, the inline notice line, the send hint, the pm reload notice #}
+{# above the box: slash command output, the inline notice line, the send hint, the pm reload notice (refresh only;
+   "new code: restart pm" is the page bar #pmcode in base.html) #}
 {% macro notices(f, free=false) -%}
 {% if not free %}<div class="slash-card-wrap" data-cmp-slash-card aria-live="polite"></div>
 {% endif %}<div class="flash-inline" data-cmp-flash role="status" aria-live="polite"></div>
@@ -131,8 +132,7 @@
 {% if 'notices' in f %}<div class="pmreload" data-cmp-reload role="status" aria-live="polite" data-served="{{ now_epoch() | int if now_epoch is defined else 0 }}" hidden>
   <span class="pmr-t small"></span>
   <button type="button" class="small pmr-act" hidden></button>
-  {% if agent.project == 'pm' %}<button type="button" class="small pmr-refresh" hidden>Refresh page</button>
-  {% if not dev_banner %}<form class="pmr-restart" method="post" action="/service/reload" hx-post="/service/reload" hx-swap="none" hx-confirm="Reload (restart) the pm service? The UI is unavailable for a few seconds." hidden><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small danger">Restart pm</button></form>{% endif %}{% endif %}
+  {% if agent.project == 'pm' %}<button type="button" class="small pmr-refresh" hidden>Refresh page</button>{% endif %}
 </div>{% endif %}
 {%- endmacro %}
 

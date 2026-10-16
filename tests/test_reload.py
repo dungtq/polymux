@@ -90,3 +90,40 @@ def test_unitctl_allowed_and_fixed_argv(monkeypatch):
     with pytest.raises(ValueError):
         unitctl.restart_unit("-H evil")
     assert len(seen) == 1
+
+
+# ---------------------------------------------------------------- "New code: restart pm" bar (pm_code)
+def _bar(h):
+    return h[h.index('id="pmcode"'):h.index("</aside>", h.index('id="pmcode"'))]
+
+
+def test_new_code_bar_hidden_until_the_verdict(fake_tmux, tmp_path, monkeypatch):
+    from pm.notify import reloadneed
+    monkeypatch.setattr(reloadneed, "_last", None)
+    c = servers_client(fake_tmux, tmp_path, monkeypatch)
+    bar = _bar(c.get("/audit").text)
+    assert bar.startswith('id="pmcode" role="status" aria-live="polite" hidden>')
+    monkeypatch.setattr(reloadneed, "_last", {"need": "restart", "msg": reloadneed.CODE_MSG, "head": "fix <b>x</b>"})
+    bar = _bar(c.get("/audit").text)
+    assert bar.startswith('id="pmcode" role="status" aria-live="polite">')
+    assert "New code: restart pm to load it." in bar and "fix &lt;b&gt;x&lt;/b&gt;" in bar  # escaped subject
+
+
+def test_new_code_bar_restart_button_only_when_reload_ok(fake_tmux, tmp_path, monkeypatch):
+    bar = _bar(servers_client(fake_tmux, tmp_path, monkeypatch).get("/audit").text)
+    assert 'hx-post="/service/reload"' in bar and 'name="csrf"' in bar and "hx-confirm=" in bar
+    assert ">Restart pm</button>" in bar and "systemctl" not in bar
+    for kw in ({"dev_banner": True}, {"reload_unit": "x; rm -rf /"}):
+        bar = _bar(servers_client(replace(fake_tmux, **kw), tmp_path, monkeypatch).get("/audit").text)
+        assert "/service/reload" not in bar and "<button" not in bar
+        assert "systemctl --user restart " in bar
+
+
+def test_new_code_js_hooks():
+    from pathlib import Path
+    js = Path(__file__).resolve().parents[1] / "src/pm/static/js"
+    assert "'pm_code'" in (js / "live.js").read_text()
+    rl = (js / "reload.js").read_text()
+    assert "'pm:pm_code'" in rl and "getElementById('pmcode')" in rl and ".textContent = j.head" in rl
+    pr = (js / "pmreload.js").read_text()
+    assert "pmr-restart" not in pr and "j.need !== 'refresh'" in pr  # the composer row only offers a refresh
