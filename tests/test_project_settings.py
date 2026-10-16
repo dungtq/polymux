@@ -91,6 +91,22 @@ def test_accounts(s):
     assert ps.load(s, "a").accounts == (("codex", "w2"),)
 
 
+def test_accounts_cli_default_and_ui_added(s):
+    import dataclasses
+
+    from pm.core import accounts
+    s = dataclasses.replace(s, accounts={"claude": ("work",)})
+    accounts.add(s, "codex", "ui")
+    r = ps.save_accounts(s, "a", {"claude": "-", "codex": "ui"})
+    assert r.accounts == (("claude", "-"), ("codex", "ui")) and ps.load(s, "a") == r and r.account("claude") == "-"
+    with pytest.raises(Invalid):
+        ps.save_accounts(s, "a", {"codex": "work"})  # claude's name, not codex's
+    accounts.remove(s, "codex", "ui")
+    with pytest.raises(Invalid):
+        ps.save_accounts(s, "a", {"codex": "ui"})
+    assert ps.load(s, "a").account("codex") == "ui"  # a stored name that is gone stays; resolve refuses it at launch
+
+
 def test_accounts_old_and_bad_file(s):
     s.state_dir.mkdir(parents=True, exist_ok=True)
     (s.state_dir / "project_settings.json").write_text(json.dumps(

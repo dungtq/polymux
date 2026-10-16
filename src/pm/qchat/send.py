@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field, replace
 
+from pm.agents import registry
 from pm.chat import log as chatlog
 from pm.core.config import Settings
 from pm.core.errors import Invalid, PmError
@@ -70,7 +71,7 @@ def _context(settings: Settings, agent_id: str, resolve_agent) -> str:
     """Ingest the agent's newest entries (never raises), then read its recent conversation."""
     a = resolve_agent(agent_id) if resolve_agent is not None else None
     if a is not None:
-        chatlog.sync(settings, a)
+        chatlog.sync(settings, a, **registry.config_kw(settings, a.id, a.kind))
     return chatlog.context_text(settings, agent_id)
 
 

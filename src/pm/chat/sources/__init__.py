@@ -45,14 +45,17 @@ def session_file(
     home: Path | None = None,
     proc_root: Path = PROC,
     locks: dict[int, list[str]] | None = None,
+    config_dir: Path | None = None,
 ) -> Path | None:
-    """The store file for non-Claude kinds (stat/dir-list only). Claude is resolved by its caller."""
+    """The store file for non-Claude kinds (stat/dir-list only). Claude is resolved by its caller.
+    ``config_dir``: a named account's folder replacing ``~/.codex`` (codex only)."""
     home = home or Path.home()
     kind = AgentKind(kind) if not isinstance(kind, AgentKind) else kind
     if kind is AgentKind.DEVIN:
         return devin.locate(pid, home, proc_root, locks)
     if kind is AgentKind.CODEX:
-        return codex.locate(pid, cwd, (time.time() - age_s) if age_s > 0 else 0.0, home)
+        return codex.locate(pid, cwd, (time.time() - age_s) if age_s > 0 else 0.0, home,
+                            config_dir)
     if kind is AgentKind.CURSOR:
         return cursor.locate(cwd, home, pid, proc_root)
     if kind is AgentKind.ANTIGRAVITY:

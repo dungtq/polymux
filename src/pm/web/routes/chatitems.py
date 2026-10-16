@@ -12,7 +12,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from pm.agents import chatfeed
+from pm.agents import chatfeed, registry
 from pm.agents import head as agenthead
 from pm.chat import items as chat_items
 from pm.chat import itemsync
@@ -37,14 +37,16 @@ async def _page(settings, agent, ended: bool, **q) -> chat_items.Page:
     has not synced it yet: ended agents have no other ingest), so its page shows the conversation."""
     page = await executors.run_collectors(chat_items.page, settings, agent.id, **q)
     if ended and not page.items and not any(v is not None for v in q.values()):
-        await executors.run_collectors(itemsync.sync, settings, agent, idle=True)
+        await executors.run_collectors(
+            itemsync.sync, settings, agent, idle=True,
+            **registry.config_kw(settings, agent.id, agent.kind))
         page = await executors.run_collectors(chat_items.page, settings, agent.id, **q)
     return page
 
 
-def _model_name(agent) -> str:
+def _model_name(agent, settings=None) -> str:
     """Reply header name: the short live model (transcript, else --model), else the capitalised kind."""
-    m = agenthead.live_model(agent)
+    m = agenthead.live_model(agent, config_dirs=agenthead.kind_dirs(settings, agent.kind) if settings else None)
     return agenthead.model_short(m) if m != agent.kind.value else m.capitalize()
 
 
@@ -66,7 +68,7 @@ async def agent_items(request: Request, agent_id: str) -> Response:
     transcript = plugins.first_url(plugins.of(request), "agent_transcript_url", agent) if mode == "full" else None
     resp = html(request, "_chatitems.html", mode=mode, agent=agent, ended=ended, embed=is_embed(request),
                 uploads=settings.state_dir / "uploads", now=time.time(), transcript=transcript,
-                model_name=_model_name(agent),
+                model_name=_model_name(agent, settings),
                 can_continue=not ended and bool(agent.project), blocks=chatctx.blocks(page.items),
                 more=page.more, oldest=page.oldest, rev=page.rev, outbox=page.outbox)
     resp.headers["X-Rev"] = str(page.rev)

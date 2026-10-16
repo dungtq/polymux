@@ -206,7 +206,7 @@ def pages_env(fake_tmux, tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_TMUX_OUT", pane_line("$1", "work", "@1", "%12", str(dev / "alpha")))
     agent = Agent(id="claude-12", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=4242,
                   cwd=str(dev / "alpha"), state=AgentState.RUNNING, state_since=1.0, session_uuid="abc-123")
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [agent])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [agent])
     monkeypatch.setattr(tmuxctl, "capture_pane", lambda settings, pane, lines=200: capture)
     return s, make_client(s, pages_router, static=True)
 
@@ -218,7 +218,7 @@ def _idle_agent_app(fake_tmux, tmp_path, monkeypatch, *routers):
     monkeypatch.setenv("FAKE_TMUX_OUT", pane_line("$1", "work", "@1", "%12", str(dev / "alpha")))
     agent = Agent(id="claude-12", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=4242,
                   cwd=str(dev / "alpha"), state=AgentState.IDLE, state_since=1.0)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [agent])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [agent])
     monkeypatch.setattr(tmuxctl, "capture_pane", lambda settings, pane, lines=200: "x")
     return s, make_client(s, pages_router, *routers, static=True), dev
 

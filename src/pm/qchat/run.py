@@ -20,7 +20,9 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from pm.agents import launch as launch_mod
+from pm.core import accounts
 from pm.core.config import Settings
+from pm.core.errors import PmError
 from pm.core.markdown_render import render_markdown
 from pm.core.models import AgentKind
 
@@ -62,11 +64,18 @@ def session_alive(settings: Settings, session: str) -> bool:
     """claude's session .jsonl still exists (claude cleans up after 30 days => the chat is archived)."""
     if not session or not SESSION_RE.fullmatch(session):
         return False
-    root = Path.home() / ".claude" / "projects"
+    roots = [Path.home() / ".claude" / "projects"]
     try:
-        return any(root.glob(f"*/{session}.jsonl"))
-    except OSError:
-        return False
+        roots += [d / "projects" for d in accounts.config_dirs(settings, "claude")[1:]]  # named accounts
+    except (OSError, PmError):
+        pass
+    for r in roots:
+        try:
+            if any(r.glob(f"*/{session}.jsonl")):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def build_argv(settings: Settings, text: str, model: str = "", session: str = "", *, profile: str = "none",

@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from pm.agents.inventory import auth as agentsauth
 from pm.agents.inventory import read as agentsinv
+from pm.core import accounts
 from pm.core.config import Settings
 from pm.core.errors import Conflict
 from pm.core.models import AgentInfo, Inventory, Tier
@@ -416,3 +417,56 @@ def test_send_cancel_logout_named_account(client, fake):
 def test_default_account_calls_unchanged(client, fake):
     post(client, "/agents/claude/auth/login")
     assert ("start", "claude", BIN) in fake.calls
+
+
+# ---------------------------------------------------------------- defining accounts in the UI
+
+
+def test_add_default_remove_round_trip(client, app, fake):
+    u = "/agents/claude/auth/"
+    r = post(client, u + "add", name="side")
+    assert r.status_code == 200 and 'name="account" value="side"' in r.text  # live, no restart
+    assert client.get("/agents/claude/auth").text.count('class="ag-auth-line"') == 4
+    assert 'hx-confirm="Remove side from the list? Its login folder is kept on disk."' in r.text
+    r = post(client, u + "default", account="side")
+    assert r.status_code == 200 and "Use CLI default" in r.text and ">Default<" in r.text
+    assert ("status", "claude", BIN, False, "side") in fake.calls
+    r = post(client, u + "default", account="")
+    assert "Use CLI default" not in r.text
+    post(client, u + "default", account="side")
+    r = post(client, u + "remove", account="side")
+    assert r.status_code == 200 and 'name="account" value="side"' not in r.text
+    assert accounts.global_default(app.state.settings, "claude") == ""  # removed default falls back
+
+
+def test_pm_toml_account_not_removable(client, app):
+    t = client.get("/agents/claude/auth").text
+    assert t.count(">pm.toml<") == 2 and 'action="/agents/claude/auth/remove"' not in t
+    r = post(client, "/agents/claude/auth/remove", account="work")
+    assert r.status_code == 400 and "pm.toml" in r.text
+    assert "work" in accounts.names(app.state.settings, "claude")
+
+
+def test_bad_account_name_400(client, app):
+    for bad in ("", "Bad Name", "../x", "work"):  # work exists already
+        r = post(client, "/agents/claude/auth/add", name=bad)
+        assert r.status_code == 400 and 'id="ag-auth"' in r.text and "ag-auth-note" in r.text
+    assert accounts.names(app.state.settings, "claude") == ("work", "alt")
+    assert post(client, "/agents/claude/auth/default", account="nope").status_code == 400
+    assert post(client, "/agents/cline/auth/add", name="x").status_code == 400  # no named accounts for cline
+
+
+def test_account_mutations_audited(client, app):
+    post(client, "/agents/codex/auth/add", name="side")
+    post(client, "/agents/codex/auth/default", account="side")
+    post(client, "/agents/codex/auth/remove", account="side")
+    log = audit_text(app)
+    for a in ("agents_auth_add", "agents_auth_default", "agents_auth_remove"):
+        assert a in log
+    assert "side" in log and "/accounts/" not in log
+
+
+def test_account_mutations_guarded(client):
+    for path in ("add", "remove", "default"):
+        assert post(client, f"/agents/claude/auth/{path}", csrf=False, name="x", account="work").status_code == 403
+        assert post(client, f"/agents/claude/auth/{path}", origin="https://evil.test", name="x").status_code == 403

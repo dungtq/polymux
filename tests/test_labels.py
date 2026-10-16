@@ -60,7 +60,7 @@ def test_unknown_pane_fallback_and_stability():
 def test_services_build_label(settings, fake_tmux, monkeypatch):
     s = sess("dev-pm", [TmuxWindow("@1", "$1", 1, "w", panes=(pane(140),))])
     monkeypatch.setattr(services.tmuxctl, "list_sessions", lambda st: (s,))
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [ag(140)])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [ag(140)])
     monkeypatch.setattr(services.projects, "discover", lambda st: [])
     snap = services.build_snapshot(settings, force=True)
     a = snap.agents[0]

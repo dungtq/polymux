@@ -298,9 +298,11 @@ def _none(agent: Agent) -> ChatView:
     return ChatView(agent_id=agent.id, state=agent.state)
 
 
-def chat_view(settings: Settings, agent: Agent, pane_text: str | None = None) -> ChatView:
+def chat_view(settings: Settings, agent: Agent, pane_text: str | None = None,
+              config_dir: Path | None = None) -> ChatView:
+    """``config_dir``: the agent's named-account folder (``agents.registry.config_dir_of``), None = the CLI's own."""
     try:
-        return _chat_view(settings, agent, pane_text)
+        return _chat_view(settings, agent, pane_text, config_dir)
     except Exception as exc:  # noqa: BLE001 - never raise; type only, no content
         log.warning("chat_view failed: %s", type(exc).__name__)
         return _none(agent)
@@ -320,12 +322,12 @@ def pane_is_newer(block: str, recent: tuple[str, ...]) -> bool:
     return not any(head in _fingerprint(r) for r in recent)
 
 
-def _claude_info(agent: Agent) -> tuple[TranscriptInfo, float]:
+def _claude_info(agent: Agent, config_dir: Path | None = None) -> tuple[TranscriptInfo, float]:
     uuid = agent.session_uuid
-    live = live_session_id(agent.pid) if agent.pid > 1 else None
+    live = live_session_id(agent.pid, **({"config_dir": config_dir} if config_dir else {})) if agent.pid > 1 else None
     if live:  # /clear or resume since the last detect: the process knows best
         uuid = live
-    path = transcript_path(agent.cwd, uuid or "")
+    path = transcript_path(agent.cwd, uuid or "", **({"config_dir": config_dir} if config_dir else {}))
     if path is None or not path.exists():
         return TranscriptInfo(), 0.0
     return read_transcript_info(path), mtime(path)
@@ -364,10 +366,10 @@ def _deep_task(path: Path) -> tuple[str, float]:
     return "", 0.0
 
 
-def _last_user(agent: Agent) -> tuple[str, float]:
+def _last_user(agent: Agent, config_dir: Path | None = None) -> tuple[str, float]:
     if agent.kind.value != "claude":
         return "", 0.0
-    path = transcript_path(agent.cwd, agent.session_uuid or "")
+    path = transcript_path(agent.cwd, agent.session_uuid or "", **({"config_dir": config_dir} if config_dir else {}))
     if path is None and agent.transcript and Path(agent.transcript).is_file():
         path = Path(agent.transcript)
     if path is None:
@@ -391,21 +393,22 @@ def _last_user(agent: Agent) -> tuple[str, float]:
     return task, ts
 
 
-def last_user_task(agent: Agent) -> str:
+def last_user_task(agent: Agent, config_dir: Path | None = None) -> str:
     """One-line last user message of a Claude agent (cached by file mtime), '' when unknown."""
-    return _last_user(agent)[0]
+    return _last_user(agent, config_dir)[0]
 
 
-def last_user_task_ts(agent: Agent) -> float:
+def last_user_task_ts(agent: Agent, config_dir: Path | None = None) -> float:
     """Epoch seconds of ``last_user_task`` (0.0 when unknown or the entry has no timestamp)."""
-    return _last_user(agent)[1]
+    return _last_user(agent, config_dir)[1]
 
 
-def _store_info(agent: Agent) -> tuple[TranscriptInfo, float]:
+def _store_info(agent: Agent, config_dir: Path | None = None) -> tuple[TranscriptInfo, float]:
     if agent.pid <= 1 and agent.transcript:  # ended agent: the store file recorded while it ran
         path = Path(agent.transcript) if Path(agent.transcript).is_file() else None
     else:
-        path = chat_sources.session_file(agent.kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s)
+        path = chat_sources.session_file(agent.kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s,
+                                        **({"config_dir": config_dir} if config_dir else {}))
     if path is None:
         return TranscriptInfo(), 0.0
     latest = chat_sources.read_latest(agent.kind, path)
@@ -416,7 +419,7 @@ def _store_info(agent: Agent) -> tuple[TranscriptInfo, float]:
                            task, latest.task_ts if task else 0.0), mtime(path))
 
 
-def _chat_view(settings: Settings, agent: Agent, pane_text: str | None) -> ChatView:
+def _chat_view(settings: Settings, agent: Agent, pane_text: str | None, config_dir: Path | None) -> ChatView:
     if pane_text is None:
         try:
             pane_text = tmuxctl.capture_pane(settings, agent.pane_id, PANE_LINES)
@@ -431,12 +434,13 @@ def _chat_view(settings: Settings, agent: Agent, pane_text: str | None) -> ChatV
     if ask:
         ask_start = _box_top(lines, ask_start)
 
+    kw = {"config_dir": config_dir} if config_dir else {}
     info, file_mtime = TranscriptInfo(), 0.0
     try:
         if agent.kind == AgentKind.CLAUDE:
-            info, file_mtime = _claude_info(agent)
+            info, file_mtime = _claude_info(agent, **kw)
         elif agent.kind in (AgentKind.DEVIN, AgentKind.CODEX, AgentKind.CURSOR, AgentKind.ANTIGRAVITY):
-            info, file_mtime = _store_info(agent)
+            info, file_mtime = _store_info(agent, **kw)
     except Exception as exc:  # noqa: BLE001
         log.warning("session read failed: %s", type(exc).__name__)
         info = TranscriptInfo()

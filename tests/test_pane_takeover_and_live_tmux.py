@@ -24,7 +24,7 @@ def _client(fake_tmux, tmp_path, monkeypatch, out, found):
     (dev / "beta").mkdir(parents=True, exist_ok=True)
     s = make_settings(fake_tmux, tmp_path)
     monkeypatch.setenv("FAKE_TMUX_OUT", out(dev))
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: list(found))
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: list(found))
     c = make_client(s, router, static=True, logged_in=True)
     return s, c
 

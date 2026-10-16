@@ -21,6 +21,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from pm.agents import registry
 from pm.chat import items, itemsync, outbox
 from pm.core import executors
 from pm.core.config import Settings
@@ -85,7 +86,8 @@ def link_new(settings: Settings, agent_id: str, cursor: int | None) -> tuple[int
 
 def sync_one(settings: Settings, agent: Agent, idle: bool, cursor: int | None) -> tuple[int, int | None, list]:
     """Ingest + link for one agent: (max rev of its items, new link cursor, rows now ``done``). Blocking."""
-    itemsync.sync(settings, agent, idle=idle)
+    itemsync.sync(settings, agent, idle=idle,
+                  **registry.config_kw(settings, agent.id, agent.kind))
     cursor, done = link_new(settings, agent.id, cursor)
     return items.latest(settings, agent.id)[1], cursor, done
 

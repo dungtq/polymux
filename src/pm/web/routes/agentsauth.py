@@ -13,6 +13,10 @@ Every auth route takes an optional ``account`` (query on GET, form field on POST
 own login). It is checked against the configured names (``account_env``): unknown -> 400. The fragment shows
 one row per account; only the account named in a request is re-probed on ``fresh``.
 
+Accounts are defined here too (claude / codex): ``POST /agents/{name}/auth/add`` (field ``name``), ``/remove`` and
+``/default`` (field ``account``; ``""`` on ``/default`` = the CLI's own folder). Names are validated by
+``pm.core.accounts`` only (Invalid -> 400, the fragment is re-rendered with the message); audit carries kind + name.
+
 Mutations: POST + CSRF + Origin + session + tier SAFE (``mutation_guard``) + audit (fail closed).
 """
 
@@ -27,7 +31,7 @@ from fastapi.responses import JSONResponse, Response
 
 from pm.agents.inventory import auth as agentsauth
 from pm.agents.inventory import read as agentsinv
-from pm.core import executors
+from pm.core import accounts, executors
 from pm.core.accounts import account_env
 from pm.core.config import ACCOUNT_KINDS
 from pm.core.errors import PmError
@@ -62,7 +66,7 @@ def _settings(request: Request):
 
 def _accounts(request: Request, agent: AgentInfo) -> tuple[str, ...]:
     """Account names of one agent, default (``""``) first; only claude / codex have named ones."""
-    named = _settings(request).accounts.get(agent.name, ()) if agent.name in ACCOUNT_KINDS else ()
+    named = accounts.names(_settings(request), agent.name) if agent.name in ACCOUNT_KINDS else ()
     return ("", *named)
 
 
@@ -113,15 +117,23 @@ def _row(account: str, st, view) -> dict:
 
 
 def _render(request: Request, agent: AgentInfo, rows: list[dict], part: str = "", notice: str = "",
-            headers: dict[str, str] | None = None) -> Response:
+            headers: dict[str, str] | None = None, status: int = 200) -> Response:
+    st = _settings(request)
+    kind = agent.name in ACCOUNT_KINDS
     html = get_template("_agents_auth.html").render(
         **page_ctx(request), agent=agent, rows=rows, part=part, notice=notice,
-        sup=agentsauth.supported(agent.name), base="/agents/" + quote(agent.name))
-    return fragment(request, html, headers)
+        sup=agentsauth.supported(agent.name), base="/agents/" + quote(agent.name),
+        manage=kind and bool(agent.binary) and part == "",
+        readonly=[a for a in _accounts(request, agent)[1:] if accounts.is_readonly(st, agent.name, a)] if kind else [],
+        gdef=accounts.global_default(st, agent.name) if kind else "")
+    resp = fragment(request, html, headers)
+    if status != 200:
+        resp.status_code = status
+    return resp
 
 
 async def _full(request: Request, agent: AgentInfo, account: str = "", notice: str = "", fresh: bool = False,
-                headers: dict[str, str] | None = None) -> Response:
+                headers: dict[str, str] | None = None, status: int = 200) -> Response:
     """Whole fragment: per account the login view, plus the status unless its login is still running.
 
     ``fresh`` re-probes only ``account``'s row; the others come from the status cache."""
@@ -130,7 +142,7 @@ async def _full(request: Request, agent: AgentInfo, account: str = "", notice: s
         st = None if view.active and not view.dead else await _status(request, agent, acc, fresh and acc == account)
         return _row(acc, st, view)
     rows = list(await asyncio.gather(*(one(a) for a in _accounts(request, agent))))
-    return _render(request, agent, rows, notice=notice, headers=headers)
+    return _render(request, agent, rows, notice=notice, headers=headers, status=status)
 
 
 def _guard(agent: AgentInfo) -> None:
@@ -249,3 +261,40 @@ async def auth_logout(request: Request, name: str):
         agentsauth.clear_cache(agent.name, account=account)
     controlctl.done(request, "agents_auth_logout", agent.name, "ok", _detail(account))
     return await _full(request, agent, account, fresh=True)
+
+
+def _kind_guard(agent: AgentInfo) -> None:
+    if agent.name not in ACCOUNT_KINDS:
+        raise HTTPException(400, "no named accounts for this agent")
+
+
+async def _manage(request: Request, name: str, action: str, field: str, fn) -> Response:
+    """Shared body of add / remove / default: run the core call, audit kind + account name, re-render."""
+    agent = await _agent(name)
+    _kind_guard(agent)
+    value = (await controlctl.form(request, field)).strip()
+    try:
+        fn(_settings(request), agent.name, value)
+    except PmError as e:
+        controlctl.done(request, action, agent.name, "error", {"reason": str(e)[:80]})
+        return await _full(request, agent, notice=str(e) or "Refused.", status=e.status)
+    except OSError:
+        controlctl.done(request, action, agent.name, "error", {"reason": "accounts file not writable"})
+        return await _full(request, agent, notice="Could not save the accounts.", status=500)
+    controlctl.done(request, action, agent.name, "ok", {"account": value} if value else None)
+    return await _full(request, agent)
+
+
+@router.post("/agents/{name}/auth/add", dependencies=[Depends(mutation_guard("agents_auth_add", Tier.SAFE))])
+async def auth_add(request: Request, name: str):
+    return await _manage(request, name, "agents_auth_add", "name", accounts.add)
+
+
+@router.post("/agents/{name}/auth/remove", dependencies=[Depends(mutation_guard("agents_auth_remove", Tier.SAFE))])
+async def auth_remove(request: Request, name: str):
+    return await _manage(request, name, "agents_auth_remove", "account", accounts.remove)
+
+
+@router.post("/agents/{name}/auth/default", dependencies=[Depends(mutation_guard("agents_auth_default", Tier.SAFE))])
+async def auth_default(request: Request, name: str):
+    return await _manage(request, name, "agents_auth_default", "account", accounts.set_default)

@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from pm.core import accounts as accts
 from pm.core import filelock
 from pm.core.config import ACCOUNT_KINDS, Settings
 from pm.core.errors import Invalid
@@ -27,10 +28,10 @@ class ProjectSettings:
     links: tuple[str, ...] = ()
     default_branch: str = ""
     vms: tuple[str, ...] = ()
-    accounts: tuple[tuple[str, str], ...] = ()  # (kind, account name); absent kind = the default account
+    accounts: tuple[tuple[str, str], ...] = ()  # (kind, name or '-'); absent kind = the global default
 
     def account(self, kind: str) -> str:
-        """Chosen account name for ``kind`` ('claude' / 'codex'); '' = the default account."""
+        """Chosen account name for ``kind`` ('claude' / 'codex'); '' = the global default, '-' = the CLI's own folder."""
         return next((n for k, n in self.accounts if k == kind), "")
 
 
@@ -123,11 +124,11 @@ def save_vms(settings: Settings, name: str, patterns: str | Iterable[str]) -> Pr
 
 
 def save_accounts(settings: Settings, name: str, mapping: dict[str, str]) -> ProjectSettings:
-    """Login account per agent kind ('' = default). Kinds not in ``mapping`` keep their value."""
+    """Login account per agent kind ('' = global default, '-' = the CLI's own folder). Kinds not in ``mapping`` keep their value."""
     for kind, acc in mapping.items():
         if kind not in ACCOUNT_KINDS:
             raise Invalid(f"unknown account kind: {kind!r}"[:80])
-        if acc and acc not in settings.accounts.get(kind, ()):
+        if acc and acc != accts.CLI_DEFAULT and acc not in accts.names(settings, kind):
             raise Invalid(f"unknown {kind} account: {acc!r}"[:80])
 
     def apply(e: dict) -> None:

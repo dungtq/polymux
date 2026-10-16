@@ -389,6 +389,7 @@ def test_ended_page_old_record_facts_and_resume_gating(client, monkeypatch, tmp_
     a = idle_agent(transcript=str(tr))
     old = registry.assign(st, [a], now=100)[0].id
     registry.assign(st, [], now=200)
+    st = dataclasses.replace(st, claude_dir=tmp_path / ".claude")  # the CLI's own folder, where the record lives
     app, c, tok, st = mk(st)
     app.include_router(pm.web.routes.pages.router)
     app.include_router(pm.web.routes.autoexit.router)

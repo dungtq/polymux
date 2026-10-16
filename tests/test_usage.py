@@ -105,6 +105,7 @@ def test_chat_panel_route_and_agents_tab(env, monkeypatch, tmp_path):
 
 
 def test_agents_usage_tab(env, monkeypatch, tmp_path):
+    from pm.core import accounts
     from pm.web import agentslib
 
     s, c = env
@@ -113,12 +114,14 @@ def test_agents_usage_tab(env, monkeypatch, tmp_path):
     _write(home / ".claude" / "projects" / "-x-a" / "1.jsonl", _a("a1", 100, 50, tools=2, cwd="/x/alpha"),
            _a("a2", 10, 5, model="claude-haiku", cwd="/x/alpha"))
     monkeypatch.setattr(agentslib, "home", lambda: home)
+    monkeypatch.setattr(accounts, "config_dirs", lambda settings, kind: [home / ".claude"])  # the CLI's own folder
     t = c.get("/agents?t=usage").text
     assert "By model" in t and "claude-haiku" in t and "By day" in t and "Top sessions" in t and "alpha" in t
     assert "SECRET-PANE-TEXT" not in t
     assert 'aria-current="true"' in t and "/agents?t=usage&amp;r=7" in t
     assert "No Claude transcripts" in c.get("/agents?t=usage&r=7").text or "By model" in c.get("/agents?t=usage&r=7").text
     monkeypatch.setattr(agentslib, "home", lambda: tmp_path / "empty")
+    monkeypatch.setattr(accounts, "config_dirs", lambda settings, kind: [tmp_path / "empty" / ".claude"])
     assert "No Claude transcripts" in c.get("/agents?t=usage&r=all").text
 
 
@@ -143,3 +146,15 @@ def test_agents_usage_ctx_limits(env, monkeypatch, tmp_path):
     assert c.get("/agents?t=usage").status_code == 200
     assert [(w.label, w.pct) for w in seen["limits"]] == [("5h limit", 42)]
     assert seen["agg"].top_ids == []
+
+
+def test_aggregate_sums_config_dirs_and_caches_per_dirs(tmp_path):
+    own, acct = tmp_path / "own", tmp_path / "acct"
+    _write(own / "projects" / "-x-a" / "1.jsonl", _a("a1", 100, 50, cwd="/x/alpha"))
+    _write(acct / "projects" / "-x-b" / "2.jsonl", _a("b1", 10, 5, cwd="/x/beta"))
+    both = usage.aggregate(tmp_path, 30, config_dirs=[own, acct])
+    assert both.sessions == 2 and both.total.input == 110
+    one = usage.aggregate(tmp_path, 30, config_dirs=[own])
+    assert one.sessions == 1 and one.total.input == 100  # the dirs are part of the cache key
+    assert usage.aggregate(tmp_path, 30, config_dirs=[own, acct]) is both
+    assert usage.aggregate(tmp_path, 30).sessions == 0  # default: <home>/.claude/projects only

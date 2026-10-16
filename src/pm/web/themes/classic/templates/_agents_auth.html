@@ -17,7 +17,9 @@
 <button type="button" class="ag-act" hx-get="{{ base }}/auth?fresh=1{% if r.account %}&amp;account={{ r.account | urlencode }}{% endif %}" hx-target="#ag-auth" hx-swap="outerHTML" title="Check the login status again">Refresh</button>{{ act(r, "logout", "Log out", "small danger", "Log out of " ~ who ~ "?") }}
 {% elif st and st.state == "out" %}<span class="ag-auth-st">{{ dot("idle", "not logged in") }}Not logged in</span>{{ act(r, "login", "Log in", "small primary") }}
 {% else %}<span class="ag-auth-st"{% if st and st.error %} title="{{ st.error }}"{% endif %}>{{ dot("unknown", "unknown") }}Unknown{% if st and st.error %} <span class="muted">&middot; {{ st.error }}</span>{% endif %}</span>{{ act(r, "login", "Log in", "small") }}
-{% endif %}</div>
+{% endif %}
+{% if manage and not (view.active and not view.dead) %}{% if r.account == gdef %}<span class="muted ag-auth-def" title="Used when a project has no choice">Default</span>{% else %}{{ act(r, "default", "Make default", "small") }}{% endif %}
+{% if r.account and r.account not in readonly %}{{ act(r, "remove", "Remove", "small danger", "Remove " ~ r.account ~ " from the list? Its login folder is kept on disk.") }}{% elif r.account %}<span class="muted ag-auth-def" title="Defined in pm.toml, remove it there">pm.toml</span>{% elif gdef %}{{ act(r, "default", "Use CLI default", "small") }}{% endif %}{% endif %}</div>
 {% if sup and view.active %}<div class="ag-auth-run">
 {% if view.dead %}<p class="ag-auth-done">Login finished.</p>{% endif %}
 {{ out(r, not view.dead) }}
@@ -26,6 +28,7 @@
 {{ act(r, "cancel", "Cancel", "") }}{% else %}{{ act(r, "cancel", "Close", "") }}{% endif %}
 </div></div>{% endif %}
 {% endfor %}
+{% if manage %}<form class="ag-auth-add" method="post" action="{{ base }}/auth/add" hx-post="{{ base }}/auth/add" hx-target="#ag-auth" hx-swap="outerHTML" autocomplete="off"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="text" name="name" maxlength="32" pattern="[a-z0-9][a-z0-9_\-]*" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="New account name" placeholder="New account"><button type="submit" class="small">Add account</button></form>{% endif %}
 {% if notice %}<p class="ag-auth-note" role="status">{{ notice }}</p>{% endif %}
 </div>
 {% endif %}

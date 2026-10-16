@@ -53,7 +53,7 @@ def box(fake_tmux, tmp_path, monkeypatch):
     live = [Agent(id=f"claude-{n}", kind=AgentKind.CLAUDE, pane_id=f"%{n}", session_id=f"${n}", pid=n,
                   cwd=str(dev / "alpha"), state=st, state_since=1.0, ident=str(uuid.uuid4()))
             for n, st in ((1, AgentState.RUNNING), (2, AgentState.WAITING), (3, AgentState.IDLE))]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: list(live))
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: list(live))
     ids = {"zed": _ended(s, "dev-zed-1-claude", "alpha", str(dev / "alpha"), 100),
            "yak": _ended(s, "dev-yak-2-claude", "yakproj", "/yak", 200)}
     item = NtfyItem(id="n1", time=300.0, title="zed finished", message=f"all done {MSG}")

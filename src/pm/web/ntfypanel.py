@@ -10,7 +10,7 @@ from urllib.parse import quote, urlsplit
 
 from fastapi import HTTPException, Request
 
-from pm.agents import detect, inbox, pinned, sorting
+from pm.agents import detect, inbox, pinned, registry, sorting
 from pm.agents import head as agenthead
 from pm.chat import live
 from pm.chat import stats as chat_stats
@@ -212,7 +212,7 @@ async def _pane_lines(settings, agents) -> tuple[dict, dict]:
             if event == "failed":
                 return inbox.error_of(pane)
             # chat_view merges the transcript's AskUserQuestion form: the current question, not the footer
-            return inbox.ask_of(pane, asking=live.chat_view(settings, a, pane).asking)
+            return inbox.ask_of(pane, asking=live.chat_view(settings, a, pane, **registry.config_kw(settings, a.id, a.kind)).asking)
         try:
             return a.id, await executors.run_tmux(
                 inbox.cached_question, a.pane_id, a.state_since, fetch, event=event)
@@ -225,10 +225,10 @@ async def _pane_lines(settings, agents) -> tuple[dict, dict]:
     return dict(got[:len(waiting)]), dict(got[len(waiting):])
 
 
-def row_model(a) -> str:
+def row_model(a, settings=None) -> str:
     """The short model the agent page heading shows (``agents.head.live_pill``: transcript, process args, Claude's
     settings; never a pane read); '' when only the kind is known."""
-    m = agenthead.live_pill(a)
+    m = agenthead.live_pill(a, config_dirs=agenthead.kind_dirs(settings, a.kind) if settings else None)
     return "" if m == agenthead.model_short(a.kind.value) else m
 
 
@@ -239,8 +239,9 @@ async def _row_extras(settings, agents, feed: dict) -> dict:
         out, locks = {}, detect.Locks(Path.home(), PROC)
         for a in agents:
             f = feed.get(a.id)
-            out[a.id] = (chat_stats.ctx_pct(a, locks.for_kind(a.kind)), inbox.last_message(a, f.item if f else None),
-                         row_model(a))
+            kw = registry.config_kw(settings, a.id, a.kind)
+            out[a.id] = (chat_stats.ctx_pct(a, locks.for_kind(a.kind), **kw), inbox.last_message(a, f.item if f else None, **kw),
+                         row_model(a, settings))
         return out
     try:
         return await executors.run_collectors(work)

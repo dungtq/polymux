@@ -333,3 +333,31 @@ def test_dead_pane_is_never_an_agent(tmp_path):
     a = detect_agents([dead, pane(30, 2)], sessions_dir=tmp_path / "none", proc_root=proc, home=tmp_path / "h")
     assert [x.pane_id for x in a] == ["%2"]
     assert detect_agents([dead], sessions_dir=tmp_path / "none", proc_root=proc, home=tmp_path / "h") == []
+
+
+def test_sessions_dirs_scan_every_account_dir(tmp_path):
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "uptime").write_text("100.0 0\n")
+    mkproc(proc, 10, 1, "fish", ["fish"])
+    mkproc(proc, 11, 10, "node", ["node", "/x/bin/claude"], start=1000)
+    mkproc(proc, 20, 1, "fish", ["fish"])
+    mkproc(proc, 21, 20, "node", ["node", "/x/bin/claude"], start=2000)
+    own, acct = tmp_path / "own" / "sessions", tmp_path / "acct" / "sessions"
+    own.mkdir(parents=True)
+    acct.mkdir(parents=True)
+    sess(own, 11, 1000, "busy")
+    sess(acct, 21, 2000, "idle")
+    a = detect_agents([pane(10, 1), pane(20, 2)], sessions_dirs=[own, acct], proc_root=proc, home=tmp_path / "h")
+    assert [(x.pid, x.state) for x in a] == [(11, AgentState.RUNNING), (21, AgentState.IDLE)]
+    assert all(x.session_uuid == "uuid-1" for x in a)
+    only = detect_agents([pane(20, 2)], sessions_dirs=[own], proc_root=proc, home=tmp_path / "h")
+    assert only[0].state is AgentState.UNKNOWN  # the account's session json is not in the scanned dirs
+    # the transcript is looked up in the config folder that held the session json
+    (tmp_path / "acct" / "projects" / "-proj").mkdir(parents=True)
+    t = tmp_path / "acct" / "projects" / "-proj" / "11111111-2222-3333-4444-555555555555.jsonl"
+    t.write_text("{}\n")
+    (acct / "21.json").write_text(json.dumps({"pid": 21, "procStart": "2000", "status": "idle", "cwd": "/proj",
+                                              "sessionId": t.stem}))
+    b = detect_agents([pane(20, 2)], sessions_dirs=[own, acct], proc_root=proc, home=tmp_path / "h")
+    assert b[0].transcript == str(t)

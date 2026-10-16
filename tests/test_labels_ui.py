@@ -20,7 +20,7 @@ def test_view_sessions_hidden_from_snapshot(monkeypatch, tmp_path):
         TmuxSession(id="$9", name="pm-view-0123456789ab"),
     )
     monkeypatch.setattr(services.tmuxctl, "list_sessions", lambda s: sess)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [])
     monkeypatch.setattr(services.projects, "discover", lambda s: [])
     snap = services.build_snapshot(Settings(dev_root=tmp_path, extra_projects=()), force=True)
     assert [s.name for s in snap.sessions] == ["dev-pm"]

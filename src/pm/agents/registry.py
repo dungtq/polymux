@@ -19,10 +19,12 @@ import threading
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from pm.agents import sorting
-from pm.core import db
-from pm.core.config import Settings
+from pm.core import accounts, db
+from pm.core.config import ACCOUNT_KINDS, Settings
+from pm.core.errors import Invalid
 from pm.core.models import Agent, AgentKind
 
 log = logging.getLogger(__name__)
@@ -110,6 +112,28 @@ def account_of(settings: Settings, agent_id: str) -> str:
     """Account stored for an agent id ('' = default or unknown)."""
     rec = get(settings, agent_id)
     return rec.account if rec else ""
+
+
+def config_dir_of(settings: Settings, agent_id: str, kind) -> Path | None:
+    """Login folder of the agent's stored named account (claude / codex), None for the CLI's own folder, an
+    unknown account or another kind: pass it as ``config_dir`` to the ``pm.chat`` session readers."""
+    k = getattr(kind, "value", kind)
+    if k not in ACCOUNT_KINDS:
+        return None
+    acc = account_of(settings, agent_id)
+    if not acc:
+        return None
+    try:
+        return accounts.config_dir(settings, k, acc)
+    except Invalid:
+        return None
+
+
+def config_kw(settings: Settings, agent_id: str, kind) -> dict:
+    """``{"config_dir": folder}`` for an agent under a named account, ``{}`` otherwise: splat it into a call to
+    the ``pm.chat`` readers (``chat_view``, ``store_file``, ``stats_for``, ...) so the default call stays as it was."""
+    d = config_dir_of(settings, agent_id, kind)
+    return {"config_dir": d} if d else {}
 
 
 def _hint(con: sqlite3.Connection, a: Agent, now: float) -> str:

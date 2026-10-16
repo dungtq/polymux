@@ -208,7 +208,7 @@ def test_stats_compact_button(env, monkeypatch, ctx, kind, want):  # noqa: F811
                         lambda agent, settings=None: Stats(input=1, output=1, ctx=ctx, source=kind.value))
     ag = services.agents_mod.detect_agents(None)[0]
     monkeypatch.setattr(services.agents_mod, "detect_agents",
-                        lambda panes: [dataclasses.replace(ag, kind=kind)])
+                        lambda panes, **kw: [dataclasses.replace(ag, kind=kind)])
     r = c.get("/a/claude-12/stats")
     assert r.status_code == 200
     has = 'class="stats-act"' in r.text

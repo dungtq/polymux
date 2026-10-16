@@ -326,11 +326,12 @@ def last_src(nt, user, uts) -> str:
     return "ntfy" if nt else ""
 
 
-def last_message(agent: Agent, nt, limit: int = LAST_TEXT_MAX) -> dict | None:
+def last_message(agent: Agent, nt, limit: int = LAST_TEXT_MAX, config_dir: Path | None = None) -> dict | None:
     """``{"text", "src", "ts"}`` of the row's last message (``last_src``): the user's last message
     (``chat.live.last_user_task``) or the ntfy item's message / title; one line, masked, at most ``limit``
     characters. None when there is neither."""
-    user, uts = live.last_user_task(agent), live.last_user_task_ts(agent)
+    kw = {"config_dir": config_dir} if config_dir else {}
+    user, uts = live.last_user_task(agent, **kw), live.last_user_task_ts(agent, **kw)
     src = last_src(nt, user, uts)
     if not src:
         return None

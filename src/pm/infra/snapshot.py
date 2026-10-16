@@ -17,7 +17,7 @@ from dataclasses import dataclass, field, replace
 
 from pm import agents as agents_mod
 from pm.agents import labels
-from pm.core import executors
+from pm.core import accounts, executors
 from pm.core.config import Settings
 from pm.core.models import Agent, AgentState, Project, TmuxSession
 from pm.git import ctl as gitctl
@@ -257,7 +257,8 @@ def _build(settings: Settings, now: float) -> Snapshot:
         errors.append(f"tmux: {e}")
     panes = [p for s in sessions for w in s.windows for p in w.panes]
     try:
-        found = agents_mod.detect_agents(panes)
+        found = agents_mod.detect_agents(
+            panes, sessions_dirs=[d / "sessions" for d in accounts.config_dirs(settings, "claude")])
     except Exception as e:  # noqa: BLE001
         found = []
         errors.append(f"agents: {type(e).__name__}")

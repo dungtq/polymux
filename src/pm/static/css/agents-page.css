@@ -204,6 +204,10 @@
 @media (pointer:coarse){.pg-agents .ag-auth button{min-height:36px}}
 .pg-agents .ag-auth-st{display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pg-agents .ag-auth-st>.muted{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pg-agents .ag-auth-def{flex:0 0 auto;white-space:nowrap}
+.pg-agents .ag-auth-add{display:flex;align-items:center;gap:8px;margin:4px 0 0 calc(6.5em + 8px);min-width:0}
+.pg-agents .ag-auth-add input[type=text]{flex:1 1 auto;min-width:0;max-width:16em;height:var(--ctl-h)}
+.pg-agents .ag-auth-add button{flex:0 0 auto;height:var(--ctl-h)}
 .pg-agents .ag-auth-note{margin:4px 0 0 calc(6.5em + 8px);color:var(--failed)}
 .pg-agents .ag-auth-run{margin:4px 0 8px calc(6.5em + 8px);display:grid;gap:6px;min-width:0}
 .pg-agents .ag-auth-done{margin:0;color:var(--muted)}
@@ -218,6 +222,7 @@
 .pg-agents .ag-auth-send input[type=text]{flex:1 1 auto;min-width:0;max-width:28em;font-family:var(--mono,ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace)}
 @media (max-width:699px){
   .pg-agents .ag-auth-k{flex-basis:5.5em}
-  .pg-agents .ag-auth-note,.pg-agents .ag-auth-run{margin-left:0}
+  .pg-agents .ag-auth-note,.pg-agents .ag-auth-run,.pg-agents .ag-auth-add{margin-left:0}
+  .pg-agents .ag-auth-add input[type=text]{font-size:16px}
   .pg-agents .ag-auth-send input[type=text]{font-size:16px}
 }

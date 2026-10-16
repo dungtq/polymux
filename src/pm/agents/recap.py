@@ -121,12 +121,13 @@ def parse_claude(path: Path, cwd: str = "") -> Recap:
                  reply_raw=_raw(reply, RAW_CHARS), away=_raw(_AWAY_TAIL.sub("", away), RAW_CHARS))
 
 
-def _other(agent: Agent) -> tuple[Recap, float]:
+def _other(agent: Agent, config_dir: Path | None = None) -> tuple[Recap, float]:
     if agent.pid <= 1 and agent.transcript:
         p = Path(agent.transcript)
         path = p if p.is_file() else None
     else:
-        path = chat_sources.session_file(agent.kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s)
+        path = chat_sources.session_file(agent.kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s,
+                                        **({"config_dir": config_dir} if config_dir else {}))
     if path is None:
         return Recap(), 0.0
     latest = chat_sources.read_latest(agent.kind, path)
@@ -137,14 +138,15 @@ def _other(agent: Agent) -> tuple[Recap, float]:
                  reply_raw=_raw(latest.text, RAW_CHARS)), mtime(path)
 
 
-def recap_for(agent: Agent) -> Recap:
-    """Recap of the agent's current chat; an empty Recap when nothing can be read."""
+def recap_for(agent: Agent, config_dir: Path | None = None) -> Recap:
+    """Recap of the agent's current chat; an empty Recap when nothing can be read. ``config_dir``: the agent's
+    named-account folder (``registry.config_dir_of``)."""
     try:
         if agent.kind.value == "claude":
             from pm.chat.sources.claude import live_session_id
 
-            uuid = (live_session_id(agent.pid) if agent.pid > 1 else None) or agent.session_uuid or ""
-            path = transcript_path(agent.cwd, uuid)
+            uuid = (live_session_id(agent.pid, **({"config_dir": config_dir} if config_dir else {})) if agent.pid > 1 else None) or agent.session_uuid or ""
+            path = transcript_path(agent.cwd, uuid, **({"config_dir": config_dir} if config_dir else {}))
             if path is None or not path.is_file():
                 return Recap()
             st = path.stat()
@@ -159,7 +161,7 @@ def recap_for(agent: Agent) -> Recap:
                     _CACHE.pop(next(iter(_CACHE)))
                 _CACHE[key] = (sig, rec)
             return rec
-        return _other(agent)[0]
+        return _other(agent, config_dir)[0]
     except Exception as exc:  # noqa: BLE001 - never raise, never log content
         log.warning("recap failed: %s", type(exc).__name__)
         return Recap()

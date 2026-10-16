@@ -57,7 +57,7 @@ def test_sa_live_absent_for_codex(env, monkeypatch):
     s, c = env
     base = services.agents_mod.detect_agents
     monkeypatch.setattr(services.agents_mod, "detect_agents",
-                        lambda panes: [replace(a, kind=AgentKind.CODEX) for a in base(panes)])
+                        lambda panes, **kw: [replace(a, kind=AgentKind.CODEX) for a in base(panes)])
     login(s, c)
     assert 'id="sa-live"' not in c.get("/a/claude-12").text
 
@@ -97,7 +97,7 @@ def test_agent_page_head_pill_from_python(env, monkeypatch):
     from pathlib import Path
     s, c = env
     login(s, c)
-    monkeypatch.setattr("pm.agents.head.live_pill", lambda a, home=None: "fable-9")
+    monkeypatch.setattr("pm.agents.head.live_pill", lambda a, home=None, **kw: "fable-9")
     t = c.get("/a/claude-12").text
     assert 'data-model="fable-9"' in t and 'id="agent-pill"' in t and ">fable-9</span></h1>" in t
     assert "live_pill" not in (TEMPLATE_DIR / "agent.html").read_text()

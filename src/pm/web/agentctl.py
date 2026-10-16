@@ -142,7 +142,8 @@ async def agent(request: Request, action: str, agent_id: str) -> Agent:
                         reason="stale pane id", detail={"now": res.redirect})
         raise stop(request, action, agent_id, 404, "unknown agent")
     rec = registry.get(settings, a.id)
-    live = live_session_id(a.pid) if a.kind is AgentKind.CLAUDE and a.pid > 1 else None
+    live = (live_session_id(a.pid, **registry.config_kw(settings, a.id, a.kind))
+            if a.kind is AgentKind.CLAUDE and a.pid > 1 else None)
     known = rec.ident if rec else None
     if known and ((a.ident and a.ident != known) or (live and live != known)):
         raise stop(request, action, a.id, 409, "agent changed",

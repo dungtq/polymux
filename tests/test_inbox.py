@@ -388,7 +388,7 @@ def test_row_meta_model_and_options(tmp_path, monkeypatch):
     monkeypatch.setattr(ntfypanel.live, "chat_view", lambda settings, a, p: NS(asking=None))
     monkeypatch.setattr(ntfypanel.chat_stats, "ctx_pct", lambda a, locks=None: None)
     monkeypatch.setattr(inbox.live, "last_user_task", lambda a: "")
-    monkeypatch.setattr(ntfypanel.agenthead, "live_pill", lambda a: "opus 4.6")
+    monkeypatch.setattr(ntfypanel.agenthead, "live_pill", lambda a, **kw: "opus 4.6")
     inbox._qcache.clear()
     meta = asyncio.run(ntfypanel.row_meta(req, [w], inbox.load(tmp_path), now, 3600, feed={}))
     m = meta["claude-7"]
@@ -396,6 +396,6 @@ def test_row_meta_model_and_options(tmp_path, monkeypatch):
     assert m["model"] == "opus 4.6"
     asyncio.run(ntfypanel.row_meta(req, [w], inbox.load(tmp_path), now, 3600, feed={}))
     assert reads == ["%1"]  # options are cached with the question: one pane read
-    monkeypatch.setattr(ntfypanel.agenthead, "live_pill", lambda a: ntfypanel.agenthead.model_short(a.kind.value))
+    monkeypatch.setattr(ntfypanel.agenthead, "live_pill", lambda a, **kw: ntfypanel.agenthead.model_short(a.kind.value))
     meta = asyncio.run(ntfypanel.row_meta(req, [ag("claude-8", "idle")], inbox.load(tmp_path), now, 3600, feed={}))
     assert meta["claude-8"]["model"] == "" and meta["claude-8"]["options"] == []  # kind only: unknown model

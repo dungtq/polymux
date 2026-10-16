@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from pm.chat import items as chat_items
 from pm.chat import outbox
@@ -80,15 +81,16 @@ def open_turn(items) -> list:
     return [it for it in items[last + 1:] if it.kind == "tool" and it.turn == turn]
 
 
-def read(settings: Settings, agent: Agent, ended: bool, *, chatlog=None) -> tuple[ChatView, Strip]:
+def read(settings: Settings, agent: Agent, ended: bool, *, chatlog=None,
+         config_dir: Path | None = None) -> tuple[ChatView, Strip]:
     """Blocking. The ChatView plus the open turn's tool facts; the pane is captured once (chat_view
     reuses it) and its tail is only kept while a tool waits. Ended agents never read a pane.
 
     ``chatlog`` (``pm.chat.log`` or None, injected by the route): its ``sync`` keeps the stored chat
-    log (search, Continue…) ingesting while the agent page is open."""
+    log (search, Continue…) ingesting while the agent page is open. ``config_dir``: the agent's named-account folder."""
     if ended:
-        return chat_view(settings, agent, ""), Strip()
-    _sync_log(chatlog, settings, agent)
+        return chat_view(settings, agent, "", **({"config_dir": config_dir} if config_dir else {})), Strip()
+    _sync_log(chatlog, settings, agent, config_dir)
     recent = chat_items.list_items(settings, agent.id, limit=STRIP_ITEMS)
     tools = open_turn(recent)
     bg = _background(settings, agent.id, recent[-1].conv if recent else "")
@@ -101,7 +103,7 @@ def read(settings: Settings, agent: Agent, ended: bool, *, chatlog=None) -> tupl
             pane = tmuxctl.capture_pane(settings, agent.pane_id, PANE_LINES)
         except Exception:  # noqa: BLE001 - no tail then; chat_view captures on its own
             pane = None
-    view = _own_queued(settings, agent, chat_view(settings, agent, pane), now)
+    view = _own_queued(settings, agent, chat_view(settings, agent, pane, **({"config_dir": config_dir} if config_dir else {})), now)
     if wait is None:
         return view, Strip(tools=len(tools), bg=bg)
     return view, Strip(len(tools), wait.name or "tool", wait.ts, pane_tail(pane or ""), bg)
@@ -135,10 +137,10 @@ def _own_queued(settings: Settings, agent: Agent, view: ChatView, now: float) ->
     return replace(view, queued="") if m is not None else view
 
 
-def _sync_log(chatlog, settings: Settings, agent: Agent) -> None:
+def _sync_log(chatlog, settings: Settings, agent: Agent, config_dir: Path | None = None) -> None:
     if chatlog is None:
         return
     try:
-        chatlog.sync(settings, agent)
+        chatlog.sync(settings, agent, **({"config_dir": config_dir} if config_dir else {}))
     except Exception:  # noqa: BLE001 - the live strip must render even when the store is broken
         pass

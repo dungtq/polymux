@@ -151,13 +151,13 @@ def _steps_load(raw: object) -> list[tuple[str, str, str]]:
 # --------------------------------------------------------------------------
 
 
-def store_file(agent: Agent) -> Path | None:
+def store_file(agent: Agent, config_dir: Path | None = None) -> Path | None:
     kind = agent.kind
     if kind == AgentKind.CLAUDE:
         uuid = agent.session_uuid or ""
         if agent.pid > 1:
-            uuid = live_session_id(agent.pid) or uuid  # /clear or resume since the last detect
-        path = transcript_path(agent.cwd, uuid)
+            uuid = live_session_id(agent.pid, **({"config_dir": config_dir} if config_dir else {})) or uuid  # /clear or resume since the last detect
+        path = transcript_path(agent.cwd, uuid, **({"config_dir": config_dir} if config_dir else {}))
         if (path is None or not path.is_file()) and agent.transcript and Path(agent.transcript).is_file():
             path = Path(agent.transcript)
         return path if path is not None and path.is_file() else None
@@ -166,7 +166,8 @@ def store_file(agent: Agent) -> Path | None:
     if agent.pid <= 1:  # ended agent: the store file recorded while it ran
         t = Path(agent.transcript) if agent.transcript else None
         return t if t is not None and t.is_file() else None
-    path = chat_sources.session_file(kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s)
+    path = chat_sources.session_file(kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s,
+                                    **({"config_dir": config_dir} if config_dir else {}))
     if path is None and agent.transcript and Path(agent.transcript).is_file():
         path = Path(agent.transcript)
     return path
@@ -195,18 +196,18 @@ def file_sig(kind: AgentKind, path: Path) -> tuple[int, int, float]:
 # --------------------------------------------------------------------------
 
 
-def sync(settings: Settings, agent: Agent) -> str:
+def sync(settings: Settings, agent: Agent, config_dir: Path | None = None) -> str:
     """Ingest new entries of the agent's current store. Returns the conv key ("" when none). Never raises."""
     try:
-        return _sync(settings, agent)
+        return _sync(settings, agent, config_dir)
     except Exception as exc:  # noqa: BLE001 - never raise; type only, no content
         log.warning("chatlog sync failed: %s", type(exc).__name__)
         return ""
 
 
-def _sync(settings: Settings, agent: Agent) -> str:
+def _sync(settings: Settings, agent: Agent, config_dir: Path | None) -> str:
     kind = agent.kind if isinstance(agent.kind, AgentKind) else AgentKind(agent.kind)
-    path = store_file(agent)
+    path = store_file(agent, **({"config_dir": config_dir} if config_dir else {}))
     if path is None:
         return ""
     conv = conv_key(kind, path)

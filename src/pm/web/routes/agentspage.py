@@ -10,7 +10,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request
 
 from pm.agents.inventory import mutate as agentsmut
-from pm.core import executors
+from pm.core import accounts, executors
 from pm.core.models import AgentInfo, Inventory, Sidebar, SideRow
 from pm.web import agentslib as lib
 from pm.web.agentslib import INST_COLS, SECTIONS, TABS, TITLES
@@ -68,7 +68,8 @@ async def _usage_ctx(request: Request) -> dict:
 
     qp = request.query_params
     r = qp.get("r") if qp.get("r") in ("7", "30", "all") else "30"
-    agg = await executors.run_collectors(usage.aggregate, lib.home(), 0 if r == "all" else int(r))
+    agg = await executors.run_collectors(usage.aggregate, lib.home(), 0 if r == "all" else int(r),
+                                        config_dirs=accounts.config_dirs(request.app.state.settings, "claude"))
     lim = await executors.run_collectors(limits.read_limits, request.app.state.settings.state_dir)
     tot = max(agg.total.total, 1)
     return dict(agg=agg, r=r, ranges=(("7", "7 days"), ("30", "30 days"), ("all", "All")), human=human,

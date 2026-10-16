@@ -486,6 +486,22 @@ def test_launch_named_account_passes_env_and_is_stored(settings, tmp_path, monke
     assert registry.get(s, registry.assign(s, [other])[0].id).account == ""
 
 
+def test_launch_account_resolution_order(settings, tmp_path, monkeypatch):
+    from pm.core import accounts
+    s, calls = _acct_env(settings, tmp_path, monkeypatch)
+    s = dataclasses.replace(s, state_dir=tmp_path)
+    accounts.add(s, "claude", "ui")  # added in the UI, not in pm.toml
+    accounts.set_default(s, "claude", "ui")
+    pr = Project("proj", str(tmp_path / "proj"))
+    L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), pr)  # no project choice: the global default
+    assert calls[-1][1] == {"CLAUDE_CONFIG_DIR": str(tmp_path / "accounts" / "claude" / "ui")}
+    from pm.projects import settings as pset
+    for choice, want in (("work", "work"), ("-", None)):  # the project's choice wins; '-' = the CLI's own folder
+        monkeypatch.setattr(pset, "load", lambda st, n, c=choice: pset.ProjectSettings(accounts=(("claude", c),)))
+        L.launch_agent(s, Launch("proj", AgentKind.CLAUDE), pr)
+        assert calls[-1][1] == ({"CLAUDE_CONFIG_DIR": str(tmp_path / "accounts" / "claude" / want)} if want else None)
+
+
 def test_launch_unknown_account_refused_before_any_worktree(settings, tmp_path, monkeypatch):
     from pm.core.errors import Invalid
     s, calls = _acct_env(settings, tmp_path, monkeypatch, project_account="nope")  # removed from [accounts]

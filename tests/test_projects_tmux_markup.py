@@ -26,7 +26,7 @@ def test_tmux_v4_new_session_ok_cancel_and_row(env, monkeypatch):
     monkeypatch.setenv("FAKE_TMUX_OUT", pane_line("$1", "work", "@1", "%12", "/tmp"))
     ag = Agent(id="claude-1", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=1,
                cwd="/tmp", state=AgentState.RUNNING, state_since=1.0, last_active=1.0)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [ag])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [ag])
     html = c.get("/tmux").text
     assert '<div class="pg-tmux">' in html and "<h1>tmux</h1>" in html
     assert '<button type="submit" class="primary">OK</button>' in html
@@ -46,7 +46,7 @@ def test_tmux_expanded_row_uses_windows_table_and_open_param(env, monkeypatch):
     monkeypatch.setenv("FAKE_TMUX_OUT", pane_line("$1", "work", "@1", "%12", "/tmp"))
     ag = Agent(id="claude-1", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=1,
                cwd="/tmp", state=AgentState.RUNNING, state_since=1.0, last_active=1.0)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [ag])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [ag])
     html = c.get("/tmux").text
     assert 'class="hrow tx-head tx-w"' in html and 'class="lrow tx-row tx-w"' in html  # shared windows table
     assert 'class="tx-agent"' in html and 'href="/a/claude-1"' in html

@@ -24,6 +24,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from pm.core import accounts
+from pm.core.config import Settings
+from pm.core.errors import PmError
+
 from . import codex, cursor
 from .claude import encode_cwd
 from .common import UUID_RE, mtime
@@ -92,8 +96,8 @@ def _newest(items: list[PastSession], cap: int) -> list[PastSession]:
 
 
 def _claude(cwd: str, home: Path, since: float, until: float, cap: int,
-            head: Callable[[str, Path], tuple[str, bool]]) -> list[PastSession]:
-    d = home / ".claude" / "projects" / encode_cwd(cwd)
+            head: Callable[[str, Path], tuple[str, bool]], config_dir: Path | None = None) -> list[PastSession]:
+    d = (config_dir or home / ".claude") / "projects" / encode_cwd(cwd)
     out: list[PastSession] = []
     try:
         with os.scandir(d) as it:
@@ -114,8 +118,9 @@ def _claude(cwd: str, home: Path, since: float, until: float, cap: int,
     return keep
 
 
-def _codex_files(home: Path, since: float, until: float, cap: int) -> list[tuple[float, Path]]:
-    base = home / ".codex" / "sessions"
+def _codex_files(home: Path, since: float, until: float, cap: int,
+                 config_dir: Path | None = None) -> list[tuple[float, Path]]:
+    base = (config_dir or home / ".codex") / "sessions"
     day = datetime.fromtimestamp(since).date() - timedelta(days=1)
     last = datetime.fromtimestamp(until).date() + timedelta(days=1)
     day = max(day, last - timedelta(days=MAX_DAYS))
@@ -153,22 +158,39 @@ def _cursor(cwd: str, home: Path, since: float, until: float, cap: int) -> list[
     return _newest(out, cap)
 
 
+def _account_dirs(settings: Settings | None, kind: str) -> list[Path]:
+    """Folders of the named accounts (the CLI's own folder is the ``home`` default, not repeated)."""
+    if settings is None:
+        return []
+    try:
+        return accounts.config_dirs(settings, kind)[1:]
+    except (OSError, PmError):
+        return []
+
+
 def discover_many(cwds: Iterable[str], home: Path, *, since: float, until: float, cap: int = MAX_FILES,
-                  head: Callable[[str, Path], tuple[str, bool]] = head_of) -> dict[str, list[PastSession]]:
+                  head: Callable[[str, Path], tuple[str, bool]] = head_of,
+                  settings: Settings | None = None) -> dict[str, list[PastSession]]:
     """{cwd: past sessions of every supported kind, newest first} for the given directories.
+
+    ``settings`` adds the named accounts' claude / codex folders (``pm.core.accounts``) to the scan.
 
     ``head(kind, path)`` returns (cwd recorded in a store file, interactive); inject a cached one."""
     want = [c for c in dict.fromkeys(cwds) if c]
     found: dict[str, list[PastSession]] = {c: [] for c in want}
     if not want:
         return found
+    cl: list[Path | None] = [None, *_account_dirs(settings, "claude")]  # None = home/.claude
+    cx: list[Path | None] = [None, *_account_dirs(settings, "codex")]
     for c in want:
-        found[c] += _claude(c, home, since, until, cap, head)
+        for cdir in cl:
+            found[c] += _claude(c, home, since, until, cap, head, cdir)
         found[c] += _cursor(c, home, since, until, cap)
-    for m, p in _codex_files(home, since, until, cap):
-        c, interactive = head("codex", p)
-        if interactive and c in found:
-            found[c].append(PastSession("codex", p.stem, p, c, m))
+    for cdir in cx:
+        for m, p in _codex_files(home, since, until, cap, cdir):
+            c, interactive = head("codex", p)
+            if interactive and c in found:
+                found[c].append(PastSession("codex", p.stem, p, c, m))
     for c in want:
         found[c].sort(key=lambda s: s.mtime, reverse=True)
     return found

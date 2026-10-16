@@ -7,8 +7,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from pm.agents import autoexit, chatfeed, deliver, pastsessions
+from pm.agents import head as agenthead
+from pm.core import accounts, executors, timefmt
 from pm.core import db as pmdb
-from pm.core import executors, timefmt
 from pm.core.config import Settings, load_settings
 from pm.core.models import Agent, AgentState
 from pm.git import ctl as gitctl
@@ -102,9 +103,16 @@ def _page_globals(settings: Settings) -> dict:
             "reload_unit": settings.reload_unit or "pm.service", "pm_code": reloadneed.code}
 
 
+def _register_account_roots(settings: Settings) -> Settings:
+    """Settings-less readers (Jinja filters ``pill_model``, ...) may also read the named accounts' transcripts."""
+    agenthead.register_extra_roots(
+        lambda: [d for k in ("claude", "codex") for d in accounts.config_dirs(settings, k)])
+    return settings
+
+
 def create_app(settings: Settings | None = None, *, plugin_eps=None) -> FastAPI:
     """The pm app. ``plugin_eps``: entry points to load instead of the installed ``pm.plugins`` (tests)."""
-    settings = settings or load_settings()
+    settings = _register_account_roots(settings or load_settings())
     _check_push_remote(settings)
 
     @asynccontextmanager

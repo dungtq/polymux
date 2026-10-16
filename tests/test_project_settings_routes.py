@@ -203,11 +203,14 @@ def test_save_accounts_route(env):
     login(s, c)
     tok = _tok(c)
     c.get("/p/alpha/settings/panel")
-    assert CTX["account_kinds"] == [("claude", ("work",))]
+    assert CTX["account_kinds"] == [("claude", ("work",), "", "")]
     r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": "work"}, headers=H)
     assert "Saved." in r.text and pset.load(s2, "alpha").account("claude") == "work"
     row = [a for a in _audit(s) if a["action"] == "project_settings" and a["result"] == "ok"][-1]
     assert row["detail"]["accounts"] == "claude=work" and str(s.dev_root) not in json.dumps(row)
+    r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": "-"}, headers=H)
+    assert "Saved." in r.text and pset.load(s2, "alpha").account("claude") == "-"
+    c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": "work"}, headers=H)
     r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": "evil"}, headers=H)
     assert "Refused" in r.text and pset.load(s2, "alpha").account("claude") == "work"
     r = c.post("/p/alpha/settings", data={"csrf": tok, "account_codex": "x"}, headers=H)
@@ -216,6 +219,19 @@ def test_save_accounts_route(env):
     assert pset.load(s2, "alpha").account("claude") == "work"
     r = c.post("/p/alpha/settings", data={"csrf": tok, "account_claude": ""}, headers=H)
     assert pset.load(s2, "alpha").account("claude") == ""
+
+
+def test_panel_ui_added_account_and_global_default(env):
+    from pm.core import accounts
+    s, c = env
+    login(s, c)
+    accounts.add(s, "codex", "ui")
+    accounts.set_default(s, "codex", "ui")
+    tok = _tok(c)
+    c.get("/p/alpha/settings/panel")
+    assert CTX["account_kinds"] == [("codex", ("ui",), "", "ui")]
+    r = c.post("/p/alpha/settings", data={"csrf": tok, "account_codex": "ui"}, headers=H)
+    assert "Saved." in r.text and pset.load(s, "alpha").account("codex") == "ui"
 
 
 def test_panel_no_accounts_context(env):
@@ -239,7 +255,7 @@ def test_fragment_login_account(theme):
     off = tpl.render(ps=pset.ProjectSettings(), account_kinds=[], **ctx)
     assert "Login account" not in off and "account_claude" not in off
     on = tpl.render(ps=pset.ProjectSettings(accounts=(("claude", "work"),)),
-                    account_kinds=[("claude", ("work", "alt"))], **ctx)
+                    account_kinds=[("claude", ("work", "alt"), "work", "alt")], **ctx)
     assert "Login account" in on and 'name="account_claude"' in on and "account_codex" not in on
-    assert on.index(">default<") < on.index(">work<") and 'value="work" selected' in on
+    assert on.index("Global default (alt)") < on.index(">work<") and 'value="work" selected' in on and 'value="-"' in on
     assert "a running agent keeps its own" in on

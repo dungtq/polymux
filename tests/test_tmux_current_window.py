@@ -26,7 +26,7 @@ def _out(active1, active2="@21"):
 def env(fake_tmux, tmp_path, monkeypatch):
     s = make_settings(fake_tmux, tmp_path)
     (tmp_path / "dev").mkdir()
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [])
     c = make_client(s, logged_in=True)
 
     def switch(active1, active2="@21"):

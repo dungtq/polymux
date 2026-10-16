@@ -35,7 +35,7 @@ def env(fake_tmux, tmp_path, monkeypatch):
                     cwd=str(dev / p), project=p, state=AgentState.IDLE, state_since=1.0)
               for n, p in ((12, "trk"), (13, "plain"))]
     monkeypatch.setenv("FAKE_TMUX_OUT", pane_line("$1", "work", "@1", "%12", str(dev / "trk")))
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: agents)
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: agents)
     c = make_client(s, static=True, base_url=ORIGIN, logged_in=True)
     csrf = re.search(r'name="csrf" value="([^"]+)"', c.get("/p/trk").text).group(1)
     return c, s, csrf, dev

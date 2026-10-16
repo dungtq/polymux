@@ -11,7 +11,7 @@ from html import escape
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
-from pm.agents import slash
+from pm.agents import registry, slash
 from pm.chat import stats as chat_stats
 from pm.chat import strip as chat_strip
 from pm.chat.mdrefs import ChatPaths
@@ -57,8 +57,9 @@ async def agent_stats(request: Request, agent_id: str) -> Response:
     snap = await snapshot(request)
     agent, ended = chatctx.live_or_ended(request, snap, agent_id)
     settings = deps.settings(request)
-    st = None if ended else await executors.run_tmux(chat_stats.stats_for, agent, settings)
-    usage = None if ended or st is None else await executors.run_tmux(panel_data, agent, settings)
+    kw = registry.config_kw(settings, agent.id, agent.kind)
+    st = None if ended else await executors.run_tmux(chat_stats.stats_for, agent, settings, **kw)
+    usage = None if ended or st is None else await executors.run_tmux(panel_data, agent, settings, **kw)
     lim = [] if ended else await executors.run_tmux(limits.for_agent, agent, settings, st.model if st else "")
     resp = html(request, "_stats.html", agent=agent, st=st, u=usage, lim=lim, human=human_tokens,
                  n=lambda v: f"{v:,}", compact_cmd=slash.compact_cmd(agent.kind.value))
@@ -86,7 +87,8 @@ async def agent_chat(request: Request, agent_id: str, h: str | None = None) -> R
     snap = await snapshot(request)
     agent, ended = chatctx.live_or_ended(request, snap, agent_id)
     settings = deps.settings(request)
-    view, strip = await executors.run_tmux(chat_strip.read, settings, agent, ended, chatlog=chatctx.get_chatlog())
+    view, strip = await executors.run_tmux(chat_strip.read, settings, agent, ended, chatlog=chatctx.get_chatlog(),
+                                           **registry.config_kw(settings, agent.id, agent.kind))
     running = view.state.value == "running" and not ended
     digest = _digest(view, repr(strip) + repr(running))
     etag = f'"{digest}"'

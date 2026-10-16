@@ -51,7 +51,8 @@ def scan(settings: Settings, projects: Iterable[Project], *, home: Path | None =
     days = int(settings.agent_retention_days or 0)
     since = now - days * 86400 if days > 0 else 0.0
     names = {str(p.path): p.name for p in projects if p.path}
-    found = past.discover_many(names, home or Path.home(), since=since, until=now - FRESH_S, head=_head)
+    found = past.discover_many(names, home or Path.home(), since=since, until=now - FRESH_S, head=_head,
+                              settings=settings)
     added = 0
     for cwd, rows in found.items():
         key = (str(settings.db_file), cwd)

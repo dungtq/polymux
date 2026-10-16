@@ -35,12 +35,12 @@ from .common import (
 _HEAD = 64 * 1024
 _MAX_CANDIDATES = 12
 _RECENT = 6
-_CACHE: dict[tuple[str, int, str], tuple[float, Path]] = {}
+_CACHE: dict[tuple[str, int, str, str], tuple[float, Path]] = {}
 _CACHE_TTL = 30.0
 
 
-def _candidates(home: Path, started_at: float) -> list[tuple[float, Path]]:
-    base = home / ".codex" / "sessions"
+def _candidates(home: Path, started_at: float, config_dir: Path | None = None) -> list[tuple[float, Path]]:
+    base = (config_dir or home / ".codex") / "sessions"
     since = started_at - 5 if started_at > 0 else time.time() - 86400
     day = datetime.fromtimestamp(since).date() - timedelta(days=1)
     today = datetime.now().date() + timedelta(days=1)
@@ -84,14 +84,14 @@ def meta_cwd(path: Path) -> str:
     return cwd if isinstance(cwd, str) else ""
 
 
-def locate(pid: int, cwd: str, started_at: float, home: Path) -> Path | None:
-    key = (str(home), pid, cwd)
+def locate(pid: int, cwd: str, started_at: float, home: Path, config_dir: Path | None = None) -> Path | None:
+    key = (str(home), pid, cwd, str(config_dir or ""))
     hit = _CACHE.get(key)
     if hit and time.monotonic() - hit[0] < _CACHE_TTL and hit[1].exists():
         return hit[1]
     found: Path | None = None
     if cwd:
-        for _, p in _candidates(home, started_at):
+        for _, p in _candidates(home, started_at, config_dir):
             if meta_cwd(p) == cwd:
                 found = p
                 break

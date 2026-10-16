@@ -217,13 +217,18 @@ class _Session:
     conf: float = 0.0
     uuid: str | None = None
     active: float = 0.0
+    cfg: Path | None = None  # config folder whose sessions/ held the session json (several dirs only)
 
 
-def _claude_session(sessions_dir: Path, pid: int, st: ProcStat | None, cwd: str) -> _Session:
+def _claude_session(sessions_dirs: Path | Sequence[Path], pid: int, st: ProcStat | None, cwd: str) -> _Session:
     out = _Session(cwd)
-    sess = load_session(sessions_dir, pid, st)
-    if not sess:
+    dirs = [sessions_dirs] if isinstance(sessions_dirs, Path) else sessions_dirs
+    hit = next(((d, x) for d in dirs if (x := load_session(d, pid, st))), None)  # pid + start time match, any account
+    if not hit:
         return out
+    sess = hit[1]
+    if not isinstance(sessions_dirs, Path):
+        out.cfg = hit[0].parent
     out.state = map_claude_status(sess.get("status"))
     out.conf = 1.0 if out.state is not AgentState.UNKNOWN else 0.0
     ts = sess.get("statusUpdatedAt") or sess.get("updatedAt") or 0
@@ -256,7 +261,7 @@ def _session_activity(kind: AgentKind, pid: int, s: _Session, age: float, home: 
     active, done, tfile, ident, state = s.active, 0.0, "", None, s.state
     try:
         if kind is AgentKind.CLAUDE:
-            f = transcript_path(s.cwd, s.uuid or "", home)
+            f = transcript_path(s.cwd, s.uuid or "", home, config_dir=s.cfg)
         else:
             f = chat_sources.session_file(kind, pid=pid, cwd=s.cwd, age_s=age, home=home,
                                           proc_root=proc_root, locks=locks.for_kind(kind))
@@ -302,6 +307,7 @@ def detect_agents(
     panes: Sequence[TmuxPane],
     *,
     sessions_dir: Path = Path("~/.claude/sessions").expanduser(),
+    sessions_dirs: Sequence[Path] | None = None,
     proc_root: Path = PROC,
     window_activity: Mapping[str, float] | None = None,
     home: Path | None = None,
@@ -317,7 +323,9 @@ def detect_agents(
         (``@n``) -> epoch s); both keys are looked up when present.
     It is derived only from files and tmux, never from ``time.time()``, so a pm
     restart cannot reset it. ``home`` overrides ``~`` for the session stores.
+    ``sessions_dirs`` (every account's ``<config dir>/sessions``) replaces ``sessions_dir`` when given.
     """
+    sdirs = list(sessions_dirs) if sessions_dirs else sessions_dir
     home = home or Path.home()
     # an exited pane whose window is kept (remain-on-exit) is never a live agent, even if its pid was reused
     panes = [p for p in panes if not p.dead]
@@ -329,7 +337,7 @@ def detect_agents(
         if found is None:
             continue
         pid, kind = found
-        s = (_claude_session(sessions_dir, pid, view.stat(pid), pane.cwd) if kind is AgentKind.CLAUDE
+        s = (_claude_session(sdirs, pid, view.stat(pid), pane.cwd) if kind is AgentKind.CLAUDE
              else _Session(pane.cwd))
         res = sample_once(pid, proc_root=proc_root) or (0.0, 0.0, 0.0)
         active, done, tfile, ident, state = _session_activity(kind, pid, s, res[2], home, proc_root, locks)

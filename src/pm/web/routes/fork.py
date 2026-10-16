@@ -75,7 +75,7 @@ async def agent_fork(request: Request, agent_id: str,
     except Exception:  # noqa: BLE001
         raise agentctl.stop(request, action, rec.id, 502, "fork failed", "error",
                     detail={"kind": kind}) from None
-    sid = (fork_mod.session_id(src) or "")[:8]
+    sid = (fork_mod.session_id(src, **registry.config_kw(settings, rec.id, kind)) or "")[:8]
     agentctl.done(request, action, rec.id, "ok", {"kind": kind, "mode": res.mode,
                                           "session": sid, "window": res.window_id, **agentctl.len_detail(text)})
     agentctl.publish(request, agent=rec.id, action=action)

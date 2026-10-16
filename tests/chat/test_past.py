@@ -139,3 +139,26 @@ def test_codex_exec_and_subagent_rollouts_are_skipped(tmp_path):
 def test_cursor_chat_dir_is_md5_of_cwd(tmp_path):
     from pm.chat.sources import cursor
     assert cursor.chat_dir("/w/a", tmp_path) == tmp_path / ".cursor/chats" / hashlib.md5(b"/w/a").hexdigest()
+
+
+def test_discover_many_covers_named_account_dirs(tmp_path):
+    from pm.core import accounts
+    from pm.core.config import Settings
+
+    s = Settings(tmux_socket="pmtest-unused", state_dir=tmp_path / "state", claude_dir=tmp_path / "home" / ".claude")
+    accounts.add(s, "claude", "work")
+    accounts.add(s, "codex", "work")
+    home, cwd = tmp_path / "home", "/w/alpha"
+    claude_file(home, cwd, U1)
+    cdir = accounts.config_dir(s, "claude", "work")
+    claude_file(cdir.parent, cwd, U2)  # helper writes <parent>/.claude/...; moved to the account dir
+    wrong = cdir.parent / ".claude"
+    wrong.rename(cdir)
+    codex_file(home, cwd, U1)
+    xdir = accounts.config_dir(s, "codex", "work")
+    codex_file(xdir.parent, cwd, U3)
+    (xdir.parent / ".codex").rename(xdir)
+    got = past.discover_many([cwd], home, settings=s, **WIN)[cwd]
+    assert len([x for x in got if x.kind == "codex"]) == 2
+    assert {x.ident for x in got if x.kind == "claude"} == {U1, U2}
+    assert {x.ident for x in past.discover_many([cwd], home, **WIN)[cwd] if x.kind == "claude"} == {U1}

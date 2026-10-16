@@ -54,7 +54,7 @@ def test_route_and_chip(env, monkeypatch):
     base = services.agents_mod.detect_agents
     (s.dev_root / "pm").mkdir()
     monkeypatch.setattr(services.agents_mod, "detect_agents",
-                        lambda panes: [replace(a, cwd=str(s.dev_root / "pm")) for a in base(panes)])
+                        lambda panes, **kw: [replace(a, cwd=str(s.dev_root / "pm")) for a in base(panes)])
     h = c.get("/a/claude-12").text
     assert 'class="pmreload" data-cmp-reload' in h and "/static/js/pmreload.js" in h and 'action="/service/reload"' in h
 

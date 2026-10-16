@@ -34,16 +34,17 @@
   <p class="pjs-hint" id="pjs-vms-h">One VM name pattern per line (* and ? allowed). The VMs tab lists only matching VMs.</p>
   {%- if account_kinds %}
   <h2 class="p-h2">Login account</h2>
-  {%- for kind, names in account_kinds %}
+  {%- for kind, names, choice, gdef in account_kinds %}
   <label class="pjs-l" for="pjs-acc-{{ kind }}">{{ kind | capitalize }}</label>
   <select id="pjs-acc-{{ kind }}" class="x-in" name="account_{{ kind }}" aria-describedby="pjs-acc-h">
-    <option value="">default</option>
+    <option value="">Global default ({{ gdef or "CLI default" }})</option>
+    <option value="-"{% if choice == "-" %} selected{% endif %}>CLI default</option>
     {%- for n in names %}
-    <option value="{{ n }}"{% if ps.account(kind) == n %} selected{% endif %}>{{ n }}</option>
+    <option value="{{ n }}"{% if choice == n %} selected{% endif %}>{{ n }}</option>
     {%- endfor %}
   </select>
   {%- endfor %}
-  <p class="pjs-hint" id="pjs-acc-h">New Claude/Codex agents of this project use the chosen account; a running agent keeps its own.</p>
+  <p class="pjs-hint" id="pjs-acc-h">New Claude/Codex agents of this project use the chosen account (or the global default); a running agent keeps its own.</p>
   {%- endif %}
   <div class="pjs-ft"><button class="x-btn" type="submit">Save</button></div>
 </form>

@@ -149,8 +149,8 @@ def test_project_live_reflects_state_change(env, monkeypatch):
     assert "dot-running" in first
     real = services.agents_mod.detect_agents
 
-    def waiting(panes):
-        return [replace(a, state=services.AgentState.WAITING) for a in real(panes)]
+    def waiting(panes, **kw):
+        return [replace(a, state=services.AgentState.WAITING) for a in real(panes, **kw)]
 
     monkeypatch.setattr(services.agents_mod, "detect_agents", waiting)
     services.build_and_publish(s)  # what the poll loop does on its next tick

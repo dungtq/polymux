@@ -75,23 +75,24 @@ def _binary(settings: Settings, kind: str) -> str:
     return launch_mod.agent_binary(settings, AgentKind(kind))
 
 
-def session_id(obj) -> str | None:
-    """Best known session id of a live Agent or an ended registry Record (not yet validated)."""
+def session_id(obj, config_dir: Path | None = None) -> str | None:
+    """Best known session id of a live Agent or an ended registry Record (not yet validated).
+    ``config_dir``: the agent's named-account folder (``registry.config_dir_of``)."""
     kind = norm_kind(obj.kind)
     if isinstance(obj, Agent):
         if kind == "claude" and obj.pid > 1:
-            live = live_session_id(obj.pid)
+            live = live_session_id(obj.pid, **({"config_dir": config_dir} if config_dir else {}))
             if live:
                 return live
         return obj.ident or obj.session_uuid or None
     return obj.ident or None
 
 
-def _transcript(obj, kind: str, ident: str | None) -> Path | None:
+def _transcript(obj, kind: str, ident: str | None, config_dir: Path | None = None) -> Path | None:
     raw = getattr(obj, "transcript", "") or ""
     if not raw and kind == "claude" and ident:
         from pm.chat.sources.claude import transcript_path
-        p = transcript_path(getattr(obj, "cwd", ""), ident)
+        p = transcript_path(getattr(obj, "cwd", ""), ident, **({"config_dir": config_dir} if config_dir else {}))
         raw = str(p) if p else ""
     if not raw or len(raw) > _MAX_PATH or not raw.isprintable() or not os.path.isabs(raw):
         return None
@@ -106,7 +107,8 @@ def build_argv(settings: Settings, obj, prompt: str = "") -> tuple[str, list[str
     mode = fork_mode(kind)
     if mode is None:
         raise ForkError("this agent kind cannot be forked")
-    ident = session_id(obj)
+    kw = registry.config_kw(settings, getattr(obj, "id", ""), kind)
+    ident = session_id(obj, **kw)
     if not ident:
         raise ForkError("session id unknown")
     binary = _binary(settings, kind)
@@ -118,7 +120,7 @@ def build_argv(settings: Settings, obj, prompt: str = "") -> tuple[str, list[str
         m = _TAIL_UUID.search(ident)
         if m:
             return kind, [binary, "fork", m.group(1), *launch_mod.prompt_args(prompt)], "native"
-    path = _transcript(obj, kind, ident)
+    path = _transcript(obj, kind, ident, **kw)
     if path is None:
         raise ForkError("session file unknown")
     text = _HANDOFF.format(kind=kind, path=str(path), then=_THEN_ASK if prompt else _THEN_WAIT)

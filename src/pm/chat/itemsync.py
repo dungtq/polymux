@@ -88,18 +88,18 @@ class _Cur:
 # --------------------------------------------------------------------------
 
 
-def sync(settings: Settings, agent: Agent, *, idle: bool = False) -> int:
+def sync(settings: Settings, agent: Agent, *, idle: bool = False, config_dir: Path | None = None) -> int:
     """Ingest new entries of the agent's store into items; the agent's max rev. Never raises."""
     try:
-        return _sync(settings, agent, idle)
+        return _sync(settings, agent, idle, config_dir)
     except Exception as exc:  # noqa: BLE001 - never raise; type only, no content
         log.warning("chat items sync failed: %s", type(exc).__name__)
         return items.latest(settings, agent.id)[1]
 
 
-def _sync(settings: Settings, agent: Agent, idle: bool) -> int:
+def _sync(settings: Settings, agent: Agent, idle: bool, config_dir: Path | None) -> int:
     kind = agent.kind if isinstance(agent.kind, AgentKind) else AgentKind(agent.kind)
-    path = chatlog.store_file(agent)
+    path = chatlog.store_file(agent, **({"config_dir": config_dir} if config_dir else {}))
     conv = chatlog.conv_key(kind, path) if path is not None else ""
     if agent.id not in _SEEN:
         _convert(settings, agent.id, skip=conv)

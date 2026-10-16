@@ -21,7 +21,7 @@ def _a(i, state, ts=1.0):
 def _many(monkeypatch, n=25):
     st = [AgentState.RUNNING, AgentState.IDLE, AgentState.WAITING]
     ags = [_a(i, st[i % 3], float(i)) for i in range(1, n + 1)]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: ags)
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: ags)
     return ags
 
 

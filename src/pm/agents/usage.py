@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -217,7 +218,7 @@ class Aggregate:
     top_ids: list = field(default_factory=list)  # session ids (transcript stems), parallel to ``top``
 
 
-_AGG: dict[tuple[Path, int, int], tuple[float, Aggregate]] = {}
+_AGG: dict[tuple, tuple[float, Aggregate]] = {}
 
 
 def clear_cache() -> None:
@@ -231,10 +232,13 @@ def _label(cwd: str, stem: str) -> str:
     return f"{(base or 'session')[:32]} {stem[:6]}"
 
 
-def aggregate(home: Path | None = None, days: int = 30, top: int = 10) -> Aggregate:
-    """Totals over the last ``days`` days (0 = all) for every Claude transcript under ``home``."""
+def aggregate(home: Path | None = None, days: int = 30, top: int = 10,
+              config_dirs: Sequence[Path] | None = None) -> Aggregate:
+    """Totals over the last ``days`` days (0 = all) for every Claude transcript under ``home``, or under
+    ``<dir>/projects`` of every ``config_dirs`` entry (``accounts.config_dirs(settings, 'claude')``) summed."""
     h = (home or Path.home()).resolve()
-    key = (h, days, top)
+    bases = [Path(d) / "projects" for d in config_dirs] if config_dirs else [h / ".claude" / "projects"]
+    key = (h, days, top, tuple(bases))
     with _LOCK:
         hit = _AGG.get(key)
     if hit and time.monotonic() - hit[0] < TTL:
@@ -244,9 +248,8 @@ def aggregate(home: Path | None = None, days: int = 30, top: int = 10) -> Aggreg
     by_model: dict[str, Counts] = {}
     rows = []
     grand = Counts()
-    base = h / ".claude" / "projects"
     try:
-        files = sorted(base.glob("*/*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+        files = sorted((f for b in bases for f in b.glob("*/*.jsonl")), key=lambda p: p.stat().st_mtime, reverse=True)
     except OSError:
         files = []
     if cutoff:  # files untouched since before the window cannot contribute
@@ -301,14 +304,16 @@ def fmt_duration(sec: int) -> str:
     return f"{m}m" if m else f"{sec}s"
 
 
-def panel_data(agent, settings=None) -> dict | None:
-    """Numbers for the chat usage panel (blocking). None when the agent has no readable store."""
+def panel_data(agent, settings=None, config_dir: Path | None = None) -> dict | None:
+    """Numbers for the chat usage panel (blocking). None when the agent has no readable store.
+    ``config_dir``: the agent's own Claude login folder (``accounts.config_dir``), default ``~/.claude``."""
     kind = agent.kind.value
     if kind == "claude":
         from pm.chat.sources.claude import live_session_id, transcript_path
 
-        uuid = (live_session_id(agent.pid) if agent.pid > 1 else None) or agent.session_uuid or ""
-        path = transcript_path(agent.cwd, uuid)
+        uuid = (live_session_id(agent.pid, **({"config_dir": config_dir} if config_dir else {}))
+                if agent.pid > 1 else None) or agent.session_uuid or ""
+        path = transcript_path(agent.cwd, uuid, config_dir=config_dir)
         su = session_usage(path) if path is not None else None
         if su is None:
             return None

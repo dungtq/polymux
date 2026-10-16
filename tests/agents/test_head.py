@@ -284,3 +284,53 @@ def test_live_pill_falls_back_to_the_settings_default_then_the_kind(tmp_path):
     t.write_text('{"type":"assistant","message":{"model":"claude-sonnet-5-5"}}\n')
     assert live_pill(_live(tmp_path, pid=0, transcript=str(t), aid="claude-p2"), tmp_path) == "sonnet-5-5"  # live wins
     assert live_pill(_live(tmp_path, "codex", pid=0, aid="codex-p3"), tmp_path) == "codex"  # no settings for other kinds
+
+
+def test_record_meta_allowed_roots_and_symlink_escape(tmp_path):
+    from pm.agents.head import live_effort, live_model, record_meta
+    own, acct, other = tmp_path / ".claude", tmp_path / "acct", tmp_path / "other"
+    line = {"type": "assistant", "effort": "high", "message": {"model": "claude-sonnet-5-5"}}
+    ok = acct / "projects" / "-p" / "a.jsonl"
+    bad = other / "projects" / "-p" / "b.jsonl"
+    for f in (ok, bad):
+        f.parent.mkdir(parents=True)
+        f.write_text(json.dumps(line) + "\n")
+    roots = [own / "projects", acct / "projects"]
+    assert record_meta(str(ok), roots) == ("claude-sonnet-5-5", "high")  # an account dir is accepted
+    assert record_meta(str(bad), roots) == ("", "")  # outside every allowed root
+    (acct / "projects" / "-p" / "link.jsonl").symlink_to(bad)
+    assert record_meta(str(acct / "projects" / "-p" / "link.jsonl"), roots) == ("", "")  # symlink escape
+    (acct / "projects" / "esc").symlink_to(other / "projects" / "-p")
+    assert record_meta(str(acct / "projects" / "esc" / "b.jsonl"), roots) == ("", "")  # directory symlink escape
+    # live_model / live_effort take the allowed config dirs; the default root (home/.claude) refuses the account
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    a = _live(tmp_path, transcript=str(ok), aid="claude-acc1")
+    assert live_model(a, tmp_path, proc, config_dirs=[own, acct]) == "claude-sonnet-5-5"
+    assert live_effort(a, tmp_path, proc, config_dirs=[own, acct]) == "high"
+    assert live_model(a, tmp_path, proc) == "claude"
+    assert live_effort(a, tmp_path, proc) == ""
+
+
+def test_registered_extra_roots_cover_account_dirs_for_settings_less_callers(tmp_path, monkeypatch):
+    from pm.agents import head
+    acct = tmp_path / "acct"
+    f = acct / "projects" / "-p" / "a.jsonl"
+    f.parent.mkdir(parents=True)
+    f.write_text(json.dumps({"type": "assistant", "message": {"model": "claude-sonnet-5-5"}}) + "\n")
+    monkeypatch.setattr(head.Path, "home", classmethod(lambda cls: tmp_path / "h"))
+    assert head.pill_model(str(f)) == ""  # unregistered default: outside ~/.claude/projects, refused
+    other = tmp_path / "other" / "projects" / "-p" / "b.jsonl"
+    other.parent.mkdir(parents=True)
+    other.write_text(f.read_text())
+    try:
+        head.register_extra_roots(lambda: [acct])
+        assert head.pill_model(str(f)) == "sonnet-5-5"  # the account dir is an allowed root
+        assert head.pill_model(str(other)) == ""  # any other dir still is not
+        (acct / "projects" / "-p" / "link.jsonl").symlink_to(other)
+        assert head.pill_model(str(acct / "projects" / "-p" / "link.jsonl")) == ""  # symlink escape
+        head.register_extra_roots(lambda: 1 / 0)
+        assert head.pill_model(str(f)) == ""  # a broken provider adds nothing
+    finally:
+        head.register_extra_roots(None)
+    assert head.pill_model(str(f)) == ""

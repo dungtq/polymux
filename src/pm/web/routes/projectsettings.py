@@ -13,7 +13,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from pm.core import executors
+from pm.core import accounts, executors
 from pm.core.errors import Invalid
 from pm.core.models import Tier
 from pm.infra import sshkeys
@@ -42,7 +42,8 @@ def _build(request: Request, name: str, path, flash: str) -> str:
     return get_template("_project_settings.html").render(
         **page_ctx(request), project=project_of(request, name),
         base=f"/p/{quote(name)}", ps=ps, components=pset.COMPONENTS,
-        account_kinds=[(k, names) for k in pset.ACCOUNT_KINDS if (names := st.accounts.get(k))],
+        account_kinds=[(k, ns, ps.account(k), accounts.global_default(st, k))
+                       for k in pset.ACCOUNT_KINDS if (ns := accounts.names(st, k))],
         choices=sorted(known - {name}), linked=[n for n in ps.links if n in known],
         pubkey=key.line if key else "", git_html=git_remotes_html(request, name, path), flash=flash,
         workspaces=[(w.id, w.label) for w in _workspaces(st)])
@@ -97,7 +98,7 @@ async def save_settings(request: Request, name: str,
     flash = await _save(request, "project_settings", name, fn,
                         {"hidden": len(hidden), "branch_set": int(bool(branch.strip())),
                          "vms": len([x for x in vms.replace(",", "\n").splitlines() if x.strip()]),
-                         **({"accounts": ",".join(f"{k}={v or 'default'}" for k, v in accounts.items())} if accounts else {})})
+                         **({"accounts": ",".join(f"{k}={v or 'global'}" for k, v in accounts.items())} if accounts else {})})
     return await _render(request, name, flash)
 
 

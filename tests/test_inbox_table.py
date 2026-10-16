@@ -21,7 +21,7 @@ def test_inbox_merged_table_started_and_idle_fold(env, monkeypatch):  # noqa: F8
     s, c = env
     login(s, c)
     ags = [_ag(1, AgentState.RUNNING, 3600.0), _ag(2, AgentState.WAITING, 7200.0), _ag(3, AgentState.IDLE, 60.0)]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: ags)
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: ags)
     h = c.get("/").text
     assert h.count('class="nhead has-pin"') == 2 and h.count('<div class="nlist" role="list" data-key="l-active">') == 1  # one header per table: active + the Idle fold
     assert "Running (" not in h and "Waiting for you" not in h
@@ -73,7 +73,7 @@ def test_inbox_unified_columns_live_idle_ended_and_idle_heading(env, monkeypatch
     s, c = env
     login(s, c)
     ags = [_ag(1, AgentState.RUNNING, 3600.0), _ag(3, AgentState.IDLE, 60.0)]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: ags)
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: ags)
     h = c.get("/").text
     # live header: Project | Agent | Last message | tmux | Age | Started | cpu / mem
     head = h.split('class="nhead has-pin"')[1].split("</div>")[0]
@@ -93,7 +93,7 @@ def test_running_row_shows_working_and_age_cells_drop_the_words(env, monkeypatch
     s, c = env
     login(s, c)
     ags = [_ag(1, AgentState.RUNNING, 3600.0), _ag(3, AgentState.IDLE, 60.0)]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: ags)
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: ags)
     h = c.get("/").text
     run = re.search(r'<a class="nrow row-running.*?</a>', h, re.S).group(0)
     assert re.search(r'<span class="n-age muted working" data-age="\d+"><span title="[^"]+">Working', run)
@@ -119,7 +119,7 @@ def test_inbox_views_show_one_section_each(env, monkeypatch):  # noqa: F811
     s, c = env
     login(s, c)
     ags = [_ag(1, AgentState.RUNNING, 3600.0), _ag(3, AgentState.IDLE, 60.0)]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: ags)
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: ags)
     act, idle, ended = (c.get(f"/?view={v}").text for v in ("active", "idle", "ended"))
     assert "row-running" in act and "sec-idle" not in act and 'id="ended-sessions"' not in act
     assert "row-idle" in idle and "row-running" not in idle and "<details class=\"idle-fold\" data-key=\"idle-fold\" open>" in idle

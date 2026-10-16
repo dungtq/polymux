@@ -57,9 +57,9 @@ def test_continue_keeps_the_agents_model(fake, monkeypatch):
     seen = []
     res = launch_mod.LaunchResult("$2", "@9", "agent-claude", "/tmp", pane_id="%9")
     monkeypatch.setattr(launch_mod, "launch_agent", lambda s, l, p: seen.append(l) or res)
-    monkeypatch.setattr(agenthead, "live_model", lambda a: "claude-opus-5-5")
+    monkeypatch.setattr(agenthead, "live_model", lambda a, **kw: "claude-opus-5-5")
     assert post(c, tok, "/a/claude-1/continue").status_code == 200
-    monkeypatch.setattr(agenthead, "live_model", lambda a: "claude")  # unknown: the kind name, no --model
+    monkeypatch.setattr(agenthead, "live_model", lambda a, **kw: "claude")  # unknown: the kind name, no --model
     assert post(c, tok, "/a/claude-1/continue").status_code == 200
     assert [l.model for l in seen] == ["claude-opus-5-5", None]
 

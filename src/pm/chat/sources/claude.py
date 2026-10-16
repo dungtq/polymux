@@ -51,10 +51,11 @@ _TASK_EXIT = re.compile(rb"\[exited with code (\d{1,3})\]\s*$")
 _TASK_TAIL = 64
 
 
-def transcript_path(cwd: str, session_uuid: str, home: Path | None = None) -> Path | None:
+def transcript_path(cwd: str, session_uuid: str, home: Path | None = None,
+                    config_dir: Path | None = None) -> Path | None:
     if not cwd or not UUID_RE.match(session_uuid or ""):
         return None
-    base = (home or Path.home()) / ".claude" / "projects"
+    base = (config_dir or (home or Path.home()) / ".claude") / "projects"
     return base / encode_cwd(cwd) / f"{session_uuid}.jsonl"
 
 
@@ -137,13 +138,15 @@ def live_session_id(
     *,
     sessions_dir: Path | None = None,
     proc_root: Path = PROC,
+    config_dir: Path | None = None,
 ) -> str | None:
     """Current Claude sessionId of a live pid (``/clear`` and resume change it), or None.
 
     Opens only ``<sessions_dir>/<pid>.json`` and checks it against the process
-    start time, exactly like ``pm.agents.detect.detect_agents``.
+    start time, exactly like ``pm.agents.detect.detect_agents``. ``config_dir`` (a named account's
+    ``CLAUDE_CONFIG_DIR``) replaces ``~/.claude``.
     """
-    sessions_dir = sessions_dir or Path("~/.claude/sessions").expanduser()
+    sessions_dir = sessions_dir or (config_dir / "sessions" if config_dir else Path("~/.claude/sessions").expanduser())
     st = read_proc_stat(int(pid), proc_root)
     if st is None:
         return None

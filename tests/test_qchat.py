@@ -203,3 +203,14 @@ def test_stream_aside_context_and_skills_in_one_system_prompt(settings, tmp_path
     assert sysp.count("<<<END AGENT CONVERSATION>>>") == 1  # the context cannot close the delimiter
     _run(st)  # no context, no skills: no system prompt at all
     assert "--append-system-prompt" not in seen[1]
+
+
+def test_session_alive_named_account(settings, tmp_path, monkeypatch):
+    from pm.core import accounts
+    monkeypatch.setattr(qchat.Path, "home", classmethod(lambda cls: tmp_path / "nohome"))
+    accounts.add(settings, "claude", "work")
+    d = accounts.config_dir(settings, "claude", "work") / "projects" / "-x"
+    d.mkdir(parents=True)
+    assert not qchat.session_alive(settings, SID)
+    (d / f"{SID}.jsonl").write_text("{}")
+    assert qchat.session_alive(settings, SID)

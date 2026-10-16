@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pm.agents import registry
 from pm.core import db, prefs
-from pm.core.accounts import account_env
+from pm.core.accounts import account_env, resolve
 from pm.core.config import ACCOUNT_KINDS, Settings
 from pm.core.models import AgentKind, Launch, Project
 from pm.git import ctl as gitctl
@@ -393,11 +393,11 @@ def _find_session(settings: Settings, project: Project) -> str:
 
 
 def account_name(settings: Settings, kind: AgentKind, project: str) -> str:
-    """Account a new ``kind`` agent of ``project`` runs under (the project's setting); '' (default account)
-    for kinds without accounts."""
+    """Account a new ``kind`` agent of ``project`` runs under (the project's choice, else the global default;
+    '' = the CLI's own folder, also for kinds without accounts). Invalid: the chosen account is gone."""
     if kind.value not in ACCOUNT_KINDS:
         return ""
-    return pset.load(settings, project).account(kind.value)
+    return resolve(settings, kind.value, pset.load(settings, project).account(kind.value))
 
 
 def launch_agent(settings: Settings, launch: Launch, project: Project) -> LaunchResult:

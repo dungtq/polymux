@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from pm.agents import autoexit, registry
 from pm.agents import head as agenthead
+from pm.core import accounts
 from pm.core.models import AgentState, Tier
 from pm.infra import snapshot as services
 from pm.security.guard import audit_result, mutation_guard
@@ -85,6 +86,7 @@ async def ended_note(request: Request, agent_id: str) -> Response:
     info = autoexit.info_for(settings, agent_id)
     rec = registry.get(settings, agent_id) if AGENT_ID_RE.fullmatch(agent_id) else None
     ident = (rec.ident if rec else "") or (info or {}).get("session") or ""
-    model = (info or {}).get("model") or (agenthead.model_from_record_transcript(rec.transcript) if rec else "")
+    model = (info or {}).get("model") or (agenthead.model_from_record_transcript(
+        rec.transcript, root=[d / "projects" for d in accounts.config_dirs(settings, "claude")]) if rec else "")
     facts = {"session": ident, "model": model, "window": (info or {}).get("window") or ""}
     return _resp(_render(request, "_autoexit_note.html", info=info, facts=facts, human=autoexit.human, now=time.time()))

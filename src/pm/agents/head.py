@@ -6,13 +6,16 @@ import os
 import re
 import sqlite3
 import time
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from pm.agents import claude_defaults
 from pm.agents.catalog import CLAUDE_FULL_IDS
 from pm.agents.detect import proc_argv
 from pm.agents.launch import EFFORT_FLAG, MODEL_FLAG, effort_switchable
+from pm.core import accounts
 from pm.core.cache import LRU
+from pm.core.config import ACCOUNT_KINDS
 from pm.core.models import Agent, AgentKind
 from pm.core.procstat import PROC
 
@@ -61,15 +64,50 @@ def model_from_transcript(path: str) -> str:
 _CACHE = LRU(max_bytes=262_144, max_entries=512)
 
 
-def record_meta(path: str, root: Path | None = None) -> tuple[str, str]:
+_EXTRA_ROOTS: Callable[[], Sequence[Path]] | None = None
+
+
+def register_extra_roots(provider: Callable[[], Sequence[Path]] | None) -> None:
+    """Set once at app start: ``provider()`` returns the agent config folders of the named accounts
+    (``accounts.config_dirs``). Their ``projects`` / ``sessions`` count as allowed roots for every reader here,
+    also for settings-less callers (Jinja filters). ``None`` clears it."""
+    global _EXTRA_ROOTS
+    _EXTRA_ROOTS = provider
+
+
+def _extra(sub: str) -> list[Path]:
+    try:
+        return [Path(d) / sub for d in _EXTRA_ROOTS()] if _EXTRA_ROOTS else []
+    except Exception:  # noqa: BLE001 - a broken provider must not break a list row
+        return []
+
+
+def kind_dirs(settings, kind) -> list[Path] | None:
+    """Config folders sessions of this agent kind can live in (``accounts.config_dirs``), None for kinds without
+    accounts: pass it as ``config_dirs`` to ``live_model`` / ``live_effort`` / ``live_pill``."""
+    k = getattr(kind, "value", kind)
+    return accounts.config_dirs(settings, k) if k in ACCOUNT_KINDS else None
+
+
+def _roots(root: Path | Sequence[Path] | None, default: Path, sub: str = "") -> list[Path]:
+    """Allowed roots: ``root`` (one path or several), else ``default``; plus the registered account folders' ``sub``."""
+    if root is None:
+        base = [default]
+    else:
+        base = [Path(root)] if isinstance(root, str | os.PathLike) else [Path(r) for r in root]
+    return base + (_extra(sub) if sub else [])
+
+
+def record_meta(path: str, root: Path | Sequence[Path] | None = None) -> tuple[str, str]:
     """``transcript_meta`` for a stored registry path: only a regular file whose realpath is
-    under ``~/.claude/projects`` (no symlink escape) is read; cached by (realpath, mtime)."""
+    under ``~/.claude/projects`` (or one of the ``root`` paths, e.g. an account's ``projects``; no symlink
+    escape) is read; cached by (realpath, mtime)."""
     if not path:
         return "", ""
     try:
-        base = os.path.realpath(root or Path.home() / ".claude" / "projects")
         real = os.path.realpath(path)
-        if os.path.commonpath([base, real]) != base or not os.path.isfile(real):
+        if not any(_under(real, b) for b in _roots(root, Path.home() / ".claude" / "projects", "projects")) \
+                or not os.path.isfile(real):
             return "", ""
         key = (real, os.stat(real).st_mtime)
     except (OSError, ValueError):
@@ -81,7 +119,7 @@ def record_meta(path: str, root: Path | None = None) -> tuple[str, str]:
     return hit
 
 
-def model_from_record_transcript(path: str, root: Path | None = None) -> str:
+def model_from_record_transcript(path: str, root: Path | Sequence[Path] | None = None) -> str:
     """Model id of ``record_meta``, '' when unknown."""
     return record_meta(path, root)[0]
 
@@ -204,10 +242,13 @@ def _agy_model(path: str) -> str:
 _KCACHE: dict[tuple[str, float], str] = {}
 
 
-def record_model(path: str, home: Path | None = None) -> str:
+def record_model(path: str, home: Path | None = None, claude_dirs: Sequence[Path] | None = None,
+                 codex_dirs: Sequence[Path] | None = None) -> str:
     """Raw model id for a stored registry path of any agent kind, '' when unknown. The kind is told from
     where the realpath lives under ``home`` (claude projects, codex sessions, devin transcripts, cursor
-    chats, antigravity conversations); any other path is not read. Cached by (realpath, mtime)."""
+    chats, antigravity conversations); any other path is not read. ``claude_dirs`` / ``codex_dirs`` (config
+    folders from ``accounts.config_dirs``) replace ``~/.claude`` / ``~/.codex`` as the allowed roots.
+    Cached by (realpath, mtime)."""
     if not path:
         return ""
     home = home or Path.home()
@@ -215,9 +256,12 @@ def record_model(path: str, home: Path | None = None) -> str:
         real = os.path.realpath(path)
     except (OSError, ValueError):
         return ""
-    if _under(real, home / ".claude" / "projects"):
-        return model_from_record_transcript(path, home / ".claude" / "projects")
-    if _under(real, home / ".codex" / "sessions") and real.endswith(".jsonl"):
+    croots = _roots([d / "projects" for d in claude_dirs] if claude_dirs else None, home / ".claude" / "projects", "projects")
+    xroots = _roots([d / "sessions" for d in codex_dirs] if codex_dirs else None, home / ".codex" / "sessions",
+                    "sessions")
+    if any(_under(real, b) for b in croots):
+        return model_from_record_transcript(path, croots)
+    if any(_under(real, b) for b in xroots) and real.endswith(".jsonl"):
         fn = lambda: _codex_model(real)  # noqa: E731
     elif _under(real, home / ".local" / "share" / "devin" / "cli" / "transcripts") and real.endswith(".json"):
         fn = lambda: _devin_model(real, home)  # noqa: E731
@@ -312,11 +356,15 @@ def note_model(agent: Agent, model: str, now: float | None = None) -> None:
     _note("model", agent, model, now)
 
 
-def live_model(agent: Agent, home: Path | None = None, proc_root: Path = PROC, now: float | None = None) -> str:
+def live_model(agent: Agent, home: Path | None = None, proc_root: Path = PROC, now: float | None = None,
+               config_dirs: Sequence[Path] | None = None) -> str:
     """Raw model id of a running (or ended) agent: a model pm set (``note_model``) until the transcript shows it,
     else the transcript's (``record_model``), else the process's own ``--model`` arg with a claude alias
-    resolved to its full id (a New Chat has no reply yet), else the kind name. Never a catalog guess."""
-    seen = record_model(agent.transcript or "", home)
+    resolved to its full id (a New Chat has no reply yet), else the kind name. Never a catalog guess.
+    ``config_dirs``: the agent kind's allowed config folders (``accounts.config_dirs``), default ``~``."""
+    seen = record_model(agent.transcript or "", home,
+                        claude_dirs=config_dirs if agent.kind is AgentKind.CLAUDE else None,
+                        codex_dirs=config_dirs if agent.kind is AgentKind.CODEX else None)
     noted = _noted("model", agent, seen,
                    lambda v, s: model_short(full_model_id(agent.kind, v)) == model_short(s), now)
     if noted:
@@ -336,13 +384,14 @@ def note_effort_cmd(agent: Agent, text: str) -> None:
         note_effort(agent, parts[1])
 
 
-def live_effort(agent: Agent, home: Path | None = None, proc_root: Path = PROC, now: float | None = None) -> str:
+def live_effort(agent: Agent, home: Path | None = None, proc_root: Path = PROC, now: float | None = None,
+                config_dirs: Sequence[Path] | None = None) -> str:
     """Reasoning effort of a running claude agent: a level pm set (``note_effort``) until the transcript shows
     it or ``SET_EFFORT_TTL`` passes, else the newest reply's, else the process's ``--effort`` arg, else ''.
     Other kinds: ''."""
     if agent.kind is not AgentKind.CLAUDE:
         return ""
-    root = (home or Path.home()) / ".claude" / "projects"
+    root = [d / "projects" for d in config_dirs] if config_dirs else (home or Path.home()) / ".claude" / "projects"
     seen = record_meta(agent.transcript or "", root)[1]
     return (_noted("effort", agent, seen, lambda v, s: v == s, now)
             or seen or _arg_flag(agent, EFFORT_FLAG.get(agent.kind, ""), proc_root))
@@ -358,9 +407,10 @@ def settings_defaults(agent: Agent, home: Path | None = None) -> tuple[str, str]
     return full_model_id(agent.kind, model), effort
 
 
-def _resolved(agent: Agent, home: Path | None = None) -> tuple[str, str]:
+def _resolved(agent: Agent, home: Path | None = None, config_dirs: Sequence[Path] | None = None) -> tuple[str, str]:
     """(model, effort): the live ones, else the settings defaults (a model equal to the kind name is "unknown")."""
-    model, effort = live_model(agent, home), live_effort(agent, home)
+    model = live_model(agent, home, config_dirs=config_dirs)
+    effort = live_effort(agent, home, config_dirs=config_dirs)
     if model == agent.kind.value or not effort:
         dmodel, deffort = settings_defaults(agent, home)
         model = (dmodel or model) if model == agent.kind.value else model
@@ -368,35 +418,37 @@ def _resolved(agent: Agent, home: Path | None = None) -> tuple[str, str]:
     return model, effort
 
 
-def placeholder(agent: Agent, home: Path | None = None) -> tuple[str, str]:
+def placeholder(agent: Agent, home: Path | None = None, config_dirs: Sequence[Path] | None = None) -> tuple[str, str]:
     """(full, short) composer placeholder: ``Message to <model> \u00b7 <effort> in <window>`` and
     ``Message <model> \u00b7 <effort>``. Model and effort are the live ones, else the settings defaults."""
-    model, effort = _resolved(agent, home)
+    model, effort = _resolved(agent, home, config_dirs)
     tail = model_short(model) + (f" \u00b7 {effort}" if effort else "")
     win = tmux_win(agent)
     return f"Message to {tail}" + (f" in {win}" if win else ""), f"Message {tail}"
 
 
-def new_session_label(agent: Agent, home: Path | None = None) -> str:
+def new_session_label(agent: Agent, home: Path | None = None, config_dirs: Sequence[Path] | None = None) -> str:
     """Muted "Last message" text for a claude chat with no message yet: ``New <model> session with effort
     <level>``, ``New <model> session`` or ``New session`` (model unknown). Other kinds: ''."""
     if agent.kind is not AgentKind.CLAUDE:
         return ""
-    model, effort = _resolved(agent, home)
+    model, effort = _resolved(agent, home, config_dirs)
     if model == agent.kind.value:
         return "New session"
     return f"New {model_short(model)} session" + (f" with effort {effort}" if effort else "")
 
 
-def live_pill(agent: Agent, home: Path | None = None) -> str:
+def live_pill(agent: Agent, home: Path | None = None, config_dirs: Sequence[Path] | None = None) -> str:
     """Short model for the agent heading pill: the same model as the composer placeholder and the Model picker
     (live, else Claude's settings default), the kind name only when neither is known."""
-    return model_short(_resolved(agent, home)[0])
+    return model_short(_resolved(agent, home, config_dirs)[0])
 
 
-def pill_model(transcript: str) -> str:
-    """Short model name for a list row, '' when unknown (cached by realpath+mtime, one stat per row)."""
-    return model_short(record_model(transcript))
+def pill_model(transcript: str, claude_dirs: Sequence[Path] | None = None,
+               codex_dirs: Sequence[Path] | None = None) -> str:
+    """Short model name for a list row, '' when unknown (cached by realpath+mtime, one stat per row).
+    ``claude_dirs`` / ``codex_dirs``: ``accounts.config_dirs`` (default ``~/.claude`` / ``~/.codex``)."""
+    return model_short(record_model(transcript, claude_dirs=claude_dirs, codex_dirs=codex_dirs))
 
 
 def tmux_slot(label: str, kind: str) -> str:

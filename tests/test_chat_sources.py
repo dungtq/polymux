@@ -661,3 +661,35 @@ def test_task_exit_other_session_folder_no_symlinks(tmp_path):
     (elsewhere / "bk3.output").write_text("[exited with code 0]\n")
     (root / "proj" / "33333333-3333-4333-8333-333333333333").symlink_to(tmp_path / "elsewhere")
     assert task_exit(t, "bk3", tmp_root=root) is None  # a symlinked session folder is not followed
+
+
+# ---------------------------------------------------------------- alternate config dirs (named accounts)
+def test_claude_transcript_and_live_session_from_config_dir(tmp_path):
+    from pm.chat.sources import claude
+    cdir, uuid = tmp_path / "acct", "11111111-2222-3333-4444-555555555555"
+    p = claude.transcript_path(CWD, uuid, tmp_path / "home", config_dir=cdir)
+    assert p == cdir / "projects" / claude.encode_cwd(CWD) / f"{uuid}.jsonl"
+    assert claude.transcript_path(CWD, uuid, tmp_path / "home") == (
+        tmp_path / "home" / ".claude" / "projects" / claude.encode_cwd(CWD) / f"{uuid}.jsonl")
+    proc = tmp_path / "proc"
+    (proc / "11").mkdir(parents=True)
+    f = ["S", "1"] + ["0"] * 9 + ["0", "0", "0", "0", "20", "0", "1", "0", "777", "0", "256"]
+    (proc / "11" / "stat").write_text("11 (claude) " + " ".join(f))
+    sd = cdir / "sessions"
+    sd.mkdir(parents=True)
+    (sd / "11.json").write_text(json.dumps({"pid": 11, "procStart": "777", "sessionId": uuid}))
+    assert claude.live_session_id(11, proc_root=proc, config_dir=cdir) == uuid
+    assert claude.live_session_id(11, proc_root=proc, config_dir=tmp_path / "other") is None
+
+
+def test_codex_config_dir_candidates_and_cache_not_shared(tmp_path):
+    codex._CACHE.clear()
+    now = time.time()
+    day = time.strftime("%Y/%m/%d", time.localtime(now))
+    pa = rollout(tmp_path / "acc", "x", CWD, [amsg("a")], day=day)  # <acc>/.codex/sessions
+    cdir = tmp_path / "acc" / ".codex"
+    assert codex.locate(1, CWD, now - 60, tmp_path, cdir) == pa
+    assert codex.locate(1, CWD, now - 60, tmp_path) is None  # default dir has none; cache not shared
+    assert codex.locate(1, CWD, now - 60, tmp_path, tmp_path / "accB") is None
+    assert [p for _, p in codex._candidates(tmp_path, now - 60, cdir)] == [pa]
+    assert chat_sources.session_file(AgentKind.CODEX, pid=1, cwd=CWD, age_s=60, home=tmp_path, config_dir=cdir) == pa

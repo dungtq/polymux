@@ -67,7 +67,7 @@ def _with_transcript(env, monkeypatch, tmp_path):
     t = mk(tmp_path)
     base = services.agents_mod.detect_agents
     monkeypatch.setattr(services.agents_mod, "detect_agents",
-                        lambda panes: [replace(a, transcript=str(t)) for a in base(panes)])
+                        lambda panes, **kw: [replace(a, transcript=str(t)) for a in base(panes)])
     login(s, c)
     return c
 

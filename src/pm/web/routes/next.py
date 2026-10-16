@@ -110,7 +110,8 @@ async def _build_prompt(request: Request, action: str, settings, a, mode: str, w
 
 async def _start(request: Request, action: str, settings, a, project, prompt: str, detail: dict):
     """Launch the new agent (same kind and model as ``a``) in a new tmux window."""
-    model = await executors.run_collectors(agenthead.live_model, a)  # the new chat keeps this agent's model
+    model = await executors.run_collectors(
+        agenthead.live_model, a, config_dirs=agenthead.kind_dirs(settings, a.kind))  # the new chat keeps this agent's model
     launch = Launch(project=project.name, kind=a.kind, model=None if model == a.kind.value else model, prompt=prompt)
     try:
         return await executors.run_tmux(launch_mod.launch_agent, settings, launch, project)

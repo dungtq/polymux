@@ -124,7 +124,7 @@ def test_ended_page_and_project_history_show_imported_session(env, fake_tmux, tm
     os.utime(f, (time.time() - 3600, time.time() - 3600))
     line = SEP.join(["$1", "s", "1", "@1", "0", "w", "1", "%1", "4242", "zsh", cwd, "1", "t", "0"]) + "\n"
     monkeypatch.setenv("FAKE_TMUX_OUT", line)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [])
     c = make_client(s, router, static=True, logged_in=True)
     services.build_and_publish(s)
     projects = services.published(s).projects

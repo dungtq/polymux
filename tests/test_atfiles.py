@@ -104,7 +104,7 @@ def test_secret_dirs_in_home_denied(env, sub):
 def _agent_cwd(monkeypatch, cwd):
     agent = Agent(id="claude-12", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=4242,
                   cwd=str(cwd), state=AgentState.IDLE, state_since=1.0)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [agent])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [agent])
 
 
 def test_root_cwd_does_not_expose_system(env, monkeypatch):

@@ -53,14 +53,16 @@ async def composer_ctx(request: Request, agent) -> dict:
     except Exception:  # noqa: BLE001 - the picker is optional
         models = []
     cp = prefs.composer_prefs(settings)
-    cur = agenthead.live_model(agent) if models else ""
+    dirs = agenthead.kind_dirs(settings, agent.kind)
+    cur = agenthead.live_model(agent, config_dirs=dirs) if models else ""
     efforts = list(launch.EFFORTS.get(agent.kind, ())) if agent.kind in launch.EFFORT_FLAG else []
-    cur_effort = await executors.run_tmux(agenthead.live_effort, agent) if efforts else ""
+    cur_effort = await executors.run_tmux(agenthead.live_effort, agent,
+                                                       config_dirs=dirs) if efforts else ""
     # no reply, --model or --effort yet: show what Claude's settings default to (labelled "(default)")
     dmodel, deffort = (await executors.run_tmux(agenthead.settings_defaults, agent)
                        if (models or efforts) else ("", ""))
     unknown = cur == agent.kind.value
-    head_pill = await executors.run_tmux(agenthead.live_pill, agent)  # the heading pill (_agentname.html agent_head)
+    head_pill = await executors.run_tmux(agenthead.live_pill, agent, config_dirs=dirs)  # the heading pill (_agentname.html agent_head)
     subs_running = await executors.run_collectors(subagents.running_count, agent)
     return {
         "subagents_running": subs_running,

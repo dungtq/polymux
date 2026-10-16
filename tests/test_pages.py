@@ -465,7 +465,7 @@ def test_project_rows_show_unread_and_pending_question_like_the_inbox(env, monke
     dev = s.dev_root
     a = Agent(id="claude-12", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=4242, cwd=str(dev / "alpha"),
               state=AgentState.WAITING, state_since=time.time() + 60)  # changed after the first-use read baseline
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [a])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [a])
     monkeypatch.setattr(tmuxctl, "capture_pane", lambda settings, pane, lines=200: "Working on it\nDo you want to proceed?")
     c.get("/")  # first use: the baseline
     for t in (c.get("/").text, c.get("/p/alpha").text, c.get("/p/alpha/live", headers={"HX-Request": "true"}).text):

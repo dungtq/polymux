@@ -29,7 +29,7 @@ def env(fake_tmux, tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_TMUX_OUT", _line("$1", "work", "@1", "%12", str(dev / "alpha")))
     agent = Agent(id="claude-12", kind=AgentKind.CLAUDE, pane_id="%12", session_id="$1", pid=4242,
                   cwd=str(dev / "alpha"), state=AgentState.RUNNING, state_since=1.0)
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: [agent])
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: [agent])
     monkeypatch.setattr(tmuxctl, "capture_pane", lambda settings, pane, lines=200: "hello")
     c = make_client(s, logged_in=True)
     return s, c

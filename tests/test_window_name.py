@@ -35,7 +35,7 @@ def env(fake_tmux, tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_TMUX_OUT", out)
     found = [_agent(182, "%182", AgentState.WAITING), _agent(180, "%180"),
              _agent(181, "%181", AgentState.IDLE)]
-    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes: list(found))
+    monkeypatch.setattr(services.agents_mod, "detect_agents", lambda panes, **kw: list(found))
     c = make_client(s, router, static=True, logged_in=True)
     return s, c
 
