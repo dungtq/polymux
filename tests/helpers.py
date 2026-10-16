@@ -343,3 +343,17 @@ def task_note(uid: str, task_id: str, ts: str, *, status: str = "completed", too
     return {"type": "attachment", "uuid": uid, "timestamp": ts,
             "attachment": {"type": "queued_command", "prompt": body, "commandMode": "task-notification",
                            "origin": {"kind": "task-notification", "producer": "session-task"}}}
+
+
+def new_window_call(calls: list[list[str]]) -> list[str]:
+    """The first recorded ``new-window`` as one command: ``tmuxctl.new_agent_window`` sends one tmux sequence
+    (``new-window ... ; set-option -w ... remain-on-exit on ; rename-window ... -- <name>``). Returns the
+    new-window words up to the first ``;`` with its temporary ``-n`` replaced by the final window name."""
+    call = next(x for x in calls if x and x[0] == "new-window")
+    if ";" not in call:
+        return list(call)
+    nw = list(call[:call.index(";")])
+    tail = call[call.index(";"):]
+    assert tail[:2] == [";", "set-option"] and "remain-on-exit" in tail
+    nw[nw.index("-n") + 1] = tail[-1]  # rename-window ... -- <name>
+    return nw

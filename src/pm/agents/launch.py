@@ -1,4 +1,4 @@
-"""Launch coding agents in tmux windows (argv templates, optional git worktree).
+"""Launch coding agents in tmux windows that stay when the agent quits (argv templates, optional git worktree).
 
 No shell string is ever built: the fully validated argv runs through tmux's default-shell as positional
 arguments (``tmuxctl.start_words``), so the user's shell setup applies and no shell re-parses the argv.
@@ -357,34 +357,9 @@ def _find_session(settings: Settings, project: Project) -> str:
     return tmuxctl.new_session(settings, new, project.path)
 
 
-def _split_target(settings: Settings, pane_id: str) -> tuple[str, str, str]:
-    """(session id, window id, window name) of ``pane_id``; refuses a ``pm*`` session (same standard
-    as the new-window path). Raises LaunchError when the pane is gone."""
-    tmuxctl.check_id(pane_id, "%")
-    for s in tmuxctl.list_sessions(settings):
-        for w in s.windows:
-            if any(p.id == pane_id for p in w.panes):
-                if _is_protected_name(s.name):
-                    raise LaunchError("refusing to launch into a pm session")
-                return s.id, w.id, w.name
-    raise LaunchError("source pane not found")
-
-
-def _split_start(settings: Settings, pane_id: str, cwd: Path, argv: list[str]) -> tuple[str, str, str, str]:
-    """Run ``argv`` in a new pane split from ``pane_id``: (session id, window id, window name, new pane id)."""
-    sid, wid, wname = _split_target(settings, pane_id)
-    out = tmuxctl.split_pane(settings, pane_id, str(cwd), argv)
-    _, _, pid = out.partition(" ")
-    pid = pid.strip()
-    if pid:
-        tmuxctl.check_id(pid, "%")
-    return sid, wid, wname, pid
-
-
-def launch_agent(settings: Settings, launch: Launch, project: Project,
-                 split_pane: str | None = None) -> LaunchResult:
-    """Start the agent in a new window of the project session; with ``split_pane`` (a ``%n`` pane id
-    taken from a server-side Agent) split that pane instead, inside its own window."""
+def launch_agent(settings: Settings, launch: Launch, project: Project) -> LaunchResult:
+    """Start the agent in a new window of the project session; the window stays when the agent quits
+    (``tmuxctl.new_agent_window``)."""
     if launch.project != project.name:
         raise LaunchError("launch/project mismatch")
     argv = build_command(launch, settings)  # validates everything first
@@ -399,22 +374,11 @@ def launch_agent(settings: Settings, launch: Launch, project: Project,
         branch = check_branch(launch.worktree_branch)
         wt = create_worktree(settings, project, branch)
         cwd = wt
-    if split_pane:
-        sid, wid, wname, pid = _split_start(settings, split_pane, cwd, argv)
-        _record(settings, project.name, launch.kind.value, wid, launch.prompt)
-        return LaunchResult(sid, wid, wname, str(cwd), str(wt) if wt else None, branch, pid)
     suffix = _slug(branch) if branch else ""
     wname = ("agent-" + launch.kind.value + ("-" + suffix if suffix else ""))[:64].rstrip("-.")
     tmuxctl.check_name(wname)
     sid = _find_session(settings, project)
-    wid = tmuxctl.run(settings, ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}",
-                                 "-t", sid + ":", "-n", wname, "-c", tmuxctl.arg(str(cwd)),
-                                 "--", *tmuxctl.start_words(settings, argv)]).strip()
-    wid, _, pid = wid.partition(" ")
-    tmuxctl.check_id(wid, "@")
-    pid = pid.strip()
-    if pid:
-        tmuxctl.check_id(pid, "%")
+    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv)
     _record(settings, project.name, launch.kind.value, wid, launch.prompt)
     return LaunchResult(sid, wid, wname, str(cwd), str(wt) if wt else None, branch, pid)
 

@@ -135,8 +135,9 @@ def build_argv(settings: Settings, obj, prompt: str = "") -> tuple[str, list[str
 
 
 def fork_session(settings: Settings, obj, project: Project, prompt: str = "") -> ForkResult:
-    """Start the fork in a new tmux window (``new-window -d``: the current tmux focus is untouched)
-    and remember where it came from (``pm.agents.lineage``). ``prompt``: optional first message."""
+    """Start the fork in a new tmux window (``new-window -d``: the current tmux focus is untouched; the
+    window stays when the agent quits) and remember where it came from (``pm.agents.lineage``).
+    ``prompt``: optional first message."""
     kind, argv, mode = build_argv(settings, obj, prompt)
     if not os.access(argv[0], os.X_OK):
         raise launch_mod.LaunchError("agent binary not executable")
@@ -148,13 +149,6 @@ def fork_session(settings: Settings, obj, project: Project, prompt: str = "") ->
     wname = f"agent-{kind}-fork"[:64].rstrip("-.")
     tmuxctl.check_name(wname)
     sid = launch_mod._find_session(settings, project)
-    args = ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", sid + ":",
-            "-n", wname, "-c", tmuxctl.arg(str(cwd)), "--", *tmuxctl.start_words(settings, argv)]
-    out = tmuxctl.run(settings, args).strip()
-    wid, _, pid = out.partition(" ")
-    tmuxctl.check_id(wid, "@")
-    pid = pid.strip()
-    if pid:
-        tmuxctl.check_id(pid, "%")
+    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv)
     lineage.record(settings, obj.id, "fork", pid, kind)
     return ForkResult(sid, wid, wname, str(cwd), pane_id=pid, mode=mode)

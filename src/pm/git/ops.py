@@ -183,6 +183,20 @@ def has_ref(top: Path, ref: str) -> bool:
     return run(top, ["rev-parse", "--verify", "--quiet", ref], check=False).returncode == 0
 
 
+def check_base(name: str) -> str:
+    """``name`` when it is a branch-like ref usable in a revision range (``ctl.branch_name_ok``); Invalid otherwise."""
+    if not ctl.branch_name_ok(name):
+        raise Invalid("bad base branch name")
+    return name
+
+
+def files_since(top: Path, base: str) -> list[str]:
+    """Files HEAD changed since it forked from ``base`` (``diff --name-only base...HEAD``, renames as delete +
+    add), at most ``LIST_CAP``. GitError when ``base`` is unknown."""
+    out = run(top, ["diff", "--name-only", "-z", "--no-renames", f"{check_base(base)}...HEAD", "--"]).stdout
+    return [p for p in out.split("\0") if p][:LIST_CAP]
+
+
 def status_at(top: Path, limit: int = LIST_CAP) -> StatusDetail:
     out = run(top, ["status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all"]).stdout
     hdr, files = parse_status(out)

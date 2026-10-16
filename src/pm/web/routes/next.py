@@ -6,7 +6,8 @@ side from the agent's own chat view (never from the form); audit lines carry len
 (of the user's text). The new agent's first prompt is that text behind a short preamble naming the
 source agent (``lineage.continue_prompt``: read it, then ask what to do next), and the new pane is
 recorded in ``pm.agents.lineage`` so its page can link back ("Continued from"). Form ``mode=custom``
-sends the user's ``text`` as-is (no preamble); ``where=pane`` splits the source agent's own window.
+sends the user's ``text`` as-is (no preamble). The new agent always gets its own tmux window
+(``where=window``, the only value; anything else is refused).
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ from pm.web import agentctl, chatctx
 
 router = APIRouter()
 MODES = ("predefined", "custom")
-WHERES = ("window", "pane")
+WHERES = ("window",)
 
 
 def _stored_msg(settings, agent_id: str, seq: int):
@@ -74,7 +75,7 @@ def _publish_inbox(request: Request, agent_id: str, action: str) -> None:
 
 
 async def _options(request: Request, action: str, a) -> tuple[str, str]:
-    """Form ``mode`` (predefined | custom) and ``where`` (window | pane); anything else stops with 400."""
+    """Form ``mode`` (predefined | custom) and ``where`` (window, the default); anything else stops with 400."""
     form = await request.form()
     mode = str(form.get("mode") or "predefined").strip()
     where = str(form.get("where") or "window").strip()
@@ -107,13 +108,11 @@ async def _build_prompt(request: Request, action: str, settings, a, mode: str, w
     return prompt, detail
 
 
-async def _start(request: Request, action: str, settings, a, project, prompt: str, where: str, detail: dict):
-    """Launch the new agent (same kind and model as ``a``): a new window, or a split of ``a``'s own pane."""
+async def _start(request: Request, action: str, settings, a, project, prompt: str, detail: dict):
+    """Launch the new agent (same kind and model as ``a``) in a new tmux window."""
     model = await executors.run_collectors(agenthead.live_model, a)  # the new chat keeps this agent's model
     launch = Launch(project=project.name, kind=a.kind, model=None if model == a.kind.value else model, prompt=prompt)
     try:
-        if where == "pane":  # the pane id is the server-side agent's, never the form's
-            return await executors.run_tmux(launch_mod.launch_agent, settings, launch, project, split_pane=a.pane_id)
         return await executors.run_tmux(launch_mod.launch_agent, settings, launch, project)
     except launch_mod.LaunchError as e:
         raise agentctl.stop(request, action, a.id, 400, "launch refused", detail=detail,
@@ -125,9 +124,9 @@ async def _start(request: Request, action: str, settings, a, project, prompt: st
 @router.post("/a/{agent_id}/continue", response_class=HTMLResponse)
 async def agent_continue(request: Request, agent_id: str,
                          _=Depends(mutation_guard("agent_continue", Tier.MESSAGE))):
-    """Start a new agent of the same kind. ``where``: a new tmux window (default) or a split pane of this
-    agent's window. ``mode``: predefined (default; form ``text``, else stored message ``seq``, else the last
-    assistant message, behind the lineage preamble) or custom (``text`` is the whole prompt, no preamble)."""
+    """Start a new agent of the same kind in a new tmux window (``where``: window only). ``mode``: predefined
+    (default; form ``text``, else stored message ``seq``, else the last assistant message, behind the lineage
+    preamble) or custom (``text`` is the whole prompt, no preamble)."""
     action = "agent_continue"
     a = await agentctl.agent(request, action, agent_id)
     settings = request.app.state.settings
@@ -136,12 +135,11 @@ async def agent_continue(request: Request, agent_id: str,
     project = agentctl.project(request, action, a.project)
     mode, where = await _options(request, action, a)
     prompt, detail = await _build_prompt(request, action, settings, a, mode, where)
-    res = await _start(request, action, settings, a, project, prompt, where, detail)
+    res = await _start(request, action, settings, a, project, prompt, detail)
     await executors.run_collectors(lineage.record, settings, a.id, "continue", res.pane_id, a.kind.value)
     agentctl.done(request, action, a.id, "ok", {**detail, "window": res.window_id})
     _publish_inbox(request, a.id, action)
-    place = "a new pane of " if where == "pane" else ""
-    return agentctl.frag(f"Started a new {a.kind.value} in {place}{res.window_name} with this message.")
+    return agentctl.frag(f"Started a new {a.kind.value} in {res.window_name} with this message.")
 
 
 @router.post("/tmux/session/{sid}/clear", response_class=HTMLResponse)

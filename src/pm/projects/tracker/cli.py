@@ -107,10 +107,51 @@ def _feature_parser(sub, common) -> None:
         "--date", help="YYYY-MM-DD (default today)")
 
 
+def _claim_num(text: str) -> int:
+    """A claim number as ``12`` or ``c12``."""
+    t = text.strip().removeprefix("c")
+    if not t.isdigit():
+        raise argparse.ArgumentTypeError(f"not a claim number: {text!r}")
+    return int(t)
+
+
+def _claim_parser(sub, common) -> None:
+    p = sub.add_parser("claim", help="agent work claims: announce work, close it, see overlaps")
+    s = p.add_subparsers(dest="action", required=True, parser_class=_Parser)
+    a = s.add_parser("add", parents=[common], help="announce work: a new active claim (prints overlaps)")
+    a.add_argument("title")
+    a.add_argument("--path", action="append", default=[], metavar="GLOB",
+                   help="repo-relative glob (repeat; none = the whole repo)")
+    a.add_argument("--issue", type=int, help="backlog issue it works on (gets a note)")
+    a.add_argument("--branch", help="default: the cwd's branch")
+    a.add_argument("--worktree", metavar="DIR", help="default: the cwd's work tree")
+    a.add_argument("--pane", metavar="%ID", help="default: $TMUX_PANE")
+    lp = s.add_parser("list", parents=[common], help="active claims (stale marked)")
+    lp.add_argument("--all", action="store_true", help="also the last 50 done / dropped")
+    lp.add_argument("--mine", action="store_true", help="only this agent's")
+    s.add_parser("show", parents=[common]).add_argument("num", type=_claim_num)
+    u = s.add_parser("update", parents=[common], help="replace paths and/or title")
+    u.add_argument("num", type=_claim_num)
+    u.add_argument("--path", action="append", metavar="GLOB")
+    u.add_argument("--title")
+    d = s.add_parser("done", parents=[common], help="close a claim as done (prints claims to notify)")
+    d.add_argument("num", type=_claim_num)
+    d.add_argument("--commit", help="commit that did it")
+    d.add_argument("--note")
+    r = s.add_parser("drop", parents=[common], help="give a claim up")
+    r.add_argument("num", type=_claim_num)
+    r.add_argument("--note")
+    s.add_parser("gc", parents=[common], help="drop stale claims (their pane is gone)")
+    m = sub.add_parser("merge-check", parents=[common],
+                       help="before merging this branch: base moved, overlapping claims and work trees (exit 0/1/2)")
+    m.add_argument("--base", help="branch it merges into (default: the repo's main branch)")
+
+
 def build_parser() -> argparse.ArgumentParser:
     common = _common()
     p = _Parser(prog="pmctl", parents=[common],
-                description="pm tracker: issues (BACKLOG.md), TODO.md, CHANGELOG.md and FEATURES.md in pm.db")
+                description="pm tracker: issues (BACKLOG.md), TODO.md, CHANGELOG.md, FEATURES.md and agent"
+                            " work claims in pm.db")
     sub = p.add_subparsers(dest="cmd", required=True, parser_class=_Parser)
     for name in ("issue", "backlog"):
         _issue_parser(sub, name, common)
@@ -124,6 +165,7 @@ def build_parser() -> argparse.ArgumentParser:
     _status_flags(ts.add_parser("list", parents=[common], help="list tasks (default --all)"), "all")
     _change_parser(sub, common)
     _feature_parser(sub, common)
+    _claim_parser(sub, common)
     r = sub.add_parser("render", parents=[common], help="write the tracker files from pm.db")
     g = r.add_mutually_exclusive_group()
     g.add_argument("--check", action="store_true", help="exit 1 listing files that differ from the render")

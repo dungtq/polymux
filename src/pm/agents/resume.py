@@ -69,12 +69,5 @@ def resume_session(settings: Settings, rec: registry.Record, project: Project,
         raise launch_mod.LaunchError("project path missing")
     wname = f"agent-{rec.kind}-resume"
     sid = launch_mod._find_session(settings, project)
-    out = tmuxctl.run(settings, ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}",
-                                 "-t", sid + ":", "-n", wname, "-c", tmuxctl.arg(str(cwd)),
-                                 "--", *tmuxctl.start_words(settings, argv)]).strip()
-    wid, _, pid = out.partition(" ")
-    tmuxctl.check_id(wid, "@")
-    pid = pid.strip()
-    if pid:
-        tmuxctl.check_id(pid, "%")
+    wid, pid = tmuxctl.new_agent_window(settings, sid, wname, str(cwd), argv)
     return launch_mod.LaunchResult(sid, wid, wname, str(cwd), pane_id=pid)

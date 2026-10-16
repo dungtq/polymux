@@ -580,11 +580,15 @@ def merge_head(repo_path: str | Path) -> str | None:
     return _rev(repo_path, "MERGE_HEAD")
 
 
+def branch_name_ok(name: str) -> bool:
+    """Branch-like ref name (``main``, ``gitdev/main``): no leading ``-``/``/``/``.``, ``..``, ``//``, ``/``/``.lock`` end."""
+    return (isinstance(name, str) and bool(_BRANCH.match(name)) and not name.startswith(("-", "/", "."))
+            and ".." not in name and "//" not in name and not name.endswith(("/", ".lock")))
+
+
 def branch_exists(repo_path: str | Path, branch: str) -> bool:
-    """``refs/heads/<branch>`` exists (``branch`` checked like a ref name; a bad name is False)."""
-    if not _BRANCH.match(branch or "") or branch.startswith(("-", "/", ".")) or ".." in branch or "//" in branch:
-        return False
-    return _rev(repo_path, f"refs/heads/{branch}") is not None
+    """``refs/heads/<branch>`` exists (``branch`` checked by ``branch_name_ok``; a bad name is False)."""
+    return branch_name_ok(branch) and _rev(repo_path, f"refs/heads/{branch}") is not None
 
 
 def merge_file(repo_path: str | Path, current: str | Path, base: str | Path, other: str | Path) -> bool:

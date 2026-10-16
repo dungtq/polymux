@@ -185,10 +185,11 @@ yourself; pm never edits it.
 
 ## 10. tmux-agents (optional)
 
-`deploy/tmux-agents/` holds a small bash script that prints the pm agent id
-of the current pane (`tmux-agents id`) and can also spawn agents in tmux and
-pass messages between them. pm uses only `id`: `pmctl` records it as the
-author of a tracker change.
+`deploy/tmux-agents/` holds a single-file Python script that prints the pm
+agent id of the current pane (`tmux-agents id`). It can also spawn agents in
+their own tmux windows, pass messages between them, and coordinate parallel
+work through `pmctl claim` and `pmctl merge-check`. pm uses only `id`: `pmctl`
+records it as the author of a tracker change.
 
 ```sh
 install -m 755 deploy/tmux-agents/tmux-agents ~/.local/bin/tmux-agents

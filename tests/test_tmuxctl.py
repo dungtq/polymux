@@ -1,3 +1,4 @@
+import re
 import time
 
 import pytest
@@ -266,16 +267,96 @@ def test_default_shell_read_and_cached(fake_tmux, monkeypatch):
     assert t.default_shell(fake_tmux) == ""
 
 
-def test_split_and_respawn_run_argv_through_the_default_shell(fake_tmux, monkeypatch):
+def test_new_agent_window_and_respawn_run_argv_through_the_default_shell(fake_tmux, monkeypatch):
     from pm.core.cache import LRU
     monkeypatch.setattr(t, "_shells", LRU(max_entries=16))
     monkeypatch.setenv("FAKE_TMUX_OUT", "/usr/bin/fish")
-    t.split_pane(fake_tmux, "%4", "/work", ["/x/a", "x\\"])
+    t.default_shell(fake_tmux)  # cached: the fake prints the same text for every call
+    monkeypatch.setenv("FAKE_TMUX_OUT", "@3 %4")
+    t.new_agent_window(fake_tmux, "$1", "agent-x", "/work", ["/x/a", "x\\"])
     t.respawn_pane(fake_tmux, "%4", "/work", ["/x/a"])
     log = [c.split("\n")[2:-1] for c in fake_tmux.extras["log"].read_text().split("---\n") if c]
-    starts = [c for c in log if c[0] in ("split-window", "respawn-pane")]
-    assert starts[0][starts[0].index("--") + 1:] == ["/usr/bin/fish", "-c", "exec $argv", "/x/a", "x\\"]
+    starts = [c for c in log if c[0] in ("new-window", "respawn-pane")]
+    nw = starts[0][:starts[0].index(";")]  # the start words end before the sequence's next command
+    assert nw[nw.index("--") + 1:] == ["/usr/bin/fish", "-c", "exec $argv", "/x/a", "x\\"]
     assert starts[1][starts[1].index("--") + 1:] == ["/usr/bin/fish", "-c", "exec $argv", "/x/a"]
+
+
+def _sequence(call: list[str]) -> list[list[str]]:
+    """One tmux argv split into its commands at the bare ``;`` words."""
+    out = [[]]
+    for w in call:
+        if w == ";":
+            out.append([])
+        else:
+            out[-1].append(w)
+    return out
+
+
+def test_new_agent_window_keeps_the_window_when_the_agent_quits(fake_tmux, monkeypatch):
+    """One background window per agent, its window-level remain-on-exit set in the same command sequence
+    (an agent that quits at once keeps its window too), by a unique temporary name, then the real name.
+    Never a split, never the pane option that _respawn_chat unsets again."""
+    monkeypatch.setenv("FAKE_TMUX_OUT", "@3 %4\n")
+    assert t.new_agent_window(fake_tmux, "$1", "agent-claude", "/work;", ["/x/a", ";", "x;"]) == ("@3", "%4")
+    log = [c.split("\n")[2:-1] for c in fake_tmux.extras["log"].read_text().split("---\n") if c]
+    calls = [c for c in log if c[0] in ("new-window", "set-option", "rename-window", "split-window")]
+    assert len(calls) == 1  # one tmux call
+    nw, opt, ren = _sequence(calls[0])
+    tmp = nw[nw.index("-n") + 1]
+    assert re.fullmatch(r"pm-new-[0-9a-f]{12}", tmp)
+    assert nw[:nw.index("--")] == ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "$1:",
+                                   "-n", tmp, "-c", "/work\\;"]
+    assert nw[-3:] == ["/x/a", "\\;", "x\\;"]  # user words never end the command
+    assert opt == ["set-option", "-w", "-t", f"$1:={tmp}", "remain-on-exit", "on"]
+    assert ren == ["rename-window", "-t", f"$1:={tmp}", "--", "agent-claude"]
+    t.new_agent_window(fake_tmux, "$1", "agent-claude", "/w", ["/x/a"])
+    log = [c.split("\n")[2:-1] for c in fake_tmux.extras["log"].read_text().split("---\n") if c]
+    tmps = {_sequence(c)[0][_sequence(c)[0].index("-n") + 1] for c in log if c[0] == "new-window"}
+    assert len(tmps) == 2  # a fresh temporary name per window
+    for sid, name in (("%1", "agent-x"), ("$1", "-n"), ("$1", "a b"), ("$1", "x;"), ("$1; kill-server", "x")):
+        with pytest.raises(t.TmuxError):
+            t.new_agent_window(fake_tmux, sid, name, "/w", ["/x/a"])
+    for out in ("%4 @3", "bogus", "@3 bogus"):
+        monkeypatch.setenv("FAKE_TMUX_OUT", out)
+        with pytest.raises(t.TmuxError):
+            t.new_agent_window(fake_tmux, "$1", "agent-x", "/w", ["/x/a"])
+
+
+def test_new_agent_window_persists_in_a_real_tmux(private_tmux, tmp_path):
+    """Private -L pmtest-* server: the window stays (pane dead) after the command exits, and a pane option
+    set then unset (message._respawn_chat) leaves the window's remain-on-exit in force."""
+    s = private_tmux
+    sid = next(x.id for x in t.list_sessions(s) if x.name == "pmtest-base")
+    wid, pid = t.new_agent_window(s, sid, "agent-quick", str(tmp_path), ["/bin/sh", "-c", "sleep 0.3"])
+    assert wid.startswith("@") and pid.startswith("%")
+    assert t.run(s, ["show-options", "-w", "-v", "-t", wid, "remain-on-exit"]).strip() == "on"
+    names = [w.name for x in t.list_sessions(s) for w in x.windows if w.id == wid]
+    assert names == ["agent-quick"]
+    gone, _ = t.new_agent_window(s, sid, "agent-quick", str(tmp_path), ["/bin/true"])  # same name, exits at once
+    for _ in range(20):
+        if any(p.dead for x in t.list_sessions(s) for w in x.windows if w.id == gone for p in w.panes):
+            break
+        time.sleep(0.1)
+    assert [p.dead for x in t.list_sessions(s) for w in x.windows if w.id == gone for p in w.panes] == [True]
+
+    def pane():
+        return next((p for x in t.list_sessions(s) for w in x.windows for p in w.panes if p.id == pid), None)
+
+    for _ in range(50):
+        if (p := pane()) is not None and p.dead:
+            break
+        time.sleep(0.1)
+    assert pane() is not None and pane().dead  # the window outlived its agent
+    t.set_remain_on_exit(s, pid, True)
+    t.set_remain_on_exit(s, pid, False)
+    t.respawn_pane(s, pid, str(tmp_path), ["/bin/sh", "-c", "sleep 0.3"])
+    time.sleep(0.2)
+    for _ in range(50):
+        if (p := pane()) is not None and p.dead:
+            break
+        time.sleep(0.1)
+    assert pane() is not None and pane().dead  # respawned and exited again: still kept
 
 
 @pytest.mark.parametrize("name", ["fish", "bash", "zsh", "dash", "sh"])

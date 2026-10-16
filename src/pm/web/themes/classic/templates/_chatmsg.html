@@ -6,7 +6,7 @@
 
 {% macro continue_btn(agent, seq=None) -%}
 <form class="cm-cont" method="post" action="/a/{{ agent.id }}/continue" hx-post="/a/{{ agent.id }}/continue" hx-target="#flash" hx-swap="innerHTML">
-  <input type="hidden" name="csrf" value="{{ csrf }}">{% if seq %}<input type="hidden" name="seq" value="{{ seq }}">{% endif %}<button type="submit" class="small tip tip-r" data-tip="Continue in a new {{ agent.kind.value }} chat: choose the prompt and where it opens" title="Continue in a new {{ agent.kind.value }} chat: choose the prompt and where it opens" aria-label="Continue in a new chat">Continue&hellip;</button>
+  <input type="hidden" name="csrf" value="{{ csrf }}">{% if seq %}<input type="hidden" name="seq" value="{{ seq }}">{% endif %}<button type="submit" class="small tip tip-r" data-tip="Continue in a new {{ agent.kind.value }} chat in its own tmux window: choose the prompt" title="Continue in a new {{ agent.kind.value }} chat in its own tmux window: choose the prompt" aria-label="Continue in a new chat">Continue&hellip;</button>
 </form>
 {%- endmacro %}
 

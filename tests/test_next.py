@@ -260,23 +260,25 @@ def test_continue_invalid_mode_or_where(fake, monkeypatch):
     assert "bad mode" in audit_text(st) and "bad where" in audit_text(st)
 
 
-def test_continue_where_pane_splits_the_agents_own_pane(fake, monkeypatch):
+def test_continue_where_pane_is_refused(fake, monkeypatch):
+    """The split-pane launch is gone: ``where=pane`` is an unknown value (400, audited), nothing starts."""
     c, tok, st, calls = _setup_continue(fake, monkeypatch, {"claude": "/bin/true"})
-    r = post(c, tok, "/a/claude-1/continue", where="pane", pane="%1", target="%1", text="hello")
-    assert r.status_code == 200 and "in a new pane of w with this message" in r.text
-    split = [x for x in calls if x and x[0] == "split-window"]
-    assert len(split) == 1 and split[0][:7] == ["split-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "%2"]
-    assert not any(x and x[0] == "new-window" for x in calls)  # the pane id is the agent's (%2), not the form's
-    assert '"where":"pane"' in audit_text(st) and "hello" not in audit_text(st)
-
-
-def test_continue_where_pane_refuses_pm_session(fake, monkeypatch):
-    from pm.core.models import TmuxPane, TmuxSession, TmuxWindow
-    c, tok, st, calls = _setup_continue(fake, monkeypatch, {"claude": "/bin/true"})
-    pane = TmuxPane(id="%2", window_id="@2", session_id="$2", pid=1, command="x", cwd="/")
-    pm_sess = (TmuxSession(id="$2", name="pm-main", windows=(
-        TmuxWindow(id="@2", session_id="$2", index=0, name="w", panes=(pane,)),)),)
-    monkeypatch.setattr(tmuxctl, "list_sessions", lambda s: pm_sess)
+    monkeypatch.setattr(launch_mod, "launch_agent", lambda *a, **k: pytest.fail("must not launch"))
     r = post(c, tok, "/a/claude-1/continue", where="pane", text="hello")
-    assert r.status_code == 400 and not any(x and x[0] == "split-window" for x in calls)
-    assert "launch refused" in audit_text(st)
+    assert r.status_code == 400
+    assert not any(x and x[0] in ("split-window", "new-window") for x in calls)
+    assert "bad where" in audit_text(st) and "hello" not in audit_text(st)
+    assert pm.web.routes.next.WHERES == ("window",)
+
+
+def test_continue_starts_its_own_window(fake, monkeypatch):
+    """The real launch path: one new-window call (with remain-on-exit in the same sequence), never a split."""
+    c, tok, st, calls = _setup_continue(fake, monkeypatch, {"claude": "/bin/true"})
+    monkeypatch.setattr(tmuxctl, "new_session", lambda s, n, c_: "$7")
+    monkeypatch.setattr(tmuxctl, "run", lambda s, a, timeout=0, **kw: calls.append(a) or "@8 %9")
+    r = post(c, tok, "/a/claude-1/continue", where="window", text="hello")
+    assert r.status_code == 200 and "Started a new claude in agent-claude with this message" in r.text
+    assert not any(x and x[0] == "split-window" for x in calls)
+    (nw,) = [x for x in calls if x and x[0] == "new-window"]
+    assert nw[:7] == ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "$7:"]
+    assert "remain-on-exit" in nw and nw[-2:] == ["--", "agent-claude"]

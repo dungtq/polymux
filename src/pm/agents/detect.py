@@ -333,6 +333,8 @@ def detect_agents(
     restart cannot reset it. ``home`` overrides ``~`` for the session stores.
     """
     home = home or Path.home()
+    # an exited pane whose window is kept (remain-on-exit) is never a live agent, even if its pid was reused
+    panes = [p for p in panes if not p.dead]
     locks = Locks(home, proc_root)
     view = _proc_view(proc_root, panes)
     agents: list[Agent] = []
