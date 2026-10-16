@@ -200,6 +200,7 @@ html body.x.x-embed>.x-main{overflow:visible}
 .x-ah b{font-weight:600}
 .x-abody{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--s3)}
 .x-aempty{margin:0;color:var(--muted);font-size:var(--fs-ui)}
+.x-chatpg .x-asidebtn{display:none}  /* a session's own page: its chat is the page (README A28) */
 
 /* ---------- phone bottom nav ---------- */
 .x-bnav{display:none}

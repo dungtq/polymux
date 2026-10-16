@@ -7,7 +7,7 @@
        without an entry follows shell.rail); the tab is html[data-tab] (base.html, the server's current tab).
        pm7.look.rail() reads the state for this tab, rail(v) stores it (sidebar.js ⌘B, settings.js): the one place
        that knows these keys; shell.mode ("light" | "dark" | "auto") -> html[data-theme];
-     aside.open ("1", docked widths only) -> html.aside; aside.pct (20-50) -> --aside-pct;
+     aside.open ("1", docked widths, not on html.x-chatpg) -> html.aside; aside.pct (20-50) -> --aside-pct;
      font.ui / font.chat / font.mono (system | sans | serif | mono | same (chat) | an installed family) -> --font-ui,
        --font-chat, --font-mono (+ classic content's --chat-font); font.size (90-125 %) -> the root font size (%) and
        --fs-k (tokens.css: --fs-body x --fs-k); chat.size (10-32 px) -> --chat-size; cmp.size (10-32 px) ->
@@ -129,7 +129,9 @@
       .then(take, function () { /* offline or signed out: keep the mirror */ });
   }
 
-  if (get('aside.open') === '1' && window.innerWidth >= 900) root.classList.add('aside');  // first paint only
+  // first paint only, not on a session's own page (html.x-chatpg, README A28): its chat is the page
+  var chatPage = root.classList.contains('x-chatpg');
+  if (!chatPage && get('aside.open') === '1' && window.innerWidth >= 900) root.classList.add('aside');
   browser();
   prefs(cache().prefs);
   pm7.look = { apply: browser, prefs: take, tok: function (k) { return TOK[k] || ''; }, load: load, rail: rail };
