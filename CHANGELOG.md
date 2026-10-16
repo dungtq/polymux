@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-17 (Builder md links open; clearer not-found message)
+
+- dt Builder: .md links in the chat open in the markdown reader (they did nothing: Builder has no docked reader).
+- A .md link to a file pm cannot find now says "Not found: <path>" and where pm looked, instead of the old "File not available (only readable .md files outside hidden folders)".
+
 ## 2026-10-16 (Markdown reader finds files from the folders an agent worked in)
 
 - The markdown reader also finds relative .md links an agent wrote while working in another folder or project: folders it cd'd into, the project a (deleted) worktree belongs to, a unique match in another project, or a unique file of that name inside its project. Hidden folders stay refused (#249).
@@ -12,6 +17,23 @@
 - Backlog: add several issues at once (one per line, Add another), paste or drop screenshots into Add issue, quick edit of issues and TODO tasks (⋯ Edit…, key R) (#245, #246, #248).
 - Images in agent replies show large instead of as small thumbnails (#246).
 - Markdown links from the chat aside open in a reader centred on the screen (#250); relative .md paths are also found in the project and among files the agent named (#249).
+
+## 2026-10-16 (Agent coordination: pmctl claims and merge-check; every agent in its own persistent window)
+
+- `pmctl claim add|list|show|update|done|drop|gc`: agents record what they are about to change (title, path globs,
+  branch, work tree, optional issue) in pm.db (`tk_claim`) before implementing and close the claim after committing.
+  `claim add` and `claim done` list the other agents' active claims that overlap; with `--issue N` a note goes on the
+  issue. A claim whose tmux pane is gone counts as stale and never blocks. `pmctl` writes pm.db directly, so this
+  works while the web service is down.
+- `pmctl merge-check [--base B]`: run in a branch's work tree before merging. Compares the branch's changed files with
+  other agents' active claims and with the other git work trees (uncommitted changes or commits not in the base);
+  exit 1 on an overlap, a warning when the base branch has moved.
+- Every agent launch (Launch, Continue, Fork, Resume) opens its own tmux window, and the window stays when the agent
+  quits (`remain-on-exit`, set in the same tmux call that creates it). The split-pane Continue option is gone
+  (`where=pane` is now 400). Dead panes are never shown as live agents or reported "still running".
+- `deploy/tmux-agents`: rewritten in Python (stdlib only). Windows only, addressing by pm agent id, delivery that holds
+  messages while the target shows an interactive prompt, `inbox`, `broadcast`, `reply --status`, and `claim` /
+  `done` / `merge-check` / `board` wrappers around `pmctl` that message the agents whose claims overlap.
 
 ## 2026-10-16 (Faster tab switches and Inbox; account menu Settings opens the popup)
 
