@@ -4,6 +4,10 @@
 
 Named Claude/Codex accounts can now be added and removed in Agents > the agent > Auth (no pm.toml edit, no restart; Remove only unlists, the login folder is kept; pm.toml names stay read-only). One account can be the global default; project settings > Login account offers "Global default (X)", "CLI default" or a name. Chat, model, usage, recap, forks and past sessions of an agent running under a named account are now read from that account's folder. A project choice that points at a removed account is refused with an audited 400 (launch, continue, resume, fork, New chat).
 
+## 2026-10-17 (dt: model pill in Inbox/project rows, Show the model pill setting works)
+
+The dt Inbox and project agent rows now show the model pill after the agent name. Settings > Display > "Show the model pill" had no effect: head.js set html.no-mpill but no CSS used it. It now hides the pill in those rows, the chat header and the message headers. Rows hide the pill under 640 px of page width and on phones; the Agent column is wider so the id stays readable.
+
 ## 2026-10-17 (Finished sub-agents no longer shown as running (transcript request replays))
 
 A finished Claude sub-agent no longer shows as running or "waiting" in the Sub-agents panel, the tab count and the agent rows for up to 30 minutes. Newer transcripts replay old tool calls inside `api-request*` entries; those replays re-opened the sub-agent's last call (usually its final hand-back) and inflated its call count. Tool calls are now read only from assistant entries and results only from user entries. The ntfy owner scan ignores the same replays.

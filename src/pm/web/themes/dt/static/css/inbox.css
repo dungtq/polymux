@@ -7,12 +7,17 @@
    at 1512, 1100 windows), Project too at <= 760px (.hide-n, table.css), and the narrowest template shares the rest. */
 
 /* ---------- column templates ---------- */
-.i-list{--g-cols:var(--dot) minmax(9rem,1fr) fit-content(9rem) fit-content(9rem) minmax(0,2.2fr) auto auto auto auto;
-  --g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto;
+.i-list{--g-cols:var(--dot) minmax(15rem,1fr) fit-content(9rem) fit-content(9rem) minmax(0,2.2fr) auto auto auto auto;
+  --g-cols-n:var(--dot) minmax(17rem,1fr) minmax(0,2fr) auto auto;
   --g-cols-s:var(--dot) minmax(7rem,1fr) minmax(0,1.5fr) auto auto}
 @container pg (max-width:1000px){
-  .i-list{--g-cols:var(--dot) minmax(8rem,1fr) fit-content(8rem) minmax(0,2fr) auto auto}
+  .i-list{--g-cols:var(--dot) minmax(17rem,1fr) fit-content(8rem) minmax(0,2fr) auto auto}
   .i-list .i-w{display:none}
+}
+@container pg (max-width:640px){
+  .i-list{--g-cols:var(--dot) minmax(8rem,1fr) fit-content(8rem) minmax(0,2fr) auto auto}
+  .i-list{--g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto}
+  .i-list .i-mdl{display:none}  /* the model pill needs the wide Agent column */
 }
 .i-end{--g-cols:var(--dot) minmax(9rem,1fr) fit-content(9rem) minmax(0,2fr) auto auto auto;
   --g-cols-n:var(--dot) minmax(8rem,1fr) minmax(0,2fr) auto auto}
@@ -30,6 +35,8 @@
 .i-un.i-und{width:var(--dot-un);min-width:0;height:var(--dot-un);padding:0}
 .i-pin{display:inline-flex;flex:0 0 auto;color:var(--accent)}
 .i-pin>svg.i{width:var(--icon-xs);height:var(--icon-xs)}
+.chip.i-mdl{display:inline-block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  line-height:calc(var(--chip-h) - 2px)}
 .chip.i-ctx{flex:0 0 auto;border-color:var(--waiting);color:var(--waiting);font-variant-numeric:tabular-nums}
 
 /* ---------- last message: source chip, question (yellow), error (red) ---------- */
@@ -75,6 +82,7 @@ progress.i-bar.warn::-moz-progress-bar{background:var(--lvl-warn)}
 
 /* ---------- phone (< 700px): two-line rows (table.css); line 2 keeps the question / error colour ---------- */
 @media (max-width:699px){
+  .chip.i-mdl{display:none}  /* phone: agent id only */
   .p-tools>.sp{display:none}
   .gc-m .i-src{display:none}
   .i-det .p-dacts .sp{display:none}

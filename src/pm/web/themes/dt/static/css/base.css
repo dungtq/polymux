@@ -50,6 +50,9 @@ kbd:empty{display:none}
 .chip{display:inline-flex;align-items:center;height:var(--chip-h);padding:0 var(--s2);border:1px solid var(--line);
   border-radius:var(--r-pill);font-size:var(--fs-xs);font-weight:400;color:var(--muted);white-space:nowrap}
 .chip.k{color:var(--fg);border-color:color-mix(in srgb,var(--k) 55%,transparent)}
+/* Settings › Display › Show the model pill off (head.js: html.no-mpill): every model pill goes (Inbox / project rows,
+   chat header, message headers); the composer's model picker stays */
+html.no-mpill :is(.i-mdl,.c-pill,.kpill.kp-model,.chat-bubble.role-assistant .chat-meta strong){display:none}
 
 /* agent kind (WHO): data-kind="<kind>" sets --k; unknown kinds fall back to other */
 :where([data-kind]){--k:var(--k-other)}
