@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Composer sends to agy after an error)
+
+Messages sent from the composer to an Antigravity (agy) agent are no longer held back by an old error above its prompt, such as "Individual quota reached". An agent that shows an empty prompt now counts as idle, and the message is sent. The same agent also no longer appears as failed (no "failed" ntfy, not under "Needs you") while it sits at an empty prompt.
+
 ## 2026-10-17 (Antigravity file links read cleanly in chat)
 
 Links like [name](file:///path#L1-L3), which the Antigravity (agy) agent writes, no longer show as raw brackets and a URL in chat bubbles. They show as the name, with the path as a tooltip. They are not clickable.

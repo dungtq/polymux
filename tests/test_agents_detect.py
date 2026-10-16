@@ -126,6 +126,11 @@ def test_classify():
     assert c("Error: boom\n")[0] is F
     assert c("done\n│ > \n  ? for shortcuts")[0] is I
     assert c("")[0] is U
+    # an old error above a live prompt (agy quota error): idle, so the composer can send; no prompt: still failed
+    assert c("Individual quota reached.\nError ID: 659336e7\n> /model\n─────\n>\n─────\n? for shortcuts")[0] is I
+    assert c("Error: boom\nretrying later\n")[0] is F
+    assert c("Error: boom\n> half typed\n")[0] is F  # typed text or a quote is not an empty prompt
+    assert c("Error: boom\n  accept edits on\n")[0] is F  # a footer alone does not clear an error
     assert c("hello world")[0] is U
     cur = lambda t: classify_pane_text(t, AgentKind.CURSOR)[0]  # noqa: E731
     assert cur("done\n\n  → Add a follow-up\n\n  Grok 4.7 · 86.3%\n  ~/proj · main") is I

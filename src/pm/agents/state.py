@@ -53,6 +53,9 @@ _IDLE = [
 ]
 
 
+_EMPTY_PROMPT = re.compile(r"^\s*[│|]?\s*[>❯›]\s*[│|]?\s*$", re.M)
+
+
 def failed_line(text: str | None) -> str:
     """The newest line of the pane tail that makes ``classify_pane_text`` say FAILED ('' when none)."""
     lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()][-8:]
@@ -71,6 +74,9 @@ def classify_pane_text(text: str, kind: AgentKind | str = AgentKind.OTHER) -> tu
         return AgentState.WAITING, 0.8
     if any(p.search(near) for p in _RUNNING):
         return AgentState.RUNNING, 0.7
+    # an empty prompt (nothing typed) in the last lines: the agent takes input again, whatever error is above it
+    if _EMPTY_PROMPT.search("\n".join(lines[-3:])):
+        return AgentState.IDLE, 0.6
     if any(p.search(near) for p in _FAILED):
         return AgentState.FAILED, 0.5
     if any(p.search(near) for p in _IDLE):
