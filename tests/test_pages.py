@@ -124,6 +124,22 @@ def test_launch_form_models_and_modes(env, monkeypatch):
     assert html.count("data-launch-opts") == 1 + html.count('class="card dispatch"')
 
 
+def test_launch_popup_redirect_hint(env):
+    s, c = env
+    (s.dev_root / "beta").mkdir()
+    login(s, c)
+    url = "/p/alpha/launch?embed=1&from=inbox"
+    assert "data-project-hint" not in c.get(url).text  # empty launch_redirects (default): no hint
+    c.app.state.settings = replace(s, launch_redirects={"alpha": "beta", "beta": "gone"})
+    c.app.state.settings.extras.update(s.extras)
+    h = c.get(url).text
+    assert "data-project-hint" in h and "Work on <b>beta</b> code?" in h
+    assert re.search(r'<button type="button" class="linkbtn" data-project-switch="beta" title="[^"]+">Launch in beta'
+                     r'</button>', h)
+    assert "data-project-hint" not in c.get("/p/beta/launch?embed=1&from=inbox").text  # target not a project
+    assert "data-project-hint" not in c.get("/p/alpha/launch").text  # no picker on the full page
+
+
 def test_launch_page_embed_for_popup(env):
     s, c = env
     login(s, c)
