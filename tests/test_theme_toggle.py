@@ -55,8 +55,17 @@ def test_static_versioned_and_no_cache(env):
     from pm.web.assets import NoCacheStatic
     app = FastAPI()
     app.mount("/static", NoCacheStatic(directory=STATIC_DIR), name="static")
-    r = TestClient(app).get("/static/js/theme.js")
+    tc = TestClient(app)
+    r = tc.get("/static/js/theme.js")
     assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
+    v = re.search(r'theme\.js\?v=([0-9a-f]{10})', html).group(1)
+    r = tc.get(f"/static/js/theme.js?v={v}")  # the page's own URL: cached for good (a new file is a new URL)
+    assert r.status_code == 200 and r.headers["cache-control"] == "public, max-age=31536000, immutable"
+    r = tc.get(f"/static/js/theme.js?v={v}", headers={"If-None-Match": r.headers["etag"]})
+    assert r.status_code == 304 and "immutable" in r.headers["cache-control"]
+    for stale in ("0000000000", "", "x&v=" + v):  # an old or made-up hash: revalidate as before
+        r = tc.get(f"/static/js/theme.js?v={stale}")
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-cache", stale
 
 
 @pytest.mark.skipif(PW is None or CHROME is None or shutil.which("node") is None, reason="playwright/chrome missing")

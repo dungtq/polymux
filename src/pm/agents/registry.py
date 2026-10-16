@@ -17,9 +17,11 @@ import secrets
 import sqlite3
 import threading
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 
 from pm.agents import sorting
+from pm.core import db
 from pm.core.config import Settings
 from pm.core.models import Agent, AgentKind
 
@@ -75,11 +77,8 @@ def _row(r: tuple) -> Record:
 
 
 def _connect(settings: Settings) -> sqlite3.Connection:
-    settings.state_dir.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(settings.db_file, timeout=5)
-    for stmt in _SCHEMA:
-        con.execute(stmt)
-    return con
+    """pm.db with the schema (run once per process and DB file, ``pm.core.db.connect``)."""
+    return db.connect(settings, _SCHEMA)
 
 
 def mint_id(kind: str, ident: str | None) -> str:
@@ -205,6 +204,30 @@ def get(settings: Settings, agent_id: str) -> Record | None:
     except (sqlite3.Error, OSError):
         return None
     return _row(r) if r else None
+
+
+_IN_CHUNK = 500  # ids per ``IN (...)`` (well under SQLite's bound-parameter limit)
+
+
+def get_many(settings: Settings, agent_ids: Iterable[str]) -> dict[str, Record]:
+    """{id: Record} for the known ids among ``agent_ids``, one connection for all; {} on a DB error."""
+    ids = sorted(set(agent_ids))
+    out: dict[str, Record] = {}
+    if not ids:
+        return out
+    try:
+        con = _connect(settings)
+        try:
+            for i in range(0, len(ids), _IN_CHUNK):
+                part = ids[i:i + _IN_CHUNK]
+                marks = ",".join("?" * len(part))
+                for r in con.execute(f"SELECT {_COLS} FROM agent_records WHERE id IN ({marks})", part):
+                    out[r[0]] = _row(r)
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError):
+        return {}
+    return out
 
 
 def first_in_pane(settings: Settings, kind: str, pane: str, since: float) -> Record | None:

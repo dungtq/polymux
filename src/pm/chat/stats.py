@@ -130,8 +130,9 @@ def human(n: int) -> str:
     return str(n)
 
 
-def stats_for(agent, settings=None):
-    """Token statistics for the agent's main chat (claude, devin, cursor-agent, antigravity), or None."""
+def stats_for(agent, settings=None, locks: dict[int, list[str]] | None = None):
+    """Token statistics for the agent's main chat (claude, devin, cursor-agent, antigravity), or None. ``locks``:
+    the Devin lock map when the caller already read it (``devin_stats.session_stats``)."""
     kind = agent.kind.value
     if kind == "claude":
         uuid = (live_session_id(agent.pid) if agent.pid > 1 else None) or agent.session_uuid or ""
@@ -140,7 +141,7 @@ def stats_for(agent, settings=None):
     if kind == "devin":
         from pm.chat.sources.devin_stats import session_stats as devin
 
-        return devin(agent)
+        return devin(agent, locks=locks)
     if kind == "cursor-agent":
         from pm.chat.sources.cursor_stats import session_stats as cursor
         from pm.tmux import ctl as tmuxctl
@@ -161,13 +162,14 @@ def stats_for(agent, settings=None):
     return None
 
 
-def ctx_pct(agent) -> int | None:
+def ctx_pct(agent, locks: dict[int, list[str]] | None = None) -> int | None:
     """Context fill of the agent's main chat in percent (``Stats.pct``); None when unknown. Cursor-agent is skipped:
-    its numbers come from a pane read (``stats_for``), too costly for a list row."""
+    its numbers come from a pane read (``stats_for``), too costly for a list row. ``locks``: see ``stats_for`` (a
+    list of rows reads the Devin lock map once, not per row)."""
     if agent.kind.value == "cursor-agent":
         return None
     try:
-        st = stats_for(agent)
+        st = stats_for(agent, locks=locks)
     except Exception:  # noqa: BLE001 - a row works without it
         return None
     if st is None or (not st.ctx and st.pct_hint < 0):

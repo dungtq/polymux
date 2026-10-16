@@ -133,3 +133,33 @@ def test_stats_for_dispatch(monkeypatch):
     assert chat_stats.stats_for(ag("cursor-agent")) is None  # no settings / pane
     r = chat_stats.stats_for(SimpleNamespace(kind=SimpleNamespace(value="antigravity")))
     assert r is None or isinstance(r, Stats)
+
+
+def test_inbox_rows_read_the_devin_lock_map_once(db, monkeypatch):
+    """ctx % of many Devin rows: one lock map for the whole list (each read walks every lock pid's parents)."""
+    import asyncio
+
+    from pm.chat.sources import devin as devin_src
+    from pm.core.models import Agent, AgentKind, AgentState
+    from pm.web import ntfypanel
+
+    tr = db / ".local/share/devin/cli/transcripts"
+    tr.mkdir(parents=True)
+    (tr / "s1.json").write_text("{}")
+    monkeypatch.setenv("HOME", str(db))
+    calls = []
+    monkeypatch.setattr(devin_src, "lock_map", lambda home, proc_root: calls.append(home) or {101: ["s1"]})
+
+    def ag(n, kind=AgentKind.DEVIN):
+        return Agent(id=f"{kind.value}-{n}", kind=kind, pane_id=f"%{n}", session_id="$1", pid=100 + n, cwd="/w",
+                     state=AgentState.IDLE, state_since=1.0)
+    devins = [ag(n) for n in range(1, 9)]
+    old = {a.id: chat_stats.ctx_pct(a) for a in devins}  # no shared map: one read per row
+    assert len(calls) == len(devins) and old["devin-1"] == 0 and old["devin-2"] is None
+    calls.clear()
+    got = asyncio.run(ntfypanel._row_extras(None, devins, {}))
+    assert {k: v[0] for k, v in got.items()} == old
+    assert calls == [db]
+    calls.clear()
+    asyncio.run(ntfypanel._row_extras(None, [ag(1, AgentKind.CODEX)], {}))
+    assert calls == []  # no Devin row: no lock map

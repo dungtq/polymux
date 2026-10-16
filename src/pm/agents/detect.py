@@ -253,8 +253,8 @@ def _claude_session(sessions_dir: Path, pid: int, st: ProcStat | None, cwd: str)
     return out
 
 
-class _Locks:
-    """Devin lock map, read at most once per ``detect_agents`` call and only when a Devin shows up."""
+class Locks:
+    """Devin lock map, read at most once per pass (``detect_agents``, the Inbox rows) and only when a Devin shows up."""
 
     def __init__(self, home: Path, proc_root: Path):
         self.home, self.proc_root = home, proc_root
@@ -267,7 +267,7 @@ class _Locks:
 
 
 def _session_activity(kind: AgentKind, pid: int, s: _Session, age: float, home: Path, proc_root: Path,
-                      locks: _Locks) -> tuple[float, float, str, str | None, AgentState]:
+                      locks: Locks) -> tuple[float, float, str, str | None, AgentState]:
     """(active, done, transcript path, ident, state) from the agent's own session file. Best effort:
     on an error the values found so far are kept."""
     active, done, tfile, ident, state = s.active, 0.0, "", None, s.state
@@ -333,7 +333,7 @@ def detect_agents(
     restart cannot reset it. ``home`` overrides ``~`` for the session stores.
     """
     home = home or Path.home()
-    locks = _Locks(home, proc_root)
+    locks = Locks(home, proc_root)
     view = _proc_view(proc_root, panes)
     agents: list[Agent] = []
     for pane in panes:

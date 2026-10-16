@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import quote, urlsplit
 
 from fastapi import HTTPException, Request
 
+from pm.agents import detect, inbox, pinned, sorting
 from pm.agents import head as agenthead
-from pm.agents import inbox, pinned, sorting
 from pm.chat import live
 from pm.chat import stats as chat_stats
 from pm.core import executors, timefmt
 from pm.core.models import AgentState
+from pm.core.procstat import PROC
 from pm.infra import snapshot as services
 from pm.notify import alerts
 from pm.notify import feed as ntfy_feed
@@ -107,7 +109,8 @@ async def _pin_rows(settings, scope: str, items: list, store, names: dict) -> tu
 
     def owner_map():
         index = ntfy_owner.build_index(settings, min(p.time for p in inside))
-        return {p.id: ntfy_owner.owner_for(settings, index, p.title, p.time) for p in inside}
+        recs = ntfy_owner.title_records(settings, (p.title for p in inside))
+        return {p.id: ntfy_owner.owner_for(settings, index, p.title, p.time, recs) for p in inside}
     owners = await executors.run_collectors(owner_map) if inside else {}
     groups = [SimpleNamespace(key="pin:" + p.id, item=p, count=1, ts=p.time) for p in pinned]
     rows = _rows(groups, {"pin:" + k: o for k, o in owners.items()}, store, names, settings)
@@ -144,7 +147,8 @@ async def build_panel(request: Request, scope: str = "inbox",
     if shown:
         def owner_map():
             index = ntfy_owner.build_index(settings, min(g.item.time for g in shown))
-            own = {g.key: ntfy_owner.owner_for(settings, index, g.item.title, g.item.time) for g in shown}
+            recs = ntfy_owner.title_records(settings, (g.item.title for g in shown))
+            own = {g.key: ntfy_owner.owner_for(settings, index, g.item.title, g.item.time, recs) for g in shown}
             return own, alerts.recovered_after(items, {g.item.id for g in shown})
         owners, recovered = await executors.run_collectors(owner_map)
     names = {p.path: p.name for p in plist}
@@ -229,12 +233,14 @@ def row_model(a) -> str:
 
 
 async def _row_extras(settings, agents, feed: dict) -> dict:
-    """{id: (ctx percent or None, last message dict or None, model)} in one hop to the collectors pool (file reads)."""
+    """{id: (ctx percent or None, last message dict or None, model)} in one hop to the collectors pool (file reads).
+    The Devin lock map is read at most once for all rows (only when a Devin row is shown)."""
     def work():
-        out = {}
+        out, locks = {}, detect.Locks(Path.home(), PROC)
         for a in agents:
             f = feed.get(a.id)
-            out[a.id] = (chat_stats.ctx_pct(a), inbox.last_message(a, f.item if f else None), row_model(a))
+            out[a.id] = (chat_stats.ctx_pct(a, locks.for_kind(a.kind)), inbox.last_message(a, f.item if f else None),
+                         row_model(a))
         return out
     try:
         return await executors.run_collectors(work)

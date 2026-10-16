@@ -71,8 +71,8 @@ def test_theme_and_plugin_static_urls_are_versioned_per_url(tmp_path, monkeypatc
     assets.add_static("/static/t/dt", dt)
     page = '<link href="/static/css/base.css"><link href="/static/t/dt/css/base.css">'
     core, theme = re.findall(r"\?v=([0-9a-f]{10})", assets.version_static(page, STATIC))
-    assert core != theme  # same relative path, own hash each (the cache is keyed by URL)
-    assert set(assets._cache) == {"/static/css/base.css", "/static/t/dt/css/base.css"}
+    assert core != theme  # same relative path, own hash each (the cache is keyed by the resolved file)
+    assert set(assets._cache) == {str(STATIC / "css/base.css"), str(dt / "css/base.css")}
     for bad in ("/static/t/dt/../secret.css", "/static/t/dt/css/../../secret.css", "/static/t/dt/", "/static/../x",
                 "/static/t/dt/nope.css", "/static/p/none/a.css"):
         html = f'<script src="{bad}"></script>'

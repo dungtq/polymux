@@ -327,7 +327,7 @@ def test_row_meta_fields(tmp_path, monkeypatch):
     item = NtfyItem(id="n", time=now - 10, title="claude-1 - done", message="all done")
     feed = {"claude-1": ntfy_owner.AgentFeed(item, 3)}
     monkeypatch.setattr(ntfypanel.services, "pane_text", lambda settings, pane, n: "Error: rate limit hit\n")
-    monkeypatch.setattr(ntfypanel.chat_stats, "ctx_pct", lambda a: 42 if a.id == "claude-1" else None)
+    monkeypatch.setattr(ntfypanel.chat_stats, "ctx_pct", lambda a, locks=None: 42 if a.id == "claude-1" else None)
     monkeypatch.setattr(inbox.live, "last_user_task", lambda a: "")
     inbox._qcache.clear()
     inbox.mark_unread(tmp_path, inbox.agent_key(run))
@@ -386,7 +386,7 @@ def test_row_meta_model_and_options(tmp_path, monkeypatch):
     reads = []
     monkeypatch.setattr(ntfypanel.services, "pane_text", lambda settings, p, n: reads.append(p) or pane)
     monkeypatch.setattr(ntfypanel.live, "chat_view", lambda settings, a, p: NS(asking=None))
-    monkeypatch.setattr(ntfypanel.chat_stats, "ctx_pct", lambda a: None)
+    monkeypatch.setattr(ntfypanel.chat_stats, "ctx_pct", lambda a, locks=None: None)
     monkeypatch.setattr(inbox.live, "last_user_task", lambda a: "")
     monkeypatch.setattr(ntfypanel.agenthead, "live_pill", lambda a: "opus 4.6")
     inbox._qcache.clear()

@@ -273,3 +273,50 @@ def test_import_past_db_failure_is_minus_one(tmp_path):
     f = tmp_path / "file"
     f.write_text("x")
     assert registry.import_past(Settings(state_dir=f / "sub"), [_past()]) == -1
+
+
+def _traced_connects(monkeypatch):
+    """Every SQL statement the pm.db connections run (sqlite3.connect wrapped with a trace callback)."""
+    from pm.core import db as core_db
+
+    stmts: list[str] = []
+    real = core_db.sqlite3.connect
+
+    def connect(*a, **kw):
+        con = real(*a, **kw)
+        con.set_trace_callback(stmts.append)
+        return con
+    monkeypatch.setattr(core_db.sqlite3, "connect", connect)
+    return stmts
+
+
+def test_schema_runs_once_per_db_file(tmp_path, monkeypatch):
+    stmts = _traced_connects(monkeypatch)
+    s = st(tmp_path)
+    a = one(s, ag())
+    for _ in range(5):
+        assert registry.get(s, a.id).id == a.id
+    creates = [x for x in stmts if x.startswith("CREATE TABLE IF NOT EXISTS agent_records")]
+    assert len(creates) == 1
+    s.db_file.unlink()  # file gone: the next connect runs the schema again
+    assert registry.get(s, a.id) is None
+    assert one(s, ag(), now=2000.0).id == a.id
+    assert len([x for x in stmts if x.startswith("CREATE TABLE IF NOT EXISTS agent_records")]) == 2
+    other = st(tmp_path / "other")  # a new DB file gets its own schema
+    assert registry.get(other, a.id) is None
+    assert len([x for x in stmts if x.startswith("CREATE TABLE IF NOT EXISTS agent_records")]) == 3
+
+
+def test_get_many_one_connection_in_chunks(tmp_path, monkeypatch):
+    s = st(tmp_path)
+    ids = [one(s, ag(pane=f"%{n}", ident=f"sess-{n}", pid=100 + n), now=1000.0 + n).id for n in range(5)]
+    calls = []
+    real = registry._connect
+    monkeypatch.setattr(registry, "_connect", lambda settings: calls.append(1) or real(settings))
+    monkeypatch.setattr(registry, "_IN_CHUNK", 2)
+    got = registry.get_many(s, [*ids, "claude-ffffff", ids[0]])
+    assert set(got) == set(ids) and all(got[i] == registry.get(s, i) for i in ids)
+    assert len(calls) == 1 + len(ids)  # one for get_many, the rest are the get() comparisons
+    assert registry.get_many(s, []) == {}
+    monkeypatch.setattr(registry, "_connect", lambda settings: (_ for _ in ()).throw(sqlite3.OperationalError("x")))
+    assert registry.get_many(s, ids) == {}  # DB error: nothing known, like get()

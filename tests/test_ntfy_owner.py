@@ -48,3 +48,32 @@ def test_build_index_includes_subagent_files(tmp_path, monkeypatch):
     monkeypatch.setattr(ntfy_owner.registry, "with_transcripts", lambda s, since: [rec])
     idx = ntfy_owner.build_index(None, now - 60)
     assert ntfy_owner.find(idx, "claude-7cd08a - Sub", now + 5).agent_id == "a"
+
+
+def test_agent_feed_resolves_title_ids_in_one_registry_query(tmp_path, monkeypatch):
+    from pm.agents import registry
+    from pm.core.config import Settings
+    from pm.notify import feed as ntfy_feed
+
+    s = Settings(state_dir=tmp_path / "state")
+    con = registry._connect(s)
+    for aid, ended in (("claude-aaaaaa", None), ("devin-bbbbbb", 5.0)):
+        con.execute("INSERT INTO agent_records VALUES (?,?,NULL,1,1.0,2.0,'%1','p','/x',?,'',?)",
+                    (aid, aid.split("-")[0], aid + "-label", ended))
+    con.commit()
+    con.close()
+    titles = ["claude-aaaaaa - a", "devin-bbbbbb - b", "codex-cccccc - unknown", "plain title"]
+    items = [NtfyItem(id=str(n), time=1000.0 - n, title=titles[n % 4], message="m") for n in range(40)]
+    monkeypatch.setattr(ntfy_feed, "recent", lambda settings, project_path=None: items)
+    monkeypatch.setattr(ntfy_owner, "build_index", lambda settings, since: [])
+    before = {i.id: ntfy_owner.owner_for(s, [], i.title, i.time) for i in items}  # old path: one get() per item
+    connects = []
+    real = registry._connect
+    monkeypatch.setattr(registry, "_connect", lambda settings: connects.append(1) or real(settings))
+    got = ntfy_owner.agent_feed(s, {"claude-aaaaaa", "devin-bbbbbb", "codex-cccccc"}, unread=lambda i: True)
+    assert len(connects) == 1  # 40 messages, 3 distinct ids: one query
+    assert got == {"claude-aaaaaa": ntfy_owner.AgentFeed(items[0], 10),
+                   "devin-bbbbbb": ntfy_owner.AgentFeed(items[1], 10)}
+    recs = ntfy_owner.title_records(s, (i.title for i in items))
+    assert {i.id: ntfy_owner.owner_for(s, [], i.title, i.time, recs) for i in items} == before
+    assert before["0"].label == "claude-aaaaaa-label" and before["0"].live and not before["1"].live

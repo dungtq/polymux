@@ -212,10 +212,13 @@ def test_popup_dialog_on_other_pages_not_on_settings(senv):
         assert 'data-sp-body' in t and 'data-sp-page' in t and 'data-act="close"' in t
         side = re.search(r'<a href="/settings" data-nav="settings"[^>]*>', t).group(0)
         assert "data-sp-open" in side and 'aria-controls="sp-dlg"' in side  # sidebar foot opens the popup
+        acct = re.search(r'<a href="/settings" role="menuitem"[^>]*>', t).group(0)
+        assert "data-sp-open" in acct and 'aria-controls="sp-dlg"' in acct  # so does the account menu's Settings
     t = senv.c.get("/settings").text
     assert "sp-dlg" not in t  # no popup on the page itself: its ids would exist twice
     side = re.search(r'<a href="/settings" data-nav="settings"[^>]*>', t).group(0)
     assert "data-sp-open" not in side
+    assert "data-sp-open" not in re.search(r'<a href="/settings" role="menuitem"[^>]*>', t).group(0)
     ids = _ids(t)
     assert len(ids) == len(set(ids))
 

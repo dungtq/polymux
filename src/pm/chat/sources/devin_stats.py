@@ -97,12 +97,16 @@ def compute(db: Path, sid: str) -> Stats | None:
     return s
 
 
-def session_stats(agent, home: Path | None = None, sid: str | None = None) -> Stats | None:
+def session_stats(agent, home: Path | None = None, sid: str | None = None,
+                  locks: dict[int, list[str]] | None = None) -> Stats | None:
+    """Stats of the agent's live session (``sid`` overrides the lookup). ``locks``: a ``devin.lock_map`` the
+    caller already read (one per pass for many agents); None reads it here."""
     from pm.chat import sources as chat_sources
 
     home = home or Path.home()
     if sid is None:
-        path = chat_sources.session_file(agent.kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s, home=home)
+        path = chat_sources.session_file(agent.kind, pid=agent.pid, cwd=agent.cwd, age_s=agent.age_s, home=home,
+                                         locks=locks)
         if path is None:
             return None
         sid = path.stem

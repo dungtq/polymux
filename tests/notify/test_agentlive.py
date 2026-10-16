@@ -32,7 +32,7 @@ def _feed(monkeypatch, items, owners):
     monkeypatch.setattr(ntfy_owner.ntfy_feed, "recent", lambda settings, project_path=None: list(items))
     monkeypatch.setattr(ntfy_owner, "build_index", lambda settings, since: calls.append(since) or [])
     monkeypatch.setattr(ntfy_owner, "title_owner",
-                        lambda settings, title: NS(agent_id=owners[title]) if title in owners else None)
+                        lambda settings, title, recs=None: NS(agent_id=owners[title]) if title in owners else None)
     monkeypatch.setattr(ntfy_owner, "find", lambda index, title, when: None)
     monkeypatch.setattr(inbox.live, "last_user_task", lambda a: "")
     monkeypatch.setattr(inbox.live, "last_user_task_ts", lambda a: 0.0)
