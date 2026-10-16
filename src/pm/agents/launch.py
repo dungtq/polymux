@@ -24,12 +24,14 @@ from pm.tmux import ctl as tmuxctl
 MAX_PROMPT = 20_000
 MAX_TODO_CHARS = 500
 BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,63}$")
+_BIN_NAME = {AgentKind.ANTIGRAVITY: "agy"}
 _MODEL_RE = {
     AgentKind.CLAUDE: re.compile(
         r"^(sonnet|opus|haiku|fable|opusplan|claude-[a-z0-9][a-z0-9.-]{0,47})(\[1m\])?$"),
     AgentKind.CODEX: re.compile(r"^(gpt|o\d|codex)[a-z0-9.-]{0,47}$"),
     AgentKind.DEVIN: re.compile(r"^[a-z0-9][a-z0-9.-]{0,95}$"),
     AgentKind.CURSOR: re.compile(r"^[a-z0-9][a-z0-9.-]{0,47}$"),
+    AgentKind.ANTIGRAVITY: re.compile(r"^[a-z0-9][a-z0-9.-]{0,47}$"),
 }
 # permission_mode -> extra argv. Every key is a value the CLI's own --help lists.
 _MODES = {
@@ -54,8 +56,13 @@ _MODES = {
         "ask": ["--mode", "ask"],
         "auto-review": ["--auto-review"],
     },
+    AgentKind.ANTIGRAVITY: {
+        "accept-edits": ["--mode", "accept-edits"],
+        "auto": ["--mode", "auto"],
+        "plan": ["--mode", "plan"],
+    },
 }
-# Second, optional select: codex approval policy, cursor-agent sandbox.
+# Second, optional select: codex approval policy, cursor-agent / antigravity sandbox.
 _EXTRA = {
     AgentKind.CODEX: {
         "on-request": ["--ask-for-approval", "on-request"],
@@ -66,9 +73,12 @@ _EXTRA = {
         "enabled": ["--sandbox", "enabled"],
         "disabled": ["--sandbox", "disabled"],
     },
+    AgentKind.ANTIGRAVITY: {
+        "sandbox": ["--sandbox"],
+    },
 }
-EXTRA_LABEL = {AgentKind.CODEX: "Approval policy", AgentKind.CURSOR: "Sandbox"}
-MODE_LABEL = {AgentKind.CODEX: "Sandbox", AgentKind.CURSOR: "Mode"}
+EXTRA_LABEL = {AgentKind.CODEX: "Approval policy", AgentKind.CURSOR: "Sandbox", AgentKind.ANTIGRAVITY: "Sandbox"}
+MODE_LABEL = {AgentKind.CODEX: "Sandbox", AgentKind.CURSOR: "Mode", AgentKind.ANTIGRAVITY: "Mode"}
 # Bypass group: needs settings.allow_bypass (default on; False is the kill switch)
 # and, from the web forms, an explicit confirm. Never a default, never remembered.
 _BYPASS_MODES = {
@@ -81,11 +91,13 @@ _BYPASS_MODES = {
     },
     AgentKind.DEVIN: {"dangerous": ["--permission-mode", "dangerous"]},
     AgentKind.CURSOR: {"yolo": ["--yolo"]},  # alias of --force
+    AgentKind.ANTIGRAVITY: {"dangerously-skip-permissions": ["--dangerously-skip-permissions"]},
 }
-# Reasoning effort: claude --effort, codex -c model_reasoning_effort (devin/cursor encode it in the model id).
+# Reasoning effort: claude/antigravity --effort, codex -c model_reasoning_effort (devin/cursor encode it in model id).
 EFFORTS = {
     AgentKind.CLAUDE: ("low", "medium", "high", "xhigh", "max"),
     AgentKind.CODEX: ("low", "medium", "high", "xhigh", "max", "ultra"),
+    AgentKind.ANTIGRAVITY: ("low", "medium", "high", "xhigh", "max"),
 }
 
 
@@ -120,6 +132,12 @@ MODE_HELP = {
         "auto-review": "A server classifier auto-runs safe tool calls and prompts for the rest.",
         "yolo": "--yolo (alias of --force): runs every command unless explicitly denied.",
     },
+    AgentKind.ANTIGRAVITY: {
+        "accept-edits": "Edits files without asking; asks before running commands.",
+        "auto": "Auto-runs actions judged safe and prompts for the rest.",
+        "plan": "Read-only planning; no edits or commands until you approve the plan.",
+        "dangerously-skip-permissions": "--dangerously-skip-permissions: auto-approves all tool permission requests.",
+    },
 }
 EXTRA_HELP = {
     AgentKind.CODEX: {
@@ -131,12 +149,16 @@ EXTRA_HELP = {
         "enabled": "Run commands inside the sandbox.",
         "disabled": "Run commands without the sandbox.",
     },
+    AgentKind.ANTIGRAVITY: {
+        "sandbox": "Run in a sandbox with terminal restrictions enabled.",
+    },
 }
 MODEL_FLAG = {
     AgentKind.CLAUDE: "--model",
     AgentKind.CODEX: "--model",
     AgentKind.DEVIN: "--model",
     AgentKind.CURSOR: "--model",
+    AgentKind.ANTIGRAVITY: "--model",
 }
 EFFORT_FLAG = {AgentKind.CLAUDE: "--effort"}
 
@@ -199,7 +221,8 @@ def agent_binary(settings: Settings, kind: AgentKind) -> str:
     if kind not in _MODEL_RE:
         raise LaunchError(f"unsupported agent kind: {kind}")
     bins = settings.agent_bins or {}
-    path = bins.get(kind.value) or str(Path.home() / ".local/bin" / kind.value)
+    name = _BIN_NAME.get(kind, kind.value)
+    path = bins.get(kind.value) or bins.get(name) or str(Path.home() / ".local/bin" / name)
     if not isinstance(path, str) or not os.path.isabs(path) or "\0" in path:
         raise LaunchError("agent binary must be an absolute path")
     return path
@@ -211,19 +234,22 @@ def check_prompt(prompt: str) -> str:
     return prompt
 
 
-def prompt_args(prompt: str) -> list[str]:
-    """``["--", prompt]`` to append for the agent's first message; ``[]`` when there is none.
+def prompt_args(prompt: str, kind: AgentKind | str | None = None) -> list[str]:
+    """``["--", prompt]`` (``["-i", prompt]`` for antigravity) to append for the agent's first message;
+    ``[]`` when there is none.
 
-    Every kind takes it after ``--`` (claude, devin, cursor-agent; ``codex resume|fork <id> -- <prompt>``
-    too: clap ends options at ``--``, checked locally), so a prompt starting with ``-`` is never a flag.
-    claude and cursor-agent (commander) still run a subcommand when the prompt is exactly its name, even
-    after ``--`` (``claude -- doctor`` runs doctor), so a one-word prompt gets a trailing space and never
-    equals a command name. Used by launch, resume and fork. LaunchError when the prompt is invalid
-    (``check_prompt``)."""
+    claude, devin, cursor-agent and codex take it after ``--`` (``codex resume|fork <id> -- <prompt>``
+    too: clap ends options at ``--``, checked locally), so a prompt starting with ``-`` is never a flag;
+    agy rejects positional arguments and takes ``-i <prompt>`` (``--prompt-interactive``; Go's ``flag``
+    always consumes the next argv word as the flag value). claude and cursor-agent (commander) still run
+    a subcommand when the prompt is exactly its name, even after ``--`` (``claude -- doctor`` runs doctor),
+    so a one-word prompt gets a trailing space and never equals a command name. Used by launch, resume
+    and fork. LaunchError when the prompt is invalid (``check_prompt``)."""
     if not prompt:
         return []
     prompt = check_prompt(prompt)
-    return ["--", prompt if any(c.isspace() for c in prompt) else prompt + " "]
+    flag = "-i" if kind in (AgentKind.ANTIGRAVITY, "antigravity", "agy") else "--"
+    return [flag, prompt if any(c.isspace() for c in prompt) else prompt + " "]
 
 
 def check_branch(branch: str) -> str:
@@ -261,19 +287,19 @@ def build_command(launch: Launch, settings: Settings) -> list[str]:
     if launch.effort is not None:
         if launch.effort not in EFFORTS.get(kind, ()):
             raise LaunchError(f"effort not allowed: {launch.effort!r}")
-        argv += ([EFFORT_FLAG[kind], launch.effort] if kind in EFFORT_FLAG
-                 else ["-c", f'model_reasoning_effort="{launch.effort}"'])
-    return argv + prompt_args(launch.prompt)
+        argv += (["-c", f'model_reasoning_effort="{launch.effort}"'] if kind is AgentKind.CODEX
+                 else ["--effort", launch.effort])
+    return argv + prompt_args(launch.prompt, kind)
 
 
-_PLAN_MODE = {AgentKind.CLAUDE: "plan", AgentKind.CURSOR: "plan"}
+_PLAN_MODE = {AgentKind.CLAUDE: "plan", AgentKind.CURSOR: "plan", AgentKind.ANTIGRAVITY: "plan"}
 
 
 def apply_prompt_commands(kind: AgentKind, prompt: str, mode: str | None) -> tuple[str, str | None]:
-    """A leading ``/plan`` in the launch prompt starts the agent in plan mode (claude, cursor-agent:
-    their own plan permission mode, so it wins over the chosen mode) and is dropped from the prompt.
-    Other kinds keep ``/plan ...`` as the first message. ``/advisor ...`` stays in the prompt: the
-    CLI runs it as its first command (no startup flag exists)."""
+    """A leading ``/plan`` in the launch prompt starts the agent in plan mode (claude, cursor-agent,
+    antigravity: their own plan permission mode, so it wins over the chosen mode) and is dropped from the
+    prompt. Other kinds keep ``/plan ...`` as the first message. ``/advisor ...`` stays in the prompt:
+    the CLI runs it as its first command (no startup flag exists)."""
     parts = prompt.split(None, 1)
     if parts and parts[0].lower() == "/plan" and kind in _PLAN_MODE:
         return (parts[1].strip() if len(parts) > 1 else ""), _PLAN_MODE[kind]

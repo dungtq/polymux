@@ -11,7 +11,7 @@ codex          native    ``fork <uuid>`` (``codex fork``; uuid = tail of the rol
                          without a uuid it degrades to handoff when the rollout file is known)
 devin          handoff   ``-- <prompt>``  (devin only has --resume / --continue = same thread)
 cursor-agent   handoff   ``-- <prompt>``  (--resume <chatId> would continue the same chat)
-antigravity    handoff   ``-- <prompt>``  (agy has --conversation / --continue, no fork flag)
+antigravity    handoff   ``-i <prompt>``  (agy has --conversation / --continue, no fork flag)
 =============  ========  ==============================================================
 
 Handoff = a fresh agent of the same kind in the same cwd whose first prompt is fixed text plus the
@@ -44,7 +44,6 @@ MODES = {
     "antigravity": "handoff",
 }
 _ALIASES = {"agy": "antigravity"}
-_BIN_NAME = {"antigravity": "agy"}
 _TAIL_UUID = re.compile(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$")
 _HANDOFF = ("Continue the work of an earlier {kind} session in this directory. Read its session "
             "file for context: {path} . Then {then}")
@@ -72,16 +71,7 @@ def fork_mode(kind) -> str | None:
 
 
 def _binary(settings: Settings, kind: str) -> str:
-    if kind != "antigravity":  # agy is not a launch.py kind (its binary is named agy)
-        try:
-            return launch_mod.agent_binary(settings, AgentKind(kind))
-        except ValueError:
-            pass
-    bins = settings.agent_bins or {}
-    path = bins.get(kind) or str(Path.home() / ".local/bin" / _BIN_NAME.get(kind, kind))
-    if not isinstance(path, str) or not os.path.isabs(path) or "\0" in path:
-        raise launch_mod.LaunchError("agent binary must be an absolute path")
-    return path
+    return launch_mod.agent_binary(settings, AgentKind(kind))
 
 
 def session_id(obj) -> str | None:
@@ -131,7 +121,7 @@ def build_argv(settings: Settings, obj, prompt: str = "") -> tuple[str, list[str
     if path is None:
         raise ForkError("session file unknown")
     text = _HANDOFF.format(kind=kind, path=str(path), then=_THEN_ASK if prompt else _THEN_WAIT)
-    return kind, [binary, *launch_mod.prompt_args(f"{text}\n\n{prompt}" if prompt else text)], "handoff"
+    return kind, [binary, *launch_mod.prompt_args(f"{text}\n\n{prompt}" if prompt else text, kind)], "handoff"
 
 
 def fork_session(settings: Settings, obj, project: Project, prompt: str = "") -> ForkResult:
