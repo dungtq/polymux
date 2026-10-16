@@ -110,7 +110,7 @@ Every page uses the same vertical order. Skip a part when the page has nothing f
 | Page | Layout |
 |---|---|
 | Inbox | skeleton; controls: filter · All / Needs you / Running / Idle / Ended · Unread switch · Group select; table Agent · Project · tmux · Last message · Age · CPU · RAM · actions; groups Pinned · Needs you · Running · Idle |
-| Session tab | 44 px header across main (state, name, model, meta, tabs, Detail/Compact, Aa, Builder, ⋯, to aside); message column cap 880 px centred; side panel docked at the right with a divider when `pg ≥ 1000`; composer pinned at the bottom of the column; Builder = chat 440 px (resizable) + preview |
+| Session tab | 44 px header across main (state, name, model, meta, tabs, Detail/Compact, Aa, Builder, ⋯, to aside; in the chat aside's iframe a compact 40 px row: tabs as icons, Detail/Compact, Aa, ⋯, README A29); message column cap 880 px centred; side panel docked at the right with a divider when `pg ≥ 1000`; composer pinned at the bottom of the column; Builder = chat 440 px (resizable) + preview |
 | Projects list | skeleton; table pin · Project · Agents · TODO · Issues · ntfy · Active · Git · Stack |
 | Project view | project sidebar 260 px (220 < 1100; collapsible ⌘⇧B; off-canvas < 900) · main (cap 1180) · reader aside (column ≥ 1560, overlay below); head with stats line; tiles (6, 3 per row ≤ 760); tabs Agents · Files · Git · Stack · VMs · TODO · Issues · Plans · Docs |
 | Backlog | head · tabs Issues / TODO · controls (filter · Open / Done / All · Project select · Group select) · bulk bar (when selected) · table |
@@ -135,7 +135,8 @@ Every page uses the same vertical order. Skip a part when the page has nothing f
 - Composer: rounded box (`--r-comp-phone`), token line folds to the meter, tools behind `+`.
 - Session composer starts collapsed (the chat runs to the bottom): the pencil button in the session's header line
   shows / hides it, and it shows when the cursor goes in (⌘L, Tab) or it holds a draft. Settings › Display ›
-  Composer on phones = open keeps it shown. Not in the chat aside's iframe.
+  Composer on phones = open keeps it shown. Not in the chat aside's iframe (its composer is always shown, the
+  header there is the compact row of README A29).
 - Phone: the jump buttons show while the chat scrolls and fade 1.5 s after (dt decision 2026-10-17, #253).
 
 ## 7. Wide screens

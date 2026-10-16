@@ -82,8 +82,10 @@ def test_live_session_tabs_radios_and_menu():
 def test_live_session_embed_and_unknown_tab():
     s = session.live({"agent": _agent(kind=AgentKind.CODEX, cwd="", project=None), "embed": True,
                       "request": _req(st="pane")}, ("claude",))
-    assert s.st == "chat" and s.radios == [] and s.bld is None
-    assert [t["key"] for t in s.tabs] == ["chat", "pane"]
+    assert s.st == "pane" and s.radios == [("chat", False), ("pane", True)] and s.bld is None  # same tabs (A29)
+    assert [t["key"] for t in s.tabs] == ["chat", "pane"] and [t["icon"] for t in s.tabs] == ["chat", "tmux"]
+    s2 = session.live({"agent": _agent(kind=AgentKind.CODEX, cwd="", project=None), "request": _req()}, ("claude",))
+    assert not any("icon" in t for t in s2.tabs)  # icons only for the aside's narrow header
     assert "fork" not in [i.get("id") for i in s.menu] and "review" not in [i.get("id") for i in s.menu]
     s = session.live({"agent": _agent(), "request": _req(st="term")}, ("claude",))  # no terminal: back to chat
     assert s.st == "chat"

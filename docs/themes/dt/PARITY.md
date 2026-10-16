@@ -38,7 +38,7 @@ both UIs.
 | Phone tab bar | ported | `shell/_bnav.html` (More = sidebar drawer) | dev | asserted at 390 px |
 | Global search | ported | search dialog `#x-pal` (`js/search.js`, dt `_search.html`) | dev | M5: from 3 characters adds the core `GET /search` groups (projects, tmux, ended agents, chats, Quick chat, files) |
 | Command palette | ported | `#x-pal` with `>` / ⌘⇧P (`keys.js` commands) | dev | |
-| Chat drawer | ported | chat aside (`shell/_aside.html`, `js/aside.js`, `/a/<id>?embed=1`) | dev | `#chat=` hash replaced by remembered aside state |
+| Chat drawer | ported | chat aside (`shell/_aside.html`, `js/aside.js`, `/a/<id>?embed=1`) with the session's view tabs and panels (README A29) | dev | `#chat=` hash replaced by remembered aside state |
 | Jump rail | ported | `session/_frame.html` `[data-c-jump]` | dev | |
 | Installable app | classic-in-shell | manifest in dt `base.html` | dev | SW registration (`/static/pm.js`) and app badge (classic `inbox.js`) come from `_classic.html` |
 | Live updates | ported | dt `js/live.js` | dev | Inbox / chat still morph with classic `nodiff.js` |
@@ -82,9 +82,9 @@ both UIs.
 | Ended agent record | ported | `agent_ended.html` frame and record | dev | transcript and ended composer are classic |
 | Agent page header | ported | `session/_frame.html` | dev | |
 | Model and effort switch | classic-in-shell | composer model pill (classic `_composer_macros.html`) | dev | |
-| Pane tab | classic-in-shell | session Pane tab (classic `_pane.html`) | dev | |
+| Pane tab | classic-in-shell | session Pane tab (classic `_pane.html`; also in the chat aside, README A29) | dev | |
 | Running sub-agents strip | classic-in-shell | `#sa-live` in the session chat | code | |
-| Sub-agents tab | classic-in-shell | session Sub-agents tab | dev | |
+| Sub-agents tab | classic-in-shell | session Sub-agents tab (also in the chat aside, README A29) | dev | |
 | Agents catalogue (Installed) | ported | `/agents` | dev | |
 | Skills, rules and scripts library | ported | `/agents?t=library`, `/agents/<name>?s=skills` | dev | |
 | MCP servers overview | ported | `/agents?t=mcp` | dev | |

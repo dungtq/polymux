@@ -142,6 +142,11 @@ renders them without the shell). Docked column from 900 px (`--aside-w` = `clamp
 fixed overlay `min(440px, 100vw)` with the scrim under 900 px, not used on phones (< 700 px: opening a chat opens its
 tab instead). Not used on a session's own page either (`html.x-chatpg`, README A28): no restore, no top-bar
 toggle, `open` opens the session's tab, toggle / ⌘L toast; btw still works.
+The iframe shows the session's view tabs and panels too (README A29): Chat, Sub-agents, Pane (keypad, snippets,
+Interrupt), Terminal, in a compact header (`header.c-hd.min`: the tabs as icons below 640px of aside width, then
+Detail / Compact, Aa, ⋯; no id, meta, Builder, composer toggle or move-to-aside). It starts on `?st=` or Chat
+(classic `chat.js`'s remembered Pane tab is overridden there); when `aside.js` focuses the iframe's window for
+the composer without a click, `session.js` selects the Chat tab first.
 
 | API (`window.pm7.aside`) | Does |
 |---|---|
