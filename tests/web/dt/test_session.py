@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -65,6 +67,18 @@ def test_live_frame_header(live):
     doc.one("button", data_c_toaside=True)
     doc.one("button", data_c_font=True)
     assert {b["data-chat-view"] for b in doc.find("button", data_chat_view=True)} == {"detail", "compact"}
+
+
+def test_phone_composer_toggle(live):
+    # LAYOUT §6: an icon button in the header line (phones only, css/session.css), state in aria-expanded + title
+    for url in (f"/a/{AID}", f"/a/{AID}/builder"):
+        src = page(live, url)
+        b = Doc(src).one("button", data_c_cmp=True)
+        assert b["aria-expanded"] == "false" and b["title"] == b["aria-label"] == "Show composer", url
+        # the same bordered icon button as Builder next to it (x-btn sm; phone size in css/session.css)
+        assert {"x-btn", "sm"} <= set(b["class"].split()), url
+        assert re.search(r"data-c-cmp[^>]*>\s*<svg[^>]*><use href=\S+#edit", src), url
+    assert not Doc(page(live, f"/a/{AID}?embed=1")).find(data_c_cmp=True)  # the aside's iframe keeps its composer
 
 
 def test_live_tabs_drive_the_classic_radios(live):
@@ -198,8 +212,94 @@ def test_page_files_static_rules():
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", css)  # tokens only (V7-UI-2)
     assert ":root" not in css
     assert "addEventListener('keydown'" not in js  # page keys go through pm7.keys (PARTS §12)
+    # the phone composer: collapsed (height 0, still focusable for ⌘L) unless shown or the setting is open; never in
+    # the aside's iframe (.embed can be narrower than 700px on a desktop)
+    phone = css[css.index("@media (max-width:699px){"):]
+    assert "html:not(.cmp-open) .c-sess:not(.embed):not(.cmp-on) .c-comp:has([data-composer])," in phone
+    assert ".c-sess.cmp-off:not(.embed) .c-comp:has([data-composer]){height:0;" in phone
+    assert ".c-sess:not(.embed):has(.c-comp [data-composer]) .c-hd .c-cmpbtn{display:inline-flex}" in phone
+    assert ".c-hd .c-cmpbtn{display:none}" in css[:css.index("@media (max-width:699px){")]
+    for hook in ("'cmp-on'", "'cmp-off'", "'cmp-open'", "[data-c-cmp]", "'focusin'", "'aria-controls'"):
+        assert hook in js, hook
+    # its shown look is Builder's on look (one rule), not a copy of the shell's .x-ib pressed rule (shell.css)
+    shown = re.findall(r"[^{}\n]*\.c-cmpbtn\[aria-expanded=true\][^{}]*\{", css)
+    assert [r.strip() for r in shown] == [".c-bbtn.on,.c-hd .c-cmpbtn[aria-expanded=true]{"]
+    assert "accent-soft);color:var(--accent)" not in css
+    assert ".c-hd .c-cmpbtn,.c-hd .c-bbtn{width:var(--ib);height:var(--ib);padding:0}" in phone
+    # V7-CODE-7: one ResizeObserver on the chat scroller; the setting arrives as head.js's pm7:look event
+    assert "subtree" not in js and "setInterval" not in js and "MutationObserver" not in js
+    assert "'pm7:look'" in js
     assert "localStorage" not in js and "fetch(" not in js  # pm7.store / pm7.fetch only (V7-ISO-6, V7-CODE-6)
     for name in ("agent.html", "agent_ended.html", "builder.html", "session/_frame.html"):
         tpl = (THEME / "templates" / name).read_text()
         assert not re.search(r"<script(?![^>]*\bsrc=)|\sstyle=|\son[a-z]+=", tpl), name  # CSP (V7-SEC-2)
         assert "jumprail" not in tpl and "composer-dock" not in tpl, name
+
+
+# ---------------------------------------------------------------- js/session.js in node: chat end pin, composer toggle
+SESSION_JS = THEME / "static/js/session.js"
+HARNESS = r"""
+const L = [], RO = [];
+function el(cls, attrs) {
+  const c = new Set(cls), a = Object.assign({}, attrs || {});
+  return { id: '', value: '', style: { setProperty() {}, removeProperty() {} },
+    classList: { contains: (k) => c.has(k), add: (k) => c.add(k), remove: (k) => c.delete(k),
+                 toggle: (k, on) => { on = on === undefined ? !c.has(k) : on; if (on) c.add(k); else c.delete(k); } },
+    getAttribute: (k) => (k in a ? a[k] : null), setAttribute: (k, v) => { a[k] = String(v); },
+    removeAttribute: (k) => { delete a[k]; }, attrs: a, getClientRects: () => [1], focus() {},
+    contains: () => false, querySelector: () => null, matches: () => false, closest: () => null };
+}
+const root = el([]), sess = el(['c-sess'], { 'data-agent': 'claude-1' }), box = el(['c-comp']);
+const btn = el(['c-cmpbtn'], { 'aria-expanded': 'false' }), ta = el([]);
+box.querySelector = (q) => (q === '[data-cmp-input]' ? ta : null);
+const sc = el(['c-chat']);
+Object.assign(sc, { scrollHeight: 2000, clientHeight: 600, scrollTop: 1400 });
+sc.matches = (q) => q === '.c-sess [data-ci-scroll]';
+globalThis.window = { location: { href: 'http://h/a/claude-1' }, addEventListener() {},
+  requestAnimationFrame: () => 1,
+  ResizeObserver: class { constructor(f) { RO.push(f); } observe(t) { RO.push(t); } },
+  pm7: { $$: (q) => (q === '.c-hd [data-c-cmp]' ? [btn] : []), store: { get: (k, d) => d, set() {} },
+         ready: (f) => f(), phone: () => true } };
+Object.assign(globalThis, { ResizeObserver: window.ResizeObserver, getComputedStyle: () => ({}) });
+globalThis.document = { documentElement: root, addEventListener: (t, f, o) => L.push([t, f, o]),
+  getElementById: () => null,
+  querySelector: (q) => (q.indexOf('[data-ci-scroll]') >= 0 ? sc : q.indexOf('.c-comp') >= 0 ? box
+    : q === '.c-sess' ? sess : null) };
+eval(require('fs').readFileSync(process.argv[1], 'utf8'));
+const scroll = (top) => { sc.scrollTop = top; L.filter((x) => x[0] === 'scroll').forEach((x) => x[1]({ target: sc })); };
+const resize = (h) => { sc.clientHeight = h; RO[0]([]); };
+const look = () => L.filter((x) => x[0] === 'pm7:look').forEach((x) => x[1]({ detail: { area: 'prefs' } }));
+"""
+
+
+def run_session(code: str):
+    out = subprocess.run(["node", "-e", HARNESS + code, str(SESSION_JS)], capture_output=True, text=True, check=True)
+    return json.loads(out.stdout)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_chat_end_stays_in_view_when_the_column_shrinks():
+    # D1: the phone composer showing shrinks .c-chat without scrolling it; at the end, the newest lines stay in view
+    got = run_session("""
+      RO[0]([]);                                   // first callback: notes the end, moves nothing
+      const a = sc.scrollTop; resize(390); const b = sc.scrollTop;
+      scroll(500); resize(600); const c = sc.scrollTop;   // scrolled up to read: left where it is
+      scroll(1400); resize(0); const d = sc.scrollTop;    // the Chat panel hidden: nothing to pin
+      console.log(JSON.stringify([RO[1] === sc, a, b, c, d]));""")
+    assert got == [True, 1400, 2000, 500, 1400]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_composer_toggle_controls_its_box_and_follows_the_setting():
+    # aria-controls names the .c-comp box (id given by session.js); head.js applying new prefs (pm7:look) re-syncs
+    got = run_session("""
+      const a = [box.id, btn.attrs['aria-controls'], btn.attrs['aria-expanded'], btn.title];
+      root.classList.add('cmp-open'); look();
+      const b = [btn.attrs['aria-expanded'], btn.title];
+      root.classList.remove('cmp-open'); look(); const c = btn.attrs['aria-expanded'];
+      sess.classList.add('cmp-off'); root.classList.add('cmp-open'); look();
+      console.log(JSON.stringify([a, b, c, btn.attrs['aria-expanded']]));""")
+    assert got[0] == ["c-comp", "c-comp", "false", "Show composer"]
+    assert got[1] == ["true", "Hide composer"]
+    assert got[2] == "false"  # the setting back to collapsed
+    assert got[3] == "false"  # hidden on this page (.cmp-off) wins over the setting

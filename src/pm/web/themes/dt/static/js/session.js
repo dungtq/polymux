@@ -9,7 +9,14 @@
    - state dot + word follow pm:agent_state (dt live.js);
    - Aa: chat text size menu (pm.v7.chat.size, 10-32px or auto -> --chat-size on .c-sess, which classic .chat-text
      reads); the reader's A- / A+ (data-md-zoom) -> pm.v7.chat.md -> --md-size;
-   - Jump to top / bottom of the chat column (.c-chat[data-ci-scroll]);
+   - Jump to top / bottom of the chat column (.c-chat[data-ci-scroll]); a chat ([data-ci-scroll], Builder's too)
+     scrolled to its end stays there when it changes height (ResizeObserver: the phone composer showing / folding /
+     growing, the window);
+   - phone composer (LAYOUT §6, css/session.css): collapsed unless Settings › Display › Composer on phones is open
+     (html.cmp-open, head.js); [data-c-cmp] shows / hides it (.c-sess.cmp-on / .cmp-off, aria-expanded, title,
+     aria-controls = the .c-comp box, given id c-comp here); the cursor going in (⌘L in aside.js, Tab, btw's Use in
+     composer) or a draft at load shows it; html.cmp-open changing later (Settings, a prefs refresh: one attribute
+     observer on <html>) re-syncs the button. Not in embed;
    - tmux link -> a terminal tab (pm7.tabs.open), move to the aside (pm7.aside.fromTab), ⋯ events c:continue
      (the last reply's classic Continue… button), c:usage (opens the token line's details), c:btw (pm7.aside.btw;
      in the aside's iframe the parent shell's aside);
@@ -17,7 +24,7 @@
      box's text is the question, then cleared) and `/btw <question>` (capture-phase submit, before htmx's own: it
      never reaches the agent).
    Hooks: section.c-sess[data-agent][data-c-mode], .c-tabs (p-tabs), input.c-radio, [data-c-dot], #agent-state,
-   [data-c-font], [data-c-jump], [data-c-term], [data-c-toaside]. Storage keys pm.v7.chat.*. */
+   [data-c-font], [data-c-jump], [data-c-cmp], .c-comp, [data-c-term], [data-c-toaside]. Storage keys pm.v7.chat.*. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;
@@ -134,10 +141,74 @@
     if (bot) bot.hidden = !shown || sc.scrollHeight - sc.scrollTop - sc.clientHeight < far;
   }
   const later = () => { if (!raf) raf = window.requestAnimationFrame(syncJump); };
-  d.addEventListener('scroll', (e) => { if (e.target && e.target.matches && e.target.matches('.c-chat')) later(); },
-    { capture: true, passive: true });
+  /* at the end = within 8px of the bottom; noted on every scroll, so a shrink (which does not scroll) still knows */
+  const atEnd = (sc) => sc.scrollHeight - sc.clientHeight - sc.scrollTop < 8;
+  let end = true;
+  d.addEventListener('scroll', (e) => {
+    const t = e.target;
+    if (!t || !t.matches || !t.matches('.c-sess [data-ci-scroll]')) return;
+    end = atEnd(t);
+    later();
+  }, { capture: true, passive: true });
   d.addEventListener('htmx:afterSettle', later);
   window.addEventListener('resize', later);
+  function pinInit() {  // after layout, before paint: no frame shows the newest lines hidden
+    const sc = d.querySelector('.c-sess [data-ci-scroll]');  // .c-chat, Builder's .bld-msgs
+    if (!sc || !window.ResizeObserver) return;
+    let h = -1;
+    new ResizeObserver(() => {
+      const was = h;
+      h = sc.clientHeight;
+      if (was < 0) end = atEnd(sc);
+      else if (h && h !== was && end) sc.scrollTop = sc.scrollHeight;  // h 0: the Chat panel is hidden
+      later();
+    }).observe(sc);
+  }
+
+  /* ---------- phone composer: collapsed until shown (css/session.css) ---------- */
+  const cmpBox = () => d.querySelector('.c-sess:not(.embed) .c-comp');
+  const root = d.documentElement;
+  function cmpShown() {
+    const s = sess();
+    if (!s || s.classList.contains('cmp-on')) return true;
+    return !s.classList.contains('cmp-off') && root.classList.contains('cmp-open');
+  }
+  function cmpSync() {
+    const on = cmpShown(), t = on ? 'Hide composer' : 'Show composer', box = cmpBox();
+    pm7.$$('.c-hd [data-c-cmp]').forEach((b) => {
+      if (box) b.setAttribute('aria-controls', box.id); else b.removeAttribute('aria-controls');
+      b.setAttribute('aria-expanded', on ? 'true' : 'false');
+      b.setAttribute('aria-label', t);
+      b.title = t;
+    });
+  }
+  function cmpSet(on) {
+    const s = sess();
+    if (!s || s.classList.contains('embed')) return;
+    s.classList.toggle('cmp-on', on);
+    s.classList.toggle('cmp-off', !on);
+    cmpSync();
+  }
+  function cmpToggle(btn) {
+    const on = !cmpShown(), box = cmpBox(), ta = box && box.querySelector('[data-cmp-input]');
+    if (!on && box && box.contains(d.activeElement)) btn.focus({ preventScroll: true });  // leave before it folds
+    cmpSet(on);
+    if (on && ta && !ta.disabled && pm7.phone()) ta.focus();  // shown to write in it
+  }
+  d.addEventListener('focusin', (e) => {
+    const box = cmpBox();
+    if (box && box.contains(e.target) && !cmpShown()) cmpSet(true);
+  });
+  d.addEventListener('input', (e) => {
+    const box = cmpBox(), t = e.target;
+    if (box && box.contains(t) && t.value && !cmpShown()) cmpSet(true);
+  });
+  function cmpInit() {  // a draft restored by classic composer.js (its DOMContentLoaded scan runs first)
+    const box = cmpBox(), ta = box && box.querySelector('[data-cmp-input]');
+    if (box && !box.id) box.id = 'c-comp';  // the box is the page's (agent / builder / ended .html), one per page
+    if (ta && ta.value.trim()) cmpSet(true); else cmpSync();
+  }
+  d.addEventListener('pm7:look', () => { if (cmpBox()) cmpSync(); });  // head.js applied prefs (Composer on phones)
 
   /* ---------- clicks ---------- */
   d.addEventListener('click', (e) => {
@@ -163,6 +234,8 @@
       return;
     }
     if (t.closest('[data-c-toaside]')) { if (pm7.aside) pm7.aside.fromTab(); return; }
+    const cb = t.closest('[data-c-cmp]');
+    if (cb) { cmpToggle(cb); return; }
     const b = t.closest('[data-composer] [data-aside]');
     if (b) {
       e.preventDefault();
@@ -214,6 +287,8 @@
     if (!sess()) return;
     initTabs();
     applySizes();
+    cmpInit();
+    pinInit();
     later();
   });
 })();

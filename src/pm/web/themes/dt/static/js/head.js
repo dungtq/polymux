@@ -1,7 +1,12 @@
 /* dt theme (pm v7) first paint: loaded blocking in <head>, before any CSS-dependent paint, so the sidebar width, the
-   colour mode and the user's looks never flash (L-1). Global: pm7.look = {apply(), prefs(json), tok(key), load()}.
+   colour mode and the user's looks never flash (L-1). Global: pm7.look = {apply(), prefs(json), tok(key), load(),
+   rail(value?)}. Event: pm7:look on document after prefs are applied (detail.area 'prefs').
    This browser (Settings › Appearance, Display: README A23), localStorage pm.v7.*:
-     shell.rail ("rail" | "open") -> html.side-rail; shell.mode ("light" | "dark" | "auto") -> html[data-theme];
+     shell.rail ("rail" | "open") -> html.side-rail; shell.railmode ("tab" = per tab; missing / "all" = one state for
+       every tab) with shell.railtab = {"<kind>:<id>" | "home": "rail" | "open"} (the newest RAILTABS tabs; a tab
+       without an entry follows shell.rail); the tab is html[data-tab] (base.html, the server's current tab).
+       pm7.look.rail() reads the state for this tab, rail(v) stores it (sidebar.js ⌘B, settings.js): the one place
+       that knows these keys; shell.mode ("light" | "dark" | "auto") -> html[data-theme];
      aside.open ("1", docked widths only) -> html.aside; aside.pct (20-50) -> --aside-pct;
      font.ui / font.chat / font.mono (system | sans | serif | mono | same (chat) | an installed family) -> --font-ui,
        --font-chat, --font-mono (+ classic content's --chat-font); font.size (90-125 %) -> the root font size (%) and
@@ -13,7 +18,7 @@
    {rev, t, prefs} so they apply before paint too: colour keys -> their tokens (TOK) on <html>; msg_bg page | tint |
    custom -> --bub-asst-bg (tint = --bub-asst-tint); run_status -> html[data-wvmode]; kind_edge / kind_pill /
    model_pill off -> html.no-kedge / no-kpill / no-mpill; tool_pill -> html.tp-fill | tp-both; src_you / src_ntfy ->
-   html[data-src-you|ntfy].
+   html[data-src-you|ntfy]; cmp_phone open -> html.cmp-open (the session composer shows on phones, css/session.css).
    The mirror is refreshed after load (when older than 30 s), on pm7:ui {area: "prefs"} with a newer rev and on
    pm7:resync (both from live.js), with pm7.fetch (core.js, there by then). Written by sidebar.js (rail), keys.js
    (mode), aside.js (aside), settings.js (the rest). Storage may be blocked: then the defaults stay. */
@@ -32,7 +37,7 @@
     col_k_cursor_agent: '--k-cursor-agent', col_k_antigravity: '--k-antigravity', col_tool_shell: '--tool-shell',
     col_tool_read: '--tool-read', col_tool_edit: '--tool-edit', col_tool_web: '--tool-web',
     col_tool_agent: '--tool-agent', col_tool_mcp: '--tool-mcp', col_msg_bg: '--bub-asst-bg' };
-  var HEX = /^#[0-9a-f]{6}$/;
+  var HEX = /^#[0-9a-f]{6}$/, RAILTABS = 40;
 
   function fam(v, dflt) {  // a known name, else one family typed by the user (specials stripped)
     if (!v) return dflt;
@@ -43,9 +48,31 @@
   function prop(k, v) { if (v) root.style.setProperty(k, v); else root.style.removeProperty(k); }
   function px(v) { var n = parseInt(v, 10); return n >= 10 && n <= 32 ? n + 'px' : ''; }
 
+  /* sidebar rail / open: one state for all tabs (shell.rail) or, with shell.railmode = tab, one per tab */
+  function railTabs() {
+    var m;
+    try { m = JSON.parse(get('shell.railtab') || '{}'); } catch (e) { return {}; }
+    return m && typeof m === 'object' && !Array.isArray(m) ? m : {};
+  }
+  function rail(v) {
+    var per = get('shell.railmode') === 'tab', k = per ? root.getAttribute('data-tab') || 'home' : '', m;
+    if (v === undefined) {
+      m = per ? railTabs()[k] : '';
+      return m === 'rail' || m === 'open' ? m : get('shell.rail') === 'rail' ? 'rail' : 'open';
+    }
+    v = v === 'rail' ? 'rail' : 'open';
+    if (!per) { put('shell.rail', v); return v; }
+    m = railTabs();
+    delete m[k];
+    m[k] = v;  // insertion order = age (tab keys are never integer-like): the oldest go first
+    Object.keys(m).slice(0, -RAILTABS).forEach(function (o) { delete m[o]; });
+    put('shell.railtab', JSON.stringify(m));
+    return v;
+  }
+
   function browser() {
     var c = root.classList, ui = get('font.ui'), ch = get('font.chat'), mono = get('font.mono');
-    c.toggle('side-rail', get('shell.rail') === 'rail');
+    c.toggle('side-rail', rail() === 'rail');
     var ap = +get('aside.pct');
     prop('--aside-pct', ap >= 20 && ap <= 50 ? ap + 'vw' : '');
     var m = get('shell.mode');
@@ -82,11 +109,13 @@
     c.toggle('no-mpill', p.model_pill === false);
     c.toggle('tp-fill', p.tool_pill === 'fill');
     c.toggle('tp-both', p.tool_pill === 'both');
+    c.toggle('cmp-open', p.cmp_phone === 'open');
     ['you', 'ntfy'].forEach(function (s) {
       var st = p['src_' + s];
       if (st === 'grey' || st === 'border') root.setAttribute('data-src-' + s, st);
       else root.removeAttribute('data-src-' + s);
     });
+    try { document.dispatchEvent(new CustomEvent('pm7:look', { detail: { area: 'prefs' } })); } catch (e) { /* old */ }
   }
   /* a GET /dt/prefs (or POST) answer: store the mirror and apply it */
   function take(j) {
@@ -103,7 +132,7 @@
   if (get('aside.open') === '1' && window.innerWidth >= 900) root.classList.add('aside');  // first paint only
   browser();
   prefs(cache().prefs);
-  pm7.look = { apply: browser, prefs: take, tok: function (k) { return TOK[k] || ''; }, load: load };
+  pm7.look = { apply: browser, prefs: take, tok: function (k) { return TOK[k] || ''; }, load: load, rail: rail };
   document.addEventListener('DOMContentLoaded', function () {
     var b = document.body;  // the dt shell (body.x); the aside's frame leaves it to its parent
     if (window.frameElement || !b || !b.classList.contains('x') || b.classList.contains('x-embed')) return;

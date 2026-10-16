@@ -42,7 +42,7 @@
 <datalist id="s-fams">{% for f in sv.fonts %}<option value="{{ f }}"></option>{% endfor %}</datalist>
 <datalist id="s-fams-chat"><option value="same"></option>{% for f in sv.fonts %}<option value="{{ f }}"></option>{% endfor %}</datalist>
 {% call su.grp("Layout", "browser", s.label) %}{% call su.box() %}
-  {% call su.row("Sidebar", "Open or icons only. Same as " ~ "⌘B / Ctrl+B.", "Layout", s.label) %}
+  {% call su.row("Sidebar", "Open or icons only. Same as " ~ "⌘B / Ctrl+B. With Display › Sidebar state per tab: this tab and every tab you have not changed.", "Layout", s.label) %}
     {{ su.bseg("shell.rail", [("open", "open"), ("rail", "icons")], "Sidebar") }}
   {% endcall %}
   {% call su.row("Fonts and sizes", "Back to the defaults above.", "Layout", s.label) %}
@@ -96,6 +96,11 @@
     {{ su.aseg("peek_open", [("new", "new browser tab"), ("same", "this tab")], p.get("peek_open"), "Quick look opens files in") }}
   {% endcall %}
 {% endcall %}{% endcall %}
+{% call su.grp("Composer", "all", s.label) %}{% call su.box() %}
+  {% call su.row("Composer on phones", "Under 700 px. Collapsed: the chat fills the screen until you show the composer (the pencil button in the session's header line, ⌘L / Ctrl+L, or a saved draft). Open: always shown, as on wider screens.", "Composer", s.label) %}
+    {{ su.aseg("cmp_phone", [("collapsed", "collapsed"), ("open", "open")], p.get("cmp_phone"), "Composer on phones") }}
+  {% endcall %}
+{% endcall %}{% endcall %}
 {% call su.grp("Keyboard", "browser", s.label, note="The full list stays under ? and in the tooltips.") %}{% call su.box() %}
   {% call su.row("Show shortcut hints", "The key labels in the sidebar, the account menu, lists and filter boxes.", "Keyboard", s.label) %}
     {{ psw.switch("b_khints", on=true, label="Show shortcut hints", hide_label=true, attrs={"data-s-b": "keys.hints"}) }}
@@ -110,6 +115,9 @@
   {% endcall %}
   {% call su.row("Sessions list in the sidebar", "Off hides the Sessions heading, filter and list; the pages and the foot stay.", "Panels", s.label) %}
     {{ psw.switch("b_sess", on=true, label="Sessions list in the sidebar", hide_label=true, attrs={"data-s-b": "side.sess"}) }}
+  {% endcall %}
+  {% call su.row("Sidebar state", "Open or icons only (⌘B / Ctrl+B): one state for all tabs, or remembered per tab. A tab you have not changed follows Appearance › Sidebar.", "Panels", s.label) %}
+    {{ su.bseg("shell.railmode", [("all", "one for all tabs"), ("tab", "per tab")], "Sidebar state") }}
   {% endcall %}
 {% endcall %}{% endcall %}
 

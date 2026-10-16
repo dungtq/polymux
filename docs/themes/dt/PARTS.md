@@ -384,7 +384,8 @@ double separator). `item` refuses an item without exactly one action (a disabled
 
 Events (all bubble): `pm7:det` `{id, open}` on a row · `pm7:fold` `{key, open}` on a group · `pm7:tab` `{key}` on
 a tablist · `pm7:filter` `{name, q, shown, total}` on a client filter input · `change` from a switch's hidden input ·
-menu / key `event:` names as declared by the page · `pm7:refresh` (htmx trigger) after a menu `post` with `refresh`.
+menu / key `event:` names as declared by the page · `pm7:refresh` (htmx trigger) after a menu `post` with `refresh`
+· `pm7:look` `{area: 'prefs'}` on document after `js/head.js` applied the all-devices prefs.
 
 ## 11. Example (Inbox rows, shortened)
 

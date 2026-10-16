@@ -96,7 +96,9 @@ metas, `<main>` as the page column with `#flash` in it. `embed` true → no shel
 
 | Hook | Element | Used by |
 |---|---|---|
-| `html.side-rail` | set before paint by `js/head.js` from `pm.v7.shell.rail` | `sidebar.js` |
+| `html.side-rail` | set before paint by `js/head.js` from `pm7.look.rail()`: `pm.v7.shell.rail` (`rail` / `open`), or with Settings › Display › Sidebar state "per tab" (`pm.v7.shell.railmode` = `tab`) this tab's entry in `pm.v7.shell.railtab` (`{"<kind>:<id>" \| "home": "rail" \| "open"}`, the newest 40 tabs; a tab without an entry follows `shell.rail`). `pm7.look.rail(v)` stores it (⌘B, Settings): the one place that knows these keys | `sidebar.js`, `settings.js` |
+| `html[data-tab]` | the server's current tab (`base.html`): `<kind>:<id>` of the open session tab this page is (`agent:claude-1c70ee`, `term:$3`), else `home`; read before paint for the per-tab sidebar state | `head.js` |
+| `html.cmp-open` | Settings › Display › Composer on phones = open (all devices, `cmp_phone` in `/dt/prefs`; `head.js` from the prefs mirror): the session composer stays shown under 700 px (`css/session.css`; else it starts collapsed and `[data-c-cmp]` in the session header line, ⌘L, a focus or a draft shows it, `js/session.js`) | `session.js` |
 | `html.side-open`, `html.aside`, `html.aside-drag` | overlay sidebar open (< 900 px), chat aside open (restored before paint by `js/head.js` from `pm.v7.aside.open` at ≥ 900 px, with `--aside-pct` from `pm.v7.aside.pct`), aside edge drag running | `sidebar.js`, `aside.js` |
 | `html[data-theme]` | light/dark/auto from `pm.v7.shell.mode` (`head.js`) | `keys.js` (mode toggle) |
 | `html.no-sess` | Settings › Display › "Sessions list in the sidebar" off (this browser, `pm.v7.side.sess` = `0`; `head.js` before paint, again on change): `css/shell.css` hides `.x-shead`, `.x-sfilter` and `#x-sess`, the foot stays at the bottom; `Mod+P` / `>` still find sessions | `settings.js` (writes), `head.js` |

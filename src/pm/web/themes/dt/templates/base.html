@@ -4,7 +4,8 @@
     main as un-ported classic content (classic sizes, classic hx-confirm); a ported dt page overrides it empty:
     {% block mainclass %}{% endblock %} (docs/themes/dt/PARTS.md §1). The server renders the final state
     (L-1): current page, sessions, tabs and current tab come from dt_shell() (called once, here); only the sidebar
-    rail flag and light/dark are read before paint by js/head.js.
+    rail flag (per tab with html[data-tab] when Settings asks for it), light/dark and the phone composer pref are read
+    before paint by js/head.js.
     embed=true: the page content alone (no top bar, sidebar, aside or bottom nav), like classic's embed.
     Asset order (CSS): classic CSS (shell/_classic.html), then the dt shell: tokens, base, shell, aside, layers, keys,
     then the shared page parts: parts, table (PARTS.md), then notifs (the top-bar bell on every page and the
@@ -31,7 +32,7 @@
 {%- set _l = shell.tabs | selectattr("cur") | list -%}{%- set cur_tab = _l[0] if _l else none -%}
 {%- set dev = dev_banner is defined and dev_banner -%}
 <!doctype html>
-<html lang="en" class="x-doc">
+<html lang="en" class="x-doc" data-tab="{{ cur_tab.kind ~ ':' ~ cur_tab.id if cur_tab else 'home' }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

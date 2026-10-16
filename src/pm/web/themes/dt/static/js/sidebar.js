@@ -1,5 +1,6 @@
-/* dt theme (pm v7) sidebar: rail / open on wide screens (>= 900 px, stored as pm.v7.shell.rail = rail | open and
-   applied before paint by head.js), overlay drawer under 900 px (html.side-open over #x-scrim, an Esc / scrim layer
+/* dt theme (pm v7) sidebar: rail / open on wide screens (>= 900 px, stored through pm7.look.rail: pm.v7.shell.rail =
+   rail | open, or per tab when Settings › Display › Sidebar state is Per tab; applied before paint by head.js),
+   overlay drawer under 900 px (html.side-open over #x-scrim, an Esc / scrim layer
    of layers.js at rank 40), and the sidebar's own filter box.
    Globals: pm7.side = {toggle(withToast), open(), close(), isOpen(), filter()}.
    Hooks: html.side-rail, html.side-open, aside#x-side, [data-act=side] (aria-expanded set here), input[data-sfilter],
@@ -47,7 +48,7 @@
       return;
     }
     const rail = R.classList.toggle('side-rail');
-    pm7.store.set('shell.rail', rail ? 'rail' : 'open');
+    pm7.look.rail(rail ? 'rail' : 'open');  // this tab's or every tab's state (head.js)
     expanded();
     if (withToast) pm7.toast(rail ? 'Sidebar collapsed to icons' : 'Sidebar expanded', label());
   }

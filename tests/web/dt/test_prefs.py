@@ -28,6 +28,15 @@ def test_peek_open_is_an_enum_with_new_tab_default():
         prefs.check("peek_open", "tab")
 
 
+def test_cmp_phone_is_an_enum_with_collapsed_default():
+    # Settings › Display › Composer on phones (LAYOUT §6): js/head.js sets html.cmp-open for "open"
+    assert prefs.SCHEMA["cmp_phone"] == ("collapsed", "open") and prefs.EMPTY.get("cmp_phone") == "collapsed"
+    assert dict(prefs.update(prefs.EMPTY, {"cmp_phone": "open"}).values) == {"cmp_phone": "open"}
+    assert dict(prefs.update(prefs.EMPTY, {"cmp_phone": "collapsed"}).values) == {}  # the default is not stored
+    with pytest.raises(Invalid):
+        prefs.check("cmp_phone", "hidden")
+
+
 def test_update_drops_defaults_and_resets():
     p = prefs.update(prefs.EMPTY, {"run_status": "off", "col_dot_run": "#112233", "kind_edge": "1"})
     assert dict(p.values) == {"run_status": "off", "col_dot_run": "#112233"}  # kind_edge on = the default

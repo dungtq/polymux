@@ -176,6 +176,29 @@ def test_display_quick_look_pref_row(senv):
     assert senv.post("/dt/prefs", headers=HDR, peek_open="popup").status_code == 400
 
 
+def test_display_composer_on_phones_pref_row(senv):
+    seg = re.compile(r'<span class="p-seg" role="group" aria-label="Composer on phones" data-s-a="cmp_phone">(.*?)</span>')
+    on = re.compile(r'value="(\w+)" aria-pressed="true"')
+    m = seg.search(senv.c.get("/settings?s=display").text)
+    assert m and on.findall(m.group(1)) == ["collapsed"]
+    assert senv.post("/dt/prefs", headers=HDR, cmp_phone="open").json()["prefs"] == {"cmp_phone": "open"}
+    m = seg.search(senv.c.get("/settings?s=display").text)
+    assert m and on.findall(m.group(1)) == ["open"]
+    assert senv.post("/dt/prefs", headers=HDR, cmp_phone="shut").status_code == 400
+    head = _js("head.js")
+    assert "c.toggle('cmp-open', p.cmp_phone === 'open')" in head
+
+
+def test_display_sidebar_state_row(senv):
+    # Panels (this browser): one sidebar state for all tabs, or per tab (pm7.look.rail in head.js)
+    m = re.search(r'<span class="p-seg" role="group" aria-label="Sidebar state" data-s-b="shell.railmode">(.*?)</span>',
+                  senv.c.get("/settings?s=display").text)
+    assert m and re.findall(r'value="(\w+)"', m.group(1)) == ["all", "tab"]
+    js = _js("settings.js")
+    assert "'shell.railmode': 'all'" in js  # the default is not stored
+    assert "lk.rail(now)" in js  # a mode switch keeps the sidebar as it is
+
+
 def test_close_all_tabs_route(senv):
     for i in ("claude-aaa111", "codex-bbb222"):
         senv.post("/dt/tabs/open", kind="agent", id=i)

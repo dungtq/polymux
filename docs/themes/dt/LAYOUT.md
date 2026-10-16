@@ -130,9 +130,12 @@ Every page uses the same vertical order. Skip a part when the page has nothing f
   56 px min. Kind edge stays.
 - Every row action that matters on phone is in ⋯ (bottom sheet), including Pin (the mock hides pin on phone).
 - Tabs and segments scroll sideways; the selected one is centred so neighbours show; a fade shows there is more.
-- Session tab: bottom nav hidden, chat full height, sub-tabs + Builder + ⋯ on one row under the title.
+- Session tab: bottom nav hidden, chat full height, sub-tabs + composer toggle + Builder + ⋯ on one row under the title.
 - Search, Quick chat, Launch, Settings popup and big forms are full screen; confirms and menus are bottom sheets.
 - Composer: rounded box (`--r-comp-phone`), token line folds to the meter, tools behind `+`.
+- Session composer starts collapsed (the chat runs to the bottom): the pencil button in the session's header line
+  shows / hides it, and it shows when the cursor goes in (⌘L, Tab) or it holds a draft. Settings › Display ›
+  Composer on phones = open keeps it shown. Not in the chat aside's iframe.
 
 ## 7. Wide screens
 

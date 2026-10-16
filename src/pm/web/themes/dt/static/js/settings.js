@@ -107,15 +107,19 @@
   d.addEventListener('pm7:filter', (e) => { if (e.detail && e.detail.name === 'settings') search(e.detail.q); });
 
   /* ---------- this browser ---------- */
-  const BDEF = { 'shell.mode': 'auto', 'shell.rail': 'open', 'font.size': '100', 'keys.toast': 'key',
-    'aside.pct': '30', 'keys.hints': '1', 'side.sess': '1' };
+  const BDEF = { 'shell.mode': 'auto', 'shell.rail': 'open', 'shell.railmode': 'all', 'font.size': '100',
+    'keys.toast': 'key', 'aside.pct': '30', 'keys.hints': '1', 'side.sess': '1' };
   const FONTS = ['font.ui', 'font.chat', 'font.mono', 'font.size', 'chat.size', 'cmp.size'];
   function bget(k) { return pm7.store.get(k, BDEF[k] || ''); }
   function bset(k, v) {
     v = v == null ? '' : String(v).trim();
+    const lk = pm7.look, now = lk && k === 'shell.railmode' ? lk.rail() : '';
     if (v === '' || v === BDEF[k] || ((k === 'chat.size' || k === 'cmp.size') && !(+v >= 10))) pm7.store.remove(k);
     else pm7.store.set(k, v);
-    if (pm7.look) pm7.look.apply();
+    /* the sidebar keeps its look: a new mode starts from this tab's state; Sidebar sets this tab's state too */
+    if (lk && now) lk.rail(now);
+    if (lk && k === 'shell.rail' && bget('shell.railmode') === 'tab') lk.rail(v || BDEF[k]);
+    if (lk) lk.apply();
   }
   function syncB(root) {
     pm7.$$('.p-seg[data-s-b]', root).forEach((g) => {

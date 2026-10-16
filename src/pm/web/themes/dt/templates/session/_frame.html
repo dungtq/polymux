@@ -18,9 +18,10 @@
     Header line, left to right: state dot (+ word, #agent-state: classic chat.js / slash.js / composer.js read it),
     name (h1, truncated from the left so the unique suffix stays, L-4), model pill (#agent-pill: chat.js follows a
     model switch), meta (project · tmux · folder · origin; folds first), flat tabs, then Detail | Compact and Aa (Chat
-    only), Builder, ⋯, move to the aside. Phone: the top bar shows the title; this line keeps tabs, Builder and ⋯.
+    only), the composer toggle (phones only), Builder, ⋯, move to the aside. Phone: the top bar shows the title; this
+    line keeps tabs, the composer toggle, Builder and ⋯ (LAYOUT §6: the composer starts collapsed there).
     Hooks for js/session.js: section.c-sess[data-agent][data-c-mode], [data-c-dot], [data-c-term], [data-c-font],
-    [data-c-toaside], .c-chat[data-ci-scroll], [data-c-jump]; menu events c:continue c:usage c:btw. -#}
+    [data-c-cmp], [data-c-toaside], .c-chat[data-ci-scroll], [data-c-jump]; menu events c:continue c:usage c:btw. -#}
 {%- import "parts/_tabs.html" as pt -%}
 {%- import "parts/_menu.html" as pmn -%}
 
@@ -66,6 +67,9 @@
     <span class="p-seg c-view" role="group" aria-label="Chat view"><button type="button" data-chat-view="detail" aria-pressed="false" title="Every reply and tool group as its own item">Detail</button><button type="button" data-chat-view="compact" aria-pressed="true" title="Working notes in one block, the final reply on its own">Compact</button></span>
     <button class="x-ib c-aa" type="button" data-c-font aria-haspopup="menu" aria-expanded="false" aria-label="Chat text size" title="Chat text size">Aa</button>
   </span>
+  {%- if not embed %}
+  <button class="x-btn sm c-cmpbtn" type="button" data-c-cmp aria-expanded="false" aria-label="Show composer" title="Show composer">{{ icon('edit') }}</button>
+  {%- endif %}
   {%- if bld and not embed %}
   <a class="x-btn sm c-bbtn{% if bld.on %} on{% endif %}" href="{{ bld.href }}" aria-label="{{ 'Leave Builder' if bld.on else 'Builder' }}" title="{{ 'Leave Builder: full chat' if bld.on else 'Builder: chat + live preview' }}"{% if bld.on %} aria-current="page"{% endif %}>{{ icon('panel') }}<span class="lb">Builder</span></a>
   {%- endif %}

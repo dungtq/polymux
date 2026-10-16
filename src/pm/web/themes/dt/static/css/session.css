@@ -45,7 +45,9 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
 .c-hd .c-view{flex:0 0 auto}
 .c-hd .c-aa{font-weight:600}
 .c-hd .c-aa[aria-expanded=true]{background:var(--hover);color:var(--fg)}
-.c-bbtn.on{border-color:var(--accent);background:var(--accent-soft);color:var(--fg)}
+/* Builder on and the composer toggle (phones only, below: the composer starts collapsed there) shown: one look */
+.c-bbtn.on,.c-hd .c-cmpbtn[aria-expanded=true]{border-color:var(--accent);background:var(--accent-soft);color:var(--fg)}
+.c-hd .c-cmpbtn{display:none}
 
 /* ---------- body: panels (Chat, Sub-agents, Pane, Terminal) ---------- */
 .c-body{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0}
@@ -87,7 +89,8 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
   .c-hd .c-view{display:none}
 }
 
-/* ---------- phone: the top bar shows the title; this line keeps the sub-tabs, Builder and ⋯ (LAYOUT §6) ---------- */
+/* ---------- phone: the top bar shows the title; this line keeps the sub-tabs, composer toggle, Builder and ⋯ -------
+   (LAYOUT §6) */
 @media (max-width:699px){
   /* the line is the tab strip: tabs 44px on touch (DESIGN §6.3, = .p-tabs), plus the hairline */
   .c-hd{gap:var(--s1);height:auto;padding:0 var(--s1) 0 0}
@@ -97,13 +100,21 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
   .c-hd .c-tabs [role=tab]{height:calc(var(--ib) + var(--s1));padding:0 var(--s3);font-size:var(--fs-m)}
   .c-hd.min>.c-chatonly{display:flex}
   /* Builder: an icon button as large as ⋯ (40px touch target) */
-  .c-hd .c-bbtn{width:var(--ib);height:var(--ib);padding:0}
-  .c-hd .c-bbtn svg.i{width:var(--icon);height:var(--icon)}
+  .c-hd .c-cmpbtn,.c-hd .c-bbtn{width:var(--ib);height:var(--ib);padding:0}
+  .c-hd .c-cmpbtn svg.i,.c-hd .c-bbtn svg.i{width:var(--icon);height:var(--icon)}
   .c-hd.min>.sp,.c-hd:not(:has(.c-tabs))>.sp{display:block}
   .c-chat{padding:var(--s3) var(--s3) var(--s2)}
   .c-comp{padding:0 var(--s2) calc(var(--s2) + env(safe-area-inset-bottom))}
   .c-pn-pad{padding:var(--s3) var(--s3) var(--s4)}
   .c-jump{right:var(--s2)}
+  /* the composer starts collapsed (LAYOUT §6): [data-c-cmp], ⌘L or a draft shows it (.cmp-on, js/session.js);
+     Settings › Display › Composer on phones = open keeps it shown (html.cmp-open, head.js; .cmp-off hides it again).
+     Height 0, not display:none: ⌘L (aside.js) and Tab can still put the cursor in, and that shows it. Never in the
+     chat aside's iframe (.embed: it can be narrower than 700px on a desktop) */
+  html:not(.cmp-open) .c-sess:not(.embed):not(.cmp-on) .c-comp:has([data-composer]),
+  .c-sess.cmp-off:not(.embed) .c-comp:has([data-composer]){height:0;padding:0 0 env(safe-area-inset-bottom);
+    overflow:hidden}
+  .c-sess:not(.embed):has(.c-comp [data-composer]) .c-hd .c-cmpbtn{display:inline-flex}
 }
 
 /* =====================================================================================================

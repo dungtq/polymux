@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-17 (Builder md links open; clearer not-found message)
+
+- dt Builder: .md links in the chat open in the markdown reader (they did nothing: Builder has no docked reader).
+- A .md link to a file pm cannot find now says "Not found: <path>" and where pm looked, instead of the old "File not available (only readable .md files outside hidden folders)".
+
 ## 2026-10-16 (Markdown reader finds files from the folders an agent worked in)
 
 - The markdown reader also finds relative .md links an agent wrote while working in another folder or project: folders it cd'd into, the project a (deleted) worktree belongs to, a unique match in another project, or a unique file of that name inside its project. Hidden folders stay refused (#249).

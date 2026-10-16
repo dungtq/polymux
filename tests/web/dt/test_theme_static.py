@@ -8,7 +8,10 @@ for a page, a session tab and embed with unique ids.
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+import subprocess
 from collections import Counter
 from pathlib import Path
 
@@ -162,6 +165,64 @@ def test_base_renders_the_shell(cur_agent):
     assert "notifs" not in _between(html, "</head>", "</body>")  # the bell's assets are in <head>, not in _top.html
     assert '<main id="main" class="x-main x-cl">' in html  # un-ported content keeps the classic compat sizes
     assert ">1h<" in html  # server-rendered session age (SessRow.age)
+
+
+@pytest.mark.parametrize(("cur_agent", "tab"), [(False, "home"), (True, "agent:claude-1c70ee")])
+def test_html_names_the_current_tab(cur_agent, tab):
+    # head.js reads the per-tab sidebar state before paint (L-1); the tab is the server's, never guessed by JS
+    assert f'<html lang="en" class="x-doc" data-tab="{tab}">' in render_base(cur_agent)
+
+
+def test_sidebar_rail_keys_live_in_one_helper():
+    js = STATIC / "js"
+    head = (js / "head.js").read_text(encoding="utf-8")
+    side = _CSS_COMMENT.sub(" ", (js / "sidebar.js").read_text(encoding="utf-8"))
+    assert "rail: rail" in head and "c.toggle('side-rail', rail() === 'rail')" in head
+    for k in ("'shell.railmode'", "'shell.railtab'", "'shell.rail'", "getAttribute('data-tab')", "RAILTABS = 40"):
+        assert k in head, k
+    assert "pm7.look.rail(" in side and "shell.rail" not in side  # sidebar.js never writes the keys itself
+
+
+RAIL = r"""
+const [store, tab, sets] = JSON.parse(process.argv[2]);
+const cls = new Set();
+globalThis.window = { innerWidth: 1512, localStorage: { getItem: (k) => (k in store ? store[k] : null),
+  setItem: (k, v) => { store[k] = String(v); } } };
+globalThis.document = { documentElement: { getAttribute: (a) => (a === 'data-tab' ? tab : null),
+    classList: { add: (c) => cls.add(c), toggle: (c, on) => { if (on) cls.add(c); else cls.delete(c); } },
+    setAttribute() {}, removeAttribute() {}, style: { setProperty() {}, removeProperty() {} } },
+  addEventListener() {} };
+eval(require('fs').readFileSync(process.argv[1], 'utf8'));
+const first = cls.has('side-rail');
+sets.forEach((v) => window.pm7.look.rail(v));
+console.log(JSON.stringify([first, window.pm7.look.rail(), store]));
+"""
+
+
+def _rail(store: dict, tab: str | None, sets=()):
+    out = subprocess.run(["node", "-e", RAIL, str(STATIC / "js" / "head.js"), json.dumps([store, tab, list(sets)])],
+                         capture_output=True, text=True, check=True)
+    return json.loads(out.stdout)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_rail_state_per_tab_or_for_all():
+    one = {"pm.v7.shell.rail": "rail"}
+    assert _rail(one, "agent:claude-1c70ee")[:2] == [True, "rail"]  # one for all tabs: the tab is not read
+    first, now, st = _rail(dict(one), "home", ["open"])
+    assert first and now == "open" and st == {"pm.v7.shell.rail": "open"}
+    per = {"pm.v7.shell.railmode": "tab", "pm.v7.shell.rail": "rail",
+           "pm.v7.shell.railtab": json.dumps({"agent:claude-1c70ee": "open"})}
+    assert _rail(per, "agent:claude-1c70ee")[:2] == [False, "open"]
+    assert _rail(per, "term:$3")[:2] == [True, "rail"]  # no entry: the all-tabs state
+    first, now, st = _rail(dict(per), "term:$3", ["open"])
+    assert now == "open" and st["pm.v7.shell.rail"] == "rail"  # the default is untouched
+    assert json.loads(st["pm.v7.shell.railtab"]) == {"agent:claude-1c70ee": "open", "term:$3": "open"}
+    many = dict(per, **{"pm.v7.shell.railtab": json.dumps({f"agent:a-{i:06x}": "rail" for i in range(40)})})
+    m = json.loads(_rail(many, "home", ["open"])[2]["pm.v7.shell.railtab"])
+    assert len(m) == 40 and "agent:a-000000" not in m and list(m)[-1] == "home"  # the oldest goes
+    bad = dict(per, **{"pm.v7.shell.railtab": "[1]"})
+    assert _rail(bad, "home")[:2] == [True, "rail"]  # a broken map = no entries
 
 
 def test_embed_renders_content_only():

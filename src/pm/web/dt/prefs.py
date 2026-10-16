@@ -53,10 +53,12 @@ SCHEMA: dict[str, object] = {
     "kind_edge": BOOL, "kind_pill": BOOL,  # Chat colours › left edge / model pill in the agent colour
     "tool_pill": ("border", "fill", "both"),  # Chat colours › tool call pill style
     "peek_open": ("new", "same"),  # Display › Project quick look: links open in a new browser tab or this one
+    "cmp_phone": ("collapsed", "open"),  # Display › Composer on phones: hidden until shown (session.js) or always open
     **{k: COLOUR for k in COLOURS},
 }
 DEFAULTS = {"run_status": "playful", "src_you": "soft", "src_ntfy": "soft", "model_pill": True, "msg_bg": "default",
-            "kind_edge": True, "kind_pill": True, "tool_pill": "border", "peek_open": "new"}
+            "kind_edge": True, "kind_pill": True, "tool_pill": "border", "peek_open": "new",
+            "cmp_phone": "collapsed"}
 MAX_KEYS = len(SCHEMA)
 
 
