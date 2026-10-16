@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import pytest
-from helpers import audit_text, fake, mk_client, post, snap_with  # noqa: F401
+from helpers import audit_text, fake, mk_client, new_window_call, post, snap_with  # noqa: F401
 
 import pm.web.routes.exit  # noqa: F401
 from pm.agents import registry, stop
@@ -68,6 +68,7 @@ def test_exit_sends_slash_exit_and_records_resume_data(client, monkeypatch):
     (st.dev_root / "proj").mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(resume_mod.os, "access", lambda p, m: True)  # no claude binary needed on the test host
     seen = []
+    monkeypatch.setattr(tmuxctl, "new_session", lambda s, n, c: "$9")  # a session id: new_agent_window checks it
     monkeypatch.setattr(tmuxctl, "run", lambda s, args, timeout=0, **kw: seen.append(list(args)) or "@9\n")
     try:
         resume_mod.resume_session(st, rec, proj)
@@ -208,7 +209,7 @@ def test_resume_runs_per_kind(client, monkeypatch, tmp_path, kind, ident, tail):
     app, c, tok, st = mk(st)
     r = post(c, tok, f"/a/{rid}/resume")
     assert r.status_code == 200 and "Resumed" in r.text
-    nw = next(x for x in calls if x[0] == "new-window")
+    nw = new_window_call(calls)
     assert _words(nw) == [str(binp), *shlex.split(tail)] and f"agent-{kind.value}-resume" in nw
     assert "agent_resume" in audit_text(st)
     # still running (live agent carries the same session) -> refused
@@ -248,7 +249,7 @@ def test_resume_runs_claude_resume(client, monkeypatch, tmp_path):
     app, c, tok, st = mk(st)
     r = post(c, tok, f"/a/{rid}/resume")
     assert r.status_code == 200 and "Resumed" in r.text
-    nw = next(x for x in calls if x[0] == "new-window")
+    nw = new_window_call(calls)
     assert _words(nw)[1:] == ["--resume", UUID] and "-c" in nw
     assert "agent_resume" in audit_text(st)
 
@@ -286,7 +287,7 @@ def test_resume_and_send_passes_prompt_and_keeps_id(client, monkeypatch, tmp_pat
     st, calls, c, tok, rid, binp, a = _resume_env(client, monkeypatch, tmp_path)
     r = post(c, tok, f"/a/{rid}/resume", text="fix the tests\nthen commit\n")
     assert r.status_code == 200 and "Resumed" in r.text and f'href="/a/{rid}"' in r.text
-    nw = next(x for x in calls if x[0] == "new-window")
+    nw = new_window_call(calls)
     assert _words(nw) == [str(binp), "--resume", UUID, "--", "fix the tests\nthen commit"]
     log = audit_text(st)
     assert "agent_resume" in log and '"len":25' in log and "fix the tests" not in log
@@ -304,7 +305,7 @@ def test_resume_and_send_refusals_start_nothing(client, monkeypatch, tmp_path):
     assert "compact" not in audit_text(st) and "bell" not in audit_text(st)
     # blank text = plain resume
     assert post(c, tok, f"/a/{rid}/resume", text="  \n ").status_code == 200
-    assert _words(next(x for x in calls if x[0] == "new-window")) == [str(binp), "--resume", UUID]
+    assert _words(new_window_call(calls)) == [str(binp), "--resume", UUID]
 
 
 @pytest.mark.parametrize("kind,ident,tail", [
@@ -315,7 +316,7 @@ def test_resume_and_send_refusals_start_nothing(client, monkeypatch, tmp_path):
 def test_resume_and_send_per_kind(client, monkeypatch, tmp_path, kind, ident, tail):
     st, calls, c, tok, rid, binp, a = _resume_env(client, monkeypatch, tmp_path, kind, ident)
     assert post(c, tok, f"/a/{rid}/resume", text="-x").status_code == 200
-    assert _words(next(x for x in calls if x[0] == "new-window")) == [str(binp), *shlex.split(tail)]
+    assert _words(new_window_call(calls)) == [str(binp), *shlex.split(tail)]
 
 
 def test_resume_refuses_running_and_unknown(client, monkeypatch, tmp_path):

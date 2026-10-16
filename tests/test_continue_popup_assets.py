@@ -19,3 +19,11 @@ def test_continue_popup_uses_the_shared_modal():
     assert "pmConfirm" in js and "collect" in js
     assert not re.search(r"(?<![\w.])(alert|confirm|prompt)\(|window\.open", js)
     assert "newchat.js" not in js and "form.cm-cont" not in (ROOT / "static/js/newchat.js").read_text()
+
+
+def test_continue_popup_has_no_where_choice():
+    """The new chat always opens in its own tmux window: no Where radios, no where=pane post."""
+    js = (ROOT / "static/js/continuepop.js").read_text()
+    assert "where" not in js.replace("where you left off", "")
+    assert "split" not in js and "'pane'" not in js
+    assert "where it opens" not in (TEMPLATE_DIR / "_chatmsg.html").read_text()

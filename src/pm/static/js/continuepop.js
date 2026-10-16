@@ -1,8 +1,8 @@
 /* "Continue..." under a reply: an in-page popup (dialog.js pmConfirm with content + collect) instead of posting
-   at once. Choose the prompt: the default message, or a new one typed here with canned chips, and where the new
-   chat opens (a new tmux window, or a split pane here), then POST /a/<id>/continue with
-   mode=predefined|custom, where=window|pane and seq (or the reply text) / text. The page stays; the answer is a
-   flash fragment shown in #flash. The last choice is remembered in localStorage (convenience only).
+   at once. Choose the prompt: the default message, or a new one typed here with canned chips, then POST
+   /a/<id>/continue with mode=predefined|custom and seq (or the reply text) / text. The new chat always opens in
+   its own tmux window. The page stays; the answer is a flash fragment shown in #flash. The last choice is
+   remembered in localStorage (convenience only).
    The new prompt is the shared composer (composer("continue"), cloned from <template id="cmp-continue">: autosize, the
    .cbox look, Ctrl/Cmd+Enter = Start through pm.composer.init(root, {onSend})); Start stays off while it is empty. */
 (function () {
@@ -35,10 +35,9 @@
     return { root: root, ta: ta };
   }
   function build(saved) {
-    var box = el('div', 'cpop'), custom = saved.mode === 'custom', pane = saved.where === 'pane';
-    var g1 = el('fieldset', 'cpop-g'), g2 = el('fieldset', 'cpop-g');
+    var box = el('div', 'cpop'), custom = saved.mode === 'custom';
+    var g1 = el('fieldset', 'cpop-g');
     g1.appendChild(el('legend', 'cpop-lg small muted', 'Prompt'));
-    g2.appendChild(el('legend', 'cpop-lg small muted', 'Where'));
     var pre = radio('mode', 'predefined', 'Use the default message', !custom,
       'This reply is handed over and the new agent first asks what to do next.');
     var cus = radio('mode', 'custom', 'Write a new prompt', custom);
@@ -49,9 +48,7 @@
       b.addEventListener('click', function () { ta.value = c; ta.focus(); ta.dispatchEvent(new Event('input', { bubbles: true })); });
     });
     g1.appendChild(pre.row); g1.appendChild(cus.row); g1.appendChild(pb.root); g1.appendChild(chips);
-    var win = radio('where', 'window', 'New tmux window', !pane), spl = radio('where', 'pane', 'This window (split pane)', pane);
-    g2.appendChild(win.row); g2.appendChild(spl.row);
-    box.appendChild(g1); box.appendChild(g2);
+    box.appendChild(g1);
     function isCustom() { return cus.inp.checked; }
     function okBtn() { var d = box.closest('dialog'); return d && d.querySelector('[data-dlg-ok]'); }
     function sync() {
@@ -67,7 +64,7 @@
     }
     return {
       box: box, sync: sync, mount: mount, focus: function () { if (isCustom()) ta.focus(); },
-      collect: function () { return { mode: isCustom() ? 'custom' : 'predefined', where: spl.inp.checked ? 'pane' : 'window', text: ta.value.trim() }; }
+      collect: function () { return { mode: isCustom() ? 'custom' : 'predefined', text: ta.value.trim() }; }
     };
   }
 
@@ -85,8 +82,8 @@
     ui.mount(); ui.sync(); ui.focus();  // pmConfirm has mounted the dialog synchronously
     p.then(function (v) {
       if (!v) { cb.disabled = false; return; }
-      save({ mode: v.mode, where: v.where });
-      var params = { csrf: window.pm.csrf(), mode: v.mode, where: v.where };
+      save({ mode: v.mode });
+      var params = { csrf: window.pm.csrf(), mode: v.mode };
       if (v.mode === 'custom') params.text = v.text;
       else if (seq) params.seq = seq.value;
       else params.text = text;

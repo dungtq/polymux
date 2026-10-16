@@ -189,6 +189,7 @@ class ShellQuoteError(ValueError):
 
 
 _EXEC_SH = ("/bin/sh", "-c", 'exec "$@"', "sh")
+_NEW_PREFIX = "pm-new-"  # new_agent_window's temporary window name
 SHELL_TTL_S = 60.0
 _shells = LRU(max_entries=16)  # (tmux_bin, socket) -> (default-shell, read at)
 _warned = LRU(max_entries=16)  # default-shell values already logged as unknown
@@ -217,7 +218,7 @@ def default_shell(settings: Settings) -> str:
 
 
 def command_words(argv: list[str], shell: str) -> list[str]:
-    """The words after ``--`` of new-window / split-window / respawn-pane / new-session that run ``argv``
+    """The words after ``--`` of new-window / respawn-pane / new-session that run ``argv``
     through the user's ``shell`` (tmux's default-shell), so its startup files still apply (fish -c loads
     config.fish: SSH_AUTH_SOCK, mise, PATH), with argv as positional arguments that no shell re-parses:
     fish ``-c 'exec $argv'``, sh/bash/zsh/dash/ksh ``-c 'exec "$@"'``. A one string command would be parsed by
@@ -273,17 +274,35 @@ def quote_for_shell(shell: str, argv: list[str]) -> str:
     return " ".join(a if _PLAIN_WORD.fullmatch(a) else quote(a) for a in argv)
 
 
-def split_pane(settings: Settings, pane_id: str, cwd: str, argv: list[str]) -> str:
-    """Split ``pane_id`` (``%n``) and run ``argv`` in the new pane (``-d``: focus stays). Returns
-    ``"@window %pane"`` of the new pane. ``argv`` is a fully validated argv list (``start_words``)."""
-    check_id(pane_id, "%")
-    return run(settings, ["split-window", "-d", "-P", "-F", "#{window_id} #{pane_id}",
-                          "-t", pane_id, "-c", arg(cwd), "--", *start_words(settings, argv)]).strip()
+def new_agent_window(settings: Settings, session_id: str, name: str, cwd: str,
+                     argv: list[str]) -> tuple[str, str]:
+    """Run ``argv`` in a new background window ``name`` of ``session_id`` (``new-window -d``: focus stays)
+    that stays when the agent quits: the window option ``remain-on-exit on`` keeps its pane, dead, until it
+    is respawned or the window is cleared. Returns ``(@window, %pane)`` (pane ``""`` when tmux printed
+    none). ``argv`` is a fully validated argv list (``start_words``).
+
+    One tmux command sequence (``;`` words; user words never end in a bare ``;``, see ``arg``), so the option
+    is set before tmux handles the child's exit: an agent that quits at once still keeps its window. The later
+    commands find the window by a unique temporary name (``=`` exact match; a later command would otherwise
+    target the current window of whatever session tmux picks), then it gets ``name``."""
+    check_id(session_id, "$")
+    check_name(name)
+    target = f"{session_id}:={_NEW_PREFIX}{uuid.uuid4().hex[:12]}"
+    out = run(settings, ["new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", session_id + ":",
+                         "-n", target.partition("=")[2], "-c", arg(cwd), "--", *start_words(settings, argv),
+                         ";", "set-option", "-w", "-t", target, "remain-on-exit", "on",
+                         ";", "rename-window", "-t", target, "--", name]).strip()
+    wid, _, pid = out.partition(" ")
+    check_id(wid, "@")
+    pid = pid.strip()
+    if pid:
+        check_id(pid, "%")
+    return wid, pid
 
 
 def set_remain_on_exit(settings: Settings, pane_id: str, on: bool) -> None:
     """Keep the pane (dead) when its process exits (``on``), or drop the pane's own value again so the
-    window/global ``remain-on-exit`` applies (``off``)."""
+    window/global ``remain-on-exit`` applies (``off``; a ``new_agent_window`` window keeps its ``on``)."""
     check_id(pane_id, "%")
     run(settings, ["set-option", "-p", "-t", pane_id, "remain-on-exit", "on"] if on
         else ["set-option", "-p", "-u", "-t", pane_id, "remain-on-exit"])

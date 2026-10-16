@@ -42,7 +42,7 @@ def _check(settings: Settings, agent: Agent) -> StopResult:
     pane = panes.get(agent.pane_id)
     if pane is None:
         return StopResult(agent.id, "gone", "pane no longer exists")
-    if pane.command in _SHELLS:
+    if pane.dead or pane.command in _SHELLS:  # dead: exited, its window kept (remain-on-exit)
         return StopResult(agent.id, "stopped")
     return StopResult(agent.id, "still_running",
                       f"{pane.command} still running; pane not killed")

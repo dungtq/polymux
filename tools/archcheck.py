@@ -84,7 +84,7 @@ ALLOWED: dict[str, set[str]] = {
     "tmux": {"core"},
     "git": {"core"},
     "chat": {"core", "security", "tmux"},
-    "projects": {"core", "security", "git"},
+    "projects": {"core", "security", "tmux", "git"},
     "agents": {"core", "security", "tmux", "git", "chat", "projects"},
     "qchat": {"core", "security", "chat", "projects", "agents"},
     "infra": {"core", "security", "tmux", "git", "projects", "agents"},
