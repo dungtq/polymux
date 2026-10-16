@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Per-account Claude plan limits)
+
+Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.
+
 ## 2026-10-17 (dt: model pill filled with the agent colour, setting wired)
 
 The model pill is now filled with a wash of the agent colour (Inbox/project rows, chat header, message headers). Settings > Chat colours > "Model pill in the agent colour" controls it (off = plain outlined pill); it was wired to nothing before (html.no-kpill had no CSS).

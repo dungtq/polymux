@@ -97,3 +97,24 @@ def test_concurrent_adds_are_not_lost(tmp_path):
     [t.start() for t in ts]
     [t.join() for t in ts]
     assert sorted(ac.names(s, "claude")) == sorted(f"w{i}" for i in range(8))
+
+
+def test_named_claude_account_gets_the_cli_status_line_once(tmp_path):
+    import json
+    s = mk(tmp_path, claude=("work",))
+    (tmp_path / "cl").mkdir()
+    (tmp_path / "cl" / "settings.json").write_text(json.dumps({"statusLine": {"type": "command", "command": "sh x.sh"}}))
+    d = tmp_path / "accounts" / "claude" / "work"
+    d.mkdir(parents=True)
+    (d / "settings.json").write_text(json.dumps({"theme": "dark"}))
+    ac.account_env(s, "claude", "work")
+    assert json.loads((d / "settings.json").read_text()) == {"theme": "dark", "statusLine": {"type": "command", "command": "sh x.sh"}}
+    (d / "settings.json").write_text(json.dumps({"statusLine": {"type": "command", "command": "mine"}}))
+    ac.account_env(s, "claude", "work")  # an own status line is never overwritten
+    assert json.loads((d / "settings.json").read_text())["statusLine"]["command"] == "mine"
+
+
+def test_status_line_sharing_is_skipped_without_a_cli_status_line(tmp_path):
+    s = mk(tmp_path, claude=("work",))
+    assert ac.account_env(s, "claude", "work") == {"CLAUDE_CONFIG_DIR": str(tmp_path / "accounts" / "claude" / "work")}
+    assert not (tmp_path / "accounts" / "claude" / "work" / "settings.json").exists()
