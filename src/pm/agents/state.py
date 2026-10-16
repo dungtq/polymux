@@ -49,6 +49,7 @@ _IDLE = [
     re.compile(r"^\s*[│|]?\s*[>❯›]\s*(\S.*)?[│|]?\s*$", re.M),
     re.compile(r"\?\s+for shortcuts|bypass permissions|accept edits|auto-accept", re.I),
     re.compile(r"^\s*[│|]\s*>", re.M),
+    re.compile(r"^\s*→\s+(Add a follow-up|Plan, search, build anything)", re.M),  # cursor-agent's empty prompt
 ]
 
 
