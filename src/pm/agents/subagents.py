@@ -371,22 +371,26 @@ RUNNING_TTL_S = 3.0
 _running_cache = LRU(max_bytes=1 << 20, max_entries=64)  # transcript -> (monotonic time, running sub-agents)
 
 
-def running_count(agent) -> int:
-    """Running sub-agents of a Claude agent (``summarize(list_subs(...)).running``); 0 for other kinds. Blocking
-    (a glob and a stat per sub-agent file); cached per transcript for RUNNING_TTL_S."""
-    tr = agent.transcript if agent.kind.value == "claude" else ""
-    if not tr:
+def running_for(transcript: str) -> int:
+    """Running sub-agents beside the Claude transcript ``transcript`` (``summarize(list_subs(...)).running``).
+    Blocking (a glob and a stat per sub-agent file); cached per transcript for RUNNING_TTL_S; 0 on an error."""
+    if not transcript:
         return 0
     now = time.monotonic()
-    hit = _running_cache.get(tr)
+    hit = _running_cache.get(transcript)
     if hit is not None and now - hit[0] < RUNNING_TTL_S:
         return hit[1]
     try:
-        n = summarize(list_subs(tr)).running
+        n = summarize(list_subs(transcript)).running
     except Exception:  # noqa: BLE001 - callers work without the count
         n = 0
-    _running_cache.put(tr, (now, n))
+    _running_cache.put(transcript, (now, n))
     return n
+
+
+def running_count(agent) -> int:
+    """``running_for`` of a Claude agent's transcript; 0 for other kinds."""
+    return running_for(agent.transcript if agent.kind.value == "claude" else "")
 
 
 def _blocks(entry: dict) -> list[Step]:

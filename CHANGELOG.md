@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Agent with a busy sub-agent stays Running)
+
+A Claude agent that has launched background sub-agents stays under Running while one of them is in a long quiet tool call, such as a test run of several minutes. Before, it moved to the Idle table after a minute without writes.
+
 ## 2026-10-17 (Composer sends to agy after an error)
 
 Messages sent from the composer to an Antigravity (agy) agent are no longer held back by an old error above its prompt, such as "Individual quota reached". An agent that shows an empty prompt now counts as idle, and the message is sent. The same agent also no longer appears as failed (no "failed" ntfy, not under "Needs you") while it sits at an empty prompt.

@@ -233,8 +233,39 @@ def test_idle_with_recent_subagent_is_running(tmp_path):
     assert a[0].state is AgentState.RUNNING  # sub-agent wrote just now
     old = time.time() - 300
     os.utime(f, (old, old))
+    from pm.agents import subagents
+
+    subagents._running_cache.clear()
     a = detect_agents([pane(11)], sessions_dir=sd, proc_root=proc, home=home)
     assert a[0].state is AgentState.IDLE  # sub-agent quiet for 5 min: really finished
+
+
+def test_idle_with_subagent_in_a_long_tool_call_is_running(tmp_path):
+    import json
+    import os
+    import time
+
+    from pm.agents import subagents
+
+    proc, sd, home = _claude_env(tmp_path)  # status "idle"
+    tdir = home / ".claude" / "projects" / "-proj-x"
+    sub = tdir / "11111111-2222-3333-4444-555555555555" / "subagents"
+    sub.mkdir(parents=True)
+    (tdir / "11111111-2222-3333-4444-555555555555.jsonl").write_text("{}\n")
+    f = sub / "agent-abc.jsonl"
+    use = {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {}}]}}
+    f.write_text(json.dumps(use) + "\n")
+    old = time.time() - 300  # a test run: no write for 5 min, the tool call has no result yet
+    os.utime(f, (old, old))
+    subagents._running_cache.clear()
+    a = detect_agents([pane(11)], sessions_dir=sd, proc_root=proc, home=home)
+    assert a[0].state is AgentState.RUNNING
+    res = {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1"}]}}
+    f.write_text(json.dumps(use) + "\n" + json.dumps(res) + "\n")
+    os.utime(f, (old, old))
+    subagents._running_cache.clear()
+    a = detect_agents([pane(11)], sessions_dir=sd, proc_root=proc, home=home)
+    assert a[0].state is AgentState.IDLE  # the call returned and nothing wrote since
 
 
 def test_idle_without_subagents_stays_idle(tmp_path):

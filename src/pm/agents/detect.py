@@ -8,11 +8,11 @@ from __future__ import annotations
 import logging
 import os
 import re
-import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from pm.agents import subagents
 from pm.chat import sources as chat_sources
 from pm.chat.sources import devin as devin_src
 from pm.chat.sources.claude import load_session, transcript_path
@@ -35,23 +35,6 @@ _KINDS = {
 }
 _INTERPRETERS = {"node", "bun", "deno", "python", "python3", "sh", "bash", "env"}
 _AUTH_SUBCMDS = {"auth", "login", "logout", "models", "-p", "--print"}  # login/logout/status/print runs of an agent CLI
-SUBAGENT_BUSY_S = 60.0  # background sub-agents wrote this recently: parent "idle" is not finished
-
-
-def _subagents_active(transcript: Path, now: float | None = None) -> bool:
-    """True if a sub-agent transcript beside this Claude session changed in the last SUBAGENT_BUSY_S.
-
-    Claude ends the parent turn right after launching background sub-agents and wakes again as each
-    finishes, so the session json flips to ``idle`` while work is still running.
-    """
-    d = transcript.with_suffix("") / "subagents"
-    try:
-        # flat sub-agents plus Workflow-tool ones (subagents/workflows/wf_*/agent-*.jsonl)
-        newest = max((mtime(p) for g in ("agent-*.jsonl", "workflows/wf_*/agent-*.jsonl")
-                      for p in d.glob(g)), default=0.0)
-    except OSError:
-        return False
-    return newest > 0 and (time.time() if now is None else now) - newest < SUBAGENT_BUSY_S
 
 
 def _read(path: Path) -> str | None:
@@ -282,7 +265,10 @@ def _session_activity(kind: AgentKind, pid: int, s: _Session, age: float, home: 
         if f is not None:
             tfile = str(f)
             ident = s.uuid if kind is AgentKind.CLAUDE else _store_ident(f)
-        if kind is AgentKind.CLAUDE and state is AgentState.IDLE and f is not None and _subagents_active(f):
+        # Claude ends the parent turn right after launching background sub-agents (session json "idle")
+        # while they run, also through a long quiet tool call of theirs: not finished yet
+        idle_claude = kind is AgentKind.CLAUDE and state is AgentState.IDLE and f is not None
+        if idle_claude and subagents.running_for(str(f)) > 0:
             state = AgentState.RUNNING
     except Exception as exc:  # noqa: BLE001 - activity is best effort
         log.warning("session file stat failed: %s", type(exc).__name__)
