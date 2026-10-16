@@ -62,6 +62,49 @@ def test_groups_fold_and_sit_under_their_parent():
     assert 'data-name="Agent"' in out and "0.2s" in out
 
 
+def _render(items, **kw):
+    return jenv.get_template("_chatitems.html").render(mode="poll", agent=_agent(), ended=False, blocks=blocks(items),
+                                                      outbox=None, model_name="gemini", now=3.0, **kw)
+
+
+def test_think_item_is_a_collapsed_quiet_details():
+    text = "Plan: read <b>the</b> file\n\nthen edit & test"
+    out = _render([ChatItem(seq=7, rev=7, uid="t:0", conv="c", kind="think", turn="t1", ts=1.0, text=text)])
+    d = re.search(r"<details[^>]*>", out).group(0)
+    assert 'id="i-7"' in d and 'class="ci-think"' in d and 'data-seq="7"' in d and 'data-turn="t1"' in d
+    assert " open" not in d  # collapsed by default
+    summ = re.search(r'<summary class="ci-think-h"[^>]*>.*?</summary>', out, re.S).group(0)
+    assert "Thought" in summ and "Plan: read &lt;b&gt;the&lt;/b&gt; file" in summ  # first line only
+    assert "then edit" not in summ
+    body = re.search(r'<div class="ci-think-b">(.*?)</div>', out, re.S).group(1)
+    assert body == "Plan: read &lt;b&gt;the&lt;/b&gt; file\n\nthen edit &amp; test"  # whole text, escaped, newlines kept
+    assert "<b>" not in out
+    for gone in ("copy", "cv-open", "ci-foot", "chat-bubble"):  # no copy / canvas / continue footers
+        assert gone not in out, gone
+
+
+def test_think_item_first_line_skips_blank_lines_and_empty_text_is_safe():
+    out = _render([ChatItem(seq=1, rev=1, uid="t:0", conv="c", kind="think", turn="t", ts=1.0, text="\n  \n  second  \nthird")])
+    assert '<span class="ci-think-l">second</span>' in out
+    out = _render([ChatItem(seq=1, rev=1, uid="t:1", conv="c", kind="think", turn="t", ts=1.0, text="")])
+    assert '<span class="ci-think-l"></span>' in out
+
+
+def test_think_items_sit_between_prompt_and_reply_and_do_not_split_a_tool_group():
+    its = [ChatItem(seq=1, rev=1, uid="u", conv="c", kind="user", turn="t", ts=1.0, text="go"),
+           ChatItem(seq=2, rev=2, uid="k1", conv="c", kind="think", turn="t", ts=1.0, text="hmm"),
+           ChatItem(seq=3, rev=3, uid="a", conv="c", kind="text", turn="t", ts=1.0, text="on it"),
+           ChatItem(seq=4, rev=4, uid="b", conv="c", kind="tool", turn="t", ts=1.0, name="Read", parent=3),
+           ChatItem(seq=5, rev=5, uid="k2", conv="c", kind="think", turn="t", ts=1.0, text="more"),
+           ChatItem(seq=6, rev=6, uid="d", conv="c", kind="tool", turn="t", ts=1.0, name="Edit", parent=3),
+           ChatItem(seq=7, rev=7, uid="e", conv="c", kind="end", turn="t", ts=2.0, note="x")]
+    out = _render(its)
+    ids = re.findall(r'id="((?:i|g)-\d+)"', out)
+    assert len(ids) == len(set(ids))
+    assert ids[:4] == ["i-1", "i-2", "i-3", "g-3"] and out.count('id="g-3"') == 1  # one group, no duplicate id
+    assert out.count('class="ci-think"') == 2
+
+
 def test_filters():
     assert jenv.filters["dur"] is timefmt.elapsed and jenv.filters["tmux_win"] is agenthead.tmux_win
     assert jenv.from_string("{{ 4.2 | dur }} {{ a | tmux_win }}").render(a=_agent(label="dev-pm-1-claude")) == "4.2s dev-pm:1"
@@ -126,7 +169,7 @@ def test_chat_items_css_tokens_only():
     css = (CSS / "chat-items.css").read_text()
     assert len(css.splitlines()) <= 500
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(", css)
-    for sel in (".ci-tg", ".ci-tr", ".ci-ts.is-wait", ".ci-end", ".ob-st", ".ob-act", ".ci-tail", "pointer: coarse",
+    for sel in (".ci-tg", ".ci-tr", ".ci-think", ".ci-think-h", ".ci-ts.is-wait", ".ci-end", ".ob-st", ".ob-act", ".ci-tail", "pointer: coarse",
                 "max-width: 559px", "prefers-reduced-motion"):
         assert sel in css, sel
 
@@ -201,13 +244,16 @@ console.log(JSON.stringify([
   R.doneLast([]),
   R.doneLast(['user', 'text', 'end', 'tool']),
   R.doneLast(['user', 'text', 'end', 'text']),
-  R.doneLast(['user', 'text', 'end', 'end'])]));
+  R.doneLast(['user', 'text', 'end', 'end']),
+  R.doneLast(['user', 'think', 'text', 'tool', 'think', 'text', 'end']),
+  R.doneLast(['user', 'text', 'end', 'think']),
+  R.doneLast(['user', 'think', 'end'])]));
 """
     out = subprocess.run([_NODE, "-e", _HARNESS + code, str(JS / "chat-items.js")], capture_output=True, text=True,
                          check=True)
     # the reply right above the last turn end (tool groups between); a tools-only last turn marks none, and
     # a running turn (prompt, reply or tool after the last end) marks none either: only finished turns
-    assert json.loads(out.stdout) == [5, -1, -1, -1, -1, -1, -1, -1, -1, 1]
+    assert json.loads(out.stdout) == [5, -1, -1, -1, -1, -1, -1, -1, -1, 1, 5, -1, -1]
 
 
 @pytest.mark.parametrize("ended", [False, True])
