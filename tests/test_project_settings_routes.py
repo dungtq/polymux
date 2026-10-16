@@ -91,6 +91,58 @@ def test_save_links(env):
     assert [a["detail"] for a in _audit(s) if a["action"] == "project_links" and a["result"] == "ok"] == [{"links": 1}]
 
 
+def test_import_workspace(env):
+    s, c = env
+    _beta(s)
+    (s.dev_root / "gamma").mkdir()
+    login(s, c)
+    tok = _tok(c)
+    c.get("/p/alpha/settings/panel")
+    assert CTX["workspaces"] == []  # no workspace file: the panel hides the import block
+    (s.dev_root / "m.code-workspace").write_text(json.dumps(
+        {"folders": [{"path": "alpha"}, {"path": "beta"}, {"path": "elsewhere"}, {"uri": "vscode-remote://h/x"}]}))
+    c.get("/p/alpha/settings/panel")
+    assert CTX["workspaces"] == [(CTX["workspaces"][0][0], "m.code-workspace (dev)")]
+    wid = CTX["workspaces"][0][0]
+    c.post("/p/alpha/settings/links", data={"csrf": tok, "link": ["gamma"]}, headers=H)
+    r = c.post("/p/alpha/settings/links/import", data={"csrf": tok, "workspace": wid}, headers=H)
+    assert r.status_code == 200
+    assert CTX["flash"] == "Linked 1 project(s). 1 folder(s) are not pm projects."
+    assert pset.load(s, "alpha").links == ("gamma", "beta")
+    row = [a for a in _audit(s) if a["action"] == "project_links" and a["result"] == "ok"][-1]
+    assert row["detail"] == {"linked": 1, "skipped": 1} and str(s.dev_root) not in json.dumps(row)
+    c.post("/p/alpha/settings/links/import", data={"csrf": tok, "workspace": wid}, headers=H)
+    assert CTX["flash"].startswith("Linked 0 project(s).") and pset.load(s, "alpha").links == ("gamma", "beta")
+
+
+def test_import_workspace_refused(env):
+    s, c = env
+    _beta(s)
+    (s.dev_root / "m.code-workspace").write_text(json.dumps({"folders": [{"path": "beta"}]}))
+    (s.dev_root.parent / "x.code-workspace").write_text(json.dumps({"folders": [{"path": "dev/beta"}]}))
+    login(s, c)
+    tok = _tok(c)
+    for bad in ("../x.code-workspace", str(s.dev_root.parent / "x.code-workspace"), "", "0123456789ab", "m.code-workspace"):
+        r = c.post("/p/alpha/settings/links/import", data={"csrf": tok, "workspace": bad}, headers=H)
+        assert r.status_code == 200 and CTX["flash"].startswith("Refused"), bad
+    assert pset.load(s, "alpha").links == ()
+    denied = [a for a in _audit(s) if a["action"] == "project_links" and a["result"] == "denied"]
+    assert len(denied) == 5 and "x.code-workspace" not in json.dumps(denied)
+
+
+def test_import_workspace_guard(env):
+    s, c = env
+    u = "/p/alpha/settings/links/import"
+    assert c.post(u, data={}, headers=H).status_code in (401, 403, 303)
+    login(s, c)
+    tok = _tok(c)
+    assert c.post(u, data={"workspace": "x"}, headers=H).status_code == 403
+    assert c.post(u, data={"csrf": "bad"}, headers=H).status_code == 403
+    assert c.post(u, data={"csrf": tok}, headers={"origin": "https://evil.example"}).status_code == 403
+    assert c.post("/p/nope/settings/links/import", data={"csrf": tok}, headers=H).status_code == 404
+    assert pset.load(s, "alpha") == pset.ProjectSettings()
+
+
 def test_oserror_flash(env, monkeypatch):
     s, c = env
     login(s, c)

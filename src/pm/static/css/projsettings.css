@@ -22,6 +22,7 @@
 .ps-row{display:flex;align-items:center;gap:var(--s2);padding:4px 0;min-width:0}
 .ps-lbl{flex:0 0 auto;white-space:nowrap;color:var(--muted);font-size:var(--fs-s)}
 .ps-row input:not([type=checkbox]){flex:1 1 0;width:0;min-width:0;text-overflow:ellipsis}
+.ps-row select{flex:1 1 0;width:0;min-width:0}
 .ps-row button{white-space:nowrap;flex:0 0 auto}
 .ps-note{margin:0 0 4px}
 .ps-flash{margin:0 0 8px}

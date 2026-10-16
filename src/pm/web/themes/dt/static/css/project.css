@@ -128,7 +128,7 @@ button.pj-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px
 .pjs,.pjr{min-width:0;font-size:var(--fs-ui)}
 .pjs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:0 var(--s3)}
 .pjs-l{display:block;margin:var(--s3) 0 var(--s1);font-weight:600}
-.pjs input.x-in:not([type=checkbox]),.pjs textarea.x-in{width:100%;max-width:var(--field-w)}
+.pjs input.x-in:not([type=checkbox]),.pjs textarea.x-in,.pjs select.sel{width:100%;max-width:var(--field-w)}
 .pjs textarea.x-in{display:block;min-height:calc(var(--ctl-h) * 2);margin:0;padding:var(--s1) var(--s2);
   border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
   font-family:var(--font-mono);font-size:var(--fs-in);resize:vertical}
