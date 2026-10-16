@@ -9,6 +9,8 @@ import re
 import secrets
 import stat
 import threading
+import time
+from collections import deque
 from collections.abc import Callable, Iterable
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -148,33 +150,131 @@ def safe_join(root, rel, *, allow_symlink_leaf: bool = False) -> Path:
     return joined
 
 
-def resolve_md(raw: str, cwd: str = "", roots: Iterable[str] = (), seen: Iterable[str] = ()) -> Path | None:
+def resolve_md(raw: str, cwd: str = "", roots: Iterable[str] = (), seen: Iterable[str] = (),
+               dirs: Iterable[str] = (), projects: Iterable[tuple[str, str]] = ()) -> Path | None:
     """Real path of a readable .md file anywhere on disk, else None.
 
-    ``~`` expands. A relative path is tried against ``cwd`` (``/`` when empty), then each of ``roots`` (e.g. the
-    agent's project root), then the first of ``seen`` (absolute paths, newest first, e.g. the files an agent's chat
-    named; may be a lazy iterator, read only this far) that ends with ``/<raw>`` (a bare name: ``/<name>``). Every
-    candidate gets the same checks: any dot-directory/file in the resolved real path is refused (``~/.ssh``,
-    ``~/.cfg``, ``~/.agents-git``) except under ``~/.claude/plans``; symlinks are resolved first."""
+    ``~`` expands. A relative path is tried, each step only when the earlier ones miss, against: ``cwd`` (``/``
+    when empty) and each of ``roots`` (the agent's project root); the first of ``seen`` (absolute paths, newest
+    first, e.g. the files an agent's chat named) that ends with ``/<raw>``; each of ``dirs`` (absolute dirs the
+    chat worked in, newest first); the ``projects`` (``(name, root)`` pairs, ``_md_in_projects``); for a bare
+    name, a bounded search below ``cwd`` and ``roots`` (``_md_find_bare``). ``seen`` and ``dirs`` may be lazy
+    iterators, read only this far. Every candidate gets the same checks (``_md_real``): any dot-directory/file in
+    the resolved real path is refused (``~/.ssh``, ``~/.cfg``) except under ``~/.claude/plans``; symlinks are
+    resolved first. No step but the first takes a ref with ``..``."""
     if not raw or len(raw) > 1024 or "\0" in raw or not raw.lower().endswith(".md"):
         return None
     p = Path(os.path.expanduser(raw)) if raw.startswith("~") else Path(raw)
     if p.is_absolute():
         return _md_real(p)
-    for base in dict.fromkeys((cwd or "/", *roots)):
-        real = _md_real(Path(base) / p) if base else None
+    roots = [r for r in roots if r]
+    real = _md_in_bases(p, (cwd or "/", *roots))
+    rel = PurePosixPath(p)
+    if real is not None or ".." in rel.parts:
+        return real
+    real = _md_in_seen("/" + str(rel), seen)
+    if real is None:
+        tried: list[str] = []
+        real = _md_in_bases(p, _remember(dirs, tried))
+        real = real or _md_in_projects(p, tried, projects, roots)
+    if real is None and len(rel.parts) == 1:
+        real = _md_find_bare(rel.name, [b for b in (cwd, *roots) if b])
+    return real
+
+
+def _remember(items: Iterable[str], into: list[str]):
+    for it in items:
+        into.append(it)
+        yield it
+
+
+def _md_in_bases(p: Path, bases: Iterable[str]) -> Path | None:
+    """First ``<base>/<p>`` that passes ``_md_real``; ``bases`` is read lazily (a hit stops the chat read)."""
+    done: set[str] = set()
+    for base in bases:
+        if not base or base in done or not os.path.isabs(base):
+            continue
+        done.add(base)
+        real = _md_real(Path(base) / p)
         if real is not None:
             return real
-    rel = PurePosixPath(p)
-    if ".." in rel.parts:
-        return None
-    tail = "/" + str(rel)
+    return None
+
+
+def _md_in_seen(tail: str, seen: Iterable[str]) -> Path | None:
     for s in seen:
         if isinstance(s, str) and s.endswith(tail) and s.startswith(("/", "~/")):
             real = _md_real(Path(os.path.expanduser(s)))
             if real is not None:
                 return real
     return None
+
+
+def _md_in_projects(p: Path, dirs: list[str], projects: Iterable[tuple[str, str]],
+                    skip: Iterable[str]) -> Path | None:
+    """``<root>/<p>`` of a known project: the first project the chat's ``dirs`` point into (a deleted
+    ``~/dev/polymux-wt-x`` points to ``polymux``), else the one project that has the file; several and none
+    preferred: None (no guess). The roots in ``skip`` were tried already."""
+    projects = [(n, r) for n, r in projects if r and os.path.isabs(r) and r not in skip]
+    hits = {r: real for _n, r in projects if (real := _md_real(Path(r) / p)) is not None}
+    if not hits:
+        return None
+    for d in dirs:
+        root = _project_of(d, projects)
+        if root in hits:
+            return hits[root]
+    found = set(hits.values())
+    return found.pop() if len(found) == 1 else None
+
+
+def _project_of(d: str, projects: list[tuple[str, str]]) -> str | None:
+    """Root of the project ``d`` lies in or next to: the folder under the project's parent is its name or
+    ``<name>-...`` (worktrees, also deleted ones); the longest name wins."""
+    best, key_len = None, 0
+    for name, root in projects:
+        parent, base = os.path.split(root.rstrip("/"))
+        prefix = parent.rstrip("/") + "/"
+        if not d.startswith(prefix):
+            continue
+        top = d[len(prefix):].split("/", 1)[0]
+        for key in (base, name):
+            if key and len(key) > key_len and (top == key or top.startswith(key + "-")):
+                best, key_len = root, len(key)
+    return best
+
+
+_FIND_SKIP = frozenset({"node_modules", "dist", "build", "__pycache__", "site-packages", "venv"})
+FIND_MAX_DEPTH = 6
+FIND_MAX_DIRS = 5000
+FIND_MAX_SECONDS = 0.5  # an unfinished search cannot prove the match unique: None
+
+
+def _md_find_bare(name: str, bases: list[str]) -> Path | None:
+    """The one file called ``name`` below ``bases`` (breadth first, no hidden or build folders, no symlinked
+    folders, at most ``FIND_MAX_DEPTH`` deep, ``FIND_MAX_DIRS`` folders and ``FIND_MAX_SECONDS``); two
+    different ones, or out of time: None."""
+    reals = [os.path.realpath(b) for b in bases if os.path.isabs(b) and b != "/"]
+    reals = [b for b in dict.fromkeys(reals) if not any(o != b and Path(b).is_relative_to(o) for o in reals)]
+    queue, budget, found = deque((b, 0) for b in reals), FIND_MAX_DIRS, set()
+    stop = time.monotonic() + FIND_MAX_SECONDS
+    while queue and budget > 0 and len(found) < 2:
+        if time.monotonic() > stop:
+            return None
+        d, depth = queue.popleft()
+        budget -= 1
+        try:
+            with os.scandir(d) as it:
+                entries = list(it)
+        except OSError:
+            continue
+        for e in entries:
+            if e.name.startswith("."):
+                continue
+            if e.name == name and (real := _md_real(Path(e.path))) is not None:
+                found.add(real)
+            elif depth < FIND_MAX_DEPTH and e.name not in _FIND_SKIP and e.is_dir(follow_symlinks=False):
+                queue.append((e.path, depth + 1))
+    return found.pop() if len(found) == 1 else None
 
 
 def _md_real(p: Path) -> Path | None:

@@ -86,3 +86,93 @@ def test_md_mentions():
             "http://x.y/a.md, /x/a.md.bak; again /home/user/dev/app/SECURITY.md (/a/B.MD)")
     assert md_mentions(text) == ["/home/user/dev/app/SECURITY.md", "~/dev/site/docs/RESUME-AGENTS.md", "/a/B.MD"]
     assert md_mentions("") == [] and md_mentions("no paths here") == []
+
+
+def _projects(home, *names):
+    return [(n, str(home / n)) for n in names]
+
+
+def test_relative_ref_in_a_folder_the_chat_worked_in(tmp_path, monkeypatch):
+    home = _tree(tmp_path, monkeypatch)
+    cwd = str(home / "pm")
+    dirs = [str(home / "gone"), str(home / "polymux")]  # newest first; a missing folder is skipped
+    assert resolve_md("docs/themes/dt/CODE.md", cwd, dirs=dirs) == home / "polymux/docs/themes/dt/CODE.md"
+    assert resolve_md("SECURITY.md", cwd, dirs=iter(dirs)) == home / "polymux/SECURITY.md"
+    assert resolve_md("../polymux/SECURITY.md", str(home / "x" / "y"), dirs=dirs) is None  # no '..' in a fallback
+    assert resolve_md("SECURITY.md", cwd, dirs=["relative/polymux"]) is None
+
+
+def test_deleted_worktree_dir_maps_to_its_project(tmp_path, monkeypatch):
+    home = _tree(tmp_path, monkeypatch)
+    for f in ("other/SECURITY.md", "pm-archive/SECURITY.md"):
+        (home / f).parent.mkdir(exist_ok=True)
+        (home / f).write_text("x")
+    projects = _projects(home, "pm", "polymux", "other", "pm-archive")
+    cwd = str(home / "pm")
+    assert resolve_md("SECURITY.md", cwd, projects=projects) is None  # three projects have it: no guess
+    for d, want in (("polymux-wt-dt", "polymux"), ("polymux-wt-dt/src/pm", "polymux"), ("other", "other"),
+                    ("pm-archive-x", "pm-archive"), ("polymux", "polymux")):
+        got = resolve_md("SECURITY.md", cwd, dirs=[str(home / d)], projects=projects)
+        assert got == home / want / "SECURITY.md", d
+    assert resolve_md("SECURITY.md", cwd, dirs=[str(home / "zzz"), str(home / "polymux-wt-a")],
+                      projects=projects) == home / "polymux/SECURITY.md"  # an unknown folder is passed over
+    assert resolve_md("SECURITY.md", cwd, dirs=[str(tmp_path / "polymux-wt-dt")], projects=projects) is None
+
+
+def test_unique_project_hit_and_ambiguous_projects(tmp_path, monkeypatch):
+    home = _tree(tmp_path, monkeypatch)
+    projects = _projects(home, "pm", "polymux", "other")
+    cwd = str(home / "pm")
+    assert resolve_md("docs/themes/dt/CODE.md", cwd, projects=projects) == home / "polymux/docs/themes/dt/CODE.md"
+    (home / "other/SECURITY.md").write_text("x")
+    assert resolve_md("SECURITY.md", cwd, projects=projects) is None
+    assert resolve_md("SECURITY.md", cwd, roots=[str(home / "other")], projects=projects) == home / "other/SECURITY.md"
+    assert resolve_md("../polymux/SECURITY.md", str(home / "x" / "y"), projects=projects) is None
+
+
+def test_bare_name_found_below_the_agent_folder_when_unique(tmp_path, monkeypatch):
+    home = _tree(tmp_path, monkeypatch)
+    cwd = str(home / "pm")
+    assert resolve_md("RESUME-AGENTS.md", cwd) == home / "pm/docs/RESUME-AGENTS.md"
+    assert resolve_md("./RESUME-AGENTS.md", "", roots=[cwd]) == home / "pm/docs/RESUME-AGENTS.md"  # ended agent
+    assert resolve_md("RESUME-AGENTS.md", "") is None  # no folder: no search (never below /)
+    assert resolve_md("x/RESUME-AGENTS.md", cwd) is None  # bare names only
+    for f in ("pm/a/DUP.md", "pm/b/c/DUP.md", "pm/node_modules/NM.md", "pm/build/B.md"):
+        (home / f).parent.mkdir(parents=True, exist_ok=True)
+        (home / f).write_text("x")
+    assert resolve_md("DUP.md", cwd) is None  # two of them: no guess
+    assert resolve_md("NM.md", cwd) is None and resolve_md("B.md", cwd) is None
+    deep = home / "pm" / "/".join("d" * 8)
+    deep.mkdir(parents=True)
+    (deep / "DEEP.md").write_text("x")
+    assert resolve_md("DEEP.md", cwd) is None  # deeper than the search goes
+
+
+def test_hidden_folders_stay_refused_through_the_new_fallbacks(tmp_path, monkeypatch):
+    home = _tree(tmp_path, monkeypatch)
+    (home / "pm/.hide").mkdir()
+    (home / "pm/.hide/HID.md").write_text("x")
+    (home / "pm/docs/IN.md").symlink_to(home / ".cfg/SECRET.md")
+    (home / "pm/sub").symlink_to(home / ".cfg", target_is_directory=True)
+    cwd = str(home / "pm")
+    assert resolve_md("SECRET.md", cwd, dirs=[str(home / ".cfg"), "~/.cfg"]) is None
+    assert resolve_md("SECRET.md", cwd, projects=[("cfg", str(home / ".cfg"))]) is None
+    assert resolve_md("SECRET.md", cwd, dirs=[str(home / ".cfg-wt")], projects=[(".cfg", str(home / ".cfg"))]) is None
+    assert resolve_md("HID.md", cwd) is None and resolve_md("SECRET.md", cwd) is None  # no hidden or linked folder
+    assert resolve_md("IN.md", cwd) is None  # symlink into a hidden folder
+    assert resolve_md("LINK.md", cwd, dirs=[str(home / "polymux")]) is None
+    assert resolve_md("LINK.md", cwd, projects=_projects(home, "polymux")) is None
+    assert resolve_md("LINK.md", str(home / "polymux")) is None
+
+
+def test_later_steps_run_only_when_earlier_ones_miss(tmp_path, monkeypatch):
+    home = _tree(tmp_path, monkeypatch)
+    used = []
+
+    def dirs():
+        used.append(1)
+        yield str(home / "polymux")
+
+    seen = [str(home / "other/CODE.md")]
+    assert resolve_md("CODE.md", str(home / "pm"), seen=seen, dirs=dirs()) == home / "other/CODE.md"
+    assert used == []

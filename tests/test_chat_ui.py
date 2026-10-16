@@ -362,6 +362,37 @@ def test_md_relative_ref_found_among_the_files_the_chat_named(env, monkeypatch, 
     assert calls == []  # the agent's own folder has it: the chat is not read
 
 
+def test_md_relative_ref_in_a_deleted_worktree_or_below_the_folder(env, monkeypatch, tmp_path):
+    """#249 live case: the chat did `cd <dev>/polymux-wt-dt; cat SECURITY.md` (worktree since deleted, the file is
+    in the polymux project now; beta has one too), and named RESUME-AGENTS.md (in alpha/docs) bare."""
+    s, c = env
+    dev = tmp_path / "dev"
+    for f, body in (("polymux/SECURITY.md", "# Poly\n"), ("beta/SECURITY.md", "# Beta\n"),
+                    ("alpha/docs/RESUME-AGENTS.md", "# Resume\n"), ("polymux/docs/dt/CODE.md", "# Code\n"),
+                    ("alpha/x/DUP.md", "a"), ("alpha/y/DUP.md", "b"), ("polymux/.git/H.md", "no")):
+        (dev / f).parent.mkdir(parents=True, exist_ok=True)
+        (dev / f).write_text(body)
+    login(s, c)
+    items = [ChatItem(seq=1, rev=1, uid="t1", conv="c", kind="tool", turn="u", ts=1.0, name="Bash",
+                      line=f"cd {dev}/polymux-wt-dt; sed -n 1,12p README.md; cat SECURITY.md")]
+    calls = []
+
+    def list_items(settings, agent_id, **kw):
+        calls.append(agent_id)
+        return items
+
+    monkeypatch.setattr("pm.chat.items.list_items", list_items)
+    r = c.get("/a/claude-12/md", params={"path": "SECURITY.md"})
+    assert r.status_code == 200 and "<h1>Poly</h1>" in r.text
+    assert calls == ["claude-12"]  # the chat is read once for the mentions and the folders
+    assert "<h1>Code</h1>" in c.get("/a/claude-12/md", params={"path": "docs/dt/CODE.md"}).text  # one project has it
+    assert "<h1>Resume</h1>" in c.get("/a/claude-12/md", params={"path": "RESUME-AGENTS.md"}).text
+    for bad in ("DUP.md", "H.md", ".git/H.md", "pasted-text.md"):
+        assert c.get("/a/claude-12/md", params={"path": bad}).status_code == 404, bad
+    items.clear()
+    assert c.get("/a/claude-12/md", params={"path": "SECURITY.md"}).status_code == 404  # two projects: no guess
+
+
 def test_md_long_file_not_truncated(env, tmp_path):
     s, c = env
     login(s, c)
