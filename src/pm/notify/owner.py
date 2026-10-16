@@ -82,6 +82,8 @@ def scan(path: str) -> list[tuple[float, str]]:
                     d = json.loads(line)
                 except ValueError:
                     continue
+                if d.get("type") != "assistant":  # api-request* entries replay old calls
+                    continue
                 ts = _ts(d.get("timestamp"))
                 content = (d.get("message") or {}).get("content")
                 if ts is None or not isinstance(content, list):
