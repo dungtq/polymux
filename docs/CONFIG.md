@@ -100,6 +100,7 @@ edited but never fetched or pushed.
 | `past_sessions_interval_s` | `600` | Import past CLI sessions found on disk this often; `0` = off (min 60) |
 | `autoexit_idle_s` | `86400` | Exit idle Claude agents after this long; `0` = off |
 | `autoexit_interval_s` | `300` | Sweeper interval (min 30) |
+| `autoexit_close_window` | `false` | Also close the agent's tmux window after an auto-exit (only when it holds nothing but the left-over shell); `false` = the window stays, like after any agent quits |
 | `autoexit_sessions` | `["*"]` | tmux session globs where auto-exit may act; `pm*` never |
 | `actor_cmd` | `[]` | Command (argv list, no shell, 2 s timeout) that prints the agent id `pmctl` records when `$PM_ACTOR` is unset, e.g. `["tmux-agents", "id"]`. Empty = `agent` |
 

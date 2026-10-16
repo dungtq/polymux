@@ -102,6 +102,9 @@ class Settings:
     # settings page can override it. The sweeper wakes every autoexit_interval_s (min 30).
     autoexit_idle_s: int = 86400
     autoexit_interval_s: int = 300
+    # pm.toml only: also kill the agent's window after an auto-exit (when it holds only the left-over shell);
+    # off = the window stays like any agent window after its agent quits (remain-on-exit)
+    autoexit_close_window: bool = False
     # daily online copy of pm.db in state_dir/backups/pm-YYYY-MM-DD.db (pm.core.db.backup): copies kept; 0 = off
     db_backup_keep: int = 14
     # tmux sessions (fnmatch globs) whose idle Claude agents auto-exit may end; `pm*` is always excluded

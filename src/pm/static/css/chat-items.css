@@ -60,6 +60,20 @@ body:has(#chat .chat-working) .ci-items :is(.chat-meta .cv-open, .ci-foot) { dis
 @keyframes ci-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ci-spin, .ob-s-sending .ob-dot { animation: none; } .ci-car { transition: none; } }
 
+/* ---- thinking (Antigravity, Devin, Cursor, Codex): folded by default like a tool group, same quiet rail; the summary is
+   "Thought" + the first line (one line, ellipsis), the body the whole text as plain pre-wrapped prose ---- */
+.ci-think { margin: 2px 0 var(--s2) 14px; padding-left: 10px; border-left: 2px solid var(--line); min-width: 0; }
+.ci-think-h { display: flex; align-items: center; gap: 4px; min-height: 28px; font-size: var(--fs-s); color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; overflow: hidden; list-style: none; border-radius: var(--ctl-radius); }
+.ci-think-h::-webkit-details-marker { display: none; }
+.ci-think-h::marker { content: ""; }
+.ci-think-h:hover { color: var(--fg); }
+.ci-think-h:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ci-think[open] > .ci-think-h .ci-car { transform: rotate(90deg); }
+.ci-think-k { flex: none; margin-right: 2px; font-weight: 600; }
+.ci-think-l { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-style: italic; }
+.ci-think[open] > .ci-think-h .ci-think-l { display: none; }
+.ci-think-b { margin: 2px 0 4px; padding: 0; font-size: var(--fs-s); line-height: 1.5; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--chat-font, inherit); max-height: 60vh; overflow-y: auto; }
+
 /* turn end: one quiet line between turns */
 .ci-end { display: flex; align-items: center; gap: var(--s2); margin: var(--s1) 0 10px; font-size: var(--fs-s); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ci-end::before, .ci-end::after { content: ""; flex: 1; border-top: 1px solid var(--line2); }
@@ -95,13 +109,13 @@ body:has(#chat .chat-working) .ci-items :is(.chat-meta .cv-open, .ci-foot) { dis
 
 /* ---- touch and phone ---- */
 @media (pointer: coarse) {
-  .ci-tg-h { min-height: 40px; }
+  .ci-tg-h, .ci-think-h { min-height: 40px; }
   .ob-act button { min-height: 40px; }
   .ci-text .ci-foot .cm-cont button, .ci-text .chat-meta .cv-open { min-height: 36px; }
 }
 @media (max-width: 559px) {
   .ci .chat-meta .stamp, .ci-pending .chat-meta .stamp { display: none; }
-  .ci-tg { margin-left: 4px; padding-left: 8px; }
+  .ci-tg, .ci-think { margin-left: 4px; padding-left: 8px; }
   .ci-tr { grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px; }
   .ci-tail { white-space: pre-wrap; overflow-wrap: anywhere; }
 }

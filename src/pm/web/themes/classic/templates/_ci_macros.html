@@ -1,7 +1,8 @@
 {# Chat item parts, used by _chatitems.html, _outbox.html and the live strip (_chat.html).
    Import "with context": agent, ended, can_continue, model_name, now, uploads, embed, csrf.
    DOM contract for static/js/chat-items.js: every top-level node has id + data-seq + data-turn (the Compact
-   view, static/js/chat-compact.js, groups by it; the end item's data-dur is its duration); tool rows are
+   view, static/js/chat-compact.js, groups by it; the end item's data-dur is its duration); a thinking item
+   is details#i-<seq>.ci-think (collapsed; the Compact view hides it); tool rows are
    li#i-<seq> with data-name/data-fam/data-status; a running status cell has data-start (epoch s);
    outbox bubbles are article#ob-<id>[data-ob] with .ob-st and .ob-act; .ob-st is the first child of the
    user header, before "You". #}
@@ -69,6 +70,16 @@
 </article>
 {%- endmacro %}
 
+{# Thinking kept in clear (Antigravity, Devin, Cursor, Codex): one quiet folded line, the full text inside as plain
+   pre-wrapped prose. The summary is the control; no copy / canvas / continue. Never a tool parent. #}
+{% macro think_item(it) -%}
+{% set first = (it.text or "").split("\n") | map("trim") | select | first | default("") -%}
+<details id="i-{{ it.seq }}" class="ci-think" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}">
+  <summary class="ci-think-h" title="{{ first }}"><svg class="ci-car" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="ci-think-k">Thought</span><span class="ci-think-l">{{ first }}</span></summary>
+  <div class="ci-think-b">{{ (it.text or "") | trim }}</div>
+</details>
+{%- endmacro %}
+
 {% macro user_item(it) -%}
 <article id="i-{{ it.seq }}" class="chat-bubble role-user ci-user" data-seq="{{ it.seq }}" data-turn="{{ it.turn }}"{% if it.outbox %} data-ob="{{ it.outbox }}"{% endif %}>
   <header class="chat-meta">{% if it.outbox %}{{ ob_state("done") }}{% endif %}<strong>You</strong> <span class="muted">{{ it.ts | ago }}</span> <span class="stamp muted small">{{ it.ts | ts }}</span>{{ copy_btn(it.text | pm_hint_strip) }}</header>
@@ -81,5 +92,5 @@
 {%- endmacro %}
 
 {% macro block(b) -%}
-{% if b.group is defined %}{{ group(b) }}{% elif b.it.kind == "text" %}{{ text_item(b.it) }}{% elif b.it.kind == "user" %}{{ user_item(b.it) }}{% elif b.it.kind == "end" %}{{ end_item(b.it) }}{% endif %}
+{% if b.group is defined %}{{ group(b) }}{% elif b.it.kind == "text" %}{{ text_item(b.it) }}{% elif b.it.kind == "think" %}{{ think_item(b.it) }}{% elif b.it.kind == "user" %}{{ user_item(b.it) }}{% elif b.it.kind == "end" %}{{ end_item(b.it) }}{% endif %}
 {%- endmacro %}

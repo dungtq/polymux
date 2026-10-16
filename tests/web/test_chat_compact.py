@@ -303,3 +303,22 @@ def test_chat_compact_js_static_rules():
     assert "fetch(" not in code and "XMLHttpRequest" not in code
     assert "innerHTML" not in code and "eval(" not in code
     assert "pm.ciCompact" in code
+
+
+@needs_node
+def test_plan_think_items_stay_plain_nodes_after_the_prompt():
+    # thinking is never a note, a final or a "done" blocker: right after the user message, in list order
+    th = "const k = (seq, turn) => ({ k: 'think', seq, turn, parent: 0 });"
+    got = _plan(th + r"""console.log(JSON.stringify(P([
+  u(1, 't1'), k(2, 't1'), x(3, 't1'), g(4, 't1', 3), k(5, 't1'), x(6, 't1'), e(7, 't1')])));""")
+    assert got == [_node(0), _node(1), _node(4), _notes(1, [2], [3]), _final(5, []), _node(6)]
+    # only thinking in a span: plain nodes, no notes block
+    got = _plan(th + r"""console.log(JSON.stringify(P([u(1, 't1'), k(2, 't1')])));""")
+    assert got == [_node(0), _node(1)]
+
+
+def test_compact_hides_think_items_and_layout_knows_them():
+    css = (STATIC_DIR / "css" / "chat-compact.css").read_text()
+    assert re.search(r'\.ci\[data-cv="compact"\] \.ci-think \{ display: none; \}', css)
+    js = (JS / "chat-compact.js").read_text()
+    assert ".ci-think" in js.split("var ITEMS", 1)[1].split(";", 1)[0] and "'think'" in js

@@ -96,11 +96,21 @@ def test_default_allow_list_exits_any_non_pm_session(env):
 
 def test_default_allow_list_sweep_closes_window(env):
     st, calls, state = env
-    st = dataclasses.replace(st, autoexit_sessions=("*",), unprotected_sessions=())
+    st = dataclasses.replace(st, autoexit_sessions=("*",), unprotected_sessions=(), autoexit_close_window=True)
     state["sessions"] = mk_sessions(name="work")
     a = mk_agent()
     done = autoexit.sweep(st, AuditLog(st.audit_file), snap([a], state["sessions"]), NOW)
     assert done == [(a.id, "stopped")] and ["kill-window", "-t", "@2"] in calls
+
+
+def test_sweep_keeps_the_window_by_default(env):
+    st, calls, state = env
+    assert st.autoexit_close_window is False
+    a = mk_agent()
+    audit = AuditLog(st.audit_file)
+    assert autoexit.sweep(st, audit, snap([a], state["sessions"]), NOW) == [(a.id, "stopped")]
+    assert not any(c[0] == "kill-window" for c in calls)
+    assert '"window_close":"kept"' in audit.path.read_text()
 
 
 def test_exit_one_refuses_pm_session_and_own_session_skipped(env, monkeypatch):
@@ -130,6 +140,7 @@ def test_timeout_setting(env):
 
 def test_sweep_exits_records_and_closes_window(env):
     st, calls, state = env
+    st = dataclasses.replace(st, autoexit_close_window=True)
     a = mk_agent()
     rid = registry.assign(st, [dataclasses.replace(a, id="x")], now=NOW - 5 * DAY)[0].id
     a = dataclasses.replace(a, id=rid)

@@ -276,15 +276,21 @@ def _mtime(path: Path) -> float:
 
 
 def _fallback_blocks(e: RawEntry) -> tuple[Block, ...]:
-    """Kinds without ``blocks``: the piece's text, then one tool per call step (no ids)."""
-    out = [Block("text", text=e.text)] if e.text else []
+    """Kinds without ``blocks``: the piece's thinking (kinds that keep it in clear; Claude's has a model
+    and its own blocks), its text, then one tool per call step (no ids)."""
+    out = [Block("think", text=e.thinking)] if e.thinking and not e.model else []
+    out += [Block("text", text=e.text)] if e.text else []
     out += [Block("tool", name=name, line=line) for kind, name, line in e.steps if kind == "tool"]
     return tuple(out)
 
 
 def _blocks(con: sqlite3.Connection, cur: _Cur, e: RawEntry) -> None:
     for idx, b in enumerate(e.blocks or _fallback_blocks(e)):
-        if b.kind == "text":
+        if b.kind == "think":
+            text = _clean(b.text)
+            if text:  # not a reply: leaves ``last_text`` (the tool groups' parent) alone
+                items.add(con, cur.agent_id, cur.conv, f"{e.uid}:{idx}", "think", turn=cur.turn, ts=e.ts, text=text)
+        elif b.kind == "text":
             text = _clean(b.text)
             if text:
                 cur.last_text = items.add(con, cur.agent_id, cur.conv, f"{e.uid}:{idx}", "text", turn=cur.turn,

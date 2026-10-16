@@ -88,12 +88,15 @@ def _group_id(tool) -> str:
 def blocks(items) -> list[dict]:
     """Items (oldest first) -> render blocks: ``{"it": item}`` or a tool group
     ``{"group": id, "seq": first tool seq, "parent", "tools", "counts": [(name, n)], "running"}``.
-    A group sits where its first tool is (right after its parent reply: tool seqs follow it)."""
+    A group sits where its first tool is (right after its parent reply: tool seqs follow it). A ``think`` item
+    (never a tool parent) does not end the open group: the tools after it share their parent's group id, and one
+    id must not appear twice."""
     out: list[dict] = []
     cur: dict | None = None
     for it in items:
         if it.kind != "tool":
-            cur = None
+            if it.kind != "think":
+                cur = None
             out.append({"it": it})
             continue
         gid = _group_id(it)

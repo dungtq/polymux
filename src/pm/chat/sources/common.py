@@ -76,12 +76,13 @@ MAX_TOOL_NAME = 64
 class Block:
     """One text block or tool call of an assistant piece, in order (``pm.chat.itemsync``). Unmasked.
 
-    ``kind`` "text": ``text`` is the whole block. ``kind`` "tool": ``id`` is the tool-use id ("" when
-    the store has none), ``name`` the tool name, ``line`` its target (``tool_target``, pre-cut to
-    ``STEP_RAW``), ``background`` when the input asks to run in the background. Never other inputs.
+    ``kind`` "text" / "think" (thinking, for kinds that keep it in clear): ``text`` is the whole block.
+    ``kind`` "tool": ``id`` is the tool-use id ("" when the store has none), ``name`` the tool name,
+    ``line`` its target (``tool_target``, pre-cut to ``STEP_RAW``), ``background`` when the input asks to run
+    in the background. Never other inputs.
     """
 
-    kind: str  # "text" | "tool"
+    kind: str  # "text" | "think" | "tool"
     id: str = ""
     name: str = ""
     line: str = ""
