@@ -2,10 +2,11 @@
 """uishot: read-only screenshot + sanity check of the pm DEV instance (never port 8093).
 
 Usage: uv run tools/uishot.py [routes...] [--themes light,dark] [--widths 1300,390]
-       [--out DIR] [--port N] [--smoke] [--url URL --token-file FILE] [--ui NAME]
+       [--out DIR] [--port N] [--smoke] [--url URL --token-file FILE] [--ui NAME] [--no-dev-badge]
 Routes may use {agent:<key>} and {project} (from instance.json), e.g. /a/{agent:running}.
 Logs in once with the dev token file, then only navigates; never types or clicks on pages.
 --ui NAME sets the cookie pm_ui=NAME (host of the URL, path /) to shoot another UI, e.g. a theme.
+--no-dev-badge hides the dev instance badge (README and site screenshots).
 Without --url it runs `devpm.py start --port N`, which reuses (or restarts with its own --pm-bin) the instance.
 """
 from __future__ import annotations
@@ -22,6 +23,9 @@ from urllib.parse import urlparse
 
 SMOKE = ["/", "/a/{agent:running}", "/a/{agent:ended_sid}", "/tmux", "/agents", "/p/{project}"]
 FORBIDDEN_PORT = 8093
+# --no-dev-badge: hide the dev badge (classic, dt) through CSSOM; pm's CSP (style-src 'self') blocks an inline <style>
+DEV_BADGE_SEL = ".x-dev,.devtag"
+HIDE_JS = "s => document.querySelectorAll(s).forEach(e => e.style.setProperty('display', 'none', 'important'))"
 HERE = Path(__file__).resolve().parent
 
 
@@ -191,7 +195,8 @@ def login(ctx, page, base: str, token: str, engine: str) -> bool:
     return "/login" not in page.url
 
 
-def shoot_routes(page, base: str, routes: list[str], out: Path, theme: str, width: int) -> int:
+def shoot_routes(page, base: str, routes: list[str], out: Path, theme: str, width: int, *,
+                 hide_dev_badge: bool = False) -> int:
     """Screenshot + check every route on a logged-in page; prints one line each, returns the failures."""
     fails = 0
     events: list[dict] = []
@@ -208,6 +213,8 @@ def shoot_routes(page, base: str, routes: list[str], out: Path, theme: str, widt
         try:
             page.goto(base + route, wait_until="networkidle")
             page.wait_for_timeout(400)
+            if hide_dev_badge:
+                page.evaluate(HIDE_JS, DEV_BADGE_SEL)
             page.screenshot(path=str(out / name), full_page=True)
             sw, iw = page.evaluate(
                 "[document.documentElement.scrollWidth, window.innerWidth]")
@@ -236,6 +243,8 @@ def main(argv=None) -> int:
     ap.add_argument("--url")
     ap.add_argument("--token-file")
     ap.add_argument("--ui", metavar="NAME", help="select a UI with the cookie pm_ui=NAME")
+    ap.add_argument("--no-dev-badge", action="store_true",
+                    help="hide the dev instance badge (for README and site screenshots)")
     args = ap.parse_args(argv)
 
     info = get_info(args)
@@ -270,7 +279,8 @@ def main(argv=None) -> int:
                         print("FAIL /login login-rejected")
                         return 1
                     total += len(routes)
-                    fails += shoot_routes(page, base, routes, out, theme, width)
+                    fails += shoot_routes(page, base, routes, out, theme, width,
+                                          hide_dev_badge=args.no_dev_badge)
                     ctx.close()
         finally:
             browser.close()

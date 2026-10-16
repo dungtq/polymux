@@ -126,3 +126,23 @@ def test_devpm_start_passes_only_the_port():
     cmd = u.devpm_start_cmd(8330)
     assert cmd[-3:] == ["start", "--port", "8330"]
     assert not any(a in cmd for a in ("--pm-bin", "--extra-toml", "--limits"))
+
+
+def test_no_dev_badge_option_parsed(monkeypatch):
+    seen = {}
+
+    def stop(args):
+        seen["hide"] = args.no_dev_badge
+        raise SystemExit(0)
+
+    monkeypatch.setattr(u, "get_info", stop)
+    for argv, want in ((["--smoke"], False), (["--smoke", "--no-dev-badge"], True)):
+        with pytest.raises(SystemExit):
+            u.main(argv)
+        assert seen["hide"] is want
+
+
+def test_dev_badge_hidden_through_cssom_not_inline_style():
+    assert {s.strip() for s in u.DEV_BADGE_SEL.split(",")} == {".x-dev", ".devtag"}
+    assert "style.setProperty('display', 'none', 'important')" in u.HIDE_JS
+    assert "add_style_tag" not in Path(u.__file__).read_text()  # pm's CSP refuses inline <style>

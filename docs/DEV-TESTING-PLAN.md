@@ -96,6 +96,7 @@ submit (POST /login, Origin = url, `allowed_origins` includes the url). Auth sta
 uv run tools/devpm.py start [--port 8095] [--limits default|warn|red]   # prints instance.json (no token)
 uv run tools/uishot.py --smoke --out /tmp/pm-dev/shots                  # starts/reuses the instance
 uv run tools/uishot.py '/a/{agent:running}' /tmux --themes dark --widths 390
+uv run tools/uishot.py --smoke --no-dev-badge                           # README / site shots: no dev badge
 uv run tools/devpm.py stop
 ```
 Smoke: `/` (Inbox), live and ended `/a/<id>`, `/tmux`, `/agents`, `/p/fixproj`. Exit 1 on console errors,
