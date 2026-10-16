@@ -475,7 +475,7 @@ async def launch_page(request: Request, name: str) -> Response:
         _review_launch, snap, project, remembered, request.query_params.get("review", ""))
     if review_text:
         remembered["prompt"] = review_text
-    launch_data = await _launch_data(st, project, kinds, remembered)
+    launch_data = await _launch_data(st, project, kinds, remembered, [p.name for p in snap.projects])
     running = [a for a in snap.agents if a.project == project.name]
     todo_rows = await _launch_todo_rows(st, snap, project)
     return html(

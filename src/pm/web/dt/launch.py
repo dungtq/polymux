@@ -4,9 +4,9 @@
 partial ``GET /launch/form?project=&todo=``. It reads the route's context (``launchctx.form_model``: ``project``,
 ``base``, ``projects``, ``running``, ``kinds``, ``launch_data``, ``bypass_allowed``, ``todo``, ``todo_selected``) and
 returns a ``LaunchView``: the agent cards (kind colour; the core has no per-kind login state, so none is shown), the
-running agents of the project, the remembered choices as one line, the TODO rows and the prompt to prefill. The model
-list, efforts, permission modes and worktree hints stay in ``launch_data`` (a JSON attribute read by js/launch.js).
-No IO.
+running agents of the project, the remembered choices as one line, the TODO rows, the prompt to prefill and the other
+project to offer ("Launch in <hint>", ``launch_data.hint`` from ``launch_redirects``). The model list, efforts,
+permission modes and worktree hints stay in ``launch_data`` (a JSON attribute read by js/launch.js). No IO.
 """
 
 from __future__ import annotations
@@ -63,6 +63,7 @@ class LaunchView:
     prompt: str  # prefill of the prompt box
     data: Mapping  # launch_data for js/launch.js (remembered, templates, worktree, slash, modes, models)
     bypass_allowed: bool
+    hint: str = ""  # launch_data.hint (launch_redirects): another listed project to offer "Launch in <hint>"
 
 
 EMPTY = LaunchView("", "", "", (), (), "", (), "", (), 0, None, "", {}, False)
@@ -117,13 +118,16 @@ def build(ctx: Mapping) -> LaunchView:
     rows = todo_rows(ctx.get("todo") or ())
     sel = ctx.get("todo_selected")
     sel = sel if isinstance(sel, int) and any(r.index == sel and not r.busy for r in rows) else None
+    name, projects = str(_get(proj, "name", "") or ""), tuple(str(p) for p in ctx.get("projects") or ())
+    hint = str(data.get("hint") or "") if isinstance(data, Mapping) else ""
     return LaunchView(
-        project=str(_get(proj, "name", "") or ""), base=str(ctx.get("base") or ""),
-        path=str(_get(proj, "path", "") or ""), projects=tuple(str(p) for p in ctx.get("projects") or ()),
+        project=name, base=str(ctx.get("base") or ""),
+        path=str(_get(proj, "path", "") or ""), projects=projects,
         cards=cards(kinds, rem), kind=next((c.kind for c in cards(kinds, rem) if c.cur), ""),
         running=running(ctx.get("running") or ()), remembered=remembered_line(rem), todo=rows,
         todo_free=sum(1 for r in rows if not r.busy), todo_sel=sel, prompt=str(rem.get("prompt") or ""),
-        data=data if isinstance(data, Mapping) else {}, bypass_allowed=bool(ctx.get("bypass_allowed")))
+        data=data if isinstance(data, Mapping) else {}, bypass_allowed=bool(ctx.get("bypass_allowed")),
+        hint=hint if hint in projects and hint != name else "")
 
 
 @pass_context

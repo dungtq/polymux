@@ -109,6 +109,11 @@
 {% if side_on %}{% include "_side.html" %}{% endif %}
 <main>
 <aside class="lockbar reloadbar" id="reloadbar" role="status" aria-live="polite" hidden><span class="rb-t"></span> <button type="button" class="rb-b" hidden>Reload now</button></aside>
+{% if not embed %}{% set _pc = pm_code() if pm_code is defined else none %}<aside class="lockbar reloadbar" id="pmcode" role="status" aria-live="polite"{% if not _pc %} hidden{% endif %}>
+  <span class="pc-t">{{ _pc.msg if _pc else "New code: restart pm to load it." }}</span> <span class="pc-h small muted">{{ _pc.head if _pc and _pc.head }}</span>
+  {% if reload_ok is defined and reload_ok %}<form class="inline" method="post" action="/service/reload" hx-post="/service/reload" hx-swap="none" hx-confirm="Restart pm to load the new code? The UI is unavailable for a few seconds."><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="small">Restart pm</button></form>
+  {% else %}<code class="pc-cmd small">systemctl --user restart {{ reload_unit if reload_unit is defined else "pm.service" }}</code>{% endif %}
+</aside>{% endif %}
 {% if require_unlock and locked %}
 <aside class="lockbar" id="lockbar" role="region" aria-label="Locked">
   <strong>Locked.</strong> <span class="small">Actions need unlock.</span>

@@ -153,3 +153,15 @@ def test_push_remote_default_and_override(tmp_path, warns):
     assert _load(tmp_path, 'push_remote = "gitdev"\n').push_remote == "gitdev"
     assert _load(tmp_path, '[extras]\npush_remote = "x"\n').push_remote == "origin"  # typed key, not an extra
     assert warns() == ["config: unknown extras key 'push_remote'"]
+
+
+def test_launch_redirects_keeps_valid_pairs(tmp_path, warns):
+    assert Settings().launch_redirects == {}
+    s = _load(tmp_path, 'launch_redirects = { app = "app-core", "my site" = "site", bad = 3, "" = "x", self = "self",'
+                        ' empty = "" }\n')
+    assert s.launch_redirects == {"app": "app-core", "my site": "site"} and s.extras == {}
+    assert warns() == ["config: launch_redirects entry 'bad' = 3 ignored", "config: launch_redirects entry '' = 'x' "
+                       "ignored", "config: launch_redirects entry 'self' = 'self' ignored",
+                       "config: launch_redirects entry 'empty' = '' ignored"]
+    assert _load(tmp_path, 'launch_redirects = ["app"]\n').launch_redirects == {}
+    assert warns()[-1] == "config: launch_redirects is not a table, ignored"

@@ -37,7 +37,8 @@ AGENT_ADDED = "agent_added"
 AGENT_REMOVED = "agent_removed"
 INBOX = "inbox"
 UI = "ui"  # a theme's own UI state changed: {"area": str, "rev": int} (e.g. open tabs)
-EVENT_TYPES = frozenset({AGENT_STATE, AGENT_ADDED, AGENT_REMOVED, INBOX, UI})
+PM_CODE = "pm_code"  # pm's own code is newer than the process: {"need", "msg", "head"?} (notify.reloadneed, once)
+EVENT_TYPES = frozenset({AGENT_STATE, AGENT_ADDED, AGENT_REMOVED, INBOX, UI, PM_CODE})
 
 HOOK_STATES = {
     "Notification": AgentState.WAITING,

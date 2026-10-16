@@ -2,14 +2,20 @@
    at the top of #main (div.x-lock.x-rl[role=status]: icon, text, one .x-btn), built here when needed.
    No background polling. /healthz is asked only
    - after this tab's own Reload pm (POST /service/reload answered OK: the account menu's htmx form, the Settings item
-     through pm7.fetch, the classic composer's "Restart pm" on pm-project sessions): wait until the old process is
-     gone and the new one answers, then reload the page (the user asked for it);
+     through pm7.fetch, this bar's "new code" Restart pm): wait until the old process is gone and the new one
+     answers, then reload the page (the user asked for it);
    - after one of this tab's own requests (pm7.fetch or htmx) got 502 / 503 / 504 from nginx: wait until pm answers,
      then offer "Reload now"; it never reloads by itself, so idle or waking tabs are left alone.
    The wait is one setTimeout chain (no setInterval; PARTS.md §13), every /healthz call is aborted after 4 s, and a
    restart wait gives up after 90 s with "Retry". Status 0 (aborted request, sleeping laptop, navigation) is ignored.
    A framed page (the aside's embed) reloads the top page: the top page never sees the frame's requests.
    The 5xx check wraps pm7.fetch once (core.js stays the only fetch( caller); /healthz goes through the unwrapped one.
+   "New code" state: pm's code is newer than the process (the core's pm_code verdict): at load from header.x-top
+   [data-rl-need=restart] (+ data-rl-msg, data-rl-head), live from the pm:pm_code event (js/live.js). With
+   [data-rl-ok] (the core would restart) the bar's Restart pm asks pm7.confirm, then POSTs /service/reload (CSRF in
+   body and header) and, on OK, starts the restart wait above; without it the bar shows the systemctl command
+   (data-rl-unit) in a .mono span after the text. Never restarts without that click. No header.x-top (embed): no
+   "new code" state.
    Globals: pm7.reload = {wait() (start the restart wait), down() (start the 5xx wait), state() -> '' | mode}. */
 (function () {
   'use strict';
@@ -18,6 +24,7 @@
   const MAXWAIT = 90000, GONE = 8000, ASK_MS = 4000;
   const base = pm7.fetch;
   let mode = '', seenDown = false, since = 0, timer = 0, busy = false;
+  let top = null;  // header.x-top: the "new code" hooks
 
   /* ---------- the bar ---------- */
   function bar() {
@@ -32,18 +39,28 @@
     const ic = pm7.icon('refresh'), btn = pm7.el('button', 'x-btn');
     btn.type = 'button';
     btn.hidden = true;
-    btn.addEventListener('click', () => { if (btn.getAttribute('data-act') === 'retry') wait(); else reloadTop(); });
+    btn.addEventListener('click', () => {
+      const act = btn.getAttribute('data-act');
+      if (act === 'retry') wait();
+      else if (act === 'restart') restart();
+      else reloadTop();
+    });
     if (ic) b.appendChild(ic);
     b.append(pm7.el('span', 'x-lock-t'), btn);
     b.hidden = true;
     main.prepend(b);
     return b;
   }
-  function show(text, label, act) {
+  function show(text, label, act, cmd) {  // cmd: a shell command, shown after the text in a .mono span
     const b = bar();
     if (!b) return;
     const t = b.querySelector('.x-lock-t'), btn = b.querySelector('.x-btn');
-    t.textContent = text;
+    t.textContent = text;  // also drops the last state's command span
+    if (cmd) {
+      const c = pm7.el('span', 'mono');
+      c.textContent = cmd;
+      t.appendChild(c);
+    }
     btn.hidden = !label;
     btn.textContent = label || '';
     btn.setAttribute('data-act', act || 'reload');
@@ -103,6 +120,25 @@
     later(1500);
   }
 
+  /* ---------- "new code": restart pm on a click only ---------- */
+  function code(j) {
+    if (!top || mode || !j || j.need !== 'restart') return;
+    const text = String(j.msg || 'New code: restart pm to load it.') + (j.head ? ' Latest commit: ' + j.head : '');
+    if (top.hasAttribute('data-rl-ok')) { show(text, 'Restart pm', 'restart'); return; }
+    show(text + (j.head ? ' · Run: ' : ' Run: '), '', '',
+      'systemctl --user restart ' + (top.getAttribute('data-rl-unit') || 'pm.service'));
+  }
+  async function restart() {
+    if (mode || !pm7.confirm) return;
+    const yes = await pm7.confirm({ title: 'Restart pm to load the new code?', ok: 'Restart pm',
+      body: 'The UI is unavailable for a few seconds; this page reloads when pm is back.' });
+    if (!yes) return;
+    let r = null;
+    try { r = await base('/service/reload', { method: 'POST', form: {} }); } catch (e) { r = null; }
+    if (r && r.ok) wait();
+    else pm7.fail('Reload pm failed. pm was not restarted', r);
+  }
+
   /* ---------- this tab's requests ---------- */
   function seen(path, status, ok) {
     if (/\/service\/reload$/.test(path)) { if (ok) wait(); return true; }
@@ -123,6 +159,15 @@
         '', { error: true });
     }
   });
+
+  d.addEventListener('pm:pm_code', (e) => code(e.detail));
+  if (pm7.ready) {
+    pm7.ready(() => {
+      top = d.querySelector('header.x-top');
+      if (top) code({ need: top.getAttribute('data-rl-need'), msg: top.getAttribute('data-rl-msg'),
+        head: top.getAttribute('data-rl-head') });
+    });
+  }
 
   pm7.reload = { wait: wait, down: down, state: () => mode };
 })();

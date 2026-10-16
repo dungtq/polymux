@@ -161,6 +161,12 @@ def bypass_enabled(settings: Settings) -> bool:
     return settings.allow_bypass is True
 
 
+def redirect_hint(settings: Settings, project: str, known) -> str:
+    """The project ``launch_redirects`` suggests instead of ``project``: only a known one other than it, else ""."""
+    target = (settings.launch_redirects or {}).get(project)
+    return target if isinstance(target, str) and target != project and target in known else ""
+
+
 def is_bypass(kind: AgentKind, mode: str | None) -> bool:
     return mode in _BYPASS_MODES.get(kind, {})
 
