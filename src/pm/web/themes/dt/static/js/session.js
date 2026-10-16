@@ -9,9 +9,9 @@
    - state dot + word follow pm:agent_state (dt live.js);
    - Aa: chat text size menu (pm.v7.chat.size, 10-32px or auto -> --chat-size on .c-sess, which classic .chat-text
      reads); the reader's A- / A+ (data-md-zoom) -> pm.v7.chat.md -> --md-size;
-   - Jump to top / bottom of the chat column (.c-chat[data-ci-scroll]); a chat ([data-ci-scroll], Builder's too)
-     scrolled to its end stays there when it changes height (ResizeObserver: the phone composer showing / folding /
-     growing, the window);
+   - Jump to top / bottom of the chat column (.c-chat[data-ci-scroll]; on phones only while it scrolls: .c-jump.on);
+     a chat ([data-ci-scroll], Builder's too) scrolled to its end stays there when it changes height
+     (ResizeObserver: the phone composer showing / folding / growing, the window);
    - phone composer (LAYOUT §6, css/session.css): collapsed unless Settings › Display › Composer on phones is open
      (html.cmp-open, head.js); [data-c-cmp] shows / hides it (.c-sess.cmp-on / .cmp-off, aria-expanded, title,
      aria-controls = the .c-comp box, given id c-comp here); the cursor going in (⌘L in aside.js, Tab, btw's Use in
@@ -24,7 +24,8 @@
      box's text is the question, then cleared) and `/btw <question>` (capture-phase submit, before htmx's own: it
      never reaches the agent).
    Hooks: section.c-sess[data-agent][data-c-mode], .c-tabs (p-tabs), input.c-radio, [data-c-dot], #agent-state,
-   [data-c-font], [data-c-jump], [data-c-cmp], .c-comp, [data-c-term], [data-c-toaside]. Storage keys pm.v7.chat.*. */
+   [data-c-font], .c-jump, [data-c-jump], [data-c-cmp], .c-comp, [data-c-term], [data-c-toaside].
+   Storage keys pm.v7.chat.*. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;
@@ -141,13 +142,21 @@
     if (bot) bot.hidden = !shown || sc.scrollHeight - sc.scrollTop - sc.clientHeight < far;
   }
   const later = () => { if (!raf) raf = window.requestAnimationFrame(syncJump); };
+  /* phone (LAYOUT §6): the buttons show while the chat scrolls (.c-jump.on, css/session.css) and fade JUMP_IDLE_MS
+     after the last scroll; on wider screens .on changes nothing */
+  const JUMP_IDLE_MS = 1500;
+  const jumpBox = () => d.querySelector('.c-jump');
+  const idle = pm7.debounce(() => { const j = jumpBox(); if (j) j.classList.remove('on'); }, JUMP_IDLE_MS);
+  function jumpOn() { const j = jumpBox(); if (j) { j.classList.add('on'); idle(); } }
   /* at the end = within 8px of the bottom; noted on every scroll, so a shrink (which does not scroll) still knows */
   const atEnd = (sc) => sc.scrollHeight - sc.clientHeight - sc.scrollTop < 8;
   let end = true;
   d.addEventListener('scroll', (e) => {
     const t = e.target;
     if (!t || !t.matches || !t.matches('.c-sess [data-ci-scroll]')) return;
+    const was = end;
     end = atEnd(t);
+    if (t.classList.contains('c-chat') && !(was && end)) jumpOn();  // at the end before and after: a follow scroll
     later();
   }, { capture: true, passive: true });
   d.addEventListener('htmx:afterSettle', later);
@@ -224,6 +233,7 @@
       if (sc) sc.scrollTop = j.getAttribute('data-c-jump') === 'top' ? 0 : sc.scrollHeight;
       const cs = window.pm && window.pm.chatScroll;  // classic chatlog.js: follow new items again
       if (j.getAttribute('data-c-jump') === 'bottom' && cs) cs.bottom();
+      jumpOn();
       later();
       return;
     }

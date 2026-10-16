@@ -136,6 +136,7 @@ Every page uses the same vertical order. Skip a part when the page has nothing f
 - Session composer starts collapsed (the chat runs to the bottom): the pencil button in the session's header line
   shows / hides it, and it shows when the cursor goes in (⌘L, Tab) or it holds a draft. Settings › Display ›
   Composer on phones = open keeps it shown. Not in the chat aside's iframe.
+- Phone: the jump buttons show while the chat scrolls and fade 1.5 s after (dt decision 2026-10-17, #253).
 
 ## 7. Wide screens
 

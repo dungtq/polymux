@@ -107,6 +107,10 @@ html body.x .x-page:has(>.c-sess){display:flex;flex-direction:column;flex:1 1 au
   .c-comp{padding:0 var(--s2) calc(var(--s2) + env(safe-area-inset-bottom))}
   .c-pn-pad{padding:var(--s3) var(--s3) var(--s4)}
   .c-jump{right:var(--s2)}
+  /* the jump buttons show only while the chat scrolls and fade after (LAYOUT §6, .on from js/session.js); opacity,
+     not display: Tab still reaches them and a keyboard focus shows them. Never in the aside's iframe (.embed) */
+  .c-sess:not(.embed) .c-jump{opacity:0;pointer-events:none;transition:opacity var(--t-slide) var(--ease)}
+  .c-sess:not(.embed) .c-jump.on,.c-sess:not(.embed) .c-jump:has(:focus-visible){opacity:1;pointer-events:auto}
   /* the composer starts collapsed (LAYOUT §6): [data-c-cmp], ⌘L or a draft shows it (.cmp-on, js/session.js);
      Settings › Display › Composer on phones = open keeps it shown (html.cmp-open, head.js; .cmp-off hides it again).
      Height 0, not display:none: ⌘L (aside.js) and Tab can still put the cursor in, and that shows it. Never in the

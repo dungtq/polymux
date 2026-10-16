@@ -226,6 +226,15 @@ def test_page_files_static_rules():
     assert [r.strip() for r in shown] == [".c-bbtn.on,.c-hd .c-cmpbtn[aria-expanded=true]{"]
     assert "accent-soft);color:var(--accent)" not in css
     assert ".c-hd .c-cmpbtn,.c-hd .c-bbtn{width:var(--ib);height:var(--ib);padding:0}" in phone
+    # phone jump buttons (LAYOUT §6): faded until the chat scrolls (.on), opacity so Tab still reaches them; the
+    # fade is the motion token (reduced motion: tokens.css), no raw times in the CSS; desktop keeps them as they are
+    assert (".c-sess:not(.embed) .c-jump{opacity:0;pointer-events:none;"
+            "transition:opacity var(--t-slide) var(--ease)}") in phone
+    assert (".c-sess:not(.embed) .c-jump.on,.c-sess:not(.embed) .c-jump:has(:focus-visible)"
+            "{opacity:1;pointer-events:auto}") in phone
+    assert "opacity" not in css[:css.index("@media (max-width:699px){")].split(".c-jump", 1)[1].split("}", 1)[0]
+    assert not re.search(r"\d(ms|s)\b", re.sub(r"/\*.*?\*/", "", css, flags=re.S))
+    assert "const JUMP_IDLE_MS = 1500;" in js and "pm7.debounce(" in js and "setTimeout" not in js
     # V7-CODE-7: one ResizeObserver on the chat scroller; the setting arrives as head.js's pm7:look event
     assert "subtree" not in js and "setInterval" not in js and "MutationObserver" not in js
     assert "'pm7:look'" in js
@@ -236,10 +245,10 @@ def test_page_files_static_rules():
         assert "jumprail" not in tpl and "composer-dock" not in tpl, name
 
 
-# ---------------------------------------------------------------- js/session.js in node: chat end pin, composer toggle
+# ------------------------------------------------- js/session.js in node: chat end pin, composer toggle, jump buttons
 SESSION_JS = THEME / "static/js/session.js"
 HARNESS = r"""
-const L = [], RO = [];
+const L = [], RO = [], DB = [];
 function el(cls, attrs) {
   const c = new Set(cls), a = Object.assign({}, attrs || {});
   return { id: '', value: '', style: { setProperty() {}, removeProperty() {} },
@@ -252,19 +261,20 @@ function el(cls, attrs) {
 const root = el([]), sess = el(['c-sess'], { 'data-agent': 'claude-1' }), box = el(['c-comp']);
 const btn = el(['c-cmpbtn'], { 'aria-expanded': 'false' }), ta = el([]);
 box.querySelector = (q) => (q === '[data-cmp-input]' ? ta : null);
-const sc = el(['c-chat']);
+const sc = el(['c-chat']), jump = el(['c-jump']);
 Object.assign(sc, { scrollHeight: 2000, clientHeight: 600, scrollTop: 1400 });
 sc.matches = (q) => q === '.c-sess [data-ci-scroll]';
 globalThis.window = { location: { href: 'http://h/a/claude-1' }, addEventListener() {},
   requestAnimationFrame: () => 1,
   ResizeObserver: class { constructor(f) { RO.push(f); } observe(t) { RO.push(t); } },
   pm7: { $$: (q) => (q === '.c-hd [data-c-cmp]' ? [btn] : []), store: { get: (k, d) => d, set() {} },
-         ready: (f) => f(), phone: () => true } };
+         ready: (f) => f(), phone: () => true,
+         debounce: (f, ms) => { const x = { f, ms, armed: 0 }; DB.push(x); return () => { x.armed += 1; }; } } };
 Object.assign(globalThis, { ResizeObserver: window.ResizeObserver, getComputedStyle: () => ({}) });
 globalThis.document = { documentElement: root, addEventListener: (t, f, o) => L.push([t, f, o]),
   getElementById: () => null,
   querySelector: (q) => (q.indexOf('[data-ci-scroll]') >= 0 ? sc : q.indexOf('.c-comp') >= 0 ? box
-    : q === '.c-sess' ? sess : null) };
+    : q === '.c-sess' ? sess : q === '.c-jump' ? jump : null) };
 eval(require('fs').readFileSync(process.argv[1], 'utf8'));
 const scroll = (top) => { sc.scrollTop = top; L.filter((x) => x[0] === 'scroll').forEach((x) => x[1]({ target: sc })); };
 const resize = (h) => { sc.clientHeight = h; RO[0]([]); };
@@ -303,3 +313,27 @@ def test_composer_toggle_controls_its_box_and_follows_the_setting():
     assert got[1] == ["true", "Hide composer"]
     assert got[2] == "false"  # the setting back to collapsed
     assert got[3] == "false"  # hidden on this page (.cmp-off) wins over the setting
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_jump_buttons_show_while_the_chat_scrolls():
+    # LAYOUT §6 (phone): a user scroll adds .on and re-arms the idle timer; the timer firing removes it; a follow
+    # scroll (at the end before and after: streaming, the pin) leaves it off; a jump click re-arms it
+    got = run_session("""
+      const idle = DB.find((x) => x.ms === 1500), on = () => jump.classList.contains('on');
+      const a = on();
+      scroll(1000); const b = [on(), idle.armed];
+      scroll(900); const c = idle.armed;
+      idle.f(); const d = on();
+      scroll(1400); idle.f();                       // back to the end: a user scroll, then idle
+      sc.scrollHeight = 2300; scroll(1700); const e = [on(), idle.armed];   // new lines followed: stays off
+      const cl = L.find((x) => x[0] === 'click')[1], jb = el([], { 'data-c-jump': 'top' });
+      jb.closest = (q) => (q === '.c-sess' || q === '[data-c-jump]' ? jb : null);
+      cl({ target: jb }); const f = [on(), idle.armed, sc.scrollTop];
+      console.log(JSON.stringify([a, b, c, d, e, f]));""")
+    assert got[0] is False
+    assert got[1] == [True, 1]
+    assert got[2] == 2  # every scroll re-arms the timer
+    assert got[3] is False
+    assert got[4] == [False, 3]
+    assert got[5][0] is True and got[5][1] > 3 and got[5][2] == 0
