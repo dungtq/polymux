@@ -1,10 +1,10 @@
 {#- Top bar (DESIGN.md §6.1, LAYOUT.md §2): lead block (sidebar toggle, phone Back, brand, Quick chat icon: PRD §9
     decision 6; hidden on phones, where the sidebar drawer has the row) as wide as the sidebar,
     phone title (a session tab: its state and position; an agent page not open as a tab, shell.home.state set: that
-    agent's state and project; else the Inbox stats), the tab strip, then search, phone tabs button, bell, Launch (the
-    dialog: js/launch.js opens it for [data-l-open] with this page's project; the href is the no-JS fallback), aside
-    toggle, account menu (its Settings opens the Settings popup: [data-sp-open], js/settings-popup.js; a plain link
-    on /settings itself).
+    agent's state and project; else the agent totals, left out on the Inbox, whose own stats line shows them live:
+    #207), the tab strip, then search, phone tabs button, bell, Launch (the dialog: js/launch.js opens it for
+    [data-l-open] with this page's project; the href is the no-JS fallback), aside toggle, account menu (its Settings
+    opens the Settings popup: [data-sp-open], js/settings-popup.js; a plain link on /settings itself).
     Context: shell, cur_tab (base.html). Key labels are platform-specific, so titles carry none; keys.js may add
     them from data-k-title (the key table is the one source).
     data-rl-*: the core's restart hooks for js/reload.js: data-rl-ok (POST /service/reload would run: the Reload pm
@@ -16,6 +16,7 @@
     else (agent.project if (agent is defined and agent and agent.project is defined) else "") -%}
 {%- set ntabs = shell.tabs | length + 1 -%}
 {%- set _onset = shell.foot | selectattr("key", "equalto", "settings") | selectattr("cur") | list -%}
+{%- set _oninbox = shell.nav | selectattr("key", "equalto", "inbox") | selectattr("cur") | list -%}
 {%- set _rl_ok = reload_ok is defined and reload_ok -%}{%- set _pc = pm_code() if pm_code is defined else none -%}
 <header class="x-top"{% if _rl_ok %} data-rl-ok{% endif %} data-rl-unit="{{ reload_unit if reload_unit is defined else 'pm.service' }}"
   {%- if _pc %} data-rl-need="{{ _pc.need }}" data-rl-msg="{{ _pc.msg }}"{% if _pc.head %} data-rl-head="{{ _pc.head }}"{% endif %}{% endif %}>
@@ -34,7 +35,9 @@
     <small>{{ shell.home.state }}{% if _lp %} · {{ _lp }}{% endif %}</small>
     {%- else %}
     <b><span class="ell">{{ shell.home.title }}</span></b>
+    {%- if not _oninbox %}
     <small>{{ shell.total }} agent{{ "" if shell.total == 1 else "s" }} · {{ shell.running }} running · {{ shell.need }} need{{ "s" if shell.need == 1 else "" }} you</small>
+    {%- endif %}
     {%- endif %}
   </div>
   {% include "shell/_tabs.html" %}

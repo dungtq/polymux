@@ -8,7 +8,7 @@ builds). Pools are module-level and live for the process.
 * ``snapshot``   1 thread   the only place ``services.build_snapshot`` runs
 * ``collectors`` 4 threads  docker / virsh / hosts / systemd / ntfy / alerts / notify
 * ``tmux``       4 threads  pane / history / terminal / launch / kill helpers
-* ``fanout``     8 threads  leaf work *submitted by* the snapshot build (git status, classify)
+* ``fanout``     8 threads  leaf work *submitted by* the snapshot build (git status, classify) and the agent model-catalog refresh
 * ``panel``      6 threads  the concurrent sections of one servers-panel refresh
 * ``hosts``      8 threads  TCP reachability probes (leaf work, 1 s timeout each)
 * ``jobs``       2 threads  long user-started steps (New project plugin steps: compose up, VM create, ...)
