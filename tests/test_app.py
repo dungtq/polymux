@@ -61,3 +61,12 @@ def test_login_page_and_passkey_routes_open(app):
 def test_events_hub_exists_without_polling(app):
     # disable_poll must not leave /events without a hub (it used to 500)
     assert app.state.hub is not None and app.state.tracker is not None
+
+
+@pytest.mark.parametrize("bad", ["", "-f", "a b", "x..y", "a/b", "x" * 33])
+def test_bad_push_remote_refuses_to_start(tmp_path, bad):
+    s = Settings(state_dir=tmp_path / "state", token_file=tmp_path / "cfg/token", totp_file=tmp_path / "cfg/totp",
+                 push_remote=bad)
+    with pytest.raises(ValueError, match="push_remote"):
+        create_app(s)
+    assert create_app(replace(s, push_remote="gitdev")).state.settings.push_remote == "gitdev"

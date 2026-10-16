@@ -101,6 +101,9 @@ def test_descendant_pid(private_tmux):
 def test_snippets(settings):
     base = m.load_snippets(settings)
     assert len(base) == 5
+    assert dict(base)["Commit and push"] == f"Commit your changes and push the branch to {settings.push_remote}."
+    assert dict(m.load_snippets(type(settings)(push_remote="gitdev")))["Commit and push"].endswith("to gitdev.")
+    assert all("{remote}" not in t for _, t in base)
     s2 = type(settings)(snippets=[("Mine", "do x"), ("Continue", "go"), 5])
     got = dict(m.load_snippets(s2))
     assert got["Mine"] == "do x" and got["Continue"] == "go" and len(got) == 6

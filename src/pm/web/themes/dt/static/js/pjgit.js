@@ -1,17 +1,17 @@
-/* dt theme (pm v7) project view, Git tab (docs/themes/dt/PRD.md §6.4): status line with Fetch / Pull / Push to gitdev,
-   guard lines (detached, merge in progress, behind, diverged, clash -> Stash, pull and pop, a stash pop that clashed),
-   changes with stage boxes and a diff in each row's details (Stage / Unstage / Discard), the commit bar (message,
-   Commit, Stash), the stash list (Pop, ⋯ Drop), branches (Checkout, ⋯ Merge / Push / Delete) and the last commits.
-   Data: GET <base>/git/status (JSON, rendered here with DOM APIs; text only through textContent). Every action
-   that changes the repo first asks GET <base>/git/plan?action=… what it will do and shows that text in a plain
-   in-page question (risk safe / confirm) or a typed one (risk typed: the plan's `confirm` value), then POSTs
-   <base>/git/<action> with the plan's `requires` fields; a blocked plan is said in a toast and nothing runs.
-   Stage / unstage boxes: the box's label is the plan ("Stage <path>"); they run after the plan check without a
-   dialog (reversible in one click). After an action: this tab reloads and the frame's head (pm7.pj.refresh).
-   Fetch has no plan in the core: its title says what it does (downloads gitdev's commits; no branch or file changes).
-   Push is POST <base>/git/push (gitdev only, never forced; the core has no force path). Diffs: GET
-   <base>/files?path=<p>&diff=1 (the core's diff source); only its df-* line spans are read, as text; ⋯ also opens
-   that fragment in the frame's reader aside (pm7.pj.reader, PARTS.md §14).
+/* dt theme (pm v7) project view, Git tab (docs/themes/dt/PRD.md §6.4): status line with Fetch / Pull / Push to
+   <remote>, guard lines (detached, merge in progress, behind, diverged, clash -> Stash, pull and pop, a stash pop that
+   clashed), changes with stage boxes and a diff in each row's details (Stage / Unstage / Discard), the commit bar
+   (message, Commit, Stash), the stash list (Pop, ⋯ Drop), branches (Checkout, ⋯ Merge / Push / Delete) and the last
+   commits. Data: GET <base>/git/status (JSON, rendered here with DOM APIs; text only through textContent). Every action
+   that changes the repo first asks GET <base>/git/plan?action=… what it will do and shows that text in a plain in-page
+   question (risk safe / confirm) or a typed one (risk typed: the plan's `confirm` value), then POSTs
+   <base>/git/<action> with the plan's `requires` fields; a blocked plan is said in a toast and nothing runs. Stage /
+   unstage boxes: the box's label is the plan ("Stage <path>"); they run after the plan check without a dialog
+   (reversible in one click). After an action: this tab reloads and the frame's head (pm7.pj.refresh). <remote> is the
+   status JSON's `remote` (pm.toml push_remote). Fetch has no plan in the core: its title says what it does (downloads
+   the remote's commits; no branch or file changes). Push is POST <base>/git/push (that remote only, never forced; the
+   core has no force path). Diffs: GET <base>/files?path=<p>&diff=1 (the core's diff source); only its df-* line spans
+   are read, as text; ⋯ also opens that fragment in the frame's reader aside (pm7.pj.reader, PARTS.md §14).
    Hooks: [data-pjops=git][data-pj-base] (inside the frame's tab panel) >
    [data-pjg-body]. Helpers: js/pjops.js (pm7.pjops). */
 (function () {
@@ -69,10 +69,12 @@
       if (ran) head();
     }
   }
-  const pull = () => run({ action: 'pull', title: (p) => (stashing(p) ? 'Stash, pull and pop?' : 'Pull from gitdev?'),
+  const rname = () => (S.view && S.view.remote) || 'the remote';
+  const pull = () => run({ action: 'pull',
+    title: (p) => (stashing(p) ? 'Stash, pull and pop?' : 'Pull from ' + rname() + '?'),
     ok: (p) => (stashing(p) ? 'Stash, pull and pop' : 'Pull'),
     url: (p) => (stashing(p) ? '/git/pull-stash' : '/git/pull') });
-  const push = () => run({ action: 'push', title: 'Push to gitdev?', ok: 'Push', url: '/git/push' });
+  const push = () => run({ action: 'push', title: 'Push to ' + rname() + '?', ok: 'Push', url: '/git/push' });
   async function fetchRemote() {
     const sec = secOf();
     if (!sec || S.busy) return;
@@ -279,8 +281,8 @@
       here || !cur ? { label: 'Merge into ' + (cur || 'a branch'), icon: 'branch', disabled: true,
         note: here ? 'current branch' : 'detached HEAD' }
         : { label: 'Merge into ' + cur, icon: 'branch', run: () => merge(b.name, cur) },
-      here ? { label: 'Push to gitdev', icon: 'up', run: push }
-        : { label: 'Push to gitdev', icon: 'up', disabled: true, note: 'check it out first' },
+      here ? { label: 'Push to ' + rname(), icon: 'up', run: push }
+        : { label: 'Push to ' + rname(), icon: 'up', disabled: true, note: 'check it out first' },
       { sep: true },
       here ? { label: 'Delete branch…', icon: 'trash', disabled: true, note: 'current branch' }
         : { label: 'Delete branch…', icon: 'trash', danger: true, run: () => delBranch(b.name) }];

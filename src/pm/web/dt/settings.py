@@ -2,7 +2,7 @@
 
 ``dt_settings`` is a Jinja global (``template_globals()``, bound to the plugin's settings). It reads the context of the
 core's ``GET /settings`` / ``GET /settings/panel`` (``settings_panel.context``: sessions, passkeys, prefs, agents,
-pm_key, user_keys, servers, srv_results, git_hosts, gitdev, notify_rules, composer + page_ctx ui_theme, ui_themes,
+pm_key, user_keys, servers, srv_results, git_hosts, notify_rules, composer + page_ctx ui_theme, ui_themes,
 require_unlock) and returns a ``Page``: the section nav (groups You · Work · Security · System), the current section
 (``?s=<id>``; none = the phone's section list, the first section on wider screens), the table rows of Access and
 Remote servers with their ⋯ items, and the read-only System lines. It also reads the v7 "all devices" prefs
@@ -298,9 +298,10 @@ def system_lines(settings) -> tuple[Line, ...]:
     )
 
 
-def git_lines(ctx) -> tuple[Line, ...]:
+def git_lines(ctx, settings) -> tuple[Line, ...]:
     hosts = tuple(ctx.get("git_hosts") or ()) or tuple(gitctl.DEFAULT_GIT_HOSTS)
-    return (Line("Default remote", str(ctx.get("gitdev") or gitctl.REMOTE)),
+    remote = getattr(settings, "push_remote", None) or ctx.get("push_remote") or "—"
+    return (Line("Default remote", remote, "push_remote"),
             Line("Allowed remote hosts", ", ".join(hosts) or "any host (none set)", "git_allowed_hosts"))
 
 
@@ -357,7 +358,7 @@ def build(ctx, settings) -> Page:
     servers = server_rows(ctx.get("servers"), ctx.get("srv_results") or {}, bool(pm_key))
     return Page(
         nav=groups, secs=secs, cur=cur, view="sec" if chosen else "list", sessions=sessions,
-        passkeys=passkey_rows(ctx.get("passkeys")), servers=servers, git=git_lines(ctx),
+        passkeys=passkey_rows(ctx.get("passkeys")), servers=servers, git=git_lines(ctx, settings),
         system=system_lines(settings),
         prefs=dtprefs.read_cached(settings) if settings is not None else dtprefs.EMPTY,
         launch=launch, model_opts=tuple(models), mode_opts=modes,

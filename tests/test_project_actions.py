@@ -166,7 +166,9 @@ def test_git_buttons_live_in_git_tab(env):
     h = c.get("/p/alpha/git/panel").text
     for u, label in (("fetch", "Git fetch"), ("pull", "Git pull"), ("push", "Git push")):
         assert f'hx-post="/p/alpha/git/{u}"' in h and label in h
-    assert 'data-confirm="Push to gitdev?"' in h and 'name="csrf"' in h  # post_btn: in-page confirm (dialog.js)
+    assert 'data-confirm="Push to origin?"' in h and 'name="csrf"' in h  # post_btn: in-page confirm (dialog.js)
+    c.app.state.settings = replace(s, push_remote="gitdev")  # the confirm names pm.toml push_remote
+    assert 'data-confirm="Push to gitdev?"' in c.get("/p/alpha/git/panel").text
 
 
 def test_restart_stack_only_in_stack_block_when_running(env, monkeypatch):

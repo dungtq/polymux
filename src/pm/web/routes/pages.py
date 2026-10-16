@@ -294,6 +294,7 @@ async def project_live(request: Request, name: str) -> Response:
 async def _project_summaries(settings, project) -> dict:
     """Backlog (or Issues)/TODO/plans summaries and the last commits for the project page."""
     from pm.git import ctl as gitctl
+    from pm.git import remote as gitremote
     from pm.projects.plans import summary as plans_summary
     from pm.projects.tracker.views import issues_summary as project_summary
     from pm.projects.tracker.views import todo_summary
@@ -303,7 +304,8 @@ async def _project_summaries(settings, project) -> dict:
         "todo": await executors.run_collectors(todo_summary, settings, project.name),
         "plans": await executors.run_collectors(plans_summary, settings, project.name),
         "commits": await executors.run_collectors(gitctl.commit_log, project.path, 5),
-        "commit_base": await executors.run_collectors(gitctl.commit_url_base, project.path, settings.git_allowed_hosts),
+        "commit_base": await executors.run_collectors(gitremote.commit_url_base, project.path,
+                                                      settings.git_allowed_hosts, remote=settings.push_remote),
     }
 
 

@@ -27,7 +27,7 @@ def test_git_push_confirm_is_a_modal(make_page, inst, theme, width):
     push.click()
     dlg = page.locator("dialog[data-pm-confirm][open]")
     dlg.wait_for()
-    assert "Push to gitdev" in dlg.inner_text()
+    assert "Push to origin?" in dlg.inner_text()  # the dev instance keeps the default push_remote
     box = dlg.bounding_box()
     assert box["x"] >= 0 and box["x"] + box["width"] <= width + 1
     page.screenshot(path=f"/tmp/pm-dev/ui-out/modal-push-{theme}-{width}.png") if Path("/tmp/pm-dev/ui-out").exists() else None

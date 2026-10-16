@@ -111,13 +111,17 @@ def test_plan_remote_and_template_readme(st):
                  project_templates=[{"name": "web", "files": {"README.md": "# {name}", "index.html": "<p>"}}])
     steps = npj.plan(s, npj.Spec(name="demo", template="web"))
     assert ids(steps) == ["folder", "template", "git", "remote"]  # the template brings its README
-    assert steps[3].text == "Add remote gitdev git@git.example.test:me/demo.git" and steps[3].run is not None
+    assert steps[3].text == "Add remote origin git@git.example.test:me/demo.git" and steps[3].run is not None
+    s = Settings(dev_root=st.dev_root, git_remote_template="git@git.example.test:me/{name}.git", push_remote="gitdev")
+    assert npj.plan(s, npj.Spec(name="demo"))[3].text == "Add remote gitdev git@git.example.test:me/demo.git"
+    assert "Add remote gitdev: not configured" in npj.plan(Settings(dev_root=st.dev_root, push_remote="gitdev"),
+                                                           npj.Spec(name="demo"))[3].text
 
 
 # ------------------------------------------------------------------ run
 def test_run_all_core_steps(st, tmp_path):
     s = Settings(dev_root=st.dev_root, git_remote_template="ssh://git@git.example.test/me/{name}.git",
-                 git_allowed_hosts=("git.example.test",),
+                 git_allowed_hosts=("git.example.test",), push_remote="gitdev",
                  project_templates=[{"name": "web", "files": {"src/app.txt": "app {name}\n"}}])
     got = list(npj.run(s, npj.Spec(name="demo", template="web", commit=True)))
     assert [(r.id, r.ok, r.state) for r in got] == [("folder", True, "done"), ("template", True, "done"),

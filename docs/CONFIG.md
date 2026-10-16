@@ -41,12 +41,14 @@ servers = [
 |---|---|---|
 | `dev_root` | `"~/dev"` | Each folder under it is a project |
 | `extra_projects` | `[]` | More project folders outside `dev_root` |
-| `git_allowed_hosts` | `[]` | Hosts a project's remotes may point at. Also turns on commit links when the `gitdev` remote is on one of these hosts (`https://<host>/<owner>/<repo>/commit/<sha>`). Empty = remotes panel can add nothing, no links |
+| `git_allowed_hosts` | `[]` | Hosts a project's remotes may point at. Also turns on commit links when the `push_remote` remote is on one of these hosts (`https://<host>/<owner>/<repo>/commit/<sha>`). Empty = remotes panel can add nothing, no links |
+| `push_remote` | `"origin"` | The one remote pm's git actions fetch, pull and push (never forced), the New project dialog adds and commit links read. A git remote name (letters, digits, `. _ -`, max 32); pm refuses to start with an invalid one |
 | `user_ssh_dir` | `"~/.ssh"` | Listed read-only (public keys only) |
 | `project_templates` | `[{name = "empty"}]` | Templates of the New project dialog: `{name, description, files = {"rel/path" = "text"}}`; `{name}` in a file is replaced by the project name. No network |
-| `git_remote_template` | `""` | URL of a new project's `gitdev` remote, `{name}` = project name (e.g. `"git@git.example.lan:me/{name}.git"`); the host must be in `git_allowed_hosts`. Empty = the New project dialog skips the remote |
+| `git_remote_template` | `""` | URL of a new project's `push_remote` remote, `{name}` = project name (e.g. `"git@git.example.lan:me/{name}.git"`); the host must be in `git_allowed_hosts`. Empty = the New project dialog skips the remote |
 
-pm's git actions use the remote named `gitdev`.
+pm's git actions use only the remote named by `push_remote` (default `origin`); other remotes are listed and
+edited but never fetched or pushed.
 
 ## Files and state
 

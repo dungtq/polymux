@@ -1,6 +1,6 @@
 """New project dialog (PRD §6.4): plan the steps of a spec, then run them one by one and stop at the first failure.
 
-Core steps: folder (under ``dev_root``), template files, README, git init, ``gitdev`` remote (from
+Core steps: folder (under ``dev_root``), template files, README, git init, the ``push_remote`` remote (from
 ``git_remote_template``; skipped when not configured), first commit, first agent. Docker stack, hostname, VM and the
 like come only from plugins (``new_project_steps`` hook in ``pm.web.plugins``). The agent launch and the plugin steps
 are injected by the caller: this package never imports ``pm.agents`` or ``pm.web``.
@@ -22,6 +22,7 @@ from pm.core.errors import PmError
 from pm.core.fsutil import atomic_write, safe_join
 from pm.core.models import AgentKind
 from pm.git import ctl as gitctl
+from pm.git import remote as gitremote
 from pm.projects.projects import NEW_NAME, SKIP_DIRS, NewProjectError, create_project
 
 StepFn = Callable[[Settings, "Spec", Path], str]  # (settings, spec, project dir) -> result text; raises on failure
@@ -139,7 +140,7 @@ def _template(settings: Settings, name: str) -> dict:
 
 
 def remote_url(settings: Settings, name: str) -> str:
-    """The new project's gitdev URL from ``git_remote_template`` ("" = not configured)."""
+    """The URL of the new project's ``push_remote`` from ``git_remote_template`` ("" = not configured)."""
     tpl = settings.git_remote_template or ""
     return tpl.replace("{name}", name) if tpl else ""
 
@@ -182,9 +183,9 @@ def plan(settings: Settings, spec: Spec, extra_steps: Sequence[Step] = (), *,
         steps.append(Step("git", "git init", "git", _git_init))
     if spec.remote:
         url = remote_url(settings, spec.name)
-        steps.append(Step("remote", f"Add remote {gitctl.REMOTE} {url}", "remote", _remote) if url else
-                     Step("remote", f"Add remote {gitctl.REMOTE}: not configured (git_remote_template), skipped",
-                          "skip"))
+        rn = settings.push_remote
+        steps.append(Step("remote", f"Add remote {rn} {url}", "remote", _remote) if url else
+                     Step("remote", f"Add remote {rn}: not configured (git_remote_template), skipped", "skip"))
     if spec.commit:
         steps.append(Step("commit", f"First commit ({COMMIT_MSG!r})", "commit", _commit))
     steps += list(extra_steps)
@@ -253,8 +254,9 @@ def _git_init(settings: Settings, spec: Spec, path: Path) -> str:
 
 def _remote(settings: Settings, spec: Spec, path: Path) -> str:
     url = remote_url(settings, spec.name)
-    gitctl.remote_add(path, gitctl.REMOTE, url, tuple(settings.git_allowed_hosts) or gitctl.DEFAULT_GIT_HOSTS)
-    return f"Added remote {gitctl.REMOTE} {url}"
+    rn = settings.push_remote
+    gitremote.remote_add(path, rn, url, tuple(settings.git_allowed_hosts) or gitctl.DEFAULT_GIT_HOSTS)
+    return f"Added remote {rn} {url}"
 
 
 def _commit(settings: Settings, spec: Spec, path: Path) -> str:

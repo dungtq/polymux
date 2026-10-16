@@ -1,4 +1,4 @@
-"""Git remotes: gitctl validators/_check_args for `remote`, panel routes, guard, audit."""
+"""Git remotes: gitctl validators/_check_args for `remote`, pm.git.remote, panel routes, guard, audit."""
 
 import json
 import re
@@ -11,6 +11,7 @@ from helpers import pages_env as env  # noqa: F401  (fixture)
 
 from pm.core.models import Tier
 from pm.git import ctl as gitctl
+from pm.git import remote as gitremote
 
 GH = ("git.example.test",)  # allowed git hosts (the default is none)
 
@@ -84,10 +85,14 @@ def test_check_args_remote_forms():
             gitctl._check_args(a, GH)
 
 
-def test_push_rule_unchanged():
+def test_push_rule_only_the_push_remote():
     with pytest.raises(gitctl.GitDenied):
-        gitctl._check_args(["push", "origin", "main"])
-    gitctl._check_args(["push", "gitdev", "main"])
+        gitctl._check_args(["push", "origin", "main"], push_remote="gitdev")
+    gitctl._check_args(["push", "gitdev", "main"], push_remote="gitdev")
+    gitctl._check_args(["push", "origin", "main"], push_remote="origin")
+    for args in (["push", "gitdev", "main"], ["push", "origin", "main"]):
+        with pytest.raises(gitctl.GitDenied):  # no push remote: no push at all
+            gitctl._check_args(args)
 
 
 def _git(*a, cwd):
@@ -107,17 +112,17 @@ def _remotes(p):
 def test_gitctl_add_set_remove(env):
     s, _ = env
     p = _repo(s)
-    gitctl.remote_add(p, "gitdev", "git@git.example.test:dt/pm.git", allowed_hosts=GH)
+    gitremote.remote_add(p, "gitdev", "git@git.example.test:dt/pm.git", allowed_hosts=GH)
     with pytest.raises(gitctl.GitError, match="exists"):
-        gitctl.remote_add(p, "gitdev", "git@git.example.test:dt/other.git", allowed_hosts=GH)
-    gitctl.remote_set_url(p, "gitdev", "ssh://git@git.example.test/dt/x.git", allowed_hosts=GH)
-    assert gitctl.remotes(p) == [gitctl.RemoteInfo("gitdev", "ssh://git@git.example.test/dt/x.git", "ssh://git@git.example.test/dt/x.git")]
+        gitremote.remote_add(p, "gitdev", "git@git.example.test:dt/other.git", allowed_hosts=GH)
+    gitremote.remote_set_url(p, "gitdev", "ssh://git@git.example.test/dt/x.git", allowed_hosts=GH)
+    assert gitremote.remotes(p) == [gitremote.RemoteInfo("gitdev", "ssh://git@git.example.test/dt/x.git", "ssh://git@git.example.test/dt/x.git")]
     with pytest.raises(gitctl.GitDenied):
-        gitctl.remote_set_url(p, "gitdev", "https://git.example.test/x", allowed_hosts=GH)
+        gitremote.remote_set_url(p, "gitdev", "https://git.example.test/x", allowed_hosts=GH)
     with pytest.raises(gitctl.GitError, match="no such"):
-        gitctl.remote_remove(p, "nope")
-    gitctl.remote_remove(p, "gitdev")
-    assert gitctl.remotes(p) == []
+        gitremote.remote_remove(p, "nope")
+    gitremote.remote_remove(p, "gitdev")
+    assert gitremote.remotes(p) == []
 
 
 def _tok(c):
@@ -132,9 +137,14 @@ def _post(c, act, tok, **f):
     return c.post(f"/p/alpha/git/remote/{act}", data={"csrf": tok, **f}, headers=H)
 
 
+def _push_remote(c, s, name):
+    c.app.state.settings = replace(s, push_remote=name)
+
+
 def test_panel_routes_flow(env):
     s, c = env
     p = _repo(s)
+    _push_remote(c, s, "gitdev")  # a configured name other than the default
     login(s, c)
     page = c.get("/p/alpha").text
     assert 'href="/p/alpha/git/panel"' in page and "Git remotes</h2>" not in page and "Recent commits" not in page
@@ -158,9 +168,9 @@ def test_panel_routes_flow(env):
     assert "mirror\t" in _remotes(p)
     r = _post(c, "remove", tok, name="mirror")
     assert "Remove remote ok" in r.text and "mirror\t" not in _remotes(p)
-    # gitdev removal needs the typed confirm
+    # removing the push remote needs the typed confirm
     r = _post(c, "remove", tok, name="gitdev")
-    assert "typed confirmation" in r.text and "gitdev\t" in _remotes(p)
+    assert "Removing gitdev needs the typed confirmation" in r.text and "gitdev\t" in _remotes(p)
     r = _post(c, "remove", tok, name="gitdev", confirm="nope")
     assert "typed confirmation" in r.text and "gitdev\t" in _remotes(p)
     r = _post(c, "remove", tok, name="gitdev", confirm="gitdev")
@@ -177,6 +187,7 @@ def test_panel_routes_flow(env):
 def test_git_tab_panel_and_page_layout(env):
     s, c = env
     _repo(s)
+    _push_remote(c, s, "gitdev")
     login(s, c)
     page = c.get("/p/alpha").text
     # plugin link rows sit after the docs panel (inside the aside, below the tab body)
@@ -190,7 +201,8 @@ def test_git_tab_panel_and_page_layout(env):
     assert 'class="tabs pj-subtabs tabs-line" role="tablist" aria-label="Git" data-tabs-key="pm.pjgit.sub"' in h
     assert "Last 0 commits" in h and "No commits." in h
     assert h.index("gitdev") < h.index("mirror") and ">default<" in h  # default remote first, marked
-    assert 'data-remote-typed="gitdev"' in h and "Add remote" in h
+    assert 'data-remote-typed="gitdev"' in h and "Add remote" in h and "pm pushes only to <span class=\"mono\">gitdev<" in h
+    assert 'data-confirm="Push to gitdev?"' in h  # the push confirm names the configured remote
     assert 'action="/settings/ssh/keygen"' in h and "Generate key" in h and "/settings#ssh" in h
     assert 'data-gr-refresh="/p/alpha/git/remotes"' in h
     assert c.get("/p/nope/git/panel").status_code == 404
@@ -251,7 +263,7 @@ def test_never_touches_forbidden_repos(tmp_path, monkeypatch):
     for n in (".cfg", ".agents-git"):
         (tmp_path / n).mkdir()
     with pytest.raises(gitctl.GitDenied):
-        gitctl.remote_add(tmp_path / ".cfg", "gitdev", "git@git.example.test:a/b", allowed_hosts=GH)
+        gitremote.remote_add(tmp_path / ".cfg", "gitdev", "git@git.example.test:a/b", allowed_hosts=GH)
 
 
 def test_show_docs_button_sits_in_the_path_row(env):

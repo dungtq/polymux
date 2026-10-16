@@ -7,7 +7,8 @@ pull-stash} -> {ok, text, clash} or {ok: false, error[, files]} with the domain 
 
 Every POST: ``mutation_guard`` (SAFE; MESSAGE for discard, branch-delete, stash-drop and a merge with a merge
 commit) + a typed ``confirm`` equal to the object's name for those (the path, the branch, ``stash@{n}``) + an audit
-line. Error texts are masked and never carry argv. Push stays POST /p/{name}/git/push (control.py, gitdev only).
+line. Error texts are masked and never carry argv. Push stays POST /p/{name}/git/push (control.py, pm.toml
+``push_remote`` only). The status, plan and pull-stash calls get ``push_remote`` from the settings.
 """
 
 from __future__ import annotations
@@ -30,6 +31,10 @@ router = APIRouter()
 _AUTH = [Depends(require_session)]
 _NOSTORE = {"Cache-Control": "no-store"}
 _PLAN_KEYS = ("path", "message", "untracked", "index", "branch")
+
+
+def _remote(request: Request) -> str:
+    return request.app.state.settings.push_remote
 
 
 def _why(e: Exception) -> tuple[int, str]:
@@ -99,7 +104,7 @@ async def _typed(request: Request, action: str, name: str, want: str) -> JSONRes
 async def git_status(request: Request, name: str):
     p = project_of(request, name)
     try:
-        data = await executors.run_collectors(ops.view, p.path)
+        data = await executors.run_collectors(ops.view, p.path, remote=_remote(request))
     except (PmError, GitError) as e:
         return _err(*_why(e))
     return JSONResponse(data, headers=_NOSTORE)
@@ -111,7 +116,7 @@ async def git_plan(request: Request, name: str, action: str = ""):
     q = request.query_params
     args = {"paths": q.getlist("paths"), **{k: q[k] for k in _PLAN_KEYS if k in q}}
     try:
-        got = await executors.run_collectors(plans.plan, p.path, action, args)
+        got = await executors.run_collectors(plans.plan, p.path, action, args, remote=_remote(request))
     except (PmError, GitError) as e:
         return _err(*_why(e))
     return JSONResponse(got.view(), headers=_NOSTORE)
@@ -178,7 +183,7 @@ async def git_stash_drop(request: Request, name: str, _=Depends(mutation_guard("
 
 @router.post("/p/{name}/git/pull-stash")
 async def git_pull_stash(request: Request, name: str, _=Depends(mutation_guard("git_pull_stash", Tier.SAFE))):
-    return await _act(request, "git_pull_stash", name, ops.pull_stash)
+    return await _act(request, "git_pull_stash", name, ops.pull_stash, remote=_remote(request))
 
 
 # ------------------------------------------------------------------ branches

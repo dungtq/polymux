@@ -4,6 +4,9 @@ from pathlib import Path
 import pytest
 
 from pm.git import ctl as gitctl
+from pm.git import remote as gitremote
+
+R = "gitdev"  # the repo fixture's push remote (pm.toml push_remote in the app)
 
 
 def sh(*a, cwd):
@@ -29,35 +32,36 @@ def repo(tmp_path):
 
 
 def test_status_and_push(repo):
-    s = gitctl.status(repo)
-    assert s.branch == "main" and s.has_gitdev and s.dirty == 0 and s.last_commit == "first"
+    s = gitctl.status(repo, remote=R)
+    assert s.branch == "main" and s.has_remote and s.dirty == 0 and s.last_commit == "first"
     assert s.ahead == 0
-    gitctl.push_gitdev(repo)
-    gitctl.fetch(repo)
-    s = gitctl.status(repo)
+    assert not gitctl.status(repo, remote="origin").has_remote  # another name: the repo does not have it
+    gitremote.push(repo, remote=R)
+    gitremote.fetch(repo, remote=R)
+    s = gitctl.status(repo, remote=R)
     assert (s.ahead, s.behind) == (0, 0)
     (repo / "b").write_text("x")
     sh("git", "add", "b", cwd=repo)
     sh("git", "commit", "-m", "second", cwd=repo)
     (repo / "c").write_text("x")
-    s = gitctl.status(repo)
+    s = gitctl.status(repo, remote=R)
     assert s.ahead == 1 and s.dirty == 1
     assert [c["subject"] for c in gitctl.recent_commits(repo, 5)] == ["second", "first"]
     assert gitctl.worktrees(repo)[0]["branch"] == "main"
 
 
 def test_pull_ff_only(repo, tmp_path):
-    gitctl.push_gitdev(repo)
+    gitremote.push(repo, remote=R)
     other = tmp_path / "o"
     sh("git", "clone", str(tmp_path / "bare.git"), str(other), cwd=tmp_path)
     (other / "z").write_text("z")
     sh("git", "add", "z", cwd=other)
     sh("git", "commit", "-m", "z", cwd=other)
     sh("git", "push", "origin", "main", cwd=other)
-    gitctl.fetch(repo)
-    assert gitctl.status(repo).behind == 1
-    gitctl.pull_ff_only(repo)
-    assert gitctl.status(repo).behind == 0
+    gitremote.fetch(repo, remote=R)
+    assert gitctl.status(repo, remote=R).behind == 1
+    gitremote.pull_ff_only(repo, remote=R)
+    assert gitctl.status(repo, remote=R).behind == 0
 
 
 @pytest.mark.parametrize("args", [
@@ -68,7 +72,30 @@ def test_pull_ff_only(repo, tmp_path):
 ])
 def test_denied(repo, args):
     with pytest.raises(gitctl.GitDenied):
-        gitctl.run_git(repo, args)
+        gitctl.run_git(repo, args, push_remote=R)
+
+
+def test_push_only_to_the_given_remote(repo, tmp_path):
+    gitctl._check_args(["push", R, "main"], push_remote=R)
+    with pytest.raises(gitctl.GitDenied):  # no push remote given: every push is refused
+        gitctl._check_args(["push", R, "main"])
+    with pytest.raises(gitctl.GitDenied):
+        gitctl.run_git(repo, ["push", R, "main"])
+    with pytest.raises(gitctl.GitDenied):  # a push to any other remote is refused
+        gitctl._check_args(["push", "origin", "main"], push_remote=R)
+    with pytest.raises(gitctl.GitDenied):  # a bad configured name is refused too
+        gitctl._check_args(["push", "-x", "main"], push_remote="-x")
+    other = tmp_path / "other.git"
+    other.mkdir()
+    sh("git", "init", "--bare", "-b", "main", cwd=other)
+    sh("git", "remote", "add", "mirror", str(other), cwd=repo)
+    gitremote.push(repo, remote="mirror")  # another configured name works the same way
+    assert gitctl.status(repo, remote="mirror").has_remote and gitctl.status(repo, remote="mirror").ahead == 0
+    for bad in ("", "-f", "a b", "x..y"):
+        with pytest.raises(gitctl.GitDenied):
+            gitremote.push(repo, remote=bad)
+        with pytest.raises(gitctl.GitDenied):
+            gitctl.status(repo, remote=bad)
 
 
 def test_forbidden_paths(monkeypatch, tmp_path):
@@ -76,7 +103,7 @@ def test_forbidden_paths(monkeypatch, tmp_path):
     (tmp_path / ".cfg").mkdir()
     with pytest.raises(gitctl.GitDenied):
         gitctl.run_git(tmp_path / ".cfg", ["status"])
-    assert gitctl.status(tmp_path / ".agents-git") is None
+    assert gitctl.status(tmp_path / ".agents-git", remote=R) is None
 
 
 def test_gitdir_in_cfg_refused(monkeypatch, tmp_path):
@@ -90,12 +117,12 @@ def test_gitdir_in_cfg_refused(monkeypatch, tmp_path):
 
 
 def test_not_repo(tmp_path):
-    assert gitctl.status(tmp_path) is None
+    assert gitctl.status(tmp_path, remote=R) is None
 
 
 def test_last_commit_ts(repo):
     import time
-    s = gitctl.status(repo)
+    s = gitctl.status(repo, remote=R)
     assert abs(s.last_commit_ts - time.time()) < 120
 
 
@@ -103,14 +130,14 @@ def test_last_commit_ts_empty_repo(tmp_path):
     r = tmp_path / "e"
     r.mkdir()
     sh("git", "init", "-b", "main", cwd=r)
-    s = gitctl.status(r)
+    s = gitctl.status(r, remote=R)
     assert s is not None and s.last_commit_ts == 0.0
 
 
 def test_commit_log_and_urls(repo):
     log = gitctl.commit_log(repo, 5)
     assert log[0]["subject"] == "first" and len(log[0]["sha"]) == 40 and log[0]["ts"] > 0
-    assert gitctl.commit_url_base(repo, ("git.example.test",)) is None  # local path remote: no link
+    assert gitremote.commit_url_base(repo, ("git.example.test",), remote=R) is None  # local path remote: no link
     for url, want in (
         ("git@git.example.test:me/app.git", "https://git.example.test/me/app/commit/"),
         ("ssh://git@git.example.test/me/web", "https://git.example.test/me/web/commit/"),
@@ -118,10 +145,11 @@ def test_commit_log_and_urls(repo):
         ("git@evil.example:me/app.git", None),
     ):
         sh("git", "remote", "set-url", "gitdev", url, cwd=repo)
-        assert gitctl.commit_url_base(repo, ("git.example.test",)) == want
-    assert gitctl.commit_url_base(repo) is None  # no allowed hosts: no links
+        assert gitremote.commit_url_base(repo, ("git.example.test",), remote=R) == want
+        assert gitremote.commit_url_base(repo, ("git.example.test",), remote="origin") is None  # not the push remote
+    assert gitremote.commit_url_base(repo, remote=R) is None  # no allowed hosts: no links
     sh("git", "remote", "remove", "gitdev", cwd=repo)
-    assert gitctl.commit_url_base(repo, ("git.example.test",)) is None
+    assert gitremote.commit_url_base(repo, ("git.example.test",), remote=R) is None
 
 
 def test_dirty_files(repo):
@@ -142,4 +170,4 @@ def test_check_gitdir_wraps_subprocess_errors(repo, monkeypatch, exc):
     with pytest.raises(gitctl.GitError) as ei:
         gitctl.check_gitdir(repo, {})
     assert not isinstance(ei.value, gitctl.GitDenied)
-    assert gitctl.status(repo) is None
+    assert gitctl.status(repo, remote=R) is None
