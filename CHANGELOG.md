@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-16 (Leak check for commits and pushes)
+
+- `tools/leakcheck.sh`: checks the lines a commit or push adds against a private pattern file (`$PM_PRIVATE_PATTERNS`
+  or `~/.config/pm/private-patterns.txt`, one regex per line, `path:` and `src:` kinds). `--install` adds a
+  pre-commit step and a pre-push hook; hits show `file:line` and the pattern number with the match masked. Without a
+  pattern file it warns and passes, so contributors are not blocked.
+- `tools/check.sh` (and CI) scan the tracked tree with a small public set `tools/leak-public.txt`: private-key
+  headers, `.env` / `*.db` / token files, `/home/<user>/` paths and 10.x addresses outside tests.
+- `pmctl hooks install`: the pre-commit hook now also runs every executable in `.git/hooks/pre-commit.d/` after the
+  tracker render, so other checks can chain onto it.
+
 ## 2026-10-16 (dt: row links, ended sessions in the aside, search popups and project quick look, backlog bulk add and quick edit, md reader)
 
 - Rows: names in Inbox, project Agents, Projects and Agents tables are real links, so Ctrl/⌘/Shift or middle click opens a new browser tab (#247).
