@@ -1,0 +1,24 @@
+# Public leak patterns: checked on every tracked file by tools/check.sh (and so by CI) with
+#   tools/leakcheck.sh --tree --patterns tools/leak-public.txt
+# Format (see tools/leakcheck.sh): plain line = content ERE, "src:" = content ERE that does not apply
+# under tests/, "path:" = forbidden file path. Private values (your host names, LAN ranges, user name)
+# belong in ~/.config/pm/private-patterns.txt, never here.
+# Not listed on purpose: 172.16/12 and 192.168/16, which deploy/ examples use as sample addresses.
+
+# A private key block pasted into a file.
+src:-----BEGIN [A-Z ]*PRIVATE KEY-----
+# A real home directory; docs and code use ~ or /home/<user>/ instead.
+src:/home/[a-z_][a-z0-9_-]*/
+# A 10/8 LAN address.
+src:\b10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b
+
+# Environment files with secrets (.env, .env.local, ...).
+path:(^|/)\.env(\..*)?$
+# Databases (pm.db and friends).
+path:\.db$
+# Certificates and private keys.
+path:\.(pem|key)$
+# SSH private keys.
+path:(^|/)id_(rsa|ed25519|ecdsa)$
+# pm's login secrets.
+path:(^|/)(token|totp|dev-token)$

@@ -83,7 +83,7 @@ tmux display-message -p '#{version}'   # running server
 Then pin the absolute path in `pm.toml`:
 
 ```toml
-tmux_bin = "/home/you/.local/share/mise/installs/tmux/3.5a/tmux"
+tmux_bin = "/home/<user>/.local/share/mise/installs/tmux/3.5a/tmux"
 ```
 
 Update it and restart pm after every tmux upgrade.
