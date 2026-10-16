@@ -96,7 +96,8 @@
     const kind = form.getAttribute('data-pjs-form');
     let changed = kind === 'settings' || kind === 'links'
       ? pm7.$$('input[type=checkbox]', form).some((i) => i.checked !== i.defaultChecked) : false;
-    if (kind === 'import') changed = (r) => /^Linked [1-9]/.test(r);  // the links row changed only if some were added (the text is the route's flash)
+    // the links row changes only if some were added; the text is the route's flash (routes/projectsettings.py)
+    if (kind === 'import') changed = (r) => /^Linked [1-9]/.test(r);
     send(panel, form.getAttribute('action'), new URLSearchParams(new FormData(form)), WHAT[kind] || 'Save', changed,
       form);
   });
