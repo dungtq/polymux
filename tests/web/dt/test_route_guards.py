@@ -116,9 +116,11 @@ def test_denied_attempts_are_audited(env, path):
     assert f'"{ACTIONS[path]}"' in text and '"denied"' in text
 
 
-def test_gets_need_a_session_and_never_write(anon, env):
+def test_gets_need_a_session_and_never_write(anon, env, dt_templates):
+    (dt_templates / "_add_issue.html").write_text("<div id=bl-quick></div>")  # the stub theme has no such template
     gets = [r.full for r in _dt_routes(env.app) if "GET" in r.methods]
-    assert sorted(gets) == ["/dt/peek/{project}", "/dt/prefs", "/dt/side", "/dt/tabs", "/dt/tabs.json"]
+    assert sorted(gets) == ["/dt/add-issue", "/dt/peek/{project}", "/dt/prefs", "/dt/side", "/dt/tabs",
+                            "/dt/tabs.json"]
     for p in gets:
         u = p.replace("{project}", "alpha")
         assert anon.c.get(u, headers={"HX-Request": "true"}).status_code == 401

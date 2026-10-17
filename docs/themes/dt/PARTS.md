@@ -591,6 +591,15 @@ a click / ↵ / R edits the text (`POST /backlog/edit`), the project band's "Edi
 project scope's tools button) opens the whole-file editor `backlog/_editor.html` (`/backlog?p=<n>&edit=1`; a page form
 to `/backlog/save`, the core's edit lease held by `backlog-file.js`; `pm7.backlog.file = {edit}`).
 
+**Add an issue from any page** (`_add_issue.html`, `GET /dt/add-issue?project=`, the search command "Add an issue" in
+`js/keys.js`). The fragment holds `div#bl-quick[hidden][data-bl-scope=page][data-bl-project][data-bl-projects]` (the
+tracker projects; `project` = the page's project, from `#pj-lay[data-pj]`, a `.bl-c[data-bl-project]` or the current
+session row's group, preselected when it is one of them), the Backlog's dialogs (`backlog/_dlg_issue.html`) and its
+CSS / JS (`?v=` URLs). `keys.js` reads it with `DOMParser`, adds the missing `<link>` / `<script>` once in order, puts
+`#bl-quick` in the body (replaced on every open) and the dialogs only where the page has no `#bl-add`, then calls
+`pm7.backlog.add.open('issue', #bl-quick)`: the same form, upload and `POST /p/{n}/issues` as the Backlog page. No
+tracker project: an error toast, no dialog.
+
 **Pin button** (Projects list, `_projects_list.html`, `js/projects.js`). `button.x-ib.sm.pj-pin[data-pj-pin]
 [aria-pressed]` in the row's first cell, label "Pin <name>" / "Unpin <name>". A click (not the row click) runs the
 row's ⋯ item `pin` (`pm7.menus.run(menu, 'pin')`): the same `POST /p/<name>/pin` (pinned=0|1), toast and `#pj`

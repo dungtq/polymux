@@ -21,9 +21,9 @@ both UIs.
 
 | Status | Count |
 |---|---|
-| ported | 80 |
+| ported | 83 |
 | classic-in-shell | 33 |
-| partial | 3 |
+| partial | 0 |
 | missing | 0 |
 | n/a | 24 |
 | **total** | **140** |
@@ -37,7 +37,7 @@ both UIs.
 | Top bar shortcuts | ported | `shell/_top.html`: Launch, bell, Quick chat, search, aside; Stop all in the account menu | dev | Backlog / Audit in the sidebar |
 | Phone tab bar | ported | `shell/_bnav.html` (More = sidebar drawer) | dev | asserted at 390 px |
 | Global search | ported | search dialog `#x-pal` (`js/search.js`, dt `_search.html`) | dev | M5: from 3 characters adds the core `GET /search` groups (projects, tmux, ended agents, chats, Quick chat, files) |
-| Command palette | ported | `#x-pal` with `>` / ⌘⇧P (`keys.js` commands) | dev | |
+| Command palette | ported | `#x-pal` with `>` / ⌘⇧P (`keys.js` commands) | dev | "Add an issue" opens the Backlog's Add issue dialog on any page (`GET /dt/add-issue`; the page's project preselected); classic has no such command |
 | Chat drawer | ported | chat aside (`shell/_aside.html`, `js/aside.js`, `/a/<id>?embed=1`) with the session's view tabs and panels (README A29) | dev | `#chat=` hash replaced by remembered aside state |
 | Jump rail | ported | `session/_frame.html` `[data-c-jump]` | dev | |
 | Installable app | classic-in-shell | manifest in dt `base.html` | dev | SW registration (`/static/pm.js`) and app badge (classic `inbox.js`) come from `_classic.html` |
@@ -135,7 +135,7 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Project settings | ported | project head gear → reader aside (`#settings`, dt `_project_settings.html`) | dev | M5 |
 | Project files browser | ported | project Files tab (`project/_files.html`) | dev | file view classic; M5: `#browse=<path>` opens Files at that path |
 | Project tabs: tmux \| Stack \| VM | ported | tmux, Stack and VMs tabs | dev | M5: tmux tab with Close all (typed project name) |
-| TODO card | partial | project TODO tab (Backlog component) | dev | tracker projects only; a TODO.md file project gets an import note, no tick |
+| TODO card | ported | project TODO tab (Backlog component) | dev | tracker and TODO.md file projects: list and tick (file items by line + text, `POST /p/<n>/todo/toggle`); Add task and Edit stay tracker-only; `#todo` links open the tab |
 | Backlog | ported | `/backlog` | dev | BACKLOG.md file projects: items listed on Issues (tick, edit text, band "Edit file"); whole-file editor `?p=<n>&edit=1` (`backlog/_editor.html`, edit lease, conflict diff) |
 | Issues tab and issue detail | ported | project Issues tab, issue reader dialog | dev | M5: Edit (title, Markdown body, add images) and Delete (typed `#N`); `#issue=N`, `#issues` links work |
 | Issue tracker (BACKLOG.md / TODO.md from pm.db) | n/a | backend, `pmctl` | — | |
@@ -252,11 +252,8 @@ core change first (V7-ISO-4).
 Closed in M5 (2026-10-15): Project settings, Remotes config, Settings popup, Global search, Service reload
 banner, Save as issue / Issues deep links, Project files deep links, Project documents Skills, Project tmux tab,
 Issue Edit / Delete, `?qchat=`, plugin links, and the service worker / app badge entry in `_classic.html`'s
-removal-debt list. Still open:
-
-| Entry | Gap | What it takes |
-|---|---|---|
-| TODO card | file-mode TODO.md | dt-only if the project context's file TODO summary is enough to list and tick (`POST /p/<n>/todo/toggle` handles files); else needs core for `todo_groups` of file projects |
+removal-debt list. Closed on 2026-10-17: TODO card and Backlog for file projects, History commit links, btw on
+phones, plugin Settings sections and TOTP set-up. No partial entries are open.
 
 ## Classic in shell (removal debt)
 

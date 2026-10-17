@@ -1,6 +1,7 @@
 /* dt theme (pm v7) keys: the ONE key table (DESIGN.md §8), its dispatch, the shortcuts sheet (#x-keys) and the
    [data-act=<verb>] click dispatch for the shell verbs side, pal, keys, mode, tabsheet, tabclose, tabnew, aside,
-   close, stop (dialog#x-stop, closed again after its htmx POST succeeded).
+   close, stop (dialog#x-stop, closed again after its htmx POST succeeded), and the command "Add an issue" (GET
+   /dt/add-issue, then js/backlog-add.js's Add issue dialog on any page).
    Globals: pm7.keys = {table, label(spec), commands(), sheet(), register(scope, rows) -> unregister(), fill(root)}.
    register(): page keys join this table (PARTS.md §7). scope = {id, group (sheet heading), active() -> bool};
    rows = [{id, label (text or () -> text), keys: [spec], run(e) -> false when nothing to do, active?() -> bool}].
@@ -84,6 +85,50 @@
     if (pm7.settings && pm7.settings.toggle) pm7.settings.toggle(); else goPage('settings', '/settings');
   }
 
+  /* Add an issue from any page (search > "Add an issue"): GET /dt/add-issue (_add_issue.html, read with DOMParser)
+     brings #bl-quick (the tracker projects; the page's project preselected) and, where the page has none, the
+     Backlog's dialogs; the Backlog's CSS / JS load once, in order; then js/backlog-add.js opens its Add issue form. */
+  function project() {
+    const l = d.getElementById('pj-lay'), c = d.querySelector('.bl-c[data-bl-project]:not([data-bl-project=""])');
+    const s = d.querySelector('#x-sess a.x-sr.cur'), g = s && s.closest('[data-project]');
+    return (l && l.getAttribute('data-pj')) || (c && c.getAttribute('data-bl-project')) ||
+      (g && g.getAttribute('data-project')) || '';
+  }
+  function asset(n) {  // a <link> / <script> of the fragment, added once (matched by path, without ?v=)
+    const at = n.tagName === 'LINK' ? 'href' : 'src', url = n.getAttribute(at) || '', path = url.split('?')[0];
+    if (pm7.$$(n.tagName.toLowerCase() + '[' + at + ']').some((x) => x.getAttribute(at).split('?')[0] === path)) {
+      return Promise.resolve();
+    }
+    const x = d.createElement(n.tagName.toLowerCase());
+    if (at === 'href') x.rel = 'stylesheet'; else x.async = false;
+    return new Promise((ok, bad) => {
+      x.onload = ok;
+      x.onerror = bad;
+      x[at] = url;
+      d.head.appendChild(x);
+    });
+  }
+  async function addIssue() {
+    let r = null;
+    try { r = await pm7.fetch('/dt/add-issue?project=' + encodeURIComponent(project())); } catch (e) { r = null; }
+    if (!r || r.status !== 200) { pm7.fail('Could not open Add issue', r); return; }
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html'), q = doc.getElementById('bl-quick');
+    try { await Promise.all(pm7.$$('link[href], script[src]', doc).map(asset)); } catch (e) {
+      pm7.toast('Could not load the Add issue form', '', { error: true });
+      return;
+    }
+    const old = d.getElementById('bl-quick');
+    if (old) old.remove();
+    d.body.appendChild(d.adoptNode(q));
+    if (!d.getElementById('bl-add')) pm7.$$('dialog', doc).forEach((x) => d.body.appendChild(d.adoptNode(x)));
+    if (!pm7.backlog || !pm7.backlog.add) return;
+    if (!pm7.backlog.lib.projects(q).length) {
+      pm7.toast('No project uses the issue tracker yet. Import one with pmctl import.', '', { error: true });
+      return;
+    }
+    pm7.backlog.add.open('issue', q, d.activeElement);
+  }
+
   /* ---------- the table: one row per action; the sheet, the dispatch and the > commands all read it ---------- */
   const TABLE = [
     { id: 'side', group: 'Panels', label: 'Sidebar: open / collapse', keys: ['mod+B'],
@@ -110,6 +155,7 @@
     run: () => goPage(p[0], p[3]) })), [
     { id: 'settings', group: 'Go to page', label: 'Settings popup', keys: ['mod+,'], layer: spOpen, run: settings },
     { id: 'launch', group: 'Go to page', label: 'Launch an agent', keys: ['N'], run: () => go('/launch') },
+    { id: 'issue', group: 'Go to page', label: 'Add an issue', keys: [], run: () => { addIssue(); } },
     { id: 'keys', group: 'Go to page', label: 'Keyboard shortcuts (this sheet)', keys: ['?'], layer: keysOpen,
       run: () => sheet() }
   ]);

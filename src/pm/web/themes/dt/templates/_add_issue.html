@@ -1,0 +1,12 @@
+{#- dt: "Add an issue" from anywhere (search `>` command, js/keys.js addIssue; PARTS.md §15). GET /dt/add-issue renders
+    this; keys.js reads it with DOMParser (nothing runs), loads the Backlog's CSS / JS below once (the `?v=` URLs, in
+    order) and adds what the page lacks: #bl-quick always (replaced on every open), the Backlog's own dialogs
+    (backlog/_dlg_issue.html: Add issue, the reader) only when the page has no #bl-add. #bl-quick is the stand-in
+    component js/backlog-add.js fills the Add issue form from: data-bl-projects = the tracker projects (where issues
+    live), data-bl-project = the preselected one (the page's project when it is one of them, else ""), scope page (the
+    Project select shows). Context: projects (list), project (str). -#}
+<link rel="stylesheet" href="/static/t/dt/css/backlog.css">
+<script src="/static/t/dt/js/backlog.js" defer></script>
+<script src="/static/t/dt/js/backlog-add.js" defer></script>
+<div id="bl-quick" hidden data-bl-scope="page" data-bl-project="{{ project }}" data-bl-projects='{{ projects | tojson }}'></div>
+{% include "backlog/_dlg_issue.html" %}
