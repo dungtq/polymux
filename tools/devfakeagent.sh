@@ -32,6 +32,7 @@ write_session() {
 }
 write_session
 trap 'rm -f "$file"' EXIT
+trap '' INT  # like the real CLI: Ctrl-C (pm's Interrupt) cancels a turn, it does not quit
 printf 'fixture agent (%s) session %s\n' "$status" "$sid"
 while IFS= read -r line; do
   if [ "$line" = "/exit" ]; then

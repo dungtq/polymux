@@ -130,7 +130,10 @@
       var box = liveTarget(form);
       if (!box) return;
       var u = liveUrl(form);
-      box.setAttribute('hx-get', u);
+      if (box.getAttribute('hx-get') !== u) {
+        box.setAttribute('hx-get', u);
+        if (window.htmx) window.htmx.process(box);  // htmx keeps the URL it read at init; [data-nodiff] lists read it live
+      }
       any = true;
       if (!ownsPage(form)) return;
       try { history.replaceState(null, '', u); } catch (e) { /* ignore */ }
