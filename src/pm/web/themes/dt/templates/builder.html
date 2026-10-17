@@ -11,7 +11,7 @@
 {% import "session/_frame.html" as sf with context %}
 {% set aid = "/a/" ~ agent.id %}
 {% set ready = state == "ready" %}
-{% block title %}Builder {{ agent.id }}{% endblock %}
+{% block title %}Builder {{ (agent.project ~ "/") if agent.project }}{{ agent.id }}{% endblock %}
 {% block bodyclass %}c-page bld-page{% endblock %}
 {% block mainclass %}{% endblock %}
 {% block page_head %}{{ sf.assets() }}{% endblock %}

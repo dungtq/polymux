@@ -41,6 +41,10 @@ def page(env, url):
     return r.text
 
 
+def title(src: str) -> str:
+    return re.search(r"<title>([^<]*)</title>", src).group(1)
+
+
 def scripts(src: str) -> list[str]:
     return [re.sub(r"\?v=\w+$", "", s) for s in re.findall(r'<script src="([^"]+)"', src)]
 
@@ -64,6 +68,7 @@ def test_live_frame_header(live):
     hook = doc.one("span", class_="agent-head")  # classic agentmode.js hook
     assert hook["data-mode"] == "live" and hook["data-agent"] == AID and "hidden" in hook
     assert doc.one("a", class_="c-bbtn")["href"] == f"/a/{AID}/builder"
+    assert title(src).startswith(f"alpha/{AID} ")  # the browser tab names the project too
     doc.one("button", data_c_toaside=True)
     doc.one("button", data_c_font=True)
     assert {b["data-chat-view"] for b in doc.find("button", data_chat_view=True)} == {"detail", "compact"}
@@ -194,6 +199,7 @@ def test_ended_frame(live, monkeypatch):
     assert doc.one("section", class_="c-sess")["data-c-mode"] == "ended"
     assert "ended" in doc.one("i", data_c_dot=True)["class"]
     assert doc.one("span", class_="agent-head")["data-mode"] == "ended"
+    assert title(src).startswith(f"alpha/{AID} (ended)")
     assert not doc.find(role="tab", data_p_tab=True) and not doc.find(class_="c-bbtn")
     doc.one("section", class_="composer", data_composer="ended")
     items = menu_items(doc)
@@ -208,6 +214,7 @@ def test_builder_frame(live):
     src = page(live, f"/a/{AID}/builder")
     doc = Doc(src)
     assert doc.one("section", class_="c-sess")["data-c-mode"] == "builder"
+    assert title(src).startswith(f"Builder alpha/{AID} ")
     b = doc.one("a", class_="c-bbtn")
     assert "on" in b["class"] and b["href"] == f"/a/{AID}" and b["aria-current"] == "page"
     tabs = doc.find("a", role="tab", data_p_tab=True)
