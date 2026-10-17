@@ -108,6 +108,15 @@ def _no_stale_account_roots():
 
 
 @pytest.fixture(autouse=True)
+def _no_ntfy_memos():
+    """The ntfy owner index / owner mapping and the matched feed are memoised process-wide: start every test empty."""
+    from pm.notify import feed, owner
+
+    owner._memo.clear()
+    feed._matched_memo.clear()
+
+
+@pytest.fixture(autouse=True)
 def _pane_ids_unless_real_registry(request, monkeypatch):
     """Most tests use fake agents with pane based ids: keep them. A test module that sets
     ``REAL_REGISTRY = True`` exercises the permanent-id registry instead."""

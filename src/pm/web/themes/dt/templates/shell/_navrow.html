@@ -1,0 +1,13 @@
+{#- Nav row macros of the sidebar (navrow, shell/_sidebar.html) and the phone bottom nav (bnavrow, shell/_bnav.html).
+    The Inbox rows carry ids (#x-nav-inbox, #x-bnav-inbox): the sessions fragment (/dt/side, shell/_sessions.html)
+    re-sends them out of band (oob=true) on every agent event, so the needs-you count stays live. -#}
+{%- set ic = "/static/t/dt/icons.svg#" -%}
+{%- macro navrow(r, oob=false) -%}
+<a href="{{ r.href }}" data-nav="{{ r.key }}"{% if r.key == "inbox" %} id="x-nav-inbox"{% if oob %} hx-swap-oob="true"{% endif %}{% endif %}{% if r.key == "settings" and not r.cur %} data-sp-open aria-haspopup="dialog" aria-controls="sp-dlg"{% endif %}{% if r.cur %} class="cur" aria-current="page"{% endif %} title="{{ r.label }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ r.icon }}"/></svg><span class="t">{{ r.label }}</span>
+  {%- if r.count %}<span class="n{{ ' hot' if r.hot }}" title="{{ r.count }}{{ ' need you' if r.hot }}">{{ r.count }}</span>{% endif %}
+  {%- if r.chord %}{% if "mod" in r.chord %}<kbd data-k="{{ r.chord }}"></kbd>{% else %}<kbd>{{ r.chord }}</kbd>{% endif %}{% endif %}</a>
+{%- endmacro -%}
+{%- macro bnavrow(r, oob=false) -%}
+<a href="{{ r.href }}" data-nav="{{ r.key }}"{% if r.key == "inbox" %} id="x-bnav-inbox"{% if oob %} hx-swap-oob="true"{% endif %}{% endif %}{% if r.cur %} class="cur" aria-current="page"{% endif %}><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ r.icon }}"/></svg><span>{{ "Alerts" if r.key == "notifications" else r.label }}</span>
+    {%- if r.count and (r.hot or r.key == "notifications") %}<span class="b{{ ' hot' if r.hot }}" aria-label="{{ r.count }}{{ ' need you' if r.hot else ' unread' }}">{{ r.count }}</span>{% endif %}</a>
+{%- endmacro -%}

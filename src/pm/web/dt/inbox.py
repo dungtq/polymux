@@ -24,12 +24,11 @@ from jinja2 import pass_context
 
 from pm.agents import sorting
 from pm.agents.head import tmux_win
-from pm.agents.inbox import stale_failed
 from pm.core import timefmt
 from pm.core.models import Agent, AgentState
 from pm.infra import snapshot as services
 from pm.web.dt import menus
-from pm.web.dt.shell import age
+from pm.web.dt.shell import age, idle_window, needs_you
 from pm.web.render import term_ok, urlid
 
 log = logging.getLogger(__name__)
@@ -140,9 +139,7 @@ def url_with(params: Mapping[str, str], **kw) -> str:
 
 def klass(a: Agent, now: float, window: float) -> str:
     """needs | running | idle: the view an agent belongs to (a stale failure is idle, as in ``inbox.bucket``)."""
-    if a.state is AgentState.FAILED and stale_failed(a, now, window):
-        return "idle"
-    if a.state in (AgentState.WAITING, AgentState.FAILED):
+    if needs_you(a, now, window):
         return "needs"
     return "running" if a.state is AgentState.RUNNING else "idle"
 
@@ -330,7 +327,7 @@ def build(ctx: Mapping, settings, now: float | None = None) -> Inbox:
     view = view if view in dict(VIEWS) else "all"
     un, grp = params.get("un") == "1", "project" if params.get("grp") == "project" else "state"
     sort_key = params.get("sort", sorting.DEFAULT)
-    window = float(getattr(settings, "idle_after_s", 0) or 0) or 28800.0
+    window = idle_window(settings)
     agents = list(ctx.get("agents") or ())
     c = counts(agents, now, window)
     meta = ctx.get("inbox_meta") or {}

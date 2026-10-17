@@ -145,6 +145,24 @@ def test_unread_count_dedupes_agent_and_ntfy(tmp_path):
     assert inbox.unread_count(a, g, inbox.load(tmp_path), now) == 0
 
 
+def test_unread_count_is_one_per_live_agent_row(tmp_path):
+    """The badge counts what the Inbox shows: a live agent once (its row unread, or any of its messages: the row's
+    unread count), a message from a gone or unknown sender on its own."""
+    now = time.time()
+    a = [ag("claude-3", "waiting", now - 10)]
+    items = [NtfyItem(id="1", time=now - 10, title="t", message="", tags=("pm", "waiting"),
+                      click="https://pm.example.test/a/claude-3"),
+             NtfyItem(id="2", time=now - 20, title="claude-3 - done", message=""),  # no click link: by owner
+             NtfyItem(id="3", time=now - 30, title="t3", message="", tags=("pm", "idle"),
+                      click="https://pm.example.test/a/claude-3"),  # an older event of the same agent
+             NtfyItem(id="4", time=now - 40, title="claude-9 - gone", message="")]
+    g = inbox.group_ntfy(items)
+    st = inbox.load(tmp_path)
+    assert inbox.unread_count(a, g, st, now, owners={"2": "claude-3", "4": "claude-9"}) == 2  # claude-3, item 4
+    assert inbox.unread_count(a, g, st, now) == 3  # owner of item 2 unknown: on its own
+    assert inbox.unread_count([], g, st, now, owners={"2": "claude-3"}) == 4  # nobody live: every group
+
+
 def test_routes_merge_read_dismiss_audit(env):  # noqa: F811
     s, c, st, dev = env
     login(s, c)

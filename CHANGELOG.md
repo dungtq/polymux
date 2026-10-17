@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-17 (Inbox counts agree with the Inbox; faster Inbox render)
+
+- dt: the sidebar and bottom-nav Inbox count now matches the Inbox's Needs you view (a failure older than the idle window no longer counts) and follows agent events live instead of only updating on a page load.
+- The Inbox unread badge counts one per live agent, as the Inbox rows show it: an agent's own row and its ntfy messages (also ones matched by title) no longer add up to several.
+- Faster Inbox and ntfy pages: the ntfy sender index and owner mapping are memoised (rebuilt on a new message, at most every 15 s), and project matching of the feed runs once per feed change.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

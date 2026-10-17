@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -18,7 +20,7 @@ from pm.security.guard import audit_result, mutation_guard
 from pm.web import deps
 from pm.web.agentsidebar import agent_dots
 from pm.web.deps import AUTH, snapshot
-from pm.web.ntfypanel import BELL_MAX_ROWS, BELL_ROWS, build_bell, build_panel
+from pm.web.ntfypanel import BELL_MAX_ROWS, BELL_ROWS, build_bell, build_panel, unread_total
 from pm.web.render import fragment, html
 
 router = APIRouter()
@@ -59,9 +61,9 @@ async def inbox_unread(request: Request) -> Response:
     settings = deps.settings(request)
     snap = await snapshot(request)
     inbox.ensure_baseline(settings.state_dir)
-    items = await executors.run_collectors(lambda: ntfy_feed.recent(settings))
-    n = inbox.unread_count(snap.agents, inbox.group_ntfy(items), inbox.load(settings.state_dir),
-                           window_s=inbox.idle_window(settings))
+    n = await executors.run_collectors(lambda: unread_total(
+        settings, snap.agents, ntfy_feed.recent(settings), inbox.load(settings.state_dir), time.time(),
+        inbox.idle_window(settings)))
     sysn = await executors.run_collectors(sidebadges.system_unread, settings)
     return JSONResponse({"unread": n, "system": sysn}, headers={"Cache-Control": "no-store"})
 

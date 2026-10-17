@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 from jinja2 import pass_context
 
 from pm.agents import sorting
+from pm.agents.inbox import stale_failed
 from pm.agents.lineage import AGENT_ID_RE
 from pm.core import timefmt
 from pm.core.models import Agent, AgentState
@@ -84,7 +85,7 @@ class Shell:
     tabs: list[Tab] = field(default_factory=list)
     home: Tab = field(default_factory=lambda: Tab("home", "", "pm", "/", icon="inbox"))
     rev: int = 0
-    need: int = 0  # waiting + failed
+    need: int = 0  # needs you: waiting + failed, a stale failure not (``needs_you``, = the Inbox's Needs you view)
     running: int = 0
     total: int = 0
     chat: bool = False  # a session's own page (/a/<id>[/...], /term/s<n>): no chat aside (README A28)
@@ -225,15 +226,30 @@ def _groups(snap, open_refs: set, page_agent: str, now: float) -> list[SessGroup
     return out
 
 
+DEFAULT_WINDOW_S = 28800.0  # idle_after_s unset: 8 h
+
+
+def idle_window(settings) -> float:
+    """The finished -> idle window in seconds (``settings.idle_after_s``, else ``DEFAULT_WINDOW_S``)."""
+    return float(getattr(settings, "idle_after_s", 0) or 0) or DEFAULT_WINDOW_S
+
+
+def needs_you(a: Agent, now: float, window: float) -> bool:
+    """Waiting or failed, except a failure older than ``window`` (``inbox.stale_failed``: it is idle by then)."""
+    if a.state is AgentState.FAILED:
+        return not stale_failed(a, now, window)
+    return a.state is AgentState.WAITING
+
+
 def _nav_rows(rows, key: str, home_cur: bool, counts: Mapping[str, int], need: int) -> list[NavRow]:
     return [NavRow(k, href, label, icon, counts.get(k) or None, k == "inbox" and need > 0, chord,
                    home_cur and k == key) for k, href, label, icon, chord in rows]
 
 
 def build(snap, tabs: stores.TabState, path: str, nav: str | None = None, agent_id: str = "",
-          now: float | None = None) -> Shell:
+          now: float | None = None, window: float = DEFAULT_WINDOW_S) -> Shell:
     """The shell for the page at ``path`` (``nav``/``agent_id``: the page's context values, if any; ``now``: the
-    clock for the session ages, default the current time). Notifications has no count: the unread system count
+    clock for the session ages and the needs-you count, default the current time; ``window``: ``idle_window``). Notifications has no count: the unread system count
     (``sidebadges.system_unread``) reads files and the ntfy feed, too slow for a render (SHELL.md §2)."""
     agents = snap.agents if snap is not None else ()
     page = page_ref(path, agent_id)
@@ -243,9 +259,10 @@ def build(snap, tabs: stores.TabState, path: str, nav: str | None = None, agent_
     rows = {k: (href, label, icon) for k, href, label, icon, _ in main + foot}
     # an agent page that is not a tab: the home tab shows that agent and its session row (not a nav row) is current
     key = "" if cur is None and page_agent else nav_key(nav, path, {k: v[0] for k, v in rows.items()})
-    need = sum(a.state in (AgentState.WAITING, AgentState.FAILED) for a in agents)
+    now = time.time() if now is None else now
+    need = sum(needs_you(a, now, window) for a in agents)
     running = sum(a.state is AgentState.RUNNING for a in agents)
-    groups = _groups(snap, set(tabs.tabs), page_agent, time.time() if now is None else now) if snap else []
+    groups = _groups(snap, set(tabs.tabs), page_agent, now) if snap else []
     counts = {"inbox": need, "projects": sum(g.project != NO_PROJECT for g in groups),
               "tmux": len(snap.sessions) if snap is not None else 0}
     href, label, icon = rows.get(key, ("/", "pm", "inbox"))
@@ -269,7 +286,8 @@ def snapshot_of(request):
 def for_request(request, nav: str | None = None, agent_id: str = "") -> Shell:
     """``build`` for ``request``: its snapshot, the cached tabs file and the page path."""
     settings = request.app.state.settings
-    return build(snapshot_of(request), stores.read_cached(settings), page_path(request), nav, agent_id)
+    return build(snapshot_of(request), stores.read_cached(settings), page_path(request), nav, agent_id,
+                 window=idle_window(settings))
 
 
 _logged: set[str] = set()  # error types already logged (bounded by the exception classes)

@@ -11,11 +11,13 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from pm.agents import registry
+from pm.core.cache import LRU
 from pm.core.config import Settings
 from pm.core.models import NtfyItem
 from pm.notify import feed as ntfy_feed
@@ -101,10 +103,39 @@ def scan(path: str) -> list[tuple[float, str]]:
     return out
 
 
+MEMO_TTL_S = 15.0  # a session file written after the publish (MAX_AFTER_S) is picked up within this
+_memo = LRU(max_entries=16)  # key -> (monotonic time, value): indexes and owner mappings
+
+
+def _memo_get(key):
+    hit = _memo.get(key)
+    return hit[1] if hit is not None and time.monotonic() - hit[0] < MEMO_TTL_S else None
+
+
+def _memo_put(key, value) -> None:
+    _memo.put(key, (time.monotonic(), value))
+
+
+def _recs_key(recs) -> tuple:
+    return tuple((r.id, r.label, r.last_pane, r.ended, r.transcript) for r in recs)
+
+
 def build_index(settings: Settings, since: float) -> list[tuple[float, str, Owner]]:
-    """Every ntfy call by a known agent since `since`, as (epoch, title, owner)."""
+    """Every ntfy call by a known agent since `since`, as (epoch, title, owner). Memoised for ``MEMO_TTL_S`` on
+    ``since``, the feed (a new message rebuilds it) and the agent records: the scan globs and stats every session
+    file of the window."""
+    recs = registry.with_transcripts(settings, since)
+    key = ("index", since, ntfy_feed.signature(settings), _recs_key(recs))
+    hit = _memo_get(key)
+    if hit is None:
+        hit = _index(recs, since)
+        _memo_put(key, hit)
+    return hit
+
+
+def _index(recs, since: float) -> list[tuple[float, str, Owner]]:
     idx = []
-    for rec in registry.with_transcripts(settings, since):
+    for rec in recs:
         owner = Owner(rec.id, rec.label or rec.id, rec.last_pane, not rec.ended, rec.transcript)
         t = Path(rec.transcript)
         files = [t]
@@ -194,14 +225,32 @@ def agent_feed(settings: Settings, ids, unread=None) -> dict[str, AgentFeed]:
     ids = set(ids)
     if not items or not ids:
         return {}
-    oldest = min(i.time for i in items)
-    index = build_index(settings, oldest)
-    recs = title_records(settings, (i.title for i in items))
-    kind_recs: dict[str, list[tuple]] = {}  # kind -> every record of it, loaded once and only for a title naming just a kind
     newest: dict[str, NtfyItem] = {}
     counts: dict[str, int] = {}
-    for it in items:  # newest first
-        owner = owner_for(settings, index, it.title, it.time, recs)
+    for it, aid in zip(items, item_owners(settings, items), strict=True):  # newest first
+        if aid is None or aid not in ids:
+            continue
+        newest.setdefault(aid, it)
+        if unread is not None and unread(it):
+            counts[aid] = counts.get(aid, 0) + 1
+    return {k: AgentFeed(v, counts.get(k, 0)) for k, v in newest.items()}
+
+
+def item_owners(settings: Settings, items) -> list[str | None]:
+    """The sending agent's id (None = unknown) of each of ``items`` (the feed, newest first): title id, transcript
+    match, else a kind-only title (``kind_owner``). Memoised on the items while ``build_index`` returns the same
+    (memoised) index."""
+    oldest = min(i.time for i in items)
+    index = build_index(settings, oldest)
+    key = ("owners", tuple((i.id, i.time) for i in items))
+    hit = _memo_get(key)
+    if hit is not None and hit[0] is index:
+        return hit[1]
+    titles = title_records(settings, (i.title for i in items))
+    kind_recs: dict[str, list[tuple]] = {}  # kind -> every record of it, loaded once and only for a title naming just a kind
+    out: list[str | None] = []
+    for it in items:
+        owner = owner_for(settings, index, it.title, it.time, titles)
         aid = owner.agent_id if owner else None
         km = _KIND_TITLE_RE.match(it.title) if aid is None else None
         if km:
@@ -209,12 +258,9 @@ def agent_feed(settings: Settings, ids, unread=None) -> dict[str, AgentFeed]:
                 kind_recs[km.group(1)] = [(r, _mtime(r.transcript)) for r in
                                           registry.of_kind_since(settings, km.group(1), oldest - KIND_SLACK_S)]
             aid = kind_owner(it.title, it.time, kind_recs[km.group(1)])
-        if aid is None or aid not in ids:
-            continue
-        newest.setdefault(aid, it)
-        if unread is not None and unread(it):
-            counts[aid] = counts.get(aid, 0) + 1
-    return {k: AgentFeed(v, counts.get(k, 0)) for k, v in newest.items()}
+        out.append(aid)
+    _memo_put(key, (index, out))
+    return out
 
 
 def agent_ntfy(settings: Settings, ids) -> dict:

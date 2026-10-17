@@ -184,6 +184,14 @@ def test_side_fragment(env, snap):
     assert f'data-sess-id="{BID}" data-state="running" data-open>' in r.text
 
 
+def test_side_fragment_asks_for_the_out_of_band_nav_rows(env, snap, monkeypatch):
+    snap.value = make_snap([agent(AID, "alpha")])
+    seen = {}
+    real = routes._render
+    monkeypatch.setattr(routes, "_render", lambda request, name, sh, **extra: seen.update(extra) or real(request, name, sh, **extra))
+    assert env.c.get("/dt/side", headers=HERE).status_code == 200 and seen == {"side_oob": True}
+
+
 def test_other_ui_theme_gets_204_and_posts_still_apply(env, snap):
     """Cookie pm_ui=classic (another tab switched the UI): no dt templates there, so no fragment, but no 500."""
     snap.value = make_snap([agent(AID, "alpha")])
