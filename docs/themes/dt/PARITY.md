@@ -21,9 +21,9 @@ both UIs.
 
 | Status | Count |
 |---|---|
-| ported | 77 |
+| ported | 78 |
 | classic-in-shell | 33 |
-| partial | 6 |
+| partial | 5 |
 | missing | 0 |
 | n/a | 24 |
 | **total** | **140** |
@@ -146,7 +146,7 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Feature | Status | v7 place | Checked | Note |
 |---|---|---|---|---|
 | Git actions | ported | project Git tab, head Git ▾ | dev | |
-| History | partial | Git tab Commits; git badge in Projects | dev | the hash is not linked to the commit URL (`commit_url_base`) |
+| History | ported | Git tab Commits; git badge in Projects | dev | the hash links to the commit on the git server (`commit_url_base` in `/git/status`, push remote on a `git_allowed_hosts` host) |
 | Remotes config | ported | Git ▾ › Remotes… (`#remotes`, dt `_git_remotes.html`) | dev | M5: typed confirm for removing a remote |
 
 ## tmux
@@ -258,7 +258,6 @@ removal-debt list. Still open:
 |---|---|---|
 | TODO card | file-mode TODO.md | dt-only if the project context's file TODO summary is enough to list and tick (`POST /p/<n>/todo/toggle` handles files); else needs core for `todo_groups` of file projects |
 | Backlog | file-mode BACKLOG.md items and whole-file editor | dt-only: list `entries` items of non-tracker projects; port the lease/lock editor (or keep the classic link until those projects are imported) |
-| History | commit hash not linked | needs core: `/git/status` JSON has no commit URL; add `commit_url_base` (only for `git_allowed_hosts`) |
 | btw | phones | dt-only: a full-screen btw panel on phones (Quick chat full-screen layout) |
 | Plugins | plugin Settings sections | dt-only: a Settings section that renders `settings_sections_html` (no plugin uses it today) |
 | Unlock (optional) | no TOTP set-up | dt-only: "Set up TOTP" in Settings › Access when `require_unlock` and not provisioned (`POST /unlock/provision`) |
