@@ -22,11 +22,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from pm.core import executors
-from pm.core.models import AuditEntry, Tier
+from pm.core.models import Tier
 from pm.security.audit import AuditError
 from pm.security.auth import require_session
 from pm.security.csrf import origin_ok
-from pm.security.guard import audit_result, client_of, get_audit, mutation_guard
+from pm.security.guard import audit_result, get_audit, mutation_guard
+from pm.security.guard import entry as audit_entry
 from pm.security.ticket import TTL_S, TicketStore
 from pm.tmux import ctl as tmuxctl
 from pm.tmux import term
@@ -177,7 +178,7 @@ async def term_ticket(request: Request,
 
 
 def _write_audit(ws: WebSocket, action: str, target: str, result: str, detail: dict) -> None:
-    get_audit(ws).write(AuditEntry(time.time(), client_of(ws), action, target, result, detail))
+    get_audit(ws).write(audit_entry(ws, action, target, result, detail))
 
 
 async def _ws_admit(ws: WebSocket, settings):

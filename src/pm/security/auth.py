@@ -24,6 +24,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pm.core.config import Settings
 from pm.core.models import AuditEntry
 from pm.security import sessions_store as sstore
+from pm.security.audit import session_tag
 from pm.security.csrf import origin_ok
 from pm.security.guard import get_audit
 from pm.security.passkey import manager_of
@@ -356,11 +357,11 @@ LOGIN_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-in
              "img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 
 
-def _audit_login(request: Request, method: str, result: str, reason: str = "") -> None:
-    """Best effort (login must not depend on the audit disk); no secrets."""
+def _audit_login(request: Request, method: str, result: str, reason: str = "", sid: str = "") -> None:
+    """Best effort (login must not depend on the audit disk); no secrets. ``sid``: the new session (tag only)."""
     try:
         get_audit(request).write(AuditEntry(time.time(), client_id(request), f"login_{method}",
-                                            "", result, {"reason": reason} if reason else {}))
+                                            "", result, {"reason": reason} if reason else {}, session_tag(sid)))
     except Exception:
         pass
 
@@ -402,8 +403,8 @@ def login_submit(request: Request, token: str = Form(""), next: str = Form("/"))
         _audit_login(request, "token", "denied", "token")
         return _page(request, nxt, "Invalid token.", 401)
     limiter.success(client)
-    _audit_login(request, kind, "ok")
     session = store.create(client)
+    _audit_login(request, kind, "ok", sid=session.id)
     resp = RedirectResponse(nxt, status_code=303)
     _set_cookie(resp, store.cookie_value(session), settings)
     return resp

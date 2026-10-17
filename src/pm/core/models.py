@@ -155,6 +155,7 @@ class AuditEntry:
     target: str
     result: str  # ok | denied | error
     detail: dict[str, str | int] = field(default_factory=dict)  # never message text
+    session: str = ""  # short tag of the login session (security.audit.session_tag), never the id; "" = none
 
 
 @dataclass(frozen=True)

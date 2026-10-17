@@ -16,7 +16,7 @@ from urllib.parse import parse_qs
 from fastapi import HTTPException, Request
 
 from pm.core.models import AuditEntry, Tier
-from pm.security.audit import AuditError, AuditLog
+from pm.security.audit import AuditError, AuditLog, session_tag
 from pm.security.csrf import Csrf
 
 
@@ -40,6 +40,24 @@ def get_audit(request: Request) -> AuditLog:
     return st.audit
 
 
+def audit_session(conn) -> str:
+    """The audit tag of the request's (or websocket's) login session: the one the guard admitted, else the cookie's;
+    "" when there is none. Never raises (an audit line must not fail on it)."""
+    try:
+        s = getattr(conn.state, "session", None)
+        if s is None:
+            store = getattr(conn.app.state, "sessions", None)
+            s = store.from_request(conn) if store is not None else None
+        return session_tag(getattr(s, "id", None))
+    except Exception:
+        return ""
+
+
+def entry(conn, action: str, target: str, result: str, detail: dict | None = None) -> AuditEntry:
+    """An audit line for a request or websocket: now, its client, its session tag."""
+    return AuditEntry(time.time(), client_of(conn), action, target, result, dict(detail or {}), audit_session(conn))
+
+
 def get_csrf(request: Request) -> Csrf:
     st = request.app.state
     if getattr(st, "csrf", None) is None:
@@ -61,8 +79,7 @@ async def _csrf_value(request: Request) -> str | None:
 
 def _deny_audit(request: Request, action: str, why: str, target: str = "") -> None:
     try:
-        get_audit(request).write(AuditEntry(time.time(), client_of(request), action,
-                                            target, "denied", {"reason": why}))
+        get_audit(request).write(entry(request, action, target, "denied", {"reason": why}))
     except AuditError:
         pass
 
@@ -114,8 +131,8 @@ def csrf_session_guard(action: str, *, tier: Tier | None = None, check_locked: b
             raise HTTPException(403, "tier not enabled")
         detail = {"tier": int(tier)} if attempt_detail and tier is not None else {}
         try:
-            get_audit(request).write(AuditEntry(time.time(), client_of(request), action,
-                                                "", "attempt", detail))
+            get_audit(request).write(AuditEntry(time.time(), client_of(request), action, "", "attempt", detail,
+                                                session_tag(session.id)))
         except AuditError:
             raise HTTPException(503, "audit unavailable; refusing") from None
         request.state.session = session
@@ -144,5 +161,4 @@ def require_tier(request: Request, action: str, tier: Tier, target: str = "") ->
 def audit_result(request: Request, action: str, target: str, result: str,
                  detail: dict[str, str | int] | None = None) -> None:
     """Record the outcome (ok | denied | error). Raises AuditError on failure."""
-    get_audit(request).write(AuditEntry(time.time(), client_of(request), action, target,
-                                        result, dict(detail or {})))
+    get_audit(request).write(entry(request, action, target, result, detail))
