@@ -170,7 +170,7 @@ scan_msg_rows() {  # content (src: included) and msg: patterns over $TMP/mtext
 
 scan_msg() {  # $1 commit message file
   local cc
-  [[ -f $1 ]] || die "message file $1 not found"
+  [[ -r $1 && ! -d $1 ]] || die "message file $1 not found"
   cc=$(git config --get core.commentChar 2>/dev/null || true)
   [[ -n $cc && $cc != auto ]] || cc='#'
   parse_msg 0 "$cc" < "$1"
@@ -301,7 +301,7 @@ main() {
     case $1 in
       --staged | --push | --tree | --install) [[ -z $mode ]] || die "one mode only"; mode=${1#--} ;;
       --msg) [[ -z $mode ]] || die "one mode only"; (($# > 1)) || die "--msg needs a file"
-        mode=msg; args+=("$(realpath -m -- "$2")"); shift ;;
+        mode=msg; if [[ $2 == /* ]]; then args+=("$2"); else args+=("$PWD/$2"); fi; shift ;;
       --force) force=1 ;;
       --patterns) (($# > 1)) || die "--patterns needs a file"; pats=$2 explicit=1; shift ;;
       -h | --help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$SELF"; exit 0 ;;
