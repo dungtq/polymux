@@ -104,7 +104,8 @@ async def _typed(request: Request, action: str, name: str, want: str) -> JSONRes
 async def git_status(request: Request, name: str):
     p = project_of(request, name)
     try:
-        data = await executors.run_collectors(ops.view, p.path, remote=_remote(request))
+        data = await executors.run_collectors(ops.view, p.path, remote=_remote(request),
+                                              hosts=tuple(request.app.state.settings.git_allowed_hosts))
     except (PmError, GitError) as e:
         return _err(*_why(e))
     return JSONResponse(data, headers=_NOSTORE)

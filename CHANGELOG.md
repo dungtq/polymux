@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-17 (Audit lines name the login session)
+
+Audit lines written for a logged-in request (guarded actions, refusals, outcomes, terminal tickets, logins) carry `session`: the first 8 hex digits of the sha256 the sessions file already keeps for that login, never the session id or cookie. Older lines and lines without a session are unchanged. The dt Audit page shows it under Session ("—" when absent); the CSV export gets a `session` column and the filter box matches it.
+
+## 2026-10-17 (Agent page titles name the project)
+
+The browser tab title of an agent page names the project first, e.g. `myproj/claude-1a2b3c sonnet-5-5`, in both themes. The dt theme does the same for the ended-session page and Builder.
+
+## 2026-10-17 (v7: commit hashes link to the git server)
+
+The Git tab's Commits list in the dt theme links each hash to the commit on the git server when the push remote is on a host listed in `git_allowed_hosts`, as classic already did. `GET /p/<name>/git/status` now returns `commit_url_base` (null when there is no such remote).
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

@@ -557,11 +557,13 @@ def pull_stash(path: str | Path, *, remote: str) -> Outcome:
     return Outcome("Pulled" + (" and popped the stashed changes." if st.dirty else "."))
 
 
-def view(path: str | Path, commits: int = 20, *, remote: str) -> dict:
+def view(path: str | Path, commits: int = 20, *, remote: str, hosts: tuple[str, ...] = ()) -> dict:
     """The Git tab view model: status (files + counts), branches, stashes, recent commits, ``remote`` and whether
-    the repo has it."""
+    the repo has it, and ``commit_url_base`` (``https://<host>/<owner>/<repo>/commit/`` when ``remote`` points at one
+    of ``hosts``, else None: a commit's link is that + its full sha)."""
     top = top_of(path)
     return {"status": status_at(top, remote=remote).view(),
             "branches": [asdict(b) for b in branches_at(top, remote=remote)],
             "stashes": [asdict(s) for s in stashes_at(top)], "commits": ctl.commit_log(top, commits),
-            "remote": remote, "has_remote": gitremote.has_remote(top, remote)}
+            "remote": remote, "has_remote": gitremote.has_remote(top, remote),
+            "commit_url_base": gitremote.commit_url_base(top, hosts, remote=remote)}
