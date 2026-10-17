@@ -1,7 +1,7 @@
 # Public leak patterns: checked on every tracked file by tools/check.sh (and so by CI) with
 #   tools/leakcheck.sh --tree --patterns tools/leak-public.txt
 # Format (see tools/leakcheck.sh): plain line = content ERE, "src:" = content ERE that does not apply
-# under tests/, "path:" = forbidden file path. Private values (your host names, LAN ranges, user name)
+# under tests/, "path:" = forbidden file path, "msg:" = commit message ERE (hooks only, not --tree). Private values (your host names, LAN ranges, user name)
 # belong in ~/.config/pm/private-patterns.txt, never here.
 # Not listed on purpose: 172.16/12 and 192.168/16, which deploy/ examples use as sample addresses.
 

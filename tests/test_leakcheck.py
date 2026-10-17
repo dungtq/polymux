@@ -269,3 +269,85 @@ def test_install_refuses_hookspath_outside_repo(tmp_path):
     assert r.returncode == 2
     assert "outside this repo" in r.stderr
     assert not (tmp_path / "shared-hooks").exists()
+
+
+_MSG_PATS = "\\bsecrethost\\b\nsrc:\\binternalbox\\b\nmsg:#[0-9]+\n"
+
+
+def test_msg_hit_and_miss(tmp_path):
+    repo, env = _repo(tmp_path, _MSG_PATS)
+    msg = tmp_path / "MSG"
+    msg.write_text("Fix the row (#253)\n\nTouches internalbox too.\n")
+    r = _leak(repo, env, "--msg", str(msg))
+    assert r.returncode == 1
+    assert "leakcheck: message:1: pattern #3: Fix the row (***)" in r.stderr
+    assert "leakcheck: message:3: pattern #2: Touches *** too." in r.stderr
+    assert "253" not in r.stderr and "internalbox" not in r.stderr
+    # comment lines and the verbose diff below the scissors line are stripped by git: not scanned
+    msg.write_text("Fix the row\n# Issue #253, secrethost\n"
+                   "# ------------------------ >8 ------------------------\n+secrethost #1\n")
+    r = _leak(repo, env, "--msg", str(msg))
+    assert r.returncode == 0, r.stderr
+    assert _leak(repo, env, "--msg", str(tmp_path / "nope")).returncode == 2
+
+
+def test_msg_pattern_not_applied_to_file_text(tmp_path):
+    repo, env = _repo(tmp_path, _MSG_PATS)
+    _stage(repo, env, {"src/a.py": "x = 1  # see #253\n", "a.md": "item #12\n"})
+    assert _leak(repo, env, "--staged").returncode == 0
+    r = _leak(repo, env, "--tree")
+    assert r.returncode == 0, r.stderr
+    assert "leakcheck: OK" in r.stdout
+
+
+def test_push_blocks_a_bad_message(tmp_path):
+    repo, env, remote = _pushed_base(tmp_path)
+    (tmp_path / "patterns.txt").write_text(_MSG_PATS)
+    _stage(repo, env, {"b.txt": "fine\n"})
+    _git(repo, env, "commit", "-qm", "Add b", "-m", "Closes #42.")
+    sha = _git(repo, env, "rev-parse", "HEAD").stdout.strip()
+    r = _leak(repo, env, "--push", "origin", str(remote), stdin=_push_line(repo, env, sha))
+    assert r.returncode == 1
+    assert f"leakcheck: {sha[:10]} message:3: pattern #3: Closes ***." in r.stderr
+    assert "#42" not in r.stderr
+
+
+def test_push_scans_merge_messages(tmp_path):
+    repo, env, remote = _pushed_base(tmp_path)
+    _git(repo, env, "checkout", "-qb", "x")
+    _commit(repo, env, {"x.txt": "x\n"})
+    _git(repo, env, "checkout", "-q", "main")
+    _commit(repo, env, {"m.txt": "m\n"})
+    _git(repo, env, "merge", "-q", "--no-ff", "-m", "Merge x for secrethost", "x")
+    sha = _git(repo, env, "rev-parse", "HEAD").stdout.strip()
+    r = _leak(repo, env, "--push", "origin", str(remote), stdin=_push_line(repo, env, sha))
+    assert r.returncode == 1
+    assert f"leakcheck: {sha[:10]} message:1: pattern #1: Merge x for ***" in r.stderr
+
+
+def test_install_commit_msg_hook_blocks_commit(tmp_path):
+    repo, env = _repo(tmp_path, _MSG_PATS)
+    assert _install(repo, env).returncode == 0
+    hooks = repo / ".git" / "hooks"
+    assert "# git hooks chain runner (commit-msg.d)\n" in (hooks / "commit-msg").read_text()
+    assert (hooks / "commit-msg.d" / "leakcheck").stat().st_mode & 0o111
+    _stage(repo, env, {"a.txt": "clean\n"})
+    c = _git(repo, env, "commit", "-qm", "Fix (#253)", check=False)
+    assert c.returncode != 0
+    assert "message:1: pattern #3" in c.stderr and "253" not in c.stderr
+    assert _git(repo, env, "commit", "-qm", "Fix the row", check=False).returncode == 0
+    assert _install(repo, env).returncode == 0  # a second install keeps the chain runner
+    assert "already runs commit-msg.d" in _install(repo, env).stdout
+
+
+def test_forced_install_keeps_the_old_commit_msg_running(tmp_path):
+    repo, env = _repo(tmp_path, _MSG_PATS)
+    cm = repo / ".git" / "hooks" / "commit-msg"
+    cm.write_text("#!/bin/sh\necho old-msg-hook-ran >&2\n")
+    cm.chmod(0o755)
+    r = _install(repo, env)
+    assert r.returncode == 2 and "commit-msg exists" in r.stderr
+    assert _install(repo, env, "--force").returncode == 0
+    _stage(repo, env, {"a.txt": "clean\n"})
+    c = _git(repo, env, "commit", "-qm", "ok", check=False)
+    assert c.returncode == 0 and "old-msg-hook-ran" in c.stderr

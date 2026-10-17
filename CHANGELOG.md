@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-17 (pmctl: branch drafts no longer land on main from trial merges or rebases)
+
+- The merge driver for CHANGELOG.md / FEATURES.md no longer writes pm.db: git also runs it for `git merge-tree`, a merge that is aborted and a rebase, which used to land unmerged branch drafts on main (main renders showed them, other branches committed them). It now only writes the merge result; the drafts land once the merge commit exists.
+- New `post-merge` hook (`pmctl hooks install`): after a merge on main it lands the merged drafts at once; without it they land on the next change or `pmctl render` on main.
+
 ## 2026-10-17 (Audit: Client errors list follows the filter box)
 
 The filter box on /audit filled the Client errors box too, but that list kept showing every report: it was re-fetched with the old query. It now follows the box like the audit log above it.
