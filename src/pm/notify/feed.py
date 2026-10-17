@@ -29,6 +29,7 @@ from pathlib import Path
 import httpx
 
 from pm.core import executors
+from pm.core.cache import LRU
 from pm.core.config import Settings
 from pm.core.fsutil import JsonStore
 from pm.core.models import NtfyItem
@@ -60,6 +61,7 @@ _transport = None  # tests only: httpx transport
 def reset() -> None:
     with _lock:
         _state.update(key=None, items=[], at=0.0, ok=False, thread=None, polled={}, live=set())
+    _matched_memo.clear()
 
 
 def _store(settings: Settings) -> JsonStore:
@@ -356,24 +358,43 @@ async def stop(app) -> None:
         _state["live"].clear()
 
 
-def _match(item: NtfyItem, plist: list) -> NtfyItem:
+def _match(item: NtfyItem, paths: set[str]) -> NtfyItem:
+    """``item`` with ``project`` = the longest project path (``paths``: without trailing "/") its path tag is in,
+    else the tag itself. Walks the tag's parents (one set lookup each), not the project list."""
     path = next((t for t in item.tags if t.startswith("/")), None)
     if path is None:
         return item
     norm = path.rstrip("/") or "/"
-    best, blen = None, -1
-    for p in plist:
-        pp = p.path.rstrip("/")
-        if (norm == pp or norm.startswith(pp + "/")) and len(pp) > blen:
-            best, blen = pp, len(pp)
-    return dataclasses.replace(item, project=best if best is not None else norm)
+    cand = norm
+    while True:
+        if cand in paths:
+            return dataclasses.replace(item, project=cand)
+        if not cand:
+            return dataclasses.replace(item, project=norm)
+        cand = cand.rpartition("/")[0]
+
+
+_matched_memo = LRU(max_entries=4)  # (message ids, project paths) -> matched items: one match pass per feed change
 
 
 def _matched(settings: Settings) -> list[NtfyItem]:
+    """The feed without muted messages, each with its project; memoised on the message ids and project paths, so
+    several lists and counts in one request (and the requests until the next message) share one pass."""
     items, _ = _snapshot(settings)
     items = mutes.drop_muted(settings, items)
-    plist = projects.discover(settings)
-    return [_match(i, plist) for i in items]
+    paths = frozenset(p.path.rstrip("/") for p in projects.discover(settings))
+    key = (tuple((i.id, i.time) for i in items), paths)
+    hit = _matched_memo.get(key)
+    if hit is None:
+        hit = [_match(i, paths) for i in items]
+        _matched_memo.put(key, hit)
+    return list(hit)
+
+
+def signature(settings: Settings) -> tuple[int, str]:
+    """(message count, newest message id) of the feed: changes when a message arrives (cache keys)."""
+    items, _ = _snapshot(settings)
+    return len(items), (items[0].id if items else "")
 
 
 def recent(settings: Settings, *, limit: int | None = None,

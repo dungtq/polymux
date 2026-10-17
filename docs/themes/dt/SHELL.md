@@ -43,7 +43,8 @@ NavRow(key, href, label, icon, count: int | None, hot: bool, chord: str, cur: bo
     same page with Source System preselected for that load (the saved view `pm.v7.notifs.*` is one for both URLs),
     and both pages mark the Notifications row current. The bell (a menu button, `js/notifs.js`) shows the newest 6
     messages of every source from `/ntfy/panel?scope=all` and links to `/ntfy`
-    counts: inbox = waiting + failed, projects = projects with a live agent, tmux = sessions; notifications None:
+    counts: inbox = needs you (`shell.needs_you`: waiting + failed, a failure older than the idle window not: the
+    Inbox's Needs you view, `inbox.klass`), projects = projects with a live agent, tmux = sessions; notifications None:
     the unread system count (`sidebadges.system_unread`, classic's `/inbox/unread` "system") reads the ntfy feed
     and the inbox store, too slow for a render (M2: the live event brings it)
     hot = the count is "needs you" (Inbox: waiting + failed)
@@ -70,7 +71,7 @@ Current tab = derived from the URL being rendered (agent page of an open tab →
 
 | Method | Path | Body (form, `csrf`) | Returns |
 |---|---|---|---|
-| GET | `/dt/side` | — | `shell/_sessions.html` fragment (ETag/204 via `render.fragment`) |
+| GET | `/dt/side` | — | `shell/_sessions.html` fragment (ETag/204 via `render.fragment`) plus the Inbox nav rows `#x-nav-inbox`, `#x-bnav-inbox` out of band (`shell/_navrow.html`): the needs-you count follows agent events |
 | GET | `/dt/tabs` | — | `shell/_tabs.html` fragment (the strip without the home tab's page title change) |
 | GET | `/dt/tabs.json` | — | `{"rev", "tabs": [{kind, id, title, href, state}], "closed": [...]}` |
 | POST | `/dt/tabs/open` | `kind`, `id` | strip fragment; focuses an already open tab |

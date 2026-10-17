@@ -283,6 +283,16 @@ async def row_meta(request: Request, agents, store, now: float, win: float, pins
     return meta
 
 
+def unread_total(settings, agents, items, store, now: float, win: float) -> int:
+    """The Inbox unread count (``inbox.unread_count``: one per live agent row, as the rows show it) with the
+    senders of the messages that carry no agent link (``notify.owner.item_owners``, memoised). Blocking."""
+    try:
+        owners = dict(zip((i.id for i in items), ntfy_owner.item_owners(settings, items), strict=True)) if items else {}
+    except Exception:  # noqa: BLE001 - unknown senders: their messages count on their own
+        owners = {}
+    return inbox.unread_count(agents, inbox.group_ntfy(items), store, now, win, owners)
+
+
 async def needs_you(request: Request, snap, matched, sort_key: str, limit_key: str, feed: dict | None = None) -> dict:
     """Context for the state-bucketed Inbox: sections (pinned first), row meta, unread count. ``feed``: see
     ``row_meta``."""
@@ -297,8 +307,8 @@ async def needs_you(request: Request, snap, matched, sort_key: str, limit_key: s
         sec["agents"] = sorting.apply_limit(sec["agents"], limit_key)
     sections = [sec for sec in sections if sec["total"]]
     meta = await row_meta(request, [a for sec in sections for a in sec["agents"]], store, now, win, pins, feed)
-    items = await executors.run_collectors(lambda: ntfy_feed.recent(settings))
-    unread = inbox.unread_count(snap.agents, inbox.group_ntfy(items), store, now, win)
+    unread = await executors.run_collectors(
+        lambda: unread_total(settings, snap.agents, ntfy_feed.recent(settings), store, now, win))
     known = {p.name for p in snap.projects}
     recent = sorted((a for a in snap.agents if a.project in known),
                     key=lambda a: -(a.last_active or a.state_since))

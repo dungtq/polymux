@@ -14,6 +14,7 @@ import json
 import re
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -390,17 +391,24 @@ def item_unread(store: Store, item: NtfyItem, now: float) -> bool:
 
 
 def unread_count(agents, groups, store: Store, now: float | None = None,
-                 window_s: float = FINISHED_WINDOW_S) -> int:
+                 window_s: float = FINISHED_WINDOW_S, owners: Mapping[str, str | None] | None = None) -> int:
+    """Unread Inbox entries, as the Inbox shows them: a live agent counts once when its row is unread or any of its
+    ntfy messages is (the row's unread count), every other unread ntfy group (sender gone or unknown) once.
+    ``owners``: {ntfy item id: sending agent id} (``notify.owner.item_owners``) for messages without an
+    ``/a/<id>`` click link; system messages are the bell's."""
     now = time.time() if now is None else now
+    live = {a.id for a in agents}
     keys: set[str] = set()
     for a in agents:
         ts = agent_ts(a)
         k = agent_key(a)
         if store.marked_unread(k) or (bucket(a, store, now, window_s) in ("waiting", "finished") and store.unread(k, ts)):
-            keys.add(k)
+            keys.add(a.id)
     for g in groups:
         if is_system(g.item):  # counted by the bell, not by the Inbox
             continue
         if ntfy_unread(store, g.key, g.ts, now) and not store.dismissed(g.key, g.ts):
-            keys.add(g.key)
+            m = _CLICK_ID.search(g.item.click or "")
+            aid = m.group(1) if m else (owners or {}).get(g.item.id)
+            keys.add(aid if aid in live else g.key)
     return len(keys)

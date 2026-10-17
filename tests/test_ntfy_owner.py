@@ -57,6 +57,7 @@ def test_build_index_includes_subagent_files(tmp_path, monkeypatch):
     rec = type("R", (), {"id": "a", "label": "dev-pm-1-claude", "last_pane": "%1", "ended": False,
                          "transcript": str(main)})()
     monkeypatch.setattr(ntfy_owner.registry, "with_transcripts", lambda s, since: [rec])
+    monkeypatch.setattr(ntfy_owner.ntfy_feed, "signature", lambda s: (0, ""))
     idx = ntfy_owner.build_index(None, now - 60)
     assert ntfy_owner.find(idx, "claude-7cd08a - Sub", now + 5).agent_id == "a"
 
@@ -134,3 +135,30 @@ def test_agent_feed_attributes_kind_only_title_and_any_project_tag(tmp_path, mon
     con.commit()
     con.close()
     assert ntfy_owner.agent_feed(s, {"devin-44fd82"}) == {}
+
+
+def test_build_index_and_owner_mapping_are_memoised(tmp_path, monkeypatch):
+    now = time.time()
+    main = tmp_path / "s.jsonl"
+    main.write_text(_line(now, "ntfy publish --title 'Done' u"))
+    rec = type("R", (), {"id": "a", "label": "dev-pm-1-claude", "last_pane": "%1", "ended": False,
+                         "transcript": str(main)})()
+    sig = [(1, "m1")]
+    monkeypatch.setattr(ntfy_owner.registry, "with_transcripts", lambda s, since: [rec])
+    monkeypatch.setattr(ntfy_owner.registry, "get_many", lambda s, ids: {})
+    monkeypatch.setattr(ntfy_owner.ntfy_feed, "signature", lambda s: sig[0])
+    scans = []
+    real = ntfy_owner.scan
+    monkeypatch.setattr(ntfy_owner, "scan", lambda p: scans.append(p) or real(p))
+    first = ntfy_owner.build_index(None, now + 1)
+    assert ntfy_owner.build_index(None, now + 1) is first and len(scans) == 1
+    items = [NtfyItem(id="m1", time=now + 1, title="Done", message="")]
+    assert ntfy_owner.item_owners(None, items) == ["a"]
+    monkeypatch.setattr(ntfy_owner, "owner_for", lambda *a, **k: None)  # a memo hit never maps again
+    assert ntfy_owner.item_owners(None, items) == ["a"]
+    sig[0] = (2, "m2")  # a new message: the index and the mapping are rebuilt
+    assert ntfy_owner.build_index(None, now + 1) is not first and len(scans) == 2
+    assert ntfy_owner.item_owners(None, items) == [None]
+    monkeypatch.setattr(ntfy_owner, "MEMO_TTL_S", 0.0)  # expired: rebuilt
+    ntfy_owner.build_index(None, now + 1)
+    assert len(scans) == 3

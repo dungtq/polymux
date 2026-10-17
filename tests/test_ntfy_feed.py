@@ -81,6 +81,23 @@ def test_matching_counts_limit(st):
     assert ntfy_feed.fetch_ok(st)
 
 
+def test_match_is_on_path_segments_and_memoised(st, monkeypatch):
+    d = str(st.dev_root)
+    serve("\n".join([line("1", 1, d + "/pmx/a"), line("2", 2, d + "/pm/"), line("3", 3, "/")]))
+    calls = []
+    real = ntfy_feed._match
+    monkeypatch.setattr(ntfy_feed, "_match", lambda i, paths: calls.append(i.id) or real(i, paths))
+    by = {i.id: i.project for i in ntfy_feed.recent(st)}
+    assert by == {"1": d + "/pmx/a", "2": d + "/pm", "3": "/"}  # "pmx" is not inside "pm"
+    assert len(calls) == 3
+    ntfy_feed.recent(st)
+    ntfy_feed.counts_by_project(st)
+    assert len(calls) == 3  # same messages and projects: one match pass
+    (st.dev_root / "pmx").mkdir()  # a new project re-matches
+    assert {i.id: i.project for i in ntfy_feed.recent(st)}["1"] == d + "/pmx"
+    assert len(calls) == 6
+
+
 def test_request_shape(st):
     calls = []
     serve(line("1", 1), calls)

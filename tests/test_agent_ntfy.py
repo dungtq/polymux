@@ -10,6 +10,7 @@ from pm.notify import owner as ntfy_owner
 def _patch(monkeypatch, items, owners):
     monkeypatch.setattr(ntfy_feed, "recent", lambda settings, project_path=None: items)
     monkeypatch.setattr(ntfy_owner, "build_index", lambda settings, since: None)
+    monkeypatch.setattr(ntfy_owner.registry, "with_transcripts", lambda settings, since: [])
     monkeypatch.setattr(ntfy_owner, "owner_for",
                         lambda settings, index, title, t, recs=None: NS(agent_id=owners[title]) if owners.get(title) else None)
 

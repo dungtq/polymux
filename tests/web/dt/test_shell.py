@@ -79,7 +79,7 @@ def test_session_age_text():
 
 
 def test_counts():
-    sh = shell.build(snap4(), TabState(), "/")
+    sh = shell.build(snap4(), TabState(), "/", now=200.0)
     assert (sh.need, sh.running, sh.total) == (2, 1, 4)
     nav = {n.key: n for n in sh.nav}
     assert (nav["inbox"].count, nav["inbox"].hot) == (2, True)
@@ -89,6 +89,17 @@ def test_counts():
     quiet = shell.build(make_snap([agent("codex-bbb222", "alpha", R)]), TabState(), "/")
     inbox = quiet.nav[0]
     assert (inbox.count, inbox.hot) == (None, False)  # zero shows no pill
+
+
+def test_need_leaves_out_a_stale_failure_like_the_inbox():
+    """The Inbox nav count is the Inbox's Needs you view: a failure older than the idle window is idle there."""
+    from pm.web.dt import inbox
+
+    snap = snap4()
+    for now, want in ((200.0, 2), (100.0 + 3600, 1)):
+        sh = shell.build(snap, TabState(), "/", now=now, window=3600)
+        assert sh.need == want == inbox.counts(snap.agents, now, 3600)["needs"]
+    assert shell.idle_window(Settings(idle_after_s=60)) == 60 and shell.idle_window(None) == shell.DEFAULT_WINDOW_S
 
 
 def test_groups_by_project_in_project_order():
@@ -212,7 +223,8 @@ def test_dt_shell_merges_the_tracker(jenv, tmp_path, monkeypatch):
     request, _ = _request(tmp_path)
     tracked = dataclasses.replace(snap4().agents[1], state=W, state_since=99.0)
     request.app.state.tracker = SimpleNamespace(agents=[tracked])
-    assert jenv.from_string("{{ dt_shell().need }}").render(request=request) == "3"
+    # waiting aaa111 + the tracker's waiting bbb222; the failed ccc333 (since 1970) is stale, so idle
+    assert jenv.from_string("{{ dt_shell().need }}").render(request=request) == "2"
 
 
 def test_dt_shell_embed_or_no_request_is_empty(jenv, tmp_path, monkeypatch):
@@ -245,3 +257,24 @@ def test_chat_flag_marks_a_sessions_own_page():
     assert shell.build(snap, TabState(), "/term/s3").chat
     for path in ("/", "/tmux", "/p/alpha", "/projects"):
         assert not shell.build(snap, TabState(), path).chat, path
+
+
+def test_sessions_fragment_carries_the_inbox_rows_out_of_band():
+    """/dt/side (side_oob) re-sends the sidebar and bottom-nav Inbox rows, so their needs-you count follows agent
+    events; the page's own sidebar and bottom nav carry the ids without hx-swap-oob."""
+    import re
+
+    import jinja2
+
+    from pm.web import themes
+
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(themes.HERE / "dt" / "templates"), autoescape=True)
+    sh = shell.build(snap4(), TabState(), "/", now=200.0)
+    frag = env.get_template("shell/_sessions.html").render(shell=sh, side_oob=True)
+    nav = re.search(r'<a [^>]*id="x-nav-inbox"[^>]*>.*?</a>', frag, re.S).group(0)
+    assert 'hx-swap-oob="true"' in nav and '<span class="n hot" title="2 need you">2</span>' in nav
+    assert re.search(r'id="x-bnav-inbox" hx-swap-oob="true".*?<span class="b hot"[^>]*>2</span>', frag, re.S)
+    assert "x-nav-inbox" not in env.get_template("shell/_sessions.html").render(shell=sh)
+    for name, rid in (("shell/_sidebar.html", "x-nav-inbox"), ("shell/_bnav.html", "x-bnav-inbox")):
+        html = env.get_template(name).render(shell=sh)
+        assert f'id="{rid}"' in html and "hx-swap-oob" not in html

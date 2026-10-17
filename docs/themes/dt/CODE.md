@@ -37,7 +37,7 @@ src/pm/web/
     templates/
       base.html       the dt shell (top bar, sidebar, tab strip, main, aside, layers root, toast); classic page
                       templates extend it unchanged until they are ported (V7-ISO-10)
-      shell/_top.html  _sidebar.html  _sessions.html  _tabs.html  _aside.html  _bnav.html  _layers.html
+      shell/_top.html  _sidebar.html  _navrow.html  _sessions.html  _tabs.html  _aside.html  _bnav.html  _layers.html
       shell/_classic.html  the classic CSS/JS that un-ported page content still needs (shrinks per page)
       shell/_launch.html  _qchat.html  _settings.html   shell layers (Launch, Quick chat, Settings popup)
       parts/_table.html  _filter.html  _seg.html  _tabs.html  _menu.html  _switch.html  _select.html  _head.html

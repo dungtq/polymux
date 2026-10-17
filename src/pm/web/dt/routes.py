@@ -88,8 +88,9 @@ def _no_shell() -> Response | None:
     return None if themes.current() == THEME else Response(status_code=204, headers=_NOSTORE)
 
 
-def _render(request: Request, name: str, sh: shell.Shell) -> str:
+def _render(request: Request, name: str, sh: shell.Shell, **extra) -> str:
     ctx = render.page_ctx(request)
+    ctx.update(extra)
     ctx["shell"] = sh  # by key: archcheck refuses any ``shell=`` keyword argument
     return render.get_template(name).render(**ctx)
 
@@ -111,7 +112,8 @@ def _target(ref: stores.Ref | None) -> str:
 def side(request: Request) -> Response:
     if (none := _no_shell()) is not None:
         return none
-    return render.fragment(request, _render(request, SESS_TPL, shell.for_request(request)))
+    # side_oob: the Inbox nav rows ride along out of band, so their needs-you count follows the agent events
+    return render.fragment(request, _render(request, SESS_TPL, shell.for_request(request), side_oob=True))
 
 
 @router.get("/tabs", dependencies=AUTH)

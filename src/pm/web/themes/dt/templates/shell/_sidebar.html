@@ -3,11 +3,7 @@
     is no popup, Collapse). Context: shell. Current page = aria-current + .cur (server-rendered).
     Rail (icons only) = html.side-rail from head.js; under 900px it is an overlay (side-open), on phones a drawer. -#}
 {%- set ic = "/static/t/dt/icons.svg#" -%}
-{%- macro navrow(r) -%}
-<a href="{{ r.href }}" data-nav="{{ r.key }}"{% if r.key == "settings" and not r.cur %} data-sp-open aria-haspopup="dialog" aria-controls="sp-dlg"{% endif %}{% if r.cur %} class="cur" aria-current="page"{% endif %} title="{{ r.label }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}{{ r.icon }}"/></svg><span class="t">{{ r.label }}</span>
-  {%- if r.count %}<span class="n{{ ' hot' if r.hot }}" title="{{ r.count }}{{ ' need you' if r.hot }}">{{ r.count }}</span>{% endif %}
-  {%- if r.chord %}{% if "mod" in r.chord %}<kbd data-k="{{ r.chord }}"></kbd>{% else %}<kbd>{{ r.chord }}</kbd>{% endif %}{% endif %}</a>
-{%- endmacro -%}
+{%- from "shell/_navrow.html" import navrow -%}
 <aside id="x-side" class="x-side" aria-label="Sidebar">
   <nav class="x-nav" aria-label="Pages">
     {%- for r in shell.nav %}
