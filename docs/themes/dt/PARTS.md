@@ -550,8 +550,9 @@ tab); Launch in background toasts after the server's OK. Under the title row, `[
 read by the New project dialog (`tests/web/dt/test_projects.py` fails on a rename).
 
 **Attachments** (`js/attach.js`, look `.chip.att` in `css/parts.css`). The one upload + chip helper, used by the Launch
-prompt box (upload at once, the chip is `.up` until the server answers) and the Add issue dialog (a chip per picked
-file, uploaded on Add). `pm7.attach.upload(base, file)` POSTs `<base>/image` (field `image`, CSRF by `pm7.fetch`) and
+prompt box (upload at once, the chip is `.up` until the server answers), the Add issue dialog (a chip per picked
+file, uploaded on Add) and the issue reader's Edit form (the same, uploaded on Save, then `POST .../image {path}`).
+`pm7.attach.upload(base, file)` POSTs `<base>/image` (field `image`, CSRF by `pm7.fetch`) and
 resolves to the `data-image-path` of the answer (parsed, never inserted), or rejects with `Error("<name>: <reason>")`.
 `pm7.attach.chip(box, name, onRemove)` appends `span.chip.att[data-att]` (name + × "Remove <name>"; `.up` uploading,
 `.bad` failed) and `done(chip, path)` stores the path on it; `paths(root)` / `uploading(root)` read the chips. `pm7.attach.wire(zone, onFiles)`
@@ -578,11 +579,17 @@ frame holds #N, the project and Close, focused on open, above the body that scro
 of its own). Reader actions: Mark done / Reopen,
 Dispatch, Copy pmctl command, Open project, Edit (form `#bl-ed[data-bl-editform]` in the body's place, values = the
 title as the list shows it and the raw Markdown from the view model's `title` / `body`; the stored ` (YYYY-MM-DD)` suffix
-rides in `data-bl-sfx` (`title_sfx`) and is added back on save; `POST .../edit {title, body}`), Delete
+rides in `data-bl-sfx` (`title_sfx`) and is added back on save; images to add: picker or paste / drop, each
+`POST /p/{n}/image` then `POST .../image {path}`, before `POST .../edit {title, body}`), Delete
 (typed confirm `#N`; `POST .../delete`, then the reader closes); a refusal stays in the form's or the reader's alert
 line (`[data-bl-rderr]`), toasts only after the server's OK. API `pm7.backlog = {refresh(id?), reader(project, num,
 opener)}` (`reader` is set by `backlog-reader.js`); `pm7.backlog.lib` (`post`, `json`, `copy`, `dispatch`, `issueUrl`,
 `refreshAll`) is for `backlog-reader.js` only: one post helper, no copy.
+BACKLOG.md items of file-mode projects (`js/backlog-file.js`) are Issues rows without a number (`data-row-id
+"<p>:l<line>"`, `[data-bl-fl][data-bl-text]`, no select box): ⋯ "state" posts `/backlog/toggle {project, line, text}`,
+a click / ↵ / R edits the text (`POST /backlog/edit`), the project band's "Edit file" (and ⋯ Edit BACKLOG.md, the
+project scope's tools button) opens the whole-file editor `backlog/_editor.html` (`/backlog?p=<n>&edit=1`; a page form
+to `/backlog/save`, the core's edit lease held by `backlog-file.js`; `pm7.backlog.file = {edit}`).
 
 **Pin button** (Projects list, `_projects_list.html`, `js/projects.js`). `button.x-ib.sm.pj-pin[data-pj-pin]
 [aria-pressed]` in the row's first cell, label "Pin <name>" / "Unpin <name>". A click (not the row click) runs the

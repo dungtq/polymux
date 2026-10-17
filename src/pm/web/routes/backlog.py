@@ -14,6 +14,10 @@ honour an edit lease (people editing at the same time).
 
 Tracker projects keep BACKLOG.md in pm.db: add / toggle / edit go to the store
 (``line`` is the issue number) and the whole-file editor is refused (409).
+
+A script call (``X-Requested-With`` / HTMX, see ``deps.is_navigation``) to add / toggle / edit / save gets JSON
+(``{"ok": true, "project"}``, or ``{"ok": false, "error"}`` with the refusal's status) instead of the redirect or
+the re-rendered page; a form POST or a plain fetch keeps the page answers.
 """
 
 from __future__ import annotations
@@ -49,7 +53,7 @@ from pm.projects.tracker import store, views
 from pm.security.audit import AuditError
 from pm.security.guard import audit_result, client_of, mutation_guard
 from pm.web import issuectx
-from pm.web.deps import AUTH
+from pm.web.deps import AUTH, is_navigation
 from pm.web.issuectx import audit_ok, num_of
 from pm.web.listing import clean_q
 from pm.web.render import html
@@ -173,11 +177,18 @@ def _audit(request: Request, action: str, result: str, detail: dict) -> None:
         raise HTTPException(503, "audit unavailable") from None
 
 
+def _json(ok: bool, name: str, status: int = 200, error: str = "") -> JSONResponse:
+    body = {"ok": True, "project": name} if ok else {"ok": False, "error": error}
+    return JSONResponse(body, status_code=status, headers={"Cache-Control": "no-store"})
+
+
 async def _conflict_response(request: Request, action: str, fn_name: str, form, e: Bad, *, name: str,
                              back: str, lease_id: str) -> Response:
     """Audit a refused write and re-render the page with the error; a refused save keeps the text (+ diff)."""
     _audit(request, action, "conflict" if e.status == 409 else "denied",
            {"project": name, "reason": e.msg[:40]})
+    if not is_navigation(request):
+        return _json(False, name, e.status, e.msg)
     keep = fn_name == "save"
     diff, new_tok = "", ""
     if keep and e.current is not None:
@@ -226,6 +237,8 @@ async def _act(request: Request, action: str, fn_name: str) -> Response:
             filelock.lease_release(settings.state_dir, path, lease_id)
         except (filelock.LockTimeout, OSError):
             pass
+    if not is_navigation(request):
+        return _json(True, name)
     dest = _back(back, name)
     if fn_name == "add" and back == "project":
         # A distinct URL (not the one the form was on) forces a fresh navigation in every
@@ -264,8 +277,12 @@ async def _tracker_act(request: Request, action: str, fn_name: str, form, name: 
         msg = str(e) if isinstance(e, PmError) else "tracker database busy"
         result = "conflict" if status == 409 else "denied" if status < 500 else "error"
         _audit(request, action, result, {"project": name, "reason": msg[:40]})
+        if not is_navigation(request):
+            return _json(False, name, status, msg)
         return await executors.run_collectors(_page, request, status, project=name, error=msg,
                                               back=back if back in ("project", "embed") else "")
+    if not is_navigation(request):
+        return _json(True, name)
     dest = f"/p/{quote(name)}?added=1#backlog" if fn_name == "add" and back == "project" else _back(back, name)
     return RedirectResponse(dest, status_code=303, headers={"Cache-Control": "no-store"})
 

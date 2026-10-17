@@ -1,5 +1,5 @@
 """Issues of a tracker project: the project page's Issues tab and issue
-detail (fragments), add / done / reopen / edit / note / delete, and the composer's "Save as issue"
+detail (fragments), add / done / reopen / edit / note / image / delete, and the composer's "Save as issue"
 (``POST /a/{agent_id}/issue``). Shared helpers: ``pm.web.issuectx``; the images (``/tracker/img``) are served
 next to ``/uploads`` in chat.py.
 
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -180,6 +181,17 @@ async def issue_note(request: Request, name: str, num: int,
         issues.add_note(s, name, num, _str(f, "body"), audit=a)
         return num
     return await _mutate(request, name, "issue_note", op)
+
+
+@router.post("/p/{name}/issues/{num}/image")
+async def issue_image(request: Request, name: str, num: int,
+                      _=Depends(mutation_guard("issue_image", Tier.SAFE))) -> Response:
+    """Attach one image to the issue: ``path`` = what ``POST /p/{name}/image`` answered (a composer upload; the
+    tracker refuses any other path, a non-image, a too large file and more than its image cap)."""
+    def op(s, f, a) -> int:
+        issues.attach_image(s, name, num, Path(_str(f, "path").strip()), audit=a)
+        return num
+    return await _mutate(request, name, "issue_image", op)
 
 
 @router.post("/p/{name}/issues/{num}/delete")

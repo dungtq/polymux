@@ -8,7 +8,7 @@
     bb.top()      page scope: head (stats, Add issue / Add task) + Issues / TODO tabs (links: ?tab=).
     bb.tools(filter_rows=none)   the controls row: filter box (issues: server mode into the component; TODO: client
                   mode over the rows), Status segments, then Project and Group selects (page scope) or the Add button
-                  (project scope).
+                  (project scope; a file-mode project's Issues: Edit BACKLOG.md, the whole-file editor).
     bb.bulk()     the bulk bar for selected issues (hidden until a row is selected; js/backlog.js).
     bb.foot()     empty line handled by the table; this is Show all + the key hints. -#}
 {%- import "parts/_head.html" as ph -%}
@@ -57,6 +57,8 @@
   </span>
   {%- elif bl.add %}
   <button class="x-btn" type="button" data-bl-add="{{ bl.add.kind }}" title="{{ bl.add.label }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}plus"/></svg><span>{{ bl.add.label }}</span></button>
+  {%- elif bl.file_edit and bl.st.tab == "issues" %}
+  <a class="x-btn" href="{{ bl.file_edit }}" title="Edit {{ bl.st.project }}/BACKLOG.md as one text"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}edit"/></svg><span>Edit BACKLOG.md</span></a>
   {%- endif %}
 {% endcall %}
 {%- endmacro -%}

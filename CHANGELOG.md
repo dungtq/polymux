@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (dt Backlog: images on issue edit, BACKLOG.md file projects and editor)
+
+In the dt theme, the issue reader's Edit form takes images (picker, paste or drop) and attaches them to the existing issue on Save (new route POST /p/<name>/issues/<num>/image with a composer upload path). Projects that keep BACKLOG.md as a file now list its items on the dt Backlog's Issues tab and the project view's Issues tab (tick, edit the text) and get a dt whole-file editor (/backlog?p=<name>&edit=1, with the edit lease and the conflict diff) instead of a link to the classic UI. /backlog/add, toggle, edit and save answer JSON to script calls (X-Requested-With); form posts are unchanged.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

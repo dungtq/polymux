@@ -2,7 +2,8 @@
     (#bl-issues or #bl-todo: head, tabs, controls row, bulk bar, table, foot, hints), so a swap keeps the counts in the
     head, tabs and segments true; the dialogs (Add issue, issue reader, Add task) sit outside it, so a live refresh
     never closes one. Page CSS / JS: css/backlog.css, js/backlog.js, js/backlog-add.js (the Add issue, Add task and Edit task
-    dialogs), js/backlog-reader.js. -#}
+    dialogs), js/backlog-reader.js, js/backlog-file.js (BACKLOG.md items of file-mode projects, the whole-file
+    editor). ?p=<n>&edit=1 (the core's editor context, `edit`) shows backlog/_editor.html instead of the component. -#}
 {% extends "base.html" %}
 {% block title %}Backlog{% endblock %}
 {% block mainclass %}{% endblock %}
@@ -10,13 +11,13 @@
 <script src="/static/t/dt/js/backlog.js" defer></script>
 <script src="/static/t/dt/js/backlog-add.js" defer></script>
 <script src="/static/t/dt/js/backlog-reader.js" defer></script>
+<script src="/static/t/dt/js/backlog-file.js" defer></script>
 {% endblock %}
 {% block content %}
-{%- if not bl %}
+{%- if edit is defined and edit %}
+{%- include "backlog/_editor.html" %}
+{%- elif not bl %}
 <p class="bl-alert" role="alert">The Backlog could not be shown. Reload the page; the server log has the error.</p>
-{%- elif edit is defined and edit %}
-<p class="bl-alert" role="alert">The whole-file BACKLOG.md editor is not in this theme yet. Open it in the classic UI:
-  <a href="/backlog?p={{ project | urlencode }}&amp;edit=1&amp;ui=classic">edit {{ project }} (classic)</a>.</p>
 {%- else %}
 {%- include "backlog/_issues.html" if bl.st.tab == "issues" else "backlog/_todo.html" %}
 {%- include "backlog/_dlg_issue.html" %}

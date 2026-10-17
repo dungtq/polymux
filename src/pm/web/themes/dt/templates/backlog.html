@@ -4,7 +4,7 @@
       Project / Group selects, the filter box, Show all, and the project view's lazy tabs) gets the component alone
       (backlog/_issues.html or backlog/_todo.html);
     - anything else gets the page (backlog/_page.html: the dt shell around the component and the dialogs).
-    The core's file-mode editor (?p=&edit=1, BACKLOG.md of a non-tracker project) is not ported: _page.html says so. -#}
+    The core's file-mode editor (?p=&edit=1, BACKLOG.md of a non-tracker project) is a page: backlog/_editor.html. -#}
 {%- set bl = dt_backlog() -%}
 {%- if bl and bl.frag -%}
 {%- include "backlog/_issues.html" if bl.st.tab == "issues" else "backlog/_todo.html" -%}

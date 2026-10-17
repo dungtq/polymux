@@ -136,8 +136,8 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Project files browser | ported | project Files tab (`project/_files.html`) | dev | file view classic; M5: `#browse=<path>` opens Files at that path |
 | Project tabs: tmux \| Stack \| VM | ported | tmux, Stack and VMs tabs | dev | M5: tmux tab with Close all (typed project name) |
 | TODO card | partial | project TODO tab (Backlog component) | dev | tracker projects only; a TODO.md file project gets an import note, no tick |
-| Backlog | partial | `/backlog` | dev | BACKLOG.md file projects: items not listed; whole-file editor only via a `?ui=classic` link |
-| Issues tab and issue detail | ported | project Issues tab, issue reader dialog | dev | M5: Edit (title, Markdown body) and Delete (typed `#N`); `#issue=N`, `#issues` links work |
+| Backlog | ported | `/backlog` | dev | BACKLOG.md file projects: items listed on Issues (tick, edit text, band "Edit file"); whole-file editor `?p=<n>&edit=1` (`backlog/_editor.html`, edit lease, conflict diff) |
+| Issues tab and issue detail | ported | project Issues tab, issue reader dialog | dev | M5: Edit (title, Markdown body, add images) and Delete (typed `#N`); `#issue=N`, `#issues` links work |
 | Issue tracker (BACKLOG.md / TODO.md from pm.db) | n/a | backend, `pmctl` | — | |
 | Plans | classic-in-shell | project Plans tab + reader (dt) → All plans / New plan = classic `/p/<n>/plans` | dev | edit, rename and delete are classic only |
 
@@ -257,7 +257,6 @@ removal-debt list. Still open:
 | Entry | Gap | What it takes |
 |---|---|---|
 | TODO card | file-mode TODO.md | dt-only if the project context's file TODO summary is enough to list and tick (`POST /p/<n>/todo/toggle` handles files); else needs core for `todo_groups` of file projects |
-| Backlog | file-mode BACKLOG.md items and whole-file editor | dt-only: list `entries` items of non-tracker projects; port the lease/lock editor (or keep the classic link until those projects are imported) |
 | History | commit hash not linked | needs core: `/git/status` JSON has no commit URL; add `commit_url_base` (only for `git_allowed_hosts`) |
 | btw | phones | dt-only: a full-screen btw panel on phones (Quick chat full-screen layout) |
 | Plugins | plugin Settings sections | dt-only: a Settings section that renders `settings_sections_html` (no plugin uses it today) |

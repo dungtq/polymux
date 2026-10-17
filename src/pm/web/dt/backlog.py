@@ -3,7 +3,12 @@ are this same component scoped to one project). Reads the core's GET /backlog co
 
 - ``issue_list`` (``views.issue_rows``: one page of tracker issues, each with ``agent`` = {id, state} | None),
 - ``todo_list`` (``views.todo_groups``: TODO items of every main project, grouped by project then section),
-- ``entries`` (every main project's BACKLOG summary; the head's open count), ``request`` (page state), ``error``.
+- ``entries`` (every main project's BACKLOG summary: the head's open count; a file-mode project's ``blocks`` are
+  its BACKLOG.md items, listed on the Issues tab as rows without a number: tick and edit post the core's
+  ``/backlog/toggle`` / ``/backlog/edit`` {project, line, text}, "Edit file" opens ``/backlog?p=<n>&edit=1``),
+  ``request`` (page state), ``error``.
+- the core's file editor context (``edit``, ``project``, ``content``, ``token``, ``lease_id``, ``lease_other``,
+  ``diff``, ``new_token``, ``cancel``): ``backlog/_editor.html`` reads it directly (no view model).
 
 ``dt_backlog()`` (Jinja global, ``template_globals()``) returns a ``View``: the URL state, the head / tabs / controls
 row items, the issue rows (grouped by project or flat) or the TODO tree (project > section), ⋯ items from ``menus``.
@@ -115,7 +120,7 @@ def is_frag(ctx: Mapping) -> bool:
 # ------------------------------------------------------------------ issues
 @dataclass(frozen=True)
 class IRow:
-    id: str  # "<project>:<num>" (data-row-id)
+    id: str  # "<project>:<num>" (data-row-id); a BACKLOG.md item: "<project>:l<line>"
     project: str
     num: int
     title: str  # plain (title attribute)
@@ -131,6 +136,8 @@ class IRow:
     meta: str  # phone line 2
     act: dict  # the one visible action: {label, icon, run | href, title}
     menu: list = field(default_factory=list)
+    line: int = -1  # a BACKLOG.md item (file-mode project): its line index (num is 0), else -1
+    text: str = ""  # a BACKLOG.md item's raw text (what /backlog/toggle and /backlog/edit check)
 
 
 @dataclass(frozen=True)
@@ -140,6 +147,7 @@ class IGroup:
     count: str
     note: str
     rows: list[IRow]
+    actions: list = field(default_factory=list)  # group head buttons (a BACKLOG.md project: Edit file)
 
 
 def _imenu(r: Mapping, ag: Mapping | None, others: bool) -> list[dict]:
@@ -194,19 +202,89 @@ def irow(r: Mapping, st: State, others: bool, now: float) -> IRow:
                 meta=" · ".join(meta), act=act, menu=_imenu(r, ag, others))
 
 
-def igroups(lst: Mapping, st: State, now: float) -> list[IGroup]:
-    """Issue rows grouped by project (page scope, Group: project) or one flat group (key "")."""
+def igroups(lst: Mapping, st: State, now: float, frows: list[IRow] | None = None) -> list[IGroup]:
+    """Issue rows grouped by project (page scope, Group: project) or one flat group (key ""); ``frows`` = the
+    BACKLOG.md items of file-mode projects (after the tracker rows; their bands say BACKLOG.md and carry Edit file)."""
     projects = list(lst.get("projects") or ())
-    rows = [irow(r, st, len(projects) > 1, now) for r in lst.get("rows") or ()]
+    rows = [irow(r, st, len(projects) > 1, now) for r in lst.get("rows") or ()] + list(frows or ())
     if st.scope == "project" or st.group == "none":
         return [IGroup("", "", "", "", rows)] if rows else []
     word = {"open": "open", "done": "done"}.get(st.status, "shown")
     out = []
     for name in sorted({r.project for r in rows}, key=str.lower):
         rs = [r for r in rows if r.project == name]
+        if rs[0].line >= 0:
+            out.append(IGroup("f:" + name, name, f"{len(rs)} {word}", "BACKLOG.md", rs, [_edit_file_btn(name)]))
+            continue
         busy = sum(1 for r in rs if r.agent and not r.done)
         out.append(IGroup("i:" + name, name, f"{len(rs)} {word}", f"{busy} with an agent" if busy else "", rs))
     return out
+
+
+# ------------------------------------------------------------------ BACKLOG.md items of file-mode projects
+def file_url(name: str) -> str:
+    """The core's whole-file editor of ``name``'s BACKLOG.md."""
+    return "/backlog?" + urlencode({"p": name, "edit": 1})
+
+
+def _edit_file_btn(name: str) -> dict:
+    return {"label": "Edit file", "icon": "edit", "title": f"Edit {name}/BACKLOG.md as one text",
+            "attrs": {"data-bl-editfile": file_url(name)}}
+
+
+def _cut(text: str, n: int = 60) -> str:
+    return text if len(text) <= n else text[:n - 1] + "…"
+
+
+def _fmenu(name: str, b: Mapping) -> list[dict]:
+    done, text = bool(b["done"]), str(b["text"])
+    return menus.menu(
+        menus.item("state", "Reopen" if done else "Mark done", "check", key="E", post="/backlog/toggle",
+                   vals={"project": name, "line": int(b["line"]), "text": text},
+                   done=("Reopened: " if done else "Done: ") + _cut(text), refresh="#bl-issues"),
+        menus.item("edit", "Edit…", "edit", key="R", event="bl:fedit"),
+        menus.SEP,
+        menus.item("copy", "Copy text", "copy", copy=text),
+        menus.item("file", "Edit BACKLOG.md", "edit", note="whole file", href=file_url(name)),
+        menus.item("project", "Open project", "folder", href=f"{_p(name)}#issues"))
+
+
+def frow(name: str, b: Mapping, st: State) -> IRow:
+    done, line, text = bool(b["done"]), int(b["line"]), str(b["text"])
+    meta = ([name] if st.scope == "page" else []) + ["BACKLOG.md"] + (["done"] if done else [])
+    act = ({"label": "Reopen", "icon": "refresh", "run": "state", "title": "Reopen this item"} if done else
+           {"label": "Done", "icon": "check", "run": "state", "title": "Mark this item done"})
+    return IRow(id=f"{name}:l{line}", project=name, num=0, title=text, html=str(b.get("html") or ""), done=done,
+                dot="", dot_title="", agent="", att=[], age="–", since=None, age_title="a BACKLOG.md item (no date)",
+                meta=" · ".join(meta), act=act, menu=_fmenu(name, b), line=line, text=text)
+
+
+def _fold(s: str) -> str:
+    return " ".join((s or "").lower().split())
+
+
+def file_items(ctx: Mapping, st: State) -> tuple[list[IRow], dict]:
+    """(rows for the status, {open, done, all} counts) of the file-mode projects' BACKLOG.md items, filtered by the
+    project and the text filter like the tracker's list (the counts ignore the status, never the filter)."""
+    rows: list[IRow] = []
+    counts = {"open": 0, "done": 0, "all": 0}
+    q = _fold(st.q)
+    for e in ctx.get("entries") or ():
+        name = e["name"]
+        if e.get("tracker") or (st.project and name != st.project):
+            continue
+        for b in e.get("blocks") or ():
+            if b.get("kind") != "item" or (q and q not in _fold(f"{name} {b['text']}")):
+                continue
+            counts["done" if b["done"] else "open"] += 1
+            if st.status == "all" or bool(b["done"]) == (st.status == "done"):
+                rows.append(frow(name, b, st))
+    counts["all"] = counts["open"] + counts["done"]
+    return rows, counts
+
+
+def file_projects(ctx: Mapping) -> list[str]:
+    return [e["name"] for e in ctx.get("entries") or () if not e.get("tracker")]
 
 
 # ------------------------------------------------------------------ TODO
@@ -325,28 +403,29 @@ class View:
     trigger: str = TRIGGER
     hints: list = field(default_factory=list)
     todo_nums: bool = False  # some listed task has a tracker number: the TODO table has its "#" column
+    file_edit: str = ""  # project scope on a file-mode project: its whole-file editor URL (the tools row's button)
 
 
 def _counts(ctx: Mapping, st: State) -> tuple[int, int, list[str]]:
     """(open issues, open tasks, tracker projects) for the Project select only (never the text filter)."""
     il, tl = ctx.get("issue_list") or {}, ctx.get("todo_list") or {}
     projects = list(il.get("projects") or ())
-    ents = [e for e in ctx.get("entries") or () if e.get("tracker") and e["name"] in projects]
+    ents = [e for e in ctx.get("entries") or () if not e.get("tracker") or e["name"] in projects]
     issues = sum(e["open_n"] for e in ents if not st.project or e["name"] == st.project)
     return issues, int((tl.get("counts") or {}).get("open") or 0), projects
 
 
-def _segs(ctx: Mapping, st: State) -> list[dict]:
+def _segs(ctx: Mapping, st: State, extra: Mapping | None = None) -> list[dict]:
+    """Status segments; ``extra`` = the BACKLOG.md items' counts, added to the tracker's."""
     lst = ctx.get("todo_list" if st.tab == "todo" else "issue_list") or {}
-    c = lst.get("counts") or {}
+    c, x = lst.get("counts") or {}, extra or {}
     return [{"key": k, "label": label, "href": st.url(status=k, limit=0), "cur": k == st.status,
-             "count": c.get(k, 0) if lst else None} for k, label in STATUSES]
+             "count": c.get(k, 0) + x.get(k, 0) if lst or x.get("all") else None} for k, label in STATUSES]
 
 
 def _proj_opts(ctx: Mapping, st: State, projects: list[str]) -> list:
     names = set(projects) | {g["name"] for g in (ctx.get("todo_list") or {}).get("groups") or ()}
-    if st.tab == "todo":
-        names |= {e["name"] for e in ctx.get("entries") or ()}
+    names |= {e["name"] for e in ctx.get("entries") or () if st.tab == "todo" or not e.get("tracker")}
     if st.project:
         names.add(st.project)
     return [("", "All projects")] + [(n, n) for n in sorted(names, key=str.lower)]
@@ -358,11 +437,14 @@ def _empty(ctx: Mapping, st: State, projects: list[str], n: int) -> tuple[str, s
         return "", ""
     if st.q or (st.project and st.scope == "page"):
         return ("No issue matches." if st.tab == "issues" else "No task matches."), st.url(q="", project="", limit=0)
+    if st.tab == "issues" and st.project in file_projects(ctx):
+        return {"open": "No open items in BACKLOG.md.", "done": "No ticked items in BACKLOG.md."}.get(
+            st.status, "No items in BACKLOG.md."), ""
     if st.scope == "project" and st.project not in projects:
         return (f"{st.project} keeps its {'issues in BACKLOG.md' if st.tab == 'issues' else 'tasks in TODO.md'}, not in"
                 " the tracker; import it with pmctl import to work on them here."), ""
     if st.tab == "issues":
-        if not projects:
+        if not projects and not file_projects(ctx):
             return "No project uses the issue tracker yet. Import one with pmctl import.", ""
         return {"open": 'No open issues. Add one with Add issue, or pmctl issue add "title".',
                 "done": "No closed issues yet."}.get(st.status, "No issues yet."), ""
@@ -381,11 +463,13 @@ def page(ctx: Mapping, now: float | None = None) -> View:
     il, tl = ctx.get("issue_list"), ctx.get("todo_list")
     oi, ot, projects = _counts(ctx, st)
     where = f" in {st.project}" if st.project and st.scope == "page" else ""
-    issues = igroups(il, st, now) if il and st.tab == "issues" else []
+    frows, fcounts = file_items(ctx, st) if st.tab == "issues" else ([], {})
+    issues = igroups(il or {}, st, now, frows) if (il or frows) and st.tab == "issues" else []
     todo = todo_tree(tl, st) if tl and st.tab == "todo" else []
-    shown = len((il or {}).get("rows") or ()) if st.tab == "issues" else sum(
-        len(s.items) for g in todo for s in g.sections)
-    total = int((il or {}).get("total") or 0) if st.tab == "issues" else shown
+    tshown = len((il or {}).get("rows") or ())
+    shown = tshown + len(frows) if st.tab == "issues" else sum(len(s.items) for g in todo for s in g.sections)
+    ttotal = int((il or {}).get("total") or 0)
+    total = ttotal + len(frows) if st.tab == "issues" else shown
     empty, clear = _empty(ctx, st, projects, shown)
     tabs = [{"key": "issues", "label": "Issues", "href": st.url(tab="issues", status="open", limit=0),
              "cur": st.tab == "issues", "count": oi},
@@ -398,13 +482,14 @@ def page(ctx: Mapping, now: float | None = None) -> View:
         st=st, frag=is_frag(ctx), ok=(il if st.tab == "issues" else tl) is not None, error=str(ctx.get("error") or ""),
         title="Backlog", stats=[plural(oi, "open issue") + where, plural(ot, "open task") + where,
                                 plural(len(projects), "tracker project")],
-        tabs=tabs, segs=_segs(ctx, st), proj_opts=_proj_opts(ctx, st, projects), group_opts=GROUPS,
+        tabs=tabs, segs=_segs(ctx, st, fcounts), proj_opts=_proj_opts(ctx, st, projects), group_opts=GROUPS,
         projects=projects,
         add=_add(st, projects),
         issues=issues, todo=todo, shown=shown, total=total,
-        more=st.url(scope="page", limit=SHOW_ALL) if st.tab == "issues" and shown < total else "", empty=empty,
+        more=st.url(scope="page", limit=SHOW_ALL) if st.tab == "issues" and tshown < ttotal else "", empty=empty,
         clear=clear,
-        hints=hints, todo_nums=any(r.num for g in todo for sec in g.sections for r in sec.items))
+        hints=hints, todo_nums=any(r.num for g in todo for sec in g.sections for r in sec.items),
+        file_edit=file_url(st.project) if st.scope == "project" and st.project in file_projects(ctx) else "")
 
 
 # ------------------------------------------------------------------ the issue reader (GET /p/{n}/issues/{num})

@@ -255,6 +255,28 @@ def test_tracker_image_route(env, tmp_path):
     assert c.get(f"/tracker/img/{junk.name}").status_code == 404
 
 
+def test_attach_image_to_existing_issue(env, tmp_path):
+    c, s, csrf, dev = env
+    r = post(c, "/p/trk/issues/1/image", csrf, path=upload(s))
+    assert r.status_code == 200 and r.json() == {"ok": True, "num": 1, "project": "trk", "url": "/p/trk#issue=1"}
+    assert len(issues.detail(s, "trk", 1)["images"]) == 1
+    assert '"action":"issue_image"' in audit(s) and '"result":"ok"' in audit(s)
+    outside = tmp_path / "x.png"
+    outside.write_bytes(png_bytes())
+    junk = store_upload(s, b"GIF89a" + b"0" * 10, "gif")
+    junk.write_bytes(b"not an image")
+    for bad, status in (("", 400), (str(outside), 400), ("/etc/passwd", 400), (str(junk), 400)):
+        r = post(c, "/p/trk/issues/1/image", csrf, path=bad)
+        assert r.status_code == status and r.json()["ok"] is False
+    assert post(c, "/p/trk/issues/99/image", csrf, path=upload(s)).status_code == 404
+    assert post(c, "/p/plain/issues/1/image", csrf, path=upload(s)).status_code == 409
+    assert len(issues.detail(s, "trk", 1)["images"]) == 1
+    r = c.post("/p/trk/issues/1/image", data={"path": upload(s)}, headers=XRW)
+    assert r.status_code == 403
+    r = post(c, "/p/trk/issues/1/image", csrf, xrw=False, path=upload(s))
+    assert r.status_code == 303 and r.headers["location"] == "/p/trk#issue=1"
+
+
 def test_uploads_route_still_serves(env):
     c, s, csrf, dev = env
     name = upload(s).rsplit("/", 1)[1]
@@ -350,6 +372,28 @@ def test_backlog_routes_go_to_store(env):
     assert r.headers["location"] == "/p/trk?added=1#backlog"
     log = audit(s)
     assert '"action":"backlog_add"' in log and "from backlog page" not in log and "second v2" not in log
+
+
+def test_backlog_script_calls_get_json(env):
+    """pm7.fetch (X-Requested-With) gets JSON from /backlog/*: file mode and tracker mode, ok and refused."""
+    c, s, csrf, dev = env
+    f = dev / "plain/BACKLOG.md"
+    r = post(c, "/backlog/toggle", csrf, project="plain", line="4", text="first (2026-01-01)")
+    assert r.status_code == 200 and r.json() == {"ok": True, "project": "plain"}
+    assert "- [x] first (2026-01-01)" in f.read_text()
+    r = post(c, "/backlog/edit", csrf, project="plain", line="4", text="first (2026-01-01)", new_text="first v2")
+    assert r.json()["ok"] is True and "- [x] first v2" in f.read_text()
+    r = post(c, "/backlog/toggle", csrf, project="plain", line="4", text="gone")
+    assert r.status_code == 409 and r.json()["ok"] is False and r.json()["error"]
+    assert post(c, "/backlog/add", csrf, project="plain", text="new one").json()["ok"] is True
+    assert "- [ ] new one (" in f.read_text()
+    r = post(c, "/backlog/toggle", csrf, project="trk", line="3", text="second")
+    assert r.json() == {"ok": True, "project": "trk"} and store.get_item(s, "trk", "backlog", 3).done
+    r = post(c, "/backlog/toggle", csrf, project="trk", line="99", text="x")
+    assert r.status_code == 404 and r.json()["ok"] is False
+    assert post(c, "/backlog/toggle", csrf, project="nope", line="1", text="x").status_code == 404
+    log = audit(s)
+    assert '"result":"conflict"' in log and '"reason":"unknown project"' in log and "new one" not in log
 
 
 def test_todo_toggle_tracker_mode(env):
