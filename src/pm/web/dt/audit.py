@@ -16,7 +16,8 @@ Activity URL state: ``result`` all|ok|refused|failed|attempt, ``q``, ``cat``, ``
 client, action, target and result class into one row (×N, first and last time, the raw entries kept); a fold never
 crosses a day band or the page's 50 rows. Row id = the entry's ``ts`` (a fold: its newest entry), never an index.
 Targets link by pattern (the log has no typed targets): an agent id to ``/a/<id>``, a tmux session ``$n`` to
-``/term/s<n>``, an issue action to ``/p/<project>#issue=<num>`` from its detail. The log stores no session: "—".
+``/term/s<n>``, an issue action to ``/p/<project>#issue=<num>`` from its detail. Session = the line's short session
+tag (``pm.security.audit.session_tag``); older lines and lines without a login session show "—".
 """
 
 from __future__ import annotations
@@ -232,7 +233,8 @@ def _kv(run: list[dict], link: Link | None, cat: str) -> list:
         when = f"{timefmt.fmt_full(_ts(old))} – {timefmt.fmt_time(_ts(e))}"
     kv: list = [("Result", r + (" (hidden attempt: its outcome follows)" if e.get("_hidden") else ""),
                  "bad" if r in ("refused", "failed") else ""),
-                ("Time", when), ("Client", str(e.get("client") or "–"), "mono"), ("Session", "—"),
+                ("Time", when), ("Client", str(e.get("client") or "–"), "mono"),
+                ("Session", str(e.get("session") or "—"), "mono" if e.get("session") else ""),
                 ("Action", str(e.get("action") or ""), "mono"), ("Category", CAT_LABELS.get(cat, cat)),
                 ("Target", link.text if link else str(e.get("target") or "–"), "mono")]
     d = e.get("detail")
