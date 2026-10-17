@@ -333,6 +333,12 @@ def test_sidebar_box_has_its_own_query(page, inst):
 def test_audit_box_filters_log_and_client_errors_live(page):
     page.goto("/audit")
     page.wait_for_load_state("networkidle")
+    st = page.evaluate("""() => window.pm.fetch('/client-errors', {method: 'POST', csrf: 'header',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({kind: 'fetch', method: 'GET', url: '/', page: '/', msg: 'Failed to fetch'})}).then(r => r.status)""")
+    assert st == 204  # one report, so the Client errors list has a row the query must hide
+    page.reload()
+    page.wait_for_load_state("networkidle")
     page.wait_for_selector("#ce-list")
     boxes = page.locator("input[data-filter]")
     assert boxes.count() == 2  # the log's box and the Client errors box: one query

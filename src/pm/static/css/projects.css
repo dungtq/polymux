@@ -29,5 +29,11 @@
 .ptabs .tab .pj-n { margin-left: 6px; }
 .ptab-panel[hidden] { display: none; }
 .ptab-panel { min-width: 0; padding-bottom: var(--s2); }
+/* a panel's list ends on the next section's hairline (nav.css does this for .list + .rx-head): no row hairline above
+   it and no empty band between them */
+.pg-project .ptab-panel:has(~ .rx-head) { padding-bottom: 0; }
+.pg-project .ptab-panel:has(~ .rx-head) > .list:last-child { margin-bottom: 0; }
+.pg-project .ptab-panel:has(~ .rx-head) > .list:last-child > :last-child { border-bottom: 0; }
+.pg-project .ptab-panel ~ .rx-head { margin-top: 8px; }
 .pg-project .sec-act[hidden]{display:none}
 .ps-row textarea { flex: 1 1 0; width: 0; min-width: 0; resize: vertical; }

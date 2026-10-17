@@ -4,6 +4,65 @@
 
 The model shown for an agent (heading pill, list rows) now notices a transcript that changed within one filesystem timestamp tick: the transcript cache is keyed on inode, mtime in nanoseconds and size instead of the mtime alone.
 
+## 2026-10-17 (Inbox counts agree with the Inbox; faster Inbox render)
+
+- dt: the sidebar and bottom-nav Inbox count now matches the Inbox's Needs you view (a failure older than the idle window no longer counts) and follows agent events live instead of only updating on a page load.
+- The Inbox unread badge counts one per live agent, as the Inbox rows show it: an agent's own row and its ntfy messages (also ones matched by title) no longer add up to several.
+- Faster Inbox and ntfy pages: the ntfy sender index and owner mapping are memoised (rebuilt on a new message, at most every 15 s), and project matching of the feed runs once per feed change.
+
+## 2026-10-17 (v7 app: btw on phones opens in Quick chat)
+
+btw on phones: there is no chat aside on phones, so btw (session ⋯ › btw, the composer btw button, `/btw <question>`) now opens a new side-question conversation in Quick chat, full screen, instead of a toast. The first send carries the agent id, so the answer uses its recent chat (masked) without tools; Copy works, Use in composer is aside-only.
+
+## 2026-10-17 (v7 app: Library View opens the file read-only)
+
+Agents › Library: the row ⋯ View is no longer disabled. It opens the skill (its SKILL.md), rule or script in the markdown reader dialog (full screen on phones), read-only, from the new core route `GET /agents/library/view?path=`, which reads only files the agent inventory lists (symlinks resolved and re-checked, no hidden-folder escapes, text masked). Frontmatter shows as a YAML block, scripts as one code block.
+
+## 2026-10-17 (dt Backlog: images on issue edit, BACKLOG.md file projects and editor)
+
+In the dt theme, the issue reader's Edit form takes images (picker, paste or drop) and attaches them to the existing issue on Save (new route POST /p/<name>/issues/<num>/image with a composer upload path). Projects that keep BACKLOG.md as a file now list its items on the dt Backlog's Issues tab and the project view's Issues tab (tick, edit the text) and get a dt whole-file editor (/backlog?p=<name>&edit=1, with the edit lease and the conflict diff) instead of a link to the classic UI. /backlog/add, toggle, edit and save answer JSON to script calls (X-Requested-With); form posts are unchanged.
+
+## 2026-10-17 (v7: Composer text size in Settings › Composer)
+
+- dt Settings › Composer has a Text group with the Composer text size (this browser), the same setting as
+  Appearance › Fonts; both stay in step.
+- dt Quick chat's message box follows the Composer text size too.
+
+## 2026-10-17 (Text size controls: the dt Aa menu stays open, tables and code blocks scale)
+
+- dt: the chat Aa menu (Larger / Smaller text) stays open while you step the size, and its Reset item shows the new
+  size; before, it closed after every single step.
+- Markdown tables and code blocks in chats and the readers now follow the chat and reader text size (A- / A+, Aa,
+  Settings) in both themes; they had a fixed size before.
+- dt: the A- / A+ of the project view's document (Docs, Files README) work again; the size is the readers' shared one.
+
+## 2026-10-17 (dt: TODO tab for TODO.md file projects)
+
+dt theme: the project view's TODO tab lists and ticks the items of a project that keeps a plain TODO.md file (not imported into the tracker), and the classic `#todo` links (after a tick, the Backlog's "Open project") open that tab. Add task and Edit stay tracker-only.
+
+## 2026-10-17 (dt: add an issue from any page through search)
+
+dt theme: the search command "Add an issue" (type `>` in search) opens the Backlog's Add issue dialog on any page, with the page's project preselected when it uses the issue tracker. The form, images and options are the same as on the Backlog page.
+
+## 2026-10-17 (v7 app: Settings — Open a shell on a remote server, Set up TOTP, plugin sections)
+
+- dt Settings › Remote servers: a server's ⋯ menu has **Open a shell in tmux**. It opens `ssh` with pm's own key and the pinned host key in a new window of the tmux session `ssh` (pm creates the session if needed). It needs tier 2, is audited as `ssh_shell`, and is greyed out until the host key is pinned and pm's key exists. The core route is `POST /settings/servers/<id>/shell`.
+- dt Settings › Access: with `require_unlock = true` and no TOTP yet, a **Set up TOTP** row creates the secret through `POST /unlock/provision` and shows it in the row once. After that the row says "set up".
+- dt Settings › System › Plugins shows the Settings sections that installed plugins add. The entry only appears when a plugin adds one.
+- `GET /settings/panel` now renders in a worker thread instead of reading files on the event loop.
+
+## 2026-10-17 (Audit lines name the login session)
+
+Audit lines written for a logged-in request (guarded actions, refusals, outcomes, terminal tickets, logins) carry `session`: the first 8 hex digits of the sha256 the sessions file already keeps for that login, never the session id or cookie. Older lines and lines without a session are unchanged. The dt Audit page shows it under Session ("—" when absent); the CSV export gets a `session` column and the filter box matches it.
+
+## 2026-10-17 (Agent page titles name the project)
+
+The browser tab title of an agent page names the project first, e.g. `myproj/claude-1a2b3c sonnet-5-5`, in both themes. The dt theme does the same for the ended-session page and Builder.
+
+## 2026-10-17 (v7: commit hashes link to the git server)
+
+The Git tab's Commits list in the dt theme links each hash to the commit on the git server when the push remote is on a host listed in `git_allowed_hosts`, as classic already did. `GET /p/<name>/git/status` now returns `commit_url_base` (null when there is no such remote).
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

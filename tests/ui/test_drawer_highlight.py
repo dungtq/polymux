@@ -44,9 +44,14 @@ def test_stale_frame_message_does_not_move_highlight(page, inst):
     page.wait_for_selector("body.chat-open")
     page.locator(f"main a[href='{b}']").first.click()
     page.wait_for_function(f"location.hash === '#chat={b}'")
+    fr = page.locator("#vc-frame").element_handle().content_frame()
+    for _ in range(150):  # the frame has left A's page (A's head would satisfy the wait below on its own)
+        if fr.url.split("?")[0].endswith(b):
+            break
+        page.wait_for_timeout(100)
     page.frame_locator("#vc-frame").locator(".agent-head").wait_for(state="attached")  # the embedded head is collapsed (hidden)
     # the page of A answers late, from the shared frame window
-    page.frames[-1].evaluate("id => window.parent.postMessage({pm: 'drawer', act: 'at', id, path: '/a/' + id}, location.origin)",
+    fr.evaluate("id => window.parent.postMessage({pm: 'drawer', act: 'at', id, path: '/a/' + id}, location.origin)",
                              a.split("/")[-1])
     page.wait_for_timeout(300)
     assert page.evaluate("location.hash") == f"#chat={b}"
