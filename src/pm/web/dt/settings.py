@@ -43,7 +43,7 @@ SECTIONS = (
      "Colours of agent messages, agent kinds and tool calls in every chat. Default keeps the light and dark theme "
      "colours; a picked colour is used in both themes."),
     ("agents", "Agents", "bot", "Work", "Launch defaults, what sends a notification, and idle clean-up."),
-    ("composer", "Composer", "chat", "Work", "Pasting and attaching in every message box."),
+    ("composer", "Composer", "chat", "Work", "Text size, pasting and attaching in every message box."),
     ("qchat", "Quick chat", "sparkle", "Work",
      "The Quick chat panel. It runs without your own hooks and settings from ~/.claude."),
     ("access", "Access", "shield", "Security", "Who can sign in and where you are signed in."),

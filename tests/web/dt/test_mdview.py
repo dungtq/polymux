@@ -43,7 +43,8 @@ function el(tag, attrs) {
     replaceChildren(...k) { n.kids = k; n.html = ''; }, querySelector: () => null, closest: () => null };
   return n;
 }
-const body = el('div'), ttl = el('bdi'), val = el('span'), dlg = el('dialog');
+const body = el('div'), ttl = el('bdi'), val = el('span'), dlg = el('dialog'), pageVal = el('span');
+val.closest = (s) => (s === '#x-md, .c-sess' ? dlg : null);  // the dialog's value; pageVal is a page document's
 ttl.parentNode = el('h2');
 let mdv = null;
 Object.defineProperty(body, 'innerHTML', { set(h) { body.html = h; const m = /data-path="([^"]*)"/.exec(h);
@@ -61,7 +62,9 @@ let answer = CFG.answer || [200, '<div class="mdv" data-path="/home/u/p/docs/a.m
 globalThis.window = { pm7: {
   ready: (f) => f(), el: (spec, at, text) => { const n = el('p'); n.text = text; n.spec = spec; return n; },
   toast: (t) => log.push(['toast', t]),
-  store: { get: (k, dv) => (k in store ? store[k] : dv), set: (k, v) => { store[k] = v; } },
+  store: { get: (k, dv) => (k in store ? store[k] : dv), set: (k, v) => { store[k] = v; },
+    remove: (k) => { delete store[k]; } },
+  $$: (s) => (s === '[data-md-zoom-val]' ? [val, pageVal] : []), look: { apply: () => log.push(['look']) },
   dialog: (x, o) => { log.push(['dialog', x === dlg]); dlg.open = true; return x; },
   fetch: (u) => { log.push(['fetch', u]); const [st, txt] = answer;
     return Promise.resolve({ ok: st < 400, status: st, text: () => Promise.resolve(txt) }); } } };
@@ -126,8 +129,23 @@ def test_text_size_buttons_share_the_session_reader_size():
     assert got == ["16", "16px", "16px"]
 
 
+@needs_node
+def test_text_size_buttons_on_the_page_set_the_shared_size():
+    """A- / A+ of the project view's document (classic _mdzoom.html, no fonts.js in dt): pm.v7.chat.md, applied on
+    <html> by head.js (pm7.look.apply); the page's value and the dialog's (its own applySize) follow."""
+    got = run("const box = el('div'); box.querySelector = () => el('article');"
+              "const z = (n, where) => { const b = el('button', {'data-md-zoom': n});"
+              " b.closest = (s) => (s === '#x-md, .c-sess' ? where : s === '.x-cl' ? box : null);"
+              " docOn.click.forEach((f) => f({target: {closest: (s) => (s === '[data-md-zoom]' ? b : null)}})); };"
+              "z('1', null); z('1', null); out.push(store['chat.md'], pageVal.textContent, val.textContent);"
+              "z('1', dlg); out.push(store['chat.md']);"
+              "z('0', null); out.push('chat.md' in store, pageVal.textContent, log.filter((x) => x[0] === 'look').length);")
+    assert got == ["16", "16px", "16px", "16", False, "auto", 3]  # a click in the dialog is the dialog's own
+
+
 BUILDER = ("const host = el('section', {'data-agent': 'claude-1c70ee'});"
-           "const a = el('a', {'data-md': 'docs/PLAN.md'}); a.closest = (s) => (s === 'a[data-md]' ? a : host);"
+           "const a = el('a', {'data-md': 'docs/PLAN.md'});"
+           "a.closest = (s) => (s === 'a[data-md]' ? a : s === '[data-md-zoom]' ? null : host);"
            "const e = {target: {closest: (s) => a.closest(s)}, prevented: 0, stopped: 0,"
            " preventDefault() { this.prevented = 1; }, stopPropagation() { this.stopped = 1; }};"
            "docOn.click.forEach((f) => f(e)); await tick();"

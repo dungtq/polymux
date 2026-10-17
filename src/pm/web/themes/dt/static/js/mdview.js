@@ -12,7 +12,9 @@
    links stay (toast); http(s) / mailto links open a new tab (the server set target=_blank).
    Head: the real path ([data-md-title], cut from the left), A- / A+ ([data-md-zoom]: pm.v7.chat.md, the size the
    session reader uses, 10-32 px or auto -> --md-size on the dialog), Copy path ([data-md-copy]), Close
-   [data-act=close] (keys.js -> pm7.layers.close). */
+   [data-act=close] (keys.js -> pm7.layers.close).
+   The same A- / A+ elsewhere (the project view's document, classic _mdzoom.html; not in a session, js/session.js):
+   pm.v7.chat.md -> --md-size on <html> (head.js), the values [data-md-zoom-val] follow. */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;
@@ -34,11 +36,17 @@
     if (v) x.style.setProperty('--md-size', v + 'px'); else x.style.removeProperty('--md-size');
     if (val) val.textContent = v ? v + 'px' : 'auto';
   }
-  function zoom(by) {
-    const md = q('[data-md-body] .md') || q('[data-md-body]');
+  function zoom(by, md) {  // md: the text it starts from while the size is auto
     const now = size() || Math.round(parseFloat(md ? getComputedStyle(md).fontSize : '') || 14);
-    pm7.store.set('chat.md', String(Math.max(MIN, Math.min(MAX, now + by))));
+    if (by) pm7.store.set('chat.md', String(Math.max(MIN, Math.min(MAX, now + by))));
+    else pm7.store.remove('chat.md');
     applySize();
+    if (pm7.look) pm7.look.apply();
+    vals();
+  }
+  function vals() {  // the page's A- / A+ values (the dialog's and a session's are set by their own code)
+    const v = size(), t = v ? v + 'px' : 'auto';
+    pm7.$$('[data-md-zoom-val]').forEach((n) => { if (!n.closest('#x-md, .c-sess')) n.textContent = t; });
   }
 
   /* ---------- paths ---------- */
@@ -126,12 +134,22 @@
       const t = e.target;
       if (!t || !t.closest) return;
       const z = t.closest('[data-md-zoom]');
-      if (z) { zoom(parseInt(z.getAttribute('data-md-zoom'), 10) || 0); return; }
+      if (z) { zoom(parseInt(z.getAttribute('data-md-zoom'), 10) || 0, q('[data-md-body] .md')); return; }
       if (t.closest('[data-md-copy]')) { copy(); return; }
       const a = t.closest('[data-md-body] a[href]');
       if (a) link(a, e);
     });
   });
+
+  /* A- / A+ of a document on the page (project view), not the dialog's or a session's */
+  d.addEventListener('click', (e) => {
+    const t = e.target, z = t && t.closest ? t.closest('[data-md-zoom]') : null;
+    if (!z || z.closest('#x-md, .c-sess')) return;
+    const box = z.closest('.x-cl') || d;
+    zoom(parseInt(z.getAttribute('data-md-zoom'), 10) || 0, box.querySelector('.md'));
+  });
+  pm7.ready(vals);
+  d.addEventListener('htmx:afterSettle', vals);
 
   /* a chat's .md link where classic has no docked reader (Builder): open it here */
   d.addEventListener('click', (e) => {

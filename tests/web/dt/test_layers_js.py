@@ -61,3 +61,48 @@ def test_shell_markup_asks_in_page_and_classic_never_sees_it():
 def test_classic_content_and_plain_requests_are_left_alone():
     got = run("(async () => console.log(JSON.stringify([await fire(true, 'Delete?'), await fire(false, null)])))();")
     assert got == [{"prevented": False, "stopped": False, "issued": False}] * 2
+
+
+# pm7.menu items against a small fake DOM: a keep item (the chat text size's Larger / Smaller) runs with the menu
+# host and leaves the menu open; a plain item closes it first; an item enabled by a keep item's run then works.
+MENU = r"""
+function E(tag) {
+  const n = { tagName: tag, kids: [], attrs: {}, on: {}, hidden: true, disabled: false, parentNode: null,
+    offsetWidth: 10, offsetHeight: 10, textContent: '',
+    style: { p: {}, setProperty(k, v) { this.p[k] = v; }, removeProperty(k) { delete this.p[k]; } },
+    setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    removeAttribute(k) { delete this.attrs[k]; }, hasAttribute(k) { return k in this.attrs; },
+    appendChild(c) { this.kids.push(c); c.parentNode = this; return c; },
+    append(...c) { c.forEach((x) => this.appendChild(x)); },
+    replaceChildren(...c) { this.kids = []; c.forEach((x) => this.appendChild(x)); },
+    addEventListener(t, f) { (this.on[t] = this.on[t] || []).push(f); },
+    contains(x) { while (x) { if (x === this) return true; x = x.parentNode; } return false; },
+    querySelectorAll() { return []; }, getClientRects() { return [1]; }, focus() {},
+    getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10 }; } };
+  return n;
+}
+const host = E('div'), home = E('div'), anchor = E('button');
+home.appendChild(host);
+globalThis.window = { pm7: { el: (tag, cls, text) => { const n = E(tag); n.textContent = text || ''; return n; },
+  icon: () => null, phone: () => false }, addEventListener() {}, innerHeight: 800 };
+globalThis.requestAnimationFrame = () => 0;
+globalThis.document = { addEventListener() {}, getElementById: (id) => (id === 'x-menu' ? host : null),
+  contains: () => true, documentElement: { clientWidth: 1000 }, body: E('body'), activeElement: null };
+eval(require('fs').readFileSync(process.argv[1], 'utf8'));
+const pm7 = window.pm7, out = [], ran = [];
+const click = (i) => host.kids[i].on.click.forEach((f) => f({ preventDefault() {} }));
+"""
+
+
+def run_menu(code: str):
+    res = subprocess.run(["node", "-e", MENU + code + "\nconsole.log(JSON.stringify(out));", str(LAYERS)],
+                         capture_output=True, text=True, check=True)
+    return json.loads(res.stdout)
+
+
+def test_menu_keep_items_stay_open_and_get_the_host():
+    got = run_menu("pm7.menu(anchor, [{label: 'Larger', keep: true, run: (e, h) => { ran.push(h === host);"
+                   " h.kids[1].disabled = false; }}, {label: 'Reset', disabled: true, run: () => ran.push('reset')}]);"
+                   "out.push(host.hidden); click(0); click(0); out.push(host.hidden, ran.slice());"
+                   "click(1); out.push(host.hidden, ran);")
+    assert got == [False, False, [True, True], True, [True, True, "reset"]]

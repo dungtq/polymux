@@ -2,7 +2,8 @@
     whole form; auto-exit: the core's fragment GET /settings/autoexit = _autoexit.html, loaded here), Composer (POST
     /settings/composer) and Quick chat (the core's fragment GET /settings/qchat = _settings_qchat.html, loaded here).
     Forms with data-s-form save on change (js/settings-forms.js: Accept JSON, toast after the server's ok). All
-    "all devices". Context: s (the section), sv (Page). -#}
+    "all devices", except Composer › Text (this browser: pm.v7.cmp.size, js/settings.js). Context: s (the section),
+    sv (Page). -#}
 {%- import "settings/_ui.html" as su %}{% import "parts/_switch.html" as psw %}{% import "parts/_select.html" as psel %}
 {%- if s.id == "agents" %}
 <form class="s-form" method="post" action="/settings/prefs" data-s-form data-s-what="Agents">
@@ -25,6 +26,13 @@
 
 {%- elif s.id == "composer" %}
 {%- set c = sv.composer %}
+{#- Text size: this browser, the same pm.v7.cmp.size as Appearance › Fonts (js/settings.js keeps both in step);
+    outside the form, which saves for all devices on change -#}
+{% call su.grp("Text", "browser", s.label) %}{% call su.box() %}
+  {% call su.row("Composer text size", "Every message box; 0 = default (16 px on phones, no zoom).", "Text", s.label) %}
+    <input class="x-in s-num" type="number" inputmode="numeric" min="0" max="32" data-s-b="cmp.size" placeholder="0" aria-label="Composer text size in px"><span class="s-unit">px</span>
+  {% endcall %}
+{% endcall %}{% endcall %}
 <form class="s-form" method="post" action="/settings/composer" data-s-form data-s-what="Composer">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 {% call su.grp("Paste and upload", "all", s.label) %}{% call su.box() %}

@@ -10,7 +10,8 @@
      aside.open ("1", docked widths, not on html.x-chatpg) -> html.aside; aside.pct (20-50) -> --aside-pct;
      font.ui / font.chat / font.mono (system | sans | serif | mono | same (chat) | an installed family) -> --font-ui,
        --font-chat, --font-mono (+ classic content's --chat-font); font.size (90-125 %) -> the root font size (%) and
-       --fs-k (tokens.css: --fs-body x --fs-k); chat.size (10-32 px) -> --chat-size; cmp.size (10-32 px) ->
+       --fs-k (tokens.css: --fs-body x --fs-k); chat.size (10-32 px) -> --chat-size; chat.md (10-32 px, the markdown
+       readers' A- / A+: mdview.js, session.js) -> --md-size; cmp.size (10-32 px) ->
        --compose-size + html[data-compose-size] (classic composer.css, removal debt); keys.hints = "0" ->
        html.no-khints; keys.toast (key | action | off) ->
        html[data-ktoast]; side.sess = "0" -> html.no-sess.
@@ -86,6 +87,7 @@
     root.style.fontSize = k ? sz + '%' : '';  // rem sizes
     prop('--fs-k', k ? String(k) : '');  // --fs-body = its px size x --fs-k (tokens.css, README A25)
     prop('--chat-size', px(get('chat.size')));
+    prop('--md-size', px(get('chat.md')));
     var cs = px(get('cmp.size'));
     prop('--compose-size', cs);
     if (cs) root.setAttribute('data-compose-size', ''); else root.removeAttribute('data-compose-size');

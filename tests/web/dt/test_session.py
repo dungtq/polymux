@@ -335,6 +335,16 @@ def run_session(code: str):
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_chat_text_size_menu_stays_open_while_stepping():
+    # Larger / Smaller are keep items (layers.js): several steps in one open menu; Reset shows the new size
+    js = (THEME / "static/js/session.js").read_text()
+    assert "{ label: 'Larger text', icon: 'plus', keep: true, run: bump(1) }" in js
+    assert "{ label: 'Smaller text', keep: true, run: bump(-1) }" in js
+    assert "lab.textContent = resetLabel(v)" in js and "r.disabled = !v" in js
+    head = (THEME / "static/js/head.js").read_text()
+    assert "prop('--md-size', px(get('chat.md')));" in head  # the reader size on <html> (project documents too)
+
+
 def test_chat_end_stays_in_view_when_the_column_shrinks():
     # D1: the phone composer showing shrinks .c-chat without scrolling it; at the end, the newest lines stay in view
     got = run_session("""

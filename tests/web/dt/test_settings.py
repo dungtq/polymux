@@ -191,6 +191,25 @@ def test_display_composer_on_phones_pref_row(senv):
     assert "c.toggle('cmp-open', p.cmp_phone === 'open')" in head
 
 
+def test_composer_text_size_in_composer_and_appearance(senv):
+    """Composer text size: this browser's pm.v7.cmp.size (head.js -> --compose-size), in Appearance › Fonts and in
+    Composer › Text, outside the all-devices form; settings.js keeps both inputs in step."""
+    inp = 'data-s-b="cmp.size"'
+    comp = senv.c.get("/settings?s=composer").text
+    sec = comp[comp.index('id="s-sec-composer"'):]
+    sec = sec[:sec.index("</section>")]
+    assert sec.count(inp) == 1 and sec.index(inp) < sec.index('action="/settings/composer"')
+    assert "Text size, pasting and attaching" in sec
+    app = senv.c.get("/settings?s=appearance").text
+    sec = app[app.index('id="s-sec-appearance"'):]
+    assert sec[:sec.index("</section>")].count(inp) == 1
+    js = _js("settings.js")
+    assert "bset(t.getAttribute('data-s-b'), t.value);\n      syncB(lay());" in js
+    assert "'cmp.size'" in js and "prop('--compose-size', cs)" in _js("head.js")
+    css = (THEME / "static/css/qchat.css").read_text()
+    assert "html[data-compose-size] .q-pop .q-box textarea{font-size:var(--compose-size)}" in css
+
+
 def test_display_sidebar_state_row(senv):
     # Panels (this browser): one sidebar state for all tabs, or per tab (pm7.look.rail in head.js)
     m = re.search(r'<span class="p-seg" role="group" aria-label="Sidebar state" data-s-b="shell.railmode">(.*?)</span>',

@@ -22,6 +22,16 @@ def test_md_viewer_has_zoom_control():
     assert ".mdpane-b .md" in css and "var(--md-size" in css
 
 
+def test_md_tables_and_code_blocks_follow_the_text_size():
+    # sized from the text around them (em), not a fixed token: the chat / reader zoom (--chat-size, --md-size)
+    # scales them with the rest of the message
+    css = (SRC / "static/css/chat.css").read_text()
+    table = re.search(r"^\.md table \{[^}]*\}", css, re.M).group(0)
+    code = re.search(r"^\.md pre code \{[^}]*\}", css, re.M).group(0)
+    assert "font-size: .87em" in table and "font-size: .87em" in code
+    assert "--fs-" not in table and "--fs-" not in code
+
+
 def test_ended_page_loads_jump_rail():
     t = (T / "agent_ended.html").read_text()
     assert "{{ jump_rail() }}" in t and 'import jump_rail' in t
