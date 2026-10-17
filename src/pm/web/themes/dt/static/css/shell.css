@@ -49,6 +49,11 @@ input.x-in:not([type=checkbox]),.x-sfilter input[type=search]{height:var(--ctl-h
   font:inherit;font-size:var(--fs-in);box-shadow:none}
 input.x-in:not([type=checkbox]):focus,.x-sfilter input[type=search]:focus{border-color:var(--accent);outline:0;
   box-shadow:inset 0 0 0 1px var(--accent)}
+/* a multi-line field (project VM names, MCP headers): two control heights, mono, grows by hand; width is the page's */
+textarea.x-in{display:block;min-height:calc(var(--ctl-h) * 2);margin:0;padding:var(--s1) var(--s2);
+  border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
+  font-family:var(--font-mono);font-size:var(--fs-in);resize:vertical}
+textarea.x-in:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
 
 /* ---------- top bar ---------- */
 .x-top{grid-column:1/-1;grid-row:1;display:flex;align-items:center;gap:var(--s1);min-width:0;

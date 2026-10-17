@@ -12,8 +12,9 @@
         pct    0..100 (clamped) -> a 4px bar (<progress>, no inline style); none = no bar
         level  "ok" | "warn" | "crit" (also "red", "bad") | "na": bar colour --lvl-ok / --lvl-warn / --lvl-red;
                warn and crit add a screen-reader word and colour the value; na = muted value, no bar
-        sub    the muted line under the bar (what the value means)
+        sub    the muted line under the bar (what the value means); sub_tone "warn" colours it (the words say why)
         href   the cell is a link (to the tab or page that shows the detail)
+        data   {name: value} -> data-<name> attributes; without href the cell is a button (page JS handles the click)
         title  tooltip
     pmt.bar(pct, level="", label="", inline=false)
       the bar alone; inline = a short share bar inside a table cell (--bar-in-w, accent), e.g. RAM share of a row -#}
@@ -30,13 +31,14 @@
 
 {%- macro meter(m) -%}
 {%- set lv = _lv(m.get("level") or "") -%}
-{%- set tag = "a" if m.get("href") else "div" -%}
-<{{ tag }} class="p-m{{ ' ' ~ lv if lv }}"{% if m.get("href") %} href="{{ m.href }}"{% endif %}{% if m.get("key") %} data-p-m="{{ m.key }}"{% endif %}{% if m.get("title") %} title="{{ m.title }}"{% endif %}>
+{%- set tag = "a" if m.get("href") else ("button" if m.get("data") else "div") -%}
+<{{ tag }} class="p-m{{ ' ' ~ lv if lv }}"{% if tag == "button" %} type="button"{% endif %}{% if m.get("href") %} href="{{ m.href }}"{% endif %}
+  {%- for k, x in (m.get("data") or {}).items() %} data-{{ k }}="{{ x }}"{% endfor %}{% if m.get("key") %} data-p-m="{{ m.key }}"{% endif %}{% if m.get("title") %} title="{{ m.title }}"{% endif %}>
   <span class="l">{{ m.label }}</span>
   <span class="v">{{ m.value }}{% if m.get("small") %}<small>{{ m.small }}</small>{% endif %}
     {%- if lv == "warn" %}<span class="vh"> (warning)</span>{% elif lv == "red" %}<span class="vh"> (critical)</span>{% endif %}</span>
   {%- if m.get("pct") is not none and lv != "na" %}{{ bar(m.pct, lv, m.label ~ " " ~ ('%.0f' | format(m.pct)) ~ "%") }}{% endif %}
-  {%- if m.get("sub") %}<span class="s">{{ m.sub }}</span>{% endif %}
+  {%- if m.get("sub") %}<span class="s{{ ' warn' if m.get('sub_tone') == 'warn' }}">{{ m.sub }}</span>{% endif %}
 </{{ tag }}>
 {%- endmacro -%}
 

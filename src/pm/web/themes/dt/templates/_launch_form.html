@@ -91,7 +91,7 @@
       {%- for t in v.data.templates %}<button type="button" class="x-btn sm" data-l-tpl="{{ loop.index0 }}" title="{{ t.text }}">{{ t.name }}</button>{% endfor -%}
     </div>
     {%- endif %}
-    <div class="l-pbox" data-l-pbox>
+    <div class="p-tbox l-pbox" data-l-pbox>
       <textarea id="l-prompt" name="prompt" rows="4" maxlength="8000" placeholder="What should it do? Paste a screenshot or drop files here." data-l-prompt>{{ v.prompt }}</textarea>
       <div class="l-prow"><span class="l-chips" data-l-chips aria-label="Attachments"></span><span class="sp"></span><button type="button" class="x-ib sm" data-l-attach aria-label="Attach files" title="Attach files"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ ic }}clip"/></svg></button></div>
       <input type="file" multiple hidden data-l-file aria-label="Attach files">

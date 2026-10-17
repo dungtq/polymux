@@ -485,7 +485,7 @@ those hidden in the project's settings; tmux follows the setting `live`) as
   of the same table: `ar.ended_row(..., live_cols=true)` keeps the live columns), `_files.html`, `_plans.html`,
   `_docs.html`.
 - Files and Docs content: the dt overrides of the core's fragments. `_project_files.html` (view model `dt_files()`,
-  `pm.web.dt.files`): tree `nav.pj-ft` (hidden on phones) · breadcrumb `nav.pj-fcr` · a directory as one grid
+  `pm.web.dt.files`): tree `nav.pj-ft` (hidden on phones) · breadcrumb `nav.p-crumb` · a directory as one grid
   table (Name · Git · Size · Modified · Created) · a file view still in classic markup inside its own `.x-cl` box.
   `_project_doc.html`: a document (`article.pj-doc` in `.x-cl`) or a notice as the shared empty-state box
   (`tb.empty` in a table). The Docs tab opens README, else the first document that exists (`ProjectView.docs`:
@@ -608,8 +608,9 @@ cells (two columns on phones; `cls="one"`: one full-width cell, e.g. a pool mete
 | `value`, `small` | the big value (`--fs-xl` / 600, tabular figures) and a muted unit or total after it ("/ 36") |
 | `pct` | 0..100 (clamped): a `progress.bar` (`--bar-h`, no inline style); none = no bar |
 | `level` | `ok` · `warn` · `crit` (also `red`, `bad`) · `na`: bar `--lvl-ok` / `--lvl-warn` / `--lvl-red`; warn / crit add a `.vh` word and colour the value; `na` = muted value, no bar |
-| `sub` | the muted line under the bar |
+| `sub`, `sub_tone` | the muted line under the bar; `sub_tone: "warn"` colours it `--waiting` (its words say why) |
 | `href` | the cell is `a.p-m` (the tab or page with the detail; hover `--hover`) |
+| `data` | `{name: value}` → `data-<name>` attributes; without `href` the cell is `button.p-m[type=button]` and page JS handles the click (the project view's tiles: `data-pj-goto`, 6 / 3 per row in `css/project.css`) |
 | `key`, `title` | `data-p-m=<key>`; tooltip |
 
 `pmt.bar(..., inline=true)` is a short share bar inside a table cell (`--bar-in-w`, accent colour), e.g. a row's RAM
@@ -630,6 +631,16 @@ project's Git / Stack / VMs tabs built by `js/pjops.js`). `--fs-m` / 600, `--s5`
 child of its box), `--s2` below. Children: `span.c` a muted count or note (tabular figures), `span.note` muted text
 that ellipsizes, `span.sp` a spacer before a control (a `.p-seg`: the heading then wraps and centres). Pages never
 restyle it.
+
+**Prompt box** `div.p-tbox` (`css/parts.css`): a bordered box with the focus ring on the box, a bare `textarea` on top,
+a row of chips and buttons under it (Launch `.l-pbox`, Quick chat `.q-box`); the page sets only the textarea's heights
+and resize. A one-field multi-line input is `textarea.x-in` (`css/shell.css`, like `input.x-in`: mono, two control
+heights, the page sets the width).
+
+**Breadcrumb and file rows**: `nav.p-crumb` (`css/parts.css`; folders `a` in accent, the current place `a` or `b` with
+`aria-current`, `span.sep` "/") and a grid table with `.p-files` (`css/table.css`; rows `.k-file` / `.k-dir` / `.k-up`:
+the name cell's icon muted, folders and ".." in accent, names in text colour). The project Files tab and the quick
+look use both; no page copy.
 
 **Check row** `label.p-chk > input[type=checkbox] + text` (or `+ span` for text that wraps): an option in a dialog or
 form (Agents › Sync rules targets, New project options). The whole label is the target (`--row-side-h`, `--hit` on

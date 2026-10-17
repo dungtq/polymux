@@ -366,3 +366,16 @@ def test_section_heading_and_check_row_are_parts():
     for p in CSS_FILES:
         if p.name != "parts.css":
             assert not re.search(r"\.(a|pj|sv)-h2\b|\.a-chk\b|\.pj-nchk\b", _css(p)), p.name
+
+
+def test_textareas_breadcrumb_file_rows_are_parts():
+    shell, parts, table = _css(CSS / "shell.css"), _css(CSS / "parts.css"), _css(CSS / "table.css")
+    assert "textarea.x-in{" in shell and ".p-tbox textarea{" in parts and ".p-crumb{" in parts
+    assert ".p-files .gc-nm svg.i{" in table and "button.p-m{" in parts
+    for p in CSS_FILES:
+        if p.name in ("shell.css", "parts.css", "table.css"):
+            continue
+        t = _css(p)
+        for sel, body in re.findall(r"([^{}]*textarea[^{}]*)\{([^}]*)\}", t):  # a page sets sizes, not the look
+            assert not re.search(r"(?:^|;)\s*(?:border|padding|background|font-size)\s*:", body), (p.name, sel)
+        assert not re.search(r"\.(?:pj-fcr|pk-cr)\{|\.pj-tile\b|\.(?:pj-fl|pk-list) \.gc-nm", t), p.name

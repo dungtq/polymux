@@ -55,6 +55,7 @@ def test_root_lists_one_folder_with_files_tab_links(app_env, tmp_path):
     assert readme and 'target="_blank"' in readme.group(1) and 'rel="noopener"' in readme.group(1)
     assert '<span class="nm muted">lnk</span>' in r.text  # a symlink is listed, never linked
     crumbs = t.one("pk-cr")
+    assert "p-crumb" in crumbs.cls and "p-files" in tbl.cls  # the Files tab's breadcrumb and row look
     assert [n.tag for n in crumbs.kids if n.tag in ("a", "b")] == ["b"] and crumbs.get_text().strip() == "alpha"
 
 

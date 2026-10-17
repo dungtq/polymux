@@ -85,9 +85,7 @@ input.x-in.s-addtag{width:9ch}
   border:1px solid var(--line);border-radius:var(--r);background:var(--subtle)}
 .s-add[hidden]{display:none}
 .s-add .s-note{flex-basis:100%;margin:0}
-textarea.x-in.s-hdrs{flex:1 1 100%;min-height:calc(var(--ctl-h) * 2);margin:0;padding:var(--s1) var(--s2);
-  border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
-  font-family:var(--font-mono);font-size:var(--fs-in);resize:vertical}
+textarea.x-in.s-hdrs{flex:1 1 100%}
 
 /* ---------- previews, lists ---------- */
 .s-prev{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);padding:var(--s2) var(--s3);

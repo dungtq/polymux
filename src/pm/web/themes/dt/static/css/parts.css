@@ -179,6 +179,24 @@ select.sel:disabled{opacity:.55;cursor:not-allowed}
 .chip.att.bad{border-color:var(--failed);color:var(--failed-fg)}
 @media (pointer:coarse){.chip.att>button.x-ib.sm{min-width:var(--ib);height:auto;align-self:stretch}}
 
+/* ---------- prompt box (.p-tbox: Launch .l-pbox, Quick chat .q-box): the box draws the border and the focus ring, a
+   bare textarea on top, a row of chips and buttons under it; heights and resize are the page's ---------- */
+.p-tbox{border:1px solid var(--ctl-line);border-radius:var(--r-pop);background:var(--page)}
+.p-tbox:focus-within{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.p-tbox textarea{display:block;width:100%;margin:0;padding:var(--s2) var(--s3) var(--s1);border:0;
+  border-radius:var(--r-pop);background:none;color:var(--fg);font:inherit;font-size:var(--fs-in);line-height:1.45;
+  outline:0;box-shadow:none}
+
+/* ---------- breadcrumb (nav.p-crumb: project Files tab, project quick look): folders are links in accent, the current
+   place 600 in text colour (a link or b, aria-current), muted "/" separators (span.sep) ---------- */
+.p-crumb{display:flex;flex-wrap:wrap;align-items:center;margin:0 0 var(--s2);font-size:var(--fs-ui)}
+.p-crumb>:is(a,b){display:inline-flex;align-items:center;min-height:calc(var(--ib) + var(--s1));padding:0 var(--s1);
+  border-radius:var(--r);overflow-wrap:anywhere}
+.p-crumb>a{color:var(--accent);text-decoration:none}
+.p-crumb>a:hover{background:var(--hover);text-decoration:none}
+.p-crumb>:is(a,b)[aria-current]{color:var(--fg);font-weight:600}
+.p-crumb>.sep{color:var(--muted)}
+
 /* ---------- section heading (h2.p-h2): a block inside a page or tab; .c = muted count or note, .note = muted text
    that ellipsizes, .sp = spacer before a control (a .p-seg: then the heading wraps and centres); the first one in
    its box has no top margin ---------- */
@@ -210,8 +228,10 @@ label.p-chk input[type=checkbox]:focus-visible{outline:2px solid var(--accent);o
 .p-m{display:block;min-width:0;margin:0 -1px -1px 0;padding:var(--s2) var(--s3) var(--s3);
   border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);color:var(--fg)}
 a.p-m,a.p-m:hover{color:var(--fg);text-decoration:none}
-a.p-m:hover{background:var(--hover)}
-a.p-m:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+button.p-m{width:100%;height:auto;min-height:0;border-top:0;border-left:0;border-radius:0;
+  background:none;font:inherit;font-weight:400;text-align:left;cursor:pointer}
+:is(a,button).p-m:hover{background:var(--hover)}
+:is(a,button).p-m:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .p-m>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .p-m .l,.p-m .s{color:var(--muted);font-size:var(--fs-s)}
 .p-m .v{font-size:var(--fs-xl);font-weight:600;line-height:1.35;font-variant-numeric:tabular-nums}
@@ -219,6 +239,7 @@ a.p-m:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .p-m.na .v{color:var(--muted)}
 .p-m.warn .v{color:var(--waiting)}
 .p-m.red .v{color:var(--failed)}
+.p-m .s.warn{color:var(--waiting)}
 progress.bar{display:block;width:100%;height:var(--bar-h);margin:var(--s1) 0;padding:0;border:0;
   border-radius:var(--bar-h);background:var(--line2);color:var(--lvl-ok);overflow:hidden;vertical-align:middle;
   -webkit-appearance:none;appearance:none}

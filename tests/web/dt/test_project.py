@@ -133,6 +133,8 @@ def test_tiles_and_tabs():
     assert t["git"].value == "main" and t["git"].cls == "warn"
     assert (t["todo"].value, t["todo"].small) == ("2", "open of 5")
     assert (t["stack"].value, t["stack"].cls) == ("1/2", "warn")
+    m = t["agents"].meter
+    assert m["data"] == {"pj-goto": "agents"} and m["sub_tone"] == "warn" and "pct" not in m
     keys = [x["key"] for x in v.tabs]
     assert keys == ["agents", "tmux", "files", "git", "stack", "vms", "todo", "issues", "plans", "docs"]
     counts = {x["key"]: x["count"] for x in v.tabs}
@@ -253,7 +255,9 @@ def test_project_page_frame(app_env):
     assert "pj-head" in doc.one("div", id="pj-head")["class"] and '<h1>alpha</h1>' in r.text
     assert doc.one("a", data_pj_launch="alpha", class_="pri")["href"] == "/p/alpha/launch"
     assert doc.one("button", data_pj_git="alpha")["aria-haspopup"] == "menu"
-    assert len(doc.find("button", data_pj_goto=True)) == 6
+    tiles = doc.find("button", data_pj_goto=True)  # the shared meter part's button cells (parts/_meter.html)
+    assert len(tiles) == 6 and all("p-m" in b["class"] and b["type"] == "button" for b in tiles)
+    assert "p-sum" in doc.one("div", class_="pj-sum")["class"]
     tabs = [t["data-p-tab"] for t in doc.find(role="tab", data_p_tab=True)
             if t.get("aria-controls", "").startswith("pj-t-")]  # partials may have tabs of their own
     secs = [s for s in doc.find("section", class_="pj-tab") if s.get("id", "").startswith("pj-t-")]
