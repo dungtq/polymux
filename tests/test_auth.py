@@ -57,6 +57,19 @@ def test_login_ok_and_cookie_flags(env):
     assert c.get("/secret").status_code == 200
 
 
+def test_login_audit_line_names_the_new_session_by_tag(env):
+    import json
+
+    from pm.security.audit import session_tag
+    app, c, token, _, settings = env
+    assert login(c, "nope").status_code == 401
+    assert login(c, token).status_code == 303
+    sid = next(iter(app.state.sessions._sessions))
+    rows = [json.loads(x) for x in settings.audit_file.read_text().splitlines()]
+    assert [(r["result"], r.get("session")) for r in rows] == [("denied", None), ("ok", session_tag(sid))]
+    assert sid not in settings.audit_file.read_text()
+
+
 def test_login_fail(env):
     _, c, *_ = env
     r = login(c, "nope")

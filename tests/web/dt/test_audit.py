@@ -36,7 +36,7 @@ def line(ts, action, target="", result="ok", client="1.2.3.4", **detail) -> dict
 ENTRIES = [  # oldest first, as the log is written
     line(NOW - 2 * 86400, "login_token", result="denied", client="10.0.0.9", reason="bad token"),
     line(NOW - 400, "agent_launch", "cursor-agent-a1b2", result="error", error="not logged in"),
-    line(NOW - 300, "issue_add", "issues", project="pm", num=185),
+    {**line(NOW - 300, "issue_add", "issues", project="pm", num=185), "session": "a1b2c3d4"},  # a session tag
     line(NOW - 250, "terminal.ticket", "$40"),
     line(NOW - 240, "terminal.ticket", "$40"),
     line(NOW - 230, "terminal.ticket", "$40"),
@@ -140,6 +140,8 @@ def test_row_details_every_key_client_session_and_menu(aenv):
     assert m["only"]["href"] == "/audit?q=agent_launch" and m["det"]["det"] is True
     assert m["target"]["href"] == "/a/cursor-agent-a1b2"
     assert 'data-au-run="copy"' in det
+    i = html.index(f'data-p-det-for="{_rid(2)}"')
+    assert re.search(r"<dt>Session</dt>\s*<dd[^>]*>a1b2c3d4</dd>", html[i:i + 4000])  # the line's session tag
     fold = _menu(html, _rid(5))
     assert len(json.loads(fold["copy"]["copy"])) == 3 and fold["raw"]["href"] == "/audit?view=raw"
 

@@ -1,8 +1,16 @@
 # Changelog
 
+## 2026-10-17 (Audit: Client errors list follows the filter box)
+
+The filter box on /audit filled the Client errors box too, but that list kept showing every report: it was re-fetched with the old query. It now follows the box like the audit log above it.
+
 ## 2026-10-17 (Model pill no longer misses a transcript rewritten within one mtime tick)
 
 The model shown for an agent (heading pill, list rows) now notices a transcript that changed within one filesystem timestamp tick: the transcript cache is keyed on inode, mtime in nanoseconds and size instead of the mtime alone.
+
+## 2026-10-17 (Project page: one hairline under the tmux tab list)
+
+On the project page the tmux tab list ended with its own row hairline, then an empty band and the next section's hairline. The list now ends directly on the next section's single hairline.
 
 ## 2026-10-17 (Inbox counts agree with the Inbox; faster Inbox render)
 

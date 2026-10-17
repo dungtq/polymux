@@ -404,7 +404,8 @@ def test_forbidden_repo(tmp_path, monkeypatch):
 def test_view_names_the_given_remote(repo):
     v = ops.view(repo, remote=R)
     assert v["remote"] == R and v["has_remote"] and v["status"]["upstream"] == "gitdev/main"
+    assert v["commit_url_base"] is None  # no allowed hosts given: no commit links
     w = ops.view(repo, remote="origin")
-    assert w["remote"] == "origin" and not w["has_remote"]
+    assert w["remote"] == "origin" and not w["has_remote"] and w["commit_url_base"] is None
     with pytest.raises(ctl.GitDenied):
         ops.view(repo, remote="a b")

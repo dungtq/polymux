@@ -54,13 +54,25 @@ def test_status_view_model(repo):
     r = c.get("/p/alpha/git/status")
     assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
     d = r.json()
-    assert set(d) == {"status", "branches", "stashes", "commits", "remote", "has_remote"}
+    assert set(d) == {"status", "branches", "stashes", "commits", "remote", "has_remote", "commit_url_base"}
     st = d["status"]
     assert st["branch"] == "main" and st["counts"] == {"staged": 0, "unstaged": 1, "untracked": 1, "conflicts": 0}
     assert {f["path"]: f["xy"] for f in st["files"]} == {"a": ".M", "u": "??"}
     assert [b["name"] for b in d["branches"]] == ["feat", "main"] and d["commits"][0]["subject"] == "first"
     assert d["remote"] == "origin" and d["has_remote"] is False and d["stashes"] == []  # push_remote's default
+    assert d["commit_url_base"] is None  # no push remote: no commit links
     assert c.get("/p/nope/git/status").status_code == 404
+
+
+def test_status_commit_url_base_only_for_allowed_hosts(repo):
+    s, c, p, _ = repo
+    g(p, "remote", "add", "origin", "git@git.example.test:team/alpha.git")
+    d = c.get("/p/alpha/git/status").json()
+    assert d["commit_url_base"] == "https://git.example.test/team/alpha/commit/"
+    c.app.state.settings = replace(s, git_allowed_hosts=())
+    assert c.get("/p/alpha/git/status").json()["commit_url_base"] is None  # no allowed hosts: never a link
+    c.app.state.settings = replace(s, git_allowed_hosts=("other.example.test",))
+    assert c.get("/p/alpha/git/status").json()["commit_url_base"] is None
 
 
 def test_status_and_plan_use_the_configured_push_remote(repo, tmp_path):

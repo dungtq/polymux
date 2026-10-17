@@ -117,7 +117,7 @@ def _matches(e: dict, result: str, words: tuple[str, ...] = (), cat: str = "") -
         return True
     d = e.get("detail")
     vals = [str(v) for v in d.values()] if isinstance(d, dict) else []
-    hay = " ".join([str(e.get(f, "")) for f in ("action", "target", "client")] + vals).casefold()
+    hay = " ".join([str(e.get(f, "")) for f in ("action", "target", "client", "session")] + vals).casefold()
     return all(w in hay for w in words)
 
 
@@ -131,7 +131,7 @@ class Scan:
 
 def select(path: Path, result: str = "all", q: str = "", show_attempts: bool = False, cat: str = "",
            scan: Scan | None = None) -> Iterator[dict]:
-    """Entries matching result + filter words (action, target, client, detail values) + category, newest first.
+    """Entries matching result + filter words (action, target, client, session, detail values) + category, newest first.
 
     An attempt whose outcome follows (same client+action, within ``PAIR_WINDOW_S``) is collapsed: skipped, or
     yielded with ``_hidden`` when ``show_attempts``. ``scan.counts[r]`` is what ``result=r`` would list under the
@@ -191,7 +191,7 @@ def read_page(path: Path, page: int = 1, result: str = "all", action: str = "",
     return out
 
 
-CSV_COLUMNS = ("time", "ts", "client", "action", "category", "target", "result", "detail")
+CSV_COLUMNS = ("time", "ts", "client", "action", "category", "target", "result", "detail", "session")
 _CSV_RISKY = ("=", "+", "-", "@", "\t", "\r")
 
 
@@ -220,4 +220,4 @@ def csv_lines(path: Path, result: str = "all", q: str = "", show_attempts: bool 
         ts = _ts(e)
         when = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
         yield line((when, f"{ts:.3f}", e.get("client", ""), e.get("action", ""), category(e.get("action", "")),
-                    e.get("target", ""), e.get("result", ""), e.get("detail") or {}))
+                    e.get("target", ""), e.get("result", ""), e.get("detail") or {}, e.get("session", "")))

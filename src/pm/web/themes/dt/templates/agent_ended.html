@@ -8,7 +8,7 @@
 {% from "_agentname.html" import agent_name %}
 {% from "_composer_macros.html" import composer, RESUMABLE with context %}
 {% import "session/_frame.html" as sf with context %}
-{% block title %}{{ agent_text(agent) }} (ended){% endblock %}
+{% block title %}{{ (agent.project ~ "/") if agent.project }}{{ agent_text(agent) }} (ended){% endblock %}
 {% block bodyclass %}c-page{% if embed %} embed{% endif %}{% endblock %}
 {% block mainclass %}{% endblock %}
 {% block page_head %}{{ sf.assets() }}{% endblock %}

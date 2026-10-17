@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from pm.core.config import Settings
 from pm.core.models import Tier
-from pm.security.audit import message_detail
+from pm.security.audit import message_detail, session_tag
 from pm.security.csrf import Csrf
 from pm.security.guard import audit_result, mutation_guard
 
@@ -61,6 +61,17 @@ def test_happy_and_no_message_text(tmp_path):
     assert "TOPSECRET" not in txt and "sha256" in txt
     r = c.post("/send", headers={"Origin": ORIGIN, "X-CSRF-Token": tok})
     assert r.status_code == 200
+
+
+def test_lines_carry_the_session_tag_never_the_id(tmp_path):
+    import json
+    app, c, s, tok, ran, st = build(tmp_path, unlocked_until=time.time() + 60)
+    assert post(c, tok).status_code == 200
+    assert post(c, tok, origin="https://evil.example").status_code == 403
+    rows = [json.loads(x) for x in st.audit_file.read_text().splitlines()]
+    assert [(r["result"], r["session"]) for r in rows] == [("attempt", session_tag("sess1")), ("ok", session_tag("sess1")),
+                                                          ("denied", session_tag("sess1"))]
+    assert "sess1" not in st.audit_file.read_text()
 
 
 def test_unauth(tmp_path):

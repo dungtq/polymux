@@ -375,9 +375,9 @@ def test_agent_heading_is_window_and_raw_id(env, monkeypatch):
     r = c.get("/a/claude-12")
     title_attr, text = _h1(r.text)
     assert text == title_attr == "claude-12 claude"  # no model anywhere: the pill falls back to the kind
-    assert "<title>claude-12 claude" in r.text
+    assert "<title>alpha/claude-12 claude" in r.text  # the tab title names the project
     assert 'class="at-base">claude-12</span>' in r.text
-    assert 'class="at-ico"><svg class="wico"' in r.text and "<title>claude-12 claude" in r.text
+    assert 'class="at-ico"><svg class="wico"' in r.text and "<title>alpha/claude-12 claude" in r.text
     assert 'id="agent-state"' in r.text  # state badge kept (sr-only) for screen readers and the pill title
 
 
@@ -415,6 +415,8 @@ def test_heading_title_is_agent_id_never_label():
         a = Agent(id="claude-14fb00", kind=AgentKind.CLAUDE, pane_id="%1", session_id="$1", pid=1, cwd="/x", label=label)
         h = agenthead.heading(a)
         assert h["base"] == h["id"] == "claude-14fb00" and h["text"] == "claude-14fb00 claude"
+    h = agenthead.heading(replace(a, project="alpha"))  # the page title names the project too
+    assert h["base"] == "claude-14fb00" and h["text"] == "alpha/claude-14fb00 claude"
 
 
 def test_agent_heading_pill_is_the_one_model_pill():

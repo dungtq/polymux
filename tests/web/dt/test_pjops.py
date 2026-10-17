@@ -141,6 +141,12 @@ def test_every_git_mutation_asks_the_plan_first():
             "branch-delete", "pull", "push"} <= actions
 
 
+def test_commit_hash_links_only_with_the_core_base():
+    src = OPS_JS["git"]
+    assert "base = v.commit_url_base" in src and "href: base + c.sha" in src
+    assert "rel: 'noopener noreferrer'" in src and "/^[0-9abcdef]{7,64}$/.test(c.sha)" in src  # full sha, hex only
+
+
 def test_no_force_push_path():
     src = OPS_JS["git"]
     # no force flag, form field or URL anywhere (prose like "never forced" is fine)

@@ -2,10 +2,11 @@
    <remote>, guard lines (detached, merge in progress, behind, diverged, clash -> Stash, pull and pop, a stash pop that
    clashed), changes with stage boxes and a diff in each row's details (Stage / Unstage / Discard), the commit bar
    (message, Commit, Stash), the stash list (Pop, ⋯ Drop), branches (Checkout, ⋯ Merge / Push / Delete) and the last
-   commits. Data: GET <base>/git/status (JSON, rendered here with DOM APIs; text only through textContent). Every action
-   that changes the repo first asks GET <base>/git/plan?action=… what it will do and shows that text in a plain in-page
-   question (risk safe / confirm) or a typed one (risk typed: the plan's `confirm` value), then POSTs
-   <base>/git/<action> with the plan's `requires` fields; a blocked plan is said in a toast and nothing runs. Stage /
+   commits (hash linked to `commit_url_base` + sha when the core sends one). Data: GET <base>/git/status (JSON,
+   rendered here with DOM APIs; text only through textContent). Every action that changes the repo first asks
+   GET <base>/git/plan?action=… what it will do and shows that text in a plain in-page question
+   (risk safe / confirm) or a typed one (risk typed: the plan's `confirm` value), then POSTs <base>/git/<action>
+   with the plan's `requires` fields; a blocked plan is said in a toast and nothing runs. Stage /
    unstage boxes: the box's label is the plan ("Stage <path>"); they run after the plan check without a dialog
    (reversible in one click). After an action: this tab reloads and the frame's head (pm7.pj.refresh). <remote> is the
    status JSON's `remote` (pm.toml push_remote). Fetch has no plan in the core: its title says what it does (downloads
@@ -309,10 +310,13 @@
     return [X.h2('Branches', v.branches.length), X.table('pjg-br', 'Branches', 'pj-brs', rows)];
   }
   function commits(v) {
-    const X = P(), st = v.status;
+    const X = P(), st = v.status, base = v.commit_url_base;
+    // The hash links to the commit on the git server when the push remote is on an allowed host (core: base or null).
+    const hash = (c) => (base && /^[0-9abcdef]{7,64}$/.test(c.sha) ? X.h('a', { href: base + c.sha, target: '_blank',
+      rel: 'noopener noreferrer', title: 'Open ' + c.hash + ' on the git server (new tab)' }, c.hash) : c.hash);
     const rows = [X.gh([{ label: 'Commit' }, { label: 'Message' }, { label: 'Author', cls: 'hide-n' },
       { label: 'Age', num: true }])];
-    v.commits.forEach((c) => rows.push(X.row(c.sha, [X.cell(c.hash, 'mono muted'), X.name(c.subject),
+    v.commits.forEach((c) => rows.push(X.row(c.sha, [X.cell(hash(c), 'mono muted'), X.name(c.subject),
       X.cell(c.author, 'muted hide-n'), X.end(c.ts), X.meta(c.hash + ' · ' + c.author)], { title: c.subject })));
     if (!v.commits.length) rows.push(X.empty('No commits yet.'));
     return [X.h2('Commits', null, (st.branch || 'HEAD') + ' · push goes to ' + v.remote + ' only, never forced'),

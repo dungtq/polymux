@@ -125,10 +125,12 @@ def model_from_record_transcript(path: str, root: Path | Sequence[Path] | None =
 
 
 def heading(agent: Agent) -> dict:
-    """{base, pill, text}: ``<agent id> <raw model id>``; the pill falls back to the kind name (``live_model``)."""
+    """{base, pill, id, text}: ``<agent id> <raw model id>``; the pill falls back to the kind name (``live_model``).
+    ``text`` (the page title) starts with ``<project>/`` when the agent belongs to a project."""
     base = agent.id
     pill = live_model(agent)
-    return {"base": base, "pill": pill, "id": agent.id, "text": f"{base} {pill}"}
+    where = f"{agent.project}/" if agent.project else ""
+    return {"base": base, "pill": pill, "id": agent.id, "text": f"{where}{base} {pill}"}
 
 
 _DATE = re.compile(r"-\d{8}$")

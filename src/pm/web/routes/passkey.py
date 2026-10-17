@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from pm.core import executors
 from pm.core.models import AuditEntry
 from pm.security import auth
-from pm.security.audit import AuditError
+from pm.security.audit import AuditError, session_tag
 from pm.security.guard import PASSKEY_TEXTS, audit_result, client_of, csrf_session_guard, get_audit
 from pm.security.passkey import CHALLENGE_TTL_S, PasskeyError, PasskeyManager, manager_of
 
@@ -112,11 +112,11 @@ PREAUTH_COOKIE = "pm_preauth"
 PREAUTH_PATH = "/login/passkey"
 
 
-def _login_audit(request: Request, result: str, reason: str = "") -> None:
-    """Best effort: never raises, never carries credential material."""
+def _login_audit(request: Request, result: str, reason: str = "", sid: str = "") -> None:
+    """Best effort: never raises, never carries credential material. ``sid``: the new session (tag only)."""
     try:
         get_audit(request).write(AuditEntry(time.time(), auth.client_id(request), "login_passkey",
-                                            "", result, {"reason": reason} if reason else {}))
+                                            "", result, {"reason": reason} if reason else {}, session_tag(sid)))
     except Exception:
         pass
 
@@ -178,7 +178,7 @@ async def login_finish(request: Request):
     app.state.login_limiter.success(client)
     store = app.state.sessions
     session = store.create(client)
-    _login_audit(request, "ok")
+    _login_audit(request, "ok", sid=session.id)
     resp = JSONResponse({"ok": True, "next": nxt}, headers=_NOSTORE)
     auth._set_cookie(resp, store.cookie_value(session), app.state.settings)
     _clear_nonce(resp)
