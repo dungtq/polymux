@@ -23,6 +23,7 @@ import secrets
 import shlex
 import shutil
 import signal
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -71,6 +72,18 @@ def healthy(url: str) -> bool:
             return r.status == 200
     except OSError:
         return False
+
+
+def port_free(port: int) -> bool:
+    """True when nothing listens on 127.0.0.1:<port> (a stray pm from another checkout would otherwise answer
+    /healthz for us, and every login would hit that foreign server)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
 
 
 def code_stamp() -> float:
@@ -370,6 +383,8 @@ def cmd_start(port: int, limits: str | None = None, pm_bin: str | None = None, e
     else:
         cmd_stop(port, quiet=True)
         info = seed(port, opts["limits"])
+    if not port_free(port):
+        sys.exit(f"devpm: port {port} is held by another process (not this dev instance); stop it or use --port")
     write_toml(root, opts["extra_toml"])
     info.update(opts)
     log = open(root / "pm.log", "ab")
@@ -387,10 +402,10 @@ def cmd_start(port: int, limits: str | None = None, pm_bin: str | None = None, e
     info["started_at"] = started_at
     info["ntfy_url"] = f"http://127.0.0.1:{port + NTFY_OFFSET}"
     for _ in range(60):
+        if p.poll() is not None:  # checked first: a dead pm must never pass on another server's /healthz
+            sys.exit(f"devpm: pm exited early, see {root / 'pm.log'}")
         if healthy(info["url"]):
             break
-        if p.poll() is not None:
-            sys.exit(f"devpm: pm exited early, see {root / 'pm.log'}")
         time.sleep(0.5)
     else:
         sys.exit("devpm: pm did not become healthy")

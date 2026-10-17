@@ -30,6 +30,17 @@ def test_guard_accepts_dev_root():
     devpm.guard(8095, devpm.root_of(8095))
 
 
+def test_port_free_sees_a_foreign_listener():
+    """A stray server on the dev port must stop `devpm start` (its /healthz would pass for ours)."""
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        s.listen()
+        port = s.getsockname()[1]
+        assert devpm.port_free(port) is False
+    assert devpm.port_free(port) is True
+
+
 def test_tmux_helper_only_private_sockets():
     with pytest.raises(AssertionError):
         devpm.tmux("default", "list-sessions")
