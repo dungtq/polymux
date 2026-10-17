@@ -1,6 +1,7 @@
 """git glue for tracker files: stale check, render into a work tree + stage (pre-commit hook), the
 ``merge=pmctl`` driver (takes the items a merged branch added or ticked, then writes the render), the
-post-commit hook (stamps a branch's CHANGELOG / FEATURES drafts) and ``pmctl hooks install``.
+post-commit / post-merge hooks (stamp a branch's CHANGELOG / FEATURES drafts; on main land the merged ones)
+and ``pmctl hooks install``.
 
 Item files (BACKLOG.md, TODO.md) go through ``mdgen`` / ``mdimport`` / ``store``; the doc files (CHANGELOG.md,
 FEATURES.md) through ``changelog`` / ``featurelist``, whose render depends on the work tree (``drafts.View``).
@@ -49,7 +50,14 @@ POST_COMMIT = f"""#!/bin/sh
 command -v pmctl >/dev/null 2>&1 || exit 0
 pmctl render --post-commit || true
 """
-HOOKS = {"pre-commit": HOOK, "post-commit": POST_COMMIT}
+POST_MERGE = f"""#!/bin/sh
+{HOOK_MARK} (written by `pmctl hooks install`): after a merge, land the CHANGELOG.md / FEATURES.md drafts
+# the new HEAD has merged (in a branch's work tree: stamp its drafts). Skipped when pmctl is not installed;
+# never fails.
+command -v pmctl >/dev/null 2>&1 || exit 0
+pmctl render --post-commit || true
+"""
+HOOKS = {"pre-commit": HOOK, "post-commit": POST_COMMIT, "post-merge": POST_MERGE}
 # anchored to the repo root: an unanchored ``TODO.md merge=pmctl`` also matches nested TODO.md files, which the
 # driver refuses (exit 1 = conflict)
 ATTRS = tuple(f"/{name} merge=pmctl" for name in schema.ALL_FILES.values())
@@ -211,8 +219,10 @@ def merge(settings: Settings, project: str, base: str | Path, result: str | Path
     """Merge driver (``%O %A %B %P``): items the merged branch (``theirs``) added or ticked against the
     merge base go into pm.db (``store.merge_branch``; ours is main, where the DB is the truth), then the
     render of ``path`` (a tracker file at the repo root) is written into ``result`` (git's %A). CHANGELOG.md /
-    FEATURES.md: in a tree on the default branch the branch's drafts that ``theirs`` has land (unknown
-    entries are added landed, ``changelog.take`` / ``featurelist.take``); elsewhere nothing is taken; the
+    FEATURES.md: never written to pm.db here (git also runs the driver for ``merge-tree``, a merge that is
+    aborted and a rebase); in a tree on the default branch ``result`` is the render as if the branch's
+    drafts that ``theirs`` has had landed (``merged_text``); they land once the merge commit exists (the
+    post-merge / post-commit hook or the next main render: ``drafts.classify``, ``absorb``); elsewhere the
     render is that work tree's (``root``, default: the cwd's). False when ``path`` is not a tracker file of
     ``project``."""
     file = next((k for k, v in schema.ALL_FILES.items() if v == path), None)
@@ -221,9 +231,10 @@ def merge(settings: Settings, project: str, base: str | Path, result: str | Path
     if file in _DOCS:
         root = toplevel(root or Path.cwd())
         view = drafts.view_for(settings, project, root)
-        if view.main:
-            _DOCS[file].take(settings, project, _read_side(base), _read_side(theirs), view, actor=actor, audit=audit)
-        text = render_for(settings, project, file, root)
+        if view.main:  # a preview: git runs drivers for merge-tree, aborted merges and rebases too
+            text = _DOCS[file].merged_text(settings, project, _read_side(base), _read_side(theirs), view, actor)
+        else:
+            text = render_for(settings, project, file, root)
     else:
         added, ticked = branch_changes(_read_side(base), _read_side(theirs), file)
         if added or ticked:
@@ -308,7 +319,7 @@ def _install_attrs(root: Path) -> str:
 
 
 def install_hooks(root: str | Path, *, force: bool = False) -> list[str]:
-    """pre-commit + post-commit hooks, ``.gitattributes`` merge lines and the ``merge.pmctl`` driver for the
+    """pre-commit + post-commit + post-merge hooks, ``.gitattributes`` merge lines and the ``merge.pmctl`` driver for the
     repo at ``root``. A foreign hook is checked before anything is written."""
     root = Path(root)
     if not force:

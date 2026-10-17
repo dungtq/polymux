@@ -207,6 +207,13 @@ def features(settings: Settings, project: str, *, area: str | None = None, name:
     return out
 
 
+def merged_text(settings: Settings, project: str, base: str, theirs: str, view: drafts.View,
+                actor: str = "user") -> str | None:
+    """The merge driver's result on the default branch (``fs.take`` previewed, pm.db unchanged)."""
+    chs = fs.changes(base, theirs)
+    return docsync.preview(settings, project, view, lambda con: fs.take(con, project, chs, view, actor), render)
+
+
 def take(settings: Settings, project: str, base: str, theirs: str, view: drafts.View, *, actor: str = "user",
          audit: Audit = None) -> dict:
     """What a branch changed (``theirs`` vs ``base``), by the ``featurestore.take`` rules."""

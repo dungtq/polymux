@@ -3,7 +3,8 @@
 ``sync`` runs under the main file's flock (``mdgen.sync_main``): take a hand edit of the main file
 (``absorb``), land the drafts the main tree's HEAD has merged (``promote``), run the change, then write the
 main tree's render. Changes run through ``store.run(..., sync=)`` (one audited transaction, fail closed).
-``import_text`` is the doc files' import; ``hand_edit`` is the hash / render check that decides whether the main file was edited outside pm.
+``preview`` is the merge driver's result (nothing written); ``import_text`` is the doc files' import;
+``hand_edit`` is the hash / render check that decides whether the main file was edited outside pm.
 """
 
 from __future__ import annotations
@@ -62,6 +63,22 @@ def sync(settings: Settings, project: str, file: str, change: Callable[[], objec
         promote(root, view)
         return change() if change is not None else None
     return mdgen.sync_main(settings, project, file, pre, render=lambda: render_text(root))
+
+
+def preview(settings: Settings, project: str, view: drafts.View, take: Callable[[sqlite3.Connection], object],
+            render: Render) -> str | None:
+    """The render for ``view`` after ``take(con)``, in a transaction that is rolled back: what a merge would
+    write, pm.db unchanged (the merge driver: git also runs it for trial merges, ``merge-tree`` and rebases)."""
+    con = schema.connect(settings)
+    try:
+        con.execute("BEGIN")
+        try:
+            take(con)
+            return render(con, project, view)
+        finally:
+            con.execute("ROLLBACK")
+    finally:
+        con.close()
 
 
 def import_text(settings: Settings, project: str, file: str, text: str, parsed: object,

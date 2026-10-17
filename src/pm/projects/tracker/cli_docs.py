@@ -116,14 +116,20 @@ def feature(ctx) -> int:
 
 # ------------------------------------------------------------------ hooks, import
 def post_commit(ctx) -> int:
-    """The post-commit hook: stamp this branch's drafts with HEAD. Quiet unless it stamped something."""
+    """The post-commit / post-merge hook: stamp this branch's drafts with HEAD; in the main tree on the default
+    branch land the drafts HEAD has merged (the merge driver only previews them). Quiet unless it stamped."""
     try:
-        name, _ = resolve.project_for(ctx.settings, Path.cwd())
+        name, main_root = resolve.project_for(ctx.settings, Path.cwd())
     except NotFound:
         return 0
     if not views.is_tracker(ctx.settings, name):
         return 0
-    n = drafts.stamp(ctx.settings, name, gitglue.toplevel(Path.cwd()), audit=ctx.audit)
+    root = gitglue.toplevel(Path.cwd())
+    if root.resolve() == main_root.resolve() and drafts.view_for(ctx.settings, name, root).main:
+        for f in mdgen.tracked_files(ctx.settings, name, DOCS):
+            gitglue.sync(ctx.settings, name, f)
+        return 0
+    n = drafts.stamp(ctx.settings, name, root, audit=ctx.audit)
     if n or ctx.json:
         ctx.out({"stamped": n}, f"pmctl: {n} CHANGELOG/FEATURES draft(s) stamped with this commit")
     return 0

@@ -29,12 +29,14 @@ def test_install_hooks(repo):
     assert hook.read_text() == gitglue.HOOK and stat.S_IMODE(hook.stat().st_mode) == 0o755
     post = repo / ".git" / "hooks" / "post-commit"
     assert post.read_text() == gitglue.POST_COMMIT and stat.S_IMODE(post.stat().st_mode) == 0o755
+    pm_ = repo / ".git" / "hooks" / "post-merge"
+    assert pm_.read_text() == gitglue.POST_MERGE and stat.S_IMODE(pm_.stat().st_mode) == 0o755
     assert (repo / ".gitattributes").read_text() == ATTRS
     assert git(repo, "config", "--local", "merge.pmctl.driver").strip() == "pmctl render --merge %O %A %B %P"
     assert git(repo, "config", "--local", "merge.pmctl.name").strip()
-    assert len(msgs) == 4
+    assert len(msgs) == 5
     again = gitglue.install_hooks(repo)
-    assert all("already" in m for m in again[:3])
+    assert all("already" in m for m in again[:4])
     assert (repo / ".gitattributes").read_text().count("merge=pmctl") == 4
 
 

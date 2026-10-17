@@ -380,10 +380,18 @@ def _take(con: sqlite3.Connection, project: str, new: list[tuple[str, str]], vie
     return {"landed": n_land, "added": len(add)}
 
 
+def merged_text(settings: Settings, project: str, base: str, theirs: str, view: drafts.View,
+                actor: str = "user") -> str | None:
+    """The merge driver's result on the default branch: the render as if ``_take`` had run, pm.db unchanged
+    (the drafts land once the merge commit has their sha, ``promote``; unknown entries by ``absorb``)."""
+    new = new_entries(base, theirs)
+    return docsync.preview(settings, project, view, lambda con: _take(con, project, new, view, actor), render)
+
+
 def take(settings: Settings, project: str, base: str, theirs: str, view: drafts.View, *, actor: str = "user",
          audit: Audit = None) -> dict:
-    """What a branch (``theirs`` vs ``base``) added, by the ``_take`` rules: the merge driver (``view`` = the
-    main tree) and the pre-commit hook in a worktree (``view`` = the worktree's branch)."""
+    """What a branch (``theirs`` vs ``base``) added, by the ``_take`` rules: the pre-commit hook in a worktree
+    (``view`` = the worktree's branch). The merge driver only previews it (``merged_text``)."""
     new = new_entries(base, theirs)
     if not new:
         return {"landed": 0, "added": 0}
