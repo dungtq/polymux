@@ -47,8 +47,11 @@ three conditions:
   attention / waiting / unknown; red for failed and destructive actions. Contrast AA in both themes.
 - Status is a solid 8px dot (green running, yellow attention/waiting/unknown, red failed, grey
   idle) with the word in `title`/screen-reader text, not a pill.
-- Phone (<700px): 5-item bottom nav (Inbox, Projects, tmux, Servers, More... sheet with Backlog,
-  Audit, Settings, Log out); header icon row (Backlog, Audit, Settings, Log out); weights 400
+- Nav items come from one list, `NAV` in `web/render.py` (flags `tab`, `top`, `more`, `menu`, `side`); add or move a
+  section there, never in a template. Desktop tabs: Inbox, Projects, tmux, Backlog, ntfy, Audit.
+- Phone (<700px or coarse pointer): 5-item bottom nav (Inbox, Projects, tmux, Servers, More... sheet with Agents,
+  Backlog, ntfy, Audit, Settings, Log out); header icon row (Launch, Stop, Backlog, ntfy, Audit, Alerts, Chat, Menu;
+  Backlog/ntfy/Audit icons only below 700px); weights 400
   (names and the active tab 500, headings 600); 15px text, 16px inputs (no iOS zoom), tap targets
   at least 36-44px.
 
@@ -56,15 +59,23 @@ three conditions:
 - `base.html` wraps `main` in `.v5-shell`; a page passes `sidebar` (`models.Sidebar`) to get the left
   sidebar (`_side.html`) and `drawer=True` to get the right-hand drawer (`_drawer.html`). Styles:
   `static/css/shell.css`, behaviour: `side.js`, `side-init.js` (collapsed flag, blocking in `<head>`), `drawer.js`.
-- Sidebar only inside one specific project (`/p/{name}`, `/p/{name}/launch`), tmux session (`/tmux/{sid}`)
-  or agent (`/agents/{name}`). Overview pages and other tabs never have one. The current row is rendered
-  by the server (`aria-current`); JS never decides the view.
-- Pages without a sidebar must keep the v4 `main` position and width (390/1512/2560 px); `.v5-shell` is
-  `display:contents` until the drawer opens.
+- Two kinds of sidebar (`_side.html`), never none on a full page of a section:
+  - Section menu ("Menu"): every section page (`nav` in Inbox, Projects, tmux, Servers, Agents incl.
+    `/agents/{name}`, Backlog, ntfy, Audit, Notifications, Settings) and the project pages (`/p/{name}`,
+    `/p/{name}/launch`, plans) get it: the `NAV` entries with `side=True` (Inbox with its Active/Idle/Ended views,
+    Projects with the live project list, tmux, Backlog, ntfy, Audit) plus the foot groups. Project pages pass
+    `sidebar` (label Projects): the list is open and their project row is current; section pages get
+    `side_projects` (list collapsed except on Projects).
+  - Agent sidebar: agent pages (`/a/{id}`, live or ended) pass `agent_sidebar` = the agent's tmux tree (ACTIVE)
+    and the project's ended agents (HISTORY), with its own filter box.
+  - Embed (`?embed=1`) pages have none. The current row is rendered by the server (`aria-current`); JS never
+    decides the view. Below 900px the sidebar is an off-canvas drawer opened by `.v5-sidebtn`.
+- Pages without a sidebar (embeds, Builder `/a/{id}/builder`, terminal `/term/s{n}`, login) must keep the v4 `main` position and width
+  (390/1512/2560 px); `.v5-shell` is `display:contents` until the drawer opens.
 - Drawer: plain click on a `/a/{id}` or `/term/s{n}` link in `main` opens it with `?embed=1`
   (`html.v5-embed`, CSP `frame-ancestors 'self'` for embed responses only). The row stays a real link.
 - Lists inside a sidebar page or an open drawer drop columns by container width (`@container pg`).
-- Agents and Servers are not top tabs on desktop: they live in the sidebar foot group "Manage" and the top-right Menu (same groups, `_acct.html`: Manage, Service, Account). Phones: Servers in the bottom nav, Agents in More. `/agents` overview has no contextual sidebar.
+- Agents and Servers are not top tabs on desktop: they live in the sidebar foot group "Manage" and the top-right Menu (same groups, `_acct.html`: Manage, Service, Account). Phones: Servers in the bottom nav, Agents in More. `/agents` and `/agents/{name}` show the section menu, not an agent list.
 - The open chat aside is carried over every navigation by the one handler in `drawer.js` (pagehide stash + history wrappers); never add per-control hash patches.
 
 ## Controls
