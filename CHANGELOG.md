@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Project page: one hairline under the tmux tab list)
+
+On the project page the tmux tab list ended with its own row hairline, then an empty band and the next section's hairline. The list now ends directly on the next section's single hairline.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

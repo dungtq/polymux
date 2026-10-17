@@ -12,9 +12,13 @@ JS = """()=>{
  const px=v=>parseFloat(v)||0, r=e=>e.getBoundingClientRect();
  const sec=document.querySelector('#proj-live > .sec-h'); const scs=getComputedStyle(sec);
  const tb=document.querySelector('.pj-main>.pj-tabbar'); const tabbar=!!tb&&getComputedStyle(tb).display!=='none';
- const h2=sec.querySelector('h2'); const hcs=getComputedStyle(h2);
+ const h2=sec.querySelector('h2, [role=tab]');  // the tmux heading, or its tab when tmux | Stack | VM are tabs
  const srows=[...document.querySelectorAll('#proj-live .srow:not([data-open])')];
- const lst=srows[srows.length-1].parentElement; const nxt=lst.nextElementSibling; const ncs=getComputedStyle(nxt);
+ const lst=srows[srows.length-1].parentElement;
+ let nxt=lst.nextElementSibling;  // in a tab panel: the next shown section after the panel
+ if(!nxt&&lst.parentElement.classList.contains('ptab-panel')){nxt=lst.parentElement.nextElementSibling;
+   while(nxt&&getComputedStyle(nxt).display==='none') nxt=nxt.nextElementSibling;}
+ const ncs=getComputedStyle(nxt);
  const ls=srows[srows.length-1];
  const wins=getComputedStyle(ls.querySelector('.c-wins')).display;
  return {tabbar, secBorderTop:px(scs.borderTopWidth),
