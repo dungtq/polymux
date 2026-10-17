@@ -21,6 +21,9 @@ Run a local instance with `uv run pm` (see [docs/INSTALL.md](docs/INSTALL.md)). 
 Playwright UI suite and screenshots, install the browsers once: `uv run playwright install chromium webkit`.
 To keep your own host names, LAN addresses and user name out of commits, list them in
 `~/.config/pm/private-patterns.txt` (format: `tools/leakcheck.sh --help`) and run `./tools/leakcheck.sh --install` once.
+The hooks check staged lines (pre-commit), the commit message (commit-msg) and every outgoing commit's diff and full
+message (pre-push). Lines prefixed `msg:` apply to commit messages only: for example `msg:#[0-9]+` if you track issues
+in a private tracker whose numbers would link to unrelated public issues.
 
 ## Checks before a PR
 
