@@ -24,7 +24,7 @@
    - reader aside (#pj-reader): pm7.pj.reader.open({title, src | url, href, cl}) shows a page in a frame (src) or
      a fragment (url, loaded with htmx; in .x-cl unless cl: false, a dt fragment); href = the "Open as a page" link
      (default src | url, '' = none); a grid column >= 1560px, an overlay below (Esc: a soft layer).
-   - classic hash links (#browse=, #view=, #skill=, #issues, #backlog, #issue=N) open the dt tab on load and on
+   - classic hash links (#browse=, #view=, #skill=, #todo, #issues, #backlog, #issue=N) open the dt tab on load and on
      hashchange; #issue=N then calls pm7.backlog.reader(project, N) (one setTimeout 0: after every ready hook).
    Globals: pm7.pj = {tab(key), refresh() (the head's stats line and the tiles from a fresh render; tab partials call
    it after an action), reader: {open, close, isOpen}, nav: {toggle, open, close}, hash: {get, set} (the URL hash as
@@ -372,8 +372,9 @@
   }
 
   /* ---------- the classic UI's hash links ----------
-     #browse[=path] #view=key #skill=s/src/n #issues #backlog #issue=N (the core's redirects of /p/<n>/files,
-     /view/<key>, /skill/...; Save as issue's "Open it"; search hits): open the dt tab, the hash becomes #tab=... */
+     #browse[=path] #view=key #skill=s/src/n #todo #issues #backlog #issue=N (the core's redirects of
+     /p/<n>/files, /view/<key>, /skill/..., /p/<n>/todo/*; Save as issue's "Open it"; search hits): open the
+     dt tab, the hash becomes #tab=... */
   function classic() {
     const p = hashState(), get = (k) => p.get(k) || '';
     if (p.has('browse')) {
@@ -393,6 +394,10 @@
       const parts = get('skill').split('/').filter(Boolean);
       if (!docOpen('skills') || parts.length !== 3) { tab('docs'); return true; }
       skill(base() + '/skill/' + parts.map(encodeURIComponent).join('/'), parts[2]);
+      return true;
+    }
+    if (p.has('todo')) {  // the TODO tab hidden here: the Backlog page's TODO
+      if (!tab('todo')) window.location.assign('/backlog?tab=todo&project=' + encodeURIComponent(name()));
       return true;
     }
     const issue = /^\d+$/.test(get('issue')) ? +get('issue') : 0;

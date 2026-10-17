@@ -1,6 +1,6 @@
 """/dt routes of the dt theme (SHELL.md §3): the tab strip, its JSON, the sessions sidebar, and the v7 "all
 devices" prefs (Settings › Display, Chat colours; ``pm.web.dt.prefs``), and the project quick look's listing
-(``GET /dt/peek/<project>``, js/peek.js).
+(``GET /dt/peek/<project>``, js/peek.js), and the "Add an issue" form for any page (``GET /dt/add-issue``, js/keys.js).
 
 GETs need a login session; they are plain ``def`` (threadpool: the tabs / prefs file is stat'ed / read; the peek is
 ``async``: snapshot, then the listing on the collectors pool). Every POST:
@@ -12,6 +12,7 @@ The fragments are dt-only templates: a request in another UI theme (cookie ``pm_
 
 from __future__ import annotations
 
+import sqlite3
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -21,6 +22,7 @@ from pm.core import executors
 from pm.core.errors import Invalid
 from pm.core.models import Tier
 from pm.projects import projfiles
+from pm.projects.tracker import views
 from pm.security.audit import AuditError
 from pm.security.guard import audit_result, mutation_guard
 from pm.web import render, themes
@@ -31,6 +33,7 @@ router = APIRouter(prefix="/dt")
 TABS_TPL = "shell/_tabs.html"
 SESS_TPL = "shell/_sessions.html"
 PEEK_TPL = "project/_peek_list.html"
+ADD_ISSUE_TPL = "_add_issue.html"
 _NOSTORE = {"Cache-Control": "no-store"}
 THEME = "dt"
 
@@ -233,3 +236,18 @@ async def peek(request: Request, project: str, path: str = "") -> Response:
     html = render.get_template(PEEK_TPL).render(
         fv=files.listing(tree, "/p/" + quote(p.name), p.name), name=p.name, meta=meta, new_tab=new_tab)
     return render.fragment(request, html)
+
+
+# ------------------------------------------------------------------ Add an issue from anywhere (js/keys.js)
+@router.get("/add-issue", dependencies=AUTH)
+def add_issue(request: Request, project: str = "") -> Response:
+    """The search command "Add an issue": the Backlog's Add issue dialog with the tracker projects to pick from
+    (``_add_issue.html``); ``project`` (the page's project) is preselected when it is one of them. The add itself is
+    the core's ``POST /p/{n}/issues``. Read-only; 503 while pm.db is busy."""
+    if (none := _no_shell()) is not None:
+        return none
+    try:
+        names = views.issue_projects(request.app.state.settings)
+    except (sqlite3.Error, OSError):
+        raise HTTPException(503, "tracker busy") from None
+    return render.html(request, ADD_ISSUE_TPL, projects=names, project=project if project in names else "")

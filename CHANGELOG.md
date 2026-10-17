@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-17 (dt: TODO tab for TODO.md file projects)
+
+dt theme: the project view's TODO tab lists and ticks the items of a project that keeps a plain TODO.md file (not imported into the tracker), and the classic `#todo` links (after a tick, the Backlog's "Open project") open that tab. Add task and Edit stay tracker-only.
+
+## 2026-10-17 (dt: add an issue from any page through search)
+
+dt theme: the search command "Add an issue" (type `>` in search) opens the Backlog's Add issue dialog on any page, with the page's project preselected when it uses the issue tracker. The form, images and options are the same as on the Backlog page.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.
