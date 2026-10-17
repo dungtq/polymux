@@ -101,7 +101,7 @@ def _roots(root: Path | Sequence[Path] | None, default: Path, sub: str = "") -> 
 def record_meta(path: str, root: Path | Sequence[Path] | None = None) -> tuple[str, str]:
     """``transcript_meta`` for a stored registry path: only a regular file whose realpath is
     under ``~/.claude/projects`` (or one of the ``root`` paths, e.g. an account's ``projects``; no symlink
-    escape) is read; cached by (realpath, mtime)."""
+    escape) is read; cached by ``_file_key``."""
     if not path:
         return "", ""
     try:
@@ -109,7 +109,7 @@ def record_meta(path: str, root: Path | Sequence[Path] | None = None) -> tuple[s
         if not any(_under(real, b) for b in _roots(root, Path.home() / ".claude" / "projects", "projects")) \
                 or not os.path.isfile(real):
             return "", ""
-        key = (real, os.stat(real).st_mtime)
+        key = _file_key(real)
     except (OSError, ValueError):
         return "", ""
     hit = _CACHE.get(key)
@@ -239,7 +239,14 @@ def _agy_model(path: str) -> str:
     return ""
 
 
-_KCACHE: dict[tuple[str, float], str] = {}
+def _file_key(real: str) -> tuple[str, int, int, int]:
+    """Cache key of a transcript file: (realpath, inode, mtime in ns, size). The size and inode catch a rewrite or
+    an append inside one filesystem timestamp tick, where the mtime alone stays the same."""
+    st = os.stat(real)
+    return real, st.st_ino, st.st_mtime_ns, st.st_size
+
+
+_KCACHE: dict[tuple[str, int, int, int], str] = {}
 
 
 def record_model(path: str, home: Path | None = None, claude_dirs: Sequence[Path] | None = None,
@@ -248,7 +255,7 @@ def record_model(path: str, home: Path | None = None, claude_dirs: Sequence[Path
     where the realpath lives under ``home`` (claude projects, codex sessions, devin transcripts, cursor
     chats, antigravity conversations); any other path is not read. ``claude_dirs`` / ``codex_dirs`` (config
     folders from ``accounts.config_dirs``) replace ``~/.claude`` / ``~/.codex`` as the allowed roots.
-    Cached by (realpath, mtime)."""
+    Cached by ``_file_key``."""
     if not path:
         return ""
     home = home or Path.home()
@@ -274,7 +281,7 @@ def record_model(path: str, home: Path | None = None, claude_dirs: Sequence[Path
     try:
         if not os.path.isfile(real):
             return ""
-        key = (real, os.stat(real).st_mtime)
+        key = _file_key(real)
     except OSError:
         return ""
     if key not in _KCACHE:
@@ -446,7 +453,7 @@ def live_pill(agent: Agent, home: Path | None = None, config_dirs: Sequence[Path
 
 def pill_model(transcript: str, claude_dirs: Sequence[Path] | None = None,
                codex_dirs: Sequence[Path] | None = None) -> str:
-    """Short model name for a list row, '' when unknown (cached by realpath+mtime, one stat per row).
+    """Short model name for a list row, '' when unknown (cached by realpath, inode, mtime and size; one stat per row).
     ``claude_dirs`` / ``codex_dirs``: ``accounts.config_dirs`` (default ``~/.claude`` / ``~/.codex``)."""
     return model_short(record_model(transcript, claude_dirs=claude_dirs, codex_dirs=codex_dirs))
 

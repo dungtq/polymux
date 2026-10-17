@@ -149,7 +149,12 @@ def test_loop_runs_scan_off_the_event_loop_and_stops(env, monkeypatch):
     calls = []
     monkeypatch.setattr(pastsessions, "FIRST_DELAY_S", 0)
     real = pastsessions.scan
-    monkeypatch.setattr(pastsessions, "scan", lambda st, pr: calls.append(len(pr)) or real(st, pr, home=home))
+
+    def scan(st, pr):
+        n = real(st, pr, home=home)
+        calls.append(len(pr))  # after the scan finished: stop() cannot cut it short any more
+        return n
+    monkeypatch.setattr(pastsessions, "scan", scan)
 
     class Snap:
         pass
@@ -162,10 +167,9 @@ def test_loop_runs_scan_off_the_event_loop_and_stops(env, monkeypatch):
             class state:
                 settings = s
         task = pastsessions.start(App, lambda st: snap)
-        for _ in range(100):
+        end = time.monotonic() + 30  # a deadline, not a fixed number of sleeps: the scan runs in a thread
+        while not calls and time.monotonic() < end:
             await asyncio.sleep(0.02)
-            if calls:
-                break
         await pastsessions.stop(App)
         return task
 
