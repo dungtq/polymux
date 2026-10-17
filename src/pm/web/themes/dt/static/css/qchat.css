@@ -83,7 +83,6 @@
 /* ---------- composer: the box, the chips row, the note ---------- */
 .q-comp{flex:0 0 auto;margin:0;padding:var(--s2) var(--s3) var(--s3);border-top:1px solid var(--line2)}
 .q-pop .q-box textarea{min-height:calc(var(--ctl-h) * 1.5);max-height:30vh;resize:none}
-html[data-compose-size] .q-pop .q-box textarea{font-size:var(--compose-size)}  /* Composer text size (head.js) */
 .q-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1);padding:var(--s1) var(--s2) var(--s2)}
 .q-pop .q-chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:var(--field-w-sm);
   height:var(--ctl-h-sm);min-height:0;

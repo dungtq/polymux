@@ -281,8 +281,8 @@ def test_composer_text_size_in_composer_and_appearance(senv):
     js = _js("settings.js")
     assert "bset(t.getAttribute('data-s-b'), t.value);\n      syncB(lay());" in js
     assert "'cmp.size'" in js and "prop('--compose-size', cs)" in _js("head.js")
-    css = (THEME / "static/css/qchat.css").read_text()
-    assert "html[data-compose-size] .q-pop .q-box textarea{font-size:var(--compose-size)}" in css
+    css = (THEME / "static/css/parts.css").read_text()  # the Quick chat box is the shared .p-tbox part
+    assert "html[data-compose-size] .p-tbox.q-box textarea{font-size:var(--compose-size)}" in css
 
 
 def test_display_sidebar_state_row(senv):
