@@ -20,9 +20,11 @@
 .md a { color: var(--accent); }
 .md code { font-size: .88em; }
 .md pre { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px 0; overflow-x: auto; max-width: 100%; white-space: pre; user-select: all; }
-.md pre code { padding: 0; font-size: var(--fs-s); overflow-wrap: normal; }
+.md pre code { padding: 0; font-size: .87em; overflow-wrap: normal; }
 .md .md-table { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 6px; }
-.md table { width: auto; min-width: 100%; border-collapse: collapse; font-size: var(--fs-s); }
+/* tables and code blocks are sized from the text around them (13px at the 15px default), so the chat / reader text
+   size controls (--chat-size, --md-size) scale them too */
+.md table { width: auto; min-width: 100%; border-collapse: collapse; font-size: .87em; }
 .md th, .md td { border: 0; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
 .md th:last-child, .md td:last-child { border-right: 0; }
 .md tbody tr:last-child td { border-bottom: 0; }

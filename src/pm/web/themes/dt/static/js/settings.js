@@ -241,6 +241,7 @@
     if (!t || !t.closest || !lay() || !lay().contains(t)) return;
     if (t.matches('input[data-s-b]')) {
       bset(t.getAttribute('data-s-b'), t.value);
+      syncB(lay());  // the same key in another section (Composer text size: Appearance and Composer)
       pm7.toast('Saved in this browser · ' + labelOf(t));
       return;
     }

@@ -87,6 +87,7 @@
 .q-pop .q-box textarea{display:block;width:100%;min-height:calc(var(--ctl-h) * 1.5);max-height:30vh;margin:0;
   padding:var(--s2) var(--s3) var(--s1);border:0;border-radius:var(--r-pop);background:none;color:var(--fg);
   font:inherit;font-size:var(--fs-in);line-height:1.45;resize:none;outline:0;box-shadow:none}
+html[data-compose-size] .q-pop .q-box textarea{font-size:var(--compose-size)}  /* Composer text size (head.js) */
 .q-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1);padding:var(--s1) var(--s2) var(--s2)}
 .q-pop .q-chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:var(--field-w-sm);
   height:var(--ctl-h-sm);min-height:0;

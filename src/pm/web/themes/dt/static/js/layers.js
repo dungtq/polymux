@@ -5,7 +5,8 @@
      pm7.confirm({title, body, ok, cancel, danger, typed, undo}) -> Promise<bool>   in #x-dlg; typed = exact name to
        type; undo = the sentence after "Type <name> to confirm." (default "This cannot be undone."; e.g. a backup)
      pm7.menu(anchor, items, {label, align, onClose}) -> el | null      #x-menu; phone (< 700 px): #x-sheet
-       items: [{label, icon, run(e), href, danger, disabled, note, kbd} | {sep: true}]; same anchor again = close
+       items: [{label, icon, run(e, host), href, danger, disabled, note, kbd, keep} | {sep: true}]; same anchor
+       again = close; keep: the menu stays open after run (steppers: A+ / A-); run gets the menu host (labels)
      pm7.sheet(nodes, {label, head, role, anchor, onClose}) -> el      #x-sheet bottom sheet over #x-scrim
      pm7.toast(text, key, {error, ms})                                #x-toast, 1.4 s (error 4 s)
        key = the shortcut's label: a shortcut toast, shaped by Settings › Display › Shortcut helper (html[data-ktoast]
@@ -180,11 +181,12 @@
     if (it.note) b.appendChild(el('small', '', it.note));
     if (it.kbd) b.appendChild(el('kbd', '', it.kbd));
     b.addEventListener('click', (e) => {
-      if (it.disabled) { e.preventDefault(); return; }
+      // the element's state, not it.disabled: a keep item's run may enable or disable another item
+      if (b.disabled || b.getAttribute('aria-disabled') === 'true') { e.preventDefault(); return; }
       if (!it.href) e.preventDefault();
       const L = owner(b);
-      if (L) finish(L, '');
-      if (it.run) it.run(e);
+      if (L && !it.keep) finish(L, '');
+      if (it.run) it.run(e, L ? L.el : null);
     });
     return b;
   }

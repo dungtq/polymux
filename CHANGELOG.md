@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-17 (v7: Composer text size in Settings › Composer)
+
+- dt Settings › Composer has a Text group with the Composer text size (this browser), the same setting as
+  Appearance › Fonts; both stay in step.
+- dt Quick chat's message box follows the Composer text size too.
+
+## 2026-10-17 (Text size controls: the dt Aa menu stays open, tables and code blocks scale)
+
+- dt: the chat Aa menu (Larger / Smaller text) stays open while you step the size, and its Reset item shows the new
+  size; before, it closed after every single step.
+- Markdown tables and code blocks in chats and the readers now follow the chat and reader text size (A- / A+, Aa,
+  Settings) in both themes; they had a fixed size before.
+- dt: the A- / A+ of the project view's document (Docs, Files README) work again; the size is the readers' shared one.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

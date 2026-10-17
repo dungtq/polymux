@@ -12,7 +12,7 @@
      Chat tab, where the composer is;
    - state dot + word follow pm:agent_state (dt live.js);
    - Aa: chat text size menu (pm.v7.chat.size, 10-32px or auto -> --chat-size on .c-sess, which classic .chat-text
-     reads); the reader's A- / A+ (data-md-zoom) -> pm.v7.chat.md -> --md-size;
+     reads; Larger / Smaller keep the menu open); the reader's A- / A+ (data-md-zoom) -> pm.v7.chat.md -> --md-size;
    - Jump to top / bottom of the chat column (.c-chat[data-ci-scroll]; on phones only while it scrolls: .c-jump.on);
      a chat ([data-ci-scroll], Builder's too) scrolled to its end stays there when it changes height
      (ResizeObserver: the phone composer showing / folding / growing, the window);
@@ -138,13 +138,21 @@
     applySizes();
     return v;
   }
+  const resetLabel = (v) => 'Reset' + (v ? ' (now ' + v + 'px)' : ' (auto)');
   function fontMenu(btn) {
+    /* Larger / Smaller keep the menu open (keep: layers.js), so the text can be stepped several times; the Reset
+       item (the last menuitem) shows the new size */
+    const bump = (by) => (e, host) => {
+      const v = step('size', by, '.c-msgs .chat-text'), items = host ? pm7.$$('[role=menuitem]', host) : [];
+      const r = items[items.length - 1], lab = r && pm7.$('span', r);
+      if (lab) lab.textContent = resetLabel(v);
+      if (r) r.disabled = !v;
+    };
     const cur = size('size');
     pm7.menu(btn, [
-      { label: 'Larger text', icon: 'plus', run: () => step('size', 1, '.c-msgs .chat-text') },
-      { label: 'Smaller text', run: () => step('size', -1, '.c-msgs .chat-text') },
-      { label: 'Reset' + (cur ? ' (now ' + cur + 'px)' : ' (auto)'), icon: 'refresh', disabled: !cur,
-        run: () => step('size', 0) }
+      { label: 'Larger text', icon: 'plus', keep: true, run: bump(1) },
+      { label: 'Smaller text', keep: true, run: bump(-1) },
+      { label: resetLabel(cur), icon: 'refresh', disabled: !cur, run: () => step('size', 0) }
     ], { label: 'Chat text size' });
   }
   window.addEventListener('storage', (e) => { if (e.key && e.key.indexOf('pm.v7.chat.') === 0) applySizes(); });
