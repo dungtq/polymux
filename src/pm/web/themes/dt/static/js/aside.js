@@ -12,7 +12,8 @@
      tab, whose page restores the aside; head.js never restores it on html.x-chatpg). toTab ("Open as tab"): the
      reverse.
      btw (README A9): the aside shows js/btw.js's side-question panel for that agent (head "btw · <id>", no tools,
-     Open as tab off; not remembered across pages); question = asked at once. Phones: not available (toast).
+     Open as tab off; not remembered across pages); question = asked at once. Phones (no aside): a new btw
+     conversation in Quick chat, full screen (pm7.qchat.btw; no Use in composer there, Copy only).
    Reader: the aside chat's .md links (classic chat-md.js posts {pm: 'drawer', act: 'md', id, path}) open in the
      markdown reader dialog centred on the screen (js/mdview.js pm7.md.open; user issue #250).
    Keys (pm7.keys.register, group Panels): ⌘L on a session page (main .c-sess with a composer) while the aside is
@@ -209,8 +210,12 @@
   }
   function btw(id, question) {
     const t = target(id), body = q('[data-aside-body]');
+    if (t && t.kind === 'agent' && pm7.phone()) {  // no aside on phones: Quick chat, full screen (README A9)
+      if (pm7.qchat && pm7.qchat.btw) { pm7.qchat.btw(t.id, question || ''); return true; }
+      pm7.toast('btw needs Quick chat, which is not on this page', '', { error: true });
+      return false;
+    }
     if (!t || t.kind !== 'agent' || !body || !pm7.btw) return false;
-    if (pm7.phone()) { pm7.toast('btw needs the chat aside: not on phones yet', '', { error: true }); return false; }
     if (!isOpen() && !inside(d.activeElement)) opener = d.activeElement;
     unframe();
     cur = { kind: 'btw', id: t.id, href: t.href };

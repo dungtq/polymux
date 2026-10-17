@@ -1,7 +1,10 @@
 /* dt Quick chat panel (PRD.md §6.12, LAYOUT.md §5 "Quick chat", DESIGN.md §7 "Panel", §8 key Q): one-shot
    `claude -p` conversations beside any page. Markup: shell/_qchat.html (section#q-panel, hooks [data-q-*]); the top-bar
    icon after the brand and the phone sidebar drawer's row are [data-q-open].
-   Globals: pm7.qchat = {open(id?), close(), toggle(), isOpen()}.
+   Globals: pm7.qchat = {open(id?), close(), toggle(), isOpen(), btw(agentId, question?) -> Promise<bool>}.
+   btw: a new side question about one agent (README A9; on phones, where there is no chat aside: aside.js calls it):
+   the panel opens (full screen on phones) on an empty btw conversation; its first send carries agent=<id> (the server
+   adds that agent's recent chat, masked, and never gives it tools); question = sent at once.
    Data only through the core's /qchat routes: GET options (models, enabled profiles, folders, MCP servers, skills,
    defaults), GET convs?q= (history, title search), GET convs/<id> (conv + messages), GET convs/<id>/export (Markdown),
    POST convs/<id>/rename (title), POST convs/<id>/delete, POST send (SSE through js/qstream.js).
@@ -22,6 +25,7 @@
   'use strict';
   const pm7 = window.pm7, d = document;
   const STARTERS = ['Explain this error: ', 'Write a jq one-liner that ', 'Review this diff: '];
+  const BTW_STARTERS = ['Why is it waiting?', 'What has it changed so far?', 'Summarise the last reply'];
   const BANDS = ['Today', 'Yesterday', 'Earlier'];
   let opts = null, convs = [], query = '', C = null, ctl = null, opener = null, listSeq = 0;
   let draft = { model: '', profile: 'none', folder: '', mcp: [], skills: [] };
@@ -213,10 +217,12 @@
   }
   function empty() {
     const e = el('div', 'q-empty'), s = el('div', 'q-sugg');
-    e.append(icon('chat'), el('b', '', 'Ask anything'), el('span', '', 'One-shot claude -p, saved to history after ' +
-      'the first answer. It never touches your agents or their panes.'));
-    STARTERS.forEach((t) => {
-      const b = el('button', 'x-btn sm', t.replace(/[\s:]+$/, '') + '…');
+    const btwOf = C && C.agent ? C.agent : '';
+    e.append(icon('chat'), el('b', '', btwOf ? 'Ask anything about ' + btwOf : 'Ask anything'), el('span', '', btwOf
+      ? 'Answered from its chat by claude -p without tools. Nothing is sent to the agent.'
+      : 'One-shot claude -p, saved to history after the first answer. It never touches your agents or their panes.'));
+    (btwOf ? BTW_STARTERS : STARTERS).forEach((t) => {
+      const b = el('button', 'x-btn sm', btwOf ? t : t.replace(/[\s:]+$/, '') + '…');
       b.type = 'button';
       b.setAttribute('data-q-start', t);
       s.appendChild(b);
@@ -291,6 +297,21 @@
     if (pm7.phone()) side(false);
   }
 
+  async function btw(id, question) {
+    id = String(id == null ? '' : id);
+    if (!id || !P()) return false;
+    await open();
+    if (ctl) { pm7.toast('Quick chat is still answering', '', { error: true }); return false; }
+    stop();
+    apply({ id: null, title: 'Side question', msgs: 0, agent: id, archived: false, model: '', profile: 'none',
+      folder: '', mcp: [], skills: [] });
+    showMsgs([]);
+    const ta = q('[data-q-input]');
+    if (question) return send(question);
+    ta.focus();
+    return true;
+  }
+
   /* ---------- send, stream, stop ---------- */
   function busy(on) {
     const b = q('[data-q-send]'), ta = q('[data-q-input]');
@@ -306,6 +327,7 @@
   function form(text) {
     const k = cfg(), f = new URLSearchParams({ text: text, model: k.model || '', profile: k.profile || 'none' });
     if (C && C.id) f.set('conv', String(C.id));
+    else if (C && C.agent) f.set('agent', C.agent);  // a btw's first turn: the agent it is about
     if (k.profile !== 'none' && k.folder) f.set('folder', k.folder);
     if (k.profile !== 'none') (k.mcp || []).forEach((m) => f.append('mcp', m));
     if (k.profile !== 'none' || (opts && opts.skills_in_none)) (k.skills || []).forEach((s) => f.append('skills', s));
@@ -410,7 +432,7 @@
     toggle();
   });
 
-  pm7.qchat = { open: open, close: close, toggle: toggle, isOpen: isOpen,
+  pm7.qchat = { open: open, close: close, toggle: toggle, isOpen: isOpen, btw: btw,
     /* for js/qchat-menus.js only (chip and ⋯ menus) */
     core: { cfg: cfg, conv: () => C, locked: locked, opts: () => opts || {}, chips: chips, head: head, q: q,
       refreshList: refreshList, newConv: newConv, setTitle: (t) => { if (C) C.title = t; head(); renderList(); },

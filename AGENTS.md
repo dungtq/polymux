@@ -37,6 +37,8 @@ systemd user unit (not Docker), behind a TLS reverse proxy.
   terminal stream is raw tmux output, unmasked, but still never logged, indexed or sent to ntfy.
 - Markdown reader: `/a/<agent>/md` may open any `.md` file on disk (logged-in session only); paths with a hidden
   folder are refused except `~/.claude/plans`. Symlinks are resolved and re-checked.
+- Library viewer: `/agents/library/view` (logged-in session only) reads only a file the agent inventory lists
+  (`fsread.read_listed`); symlinks are resolved and re-checked, and a hidden folder is allowed only inside a listed path.
 - Never print, log, commit or send pm's token/TOTP (or the optional dev token).
 - Tests use a fake tmux or a private `-L pmtest-*` socket; never the user's default tmux server.
 - No host-specific values in code or defaults: hosts, URLs, paths and topics come from `pm.toml`. Private or

@@ -100,6 +100,19 @@ def test_open_loads_the_file_and_shows_its_real_path():
 
 
 @needs_node
+def test_file_opens_a_library_file_from_the_core_reader():
+    """pm7.md.file (the Agents Library's View): the same dialog from GET /agents/library/view; ~/ paths only; a 404
+    says only listed files open; open() still refuses an empty agent id."""
+    got = run("out.push(pm7.md.file('/etc/passwd'), pm7.md.file(''), pm7.md.file(null), pm7.md.open('', '~/a.md'),"
+              " log.length); out.push(pm7.md.file('~/.agents/skills/x y')); await tick(); out.push(log);")
+    assert got[:6] == [False, False, False, False, 0, True]
+    assert got[6] == [["fetch", "/agents/library/view?path=~%2F.agents%2Fskills%2Fx%20y"], ["dialog", True]]
+    got = run("pm7.md.file('~/agents/AGENTS.md'); await tick(); await tick(); out.push(body.kids[0].text);",
+              answer=[404, "{}"])
+    assert "only files the Agents Library lists" in got[0]
+
+
+@needs_node
 def test_links_inside_the_reader():
     got = run("pm7.md.open('claude-1c70ee', 'docs/a.md'); await tick(); log.length = 0;"
               "out.push(click('../b%20c.md#Sec'), click('/abs/x.md'), click('~/n.md'), click('#only'));"

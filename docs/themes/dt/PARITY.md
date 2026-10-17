@@ -86,7 +86,7 @@ both UIs.
 | Running sub-agents strip | classic-in-shell | `#sa-live` in the session chat | code | |
 | Sub-agents tab | classic-in-shell | session Sub-agents tab (also in the chat aside, README A29) | dev | |
 | Agents catalogue (Installed) | ported | `/agents` | dev | |
-| Skills, rules and scripts library | ported | `/agents?t=library`, `/agents/<name>?s=skills` | dev | |
+| Skills, rules and scripts library | ported | `/agents?t=library`, `/agents/<name>?s=skills` | dev | ⋯ View: the markdown reader from the core's read-only `GET /agents/library/view` (listed files only) |
 | MCP servers overview | ported | `/agents?t=mcp` | dev | |
 | Usage statistics | ported | `/agents?t=usage` | dev | |
 | Per-agent detail | ported | `/agents/<name>` | dev | |
@@ -122,7 +122,7 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Resizable Markdown tables | classic-in-shell | classic `tablesize.js` | code | |
 | Markdown text size | classic-in-shell | classic `_mdzoom.html` in project Docs and the md pane | code | |
 | Quick chat | ported | `shell/_qchat.html` (Q, top-bar icon) | dev | M5: `?qchat=<id>` opens that conversation |
-| btw (side question about an agent) | partial | session ⋯ › btw, composer btw, `/btw` → aside | code | phones: toast only (README A9) |
+| btw (side question about an agent) | ported | session ⋯ › btw, composer btw, `/btw` → aside; phones → Quick chat, full screen | code | phones: no Use in composer (README A9) |
 
 ## Projects
 
@@ -258,7 +258,6 @@ removal-debt list. Still open:
 |---|---|---|
 | TODO card | file-mode TODO.md | dt-only if the project context's file TODO summary is enough to list and tick (`POST /p/<n>/todo/toggle` handles files); else needs core for `todo_groups` of file projects |
 | Backlog | file-mode BACKLOG.md items and whole-file editor | dt-only: list `entries` items of non-tracker projects; port the lease/lock editor (or keep the classic link until those projects are imported) |
-| btw | phones | dt-only: a full-screen btw panel on phones (Quick chat full-screen layout) |
 
 ## Classic in shell (removal debt)
 
