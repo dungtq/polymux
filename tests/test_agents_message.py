@@ -156,28 +156,42 @@ def test_retry_once_on_tmux_error(private_tmux, monkeypatch):
     assert m.describe(ei.value) == "tmux: down"
 
 
-# Stand-in for a TUI that treats back-to-back bytes as a paste: a CR arriving < 50 ms
-# after the previous byte is swallowed (inserted as newline), otherwise it submits.
+# Stand-in for a TUI that treats back-to-back bytes as a paste: a CR that arrives in the same read as the bytes
+# before it, or < 50 ms after the previous read, is swallowed (kept as "|"); otherwise it submits the line to <out>.
+# After every read it writes "<reads> <stalls> <held bytes>" to <out>.state. A stall is a loop turn that began
+# > 40 ms after the one before (the process was descheduled): read times then no longer show arrival times, so
+# the test repeats a step that saw a stall instead of trusting it.
 _TUI = r"""
-import os, sys, time, tty, termios, select
+import os, sys, time, tty, select
 out = sys.argv[1]
+def put(path, data):
+    with open(path + ".tmp", "wb") as f:
+        f.write(data)
+    os.replace(path + ".tmp", path)
 tty.setraw(0)
-buf, last = b"", 0.0
+buf, last, reads, stalls = b"", 0.0, 0, 0
+tick = time.monotonic()
 print("READY", flush=True)
 while True:
-    select.select([0], [], [])
-    d = os.read(0, 4096)
+    ready = select.select([0], [], [], 0.01)[0]
     now = time.monotonic()
-    for ch in d:
-        c = bytes([ch])
-        if c in (b"\r", b"\n"):
-            if now - last < 0.05:
+    stalls += now - tick > 0.04
+    tick = now
+    if not ready:
+        continue
+    d = os.read(0, 4096)
+    reads += 1
+    for i, ch in enumerate(d):
+        if ch in (10, 13):
+            if i or now - last < 0.05:
                 buf += b"|"          # swallowed as part of a paste
             else:
-                open(out, "wb").write(buf); buf = b""
+                put(out, buf)
+                buf = b""
         else:
-            buf += c
+            buf += bytes([ch])
     last = now
+    put(out + ".state", b"%d %d " % (reads, stalls) + buf)
 """
 
 
@@ -185,34 +199,67 @@ def _tui_agent(s, tmp_path):
     script, out = tmp_path / "tui.py", tmp_path / "submitted.txt"
     script.write_text(_TUI)
     a = _shell_agent(s)
+    cmd = lambda: tmuxctl.run(s, ["display-message", "-p", "-t", a.pane_id, "#{pane_current_command}"]).strip()  # noqa: E731
+    # a C-c before the shell is up kills it, one before cat runs leaves cat to eat the command: wait for each
+    assert _until(lambda: cmd() == "cat", 30.0), "shell did not start cat"
     tmuxctl.run(s, ["send-keys", "-t", a.pane_id, "C-c"])
+    assert _until(lambda: cmd() != "cat", 30.0), "cat did not stop"
     tmuxctl.run(s, ["send-keys", "-t", a.pane_id, "--", f"python3 {script} {out}", "Enter"])
-    _cap(s, a, ["READY"])
+    # keys sent before the stand-in is in raw mode would be flushed by tty.setraw: wait for it
+    assert _until(lambda: "READY" in tmuxctl.capture_pane(s, a.pane_id), 30.0), "stand-in TUI did not start"
     return a, out
 
 
-def _wait(out, secs=4.0):
-    end = time.time() + secs
-    while time.time() < end:
-        if out.exists() and out.read_bytes():
-            return out.read_bytes()
-        time.sleep(0.1)
-    return b""
+def _until(cond, secs=10.0):
+    end = time.monotonic() + secs
+    while time.monotonic() < end:
+        if v := cond():
+            return v
+        time.sleep(0.02)
+    return None
+
+
+def _state(out):
+    """(reads, stalls, held bytes) of the stand-in."""
+    try:
+        reads, stalls, held = (out.parent / (out.name + ".state")).read_bytes().split(b" ", 2)
+        return int(reads), int(stalls), held
+    except (OSError, ValueError):
+        return 0, 0, b""
+
+
+def _step(s, a, out, send):
+    """Run ``send`` and wait until the stand-in handled its CR: (submitted bytes or None, held bytes). Repeated
+    (after submitting what is held with a lone Enter) while the stand-in stalled during the step."""
+    for _ in range(10):
+        if _state(out)[2]:
+            assert _flush(s, a, out) is not None, "lone Enter did not submit"
+        stalls = _state(out)[1]
+        out.unlink(missing_ok=True)
+        send()
+        assert _until(lambda: out.exists() or _state(out)[2].endswith(b"|")), "stand-in never handled the CR"
+        if _state(out)[1] == stalls:
+            return (out.read_bytes() if out.exists() else None), _state(out)[2]
+    pytest.fail("the stand-in TUI stalled in every attempt")
+
+
+def _flush(s, a, out):
+    """A lone Enter well after the last read: submits what the stand-in holds; returns it."""
+    time.sleep(0.2)
+    out.unlink(missing_ok=True)
+    tmuxctl.send_key(s, a.pane_id, "Enter")
+    return out.read_bytes() if _until(out.exists) else None
 
 
 def test_enter_delay_makes_submit_register(private_tmux, tmp_path):
-    a, out = _tui_agent(private_tmux, tmp_path)
-    # old behaviour: text immediately followed by Enter -> swallowed by the paste heuristic
-    tmuxctl.send_keys(private_tmux, a.pane_id, "glued")
-    tmuxctl.send_key(private_tmux, a.pane_id, "Enter")
-    assert _wait(out, 1.0) == b""
-    # new behaviour: pause between text and Enter -> submit registers
-    time.sleep(0.2)
-    tmuxctl.send_key(private_tmux, a.pane_id, "Enter")  # flush the swallowed line
-    assert _wait(out) == b"glued|"
-    out.unlink()
-    assert m.send_message(private_tmux, a, "spaced").ok
-    assert _wait(out) == b"spaced"
+    s = private_tmux
+    a, out = _tui_agent(s, tmp_path)
+    # old behaviour: text immediately followed by Enter (one write) -> swallowed by the paste heuristic
+    glued = lambda: tmuxctl.run(s, ["send-keys", "-t", a.pane_id, "-l", "--", "glued\r"])  # noqa: E731
+    assert _step(s, a, out, glued) == (None, b"glued|")
+    assert _flush(s, a, out) == b"glued|"  # a lone Enter later submits the swallowed line
+    # new behaviour: send_message pauses between text and Enter -> submit registers
+    assert _step(s, a, out, lambda: m.send_message(s, a, "spaced")) == (b"spaced", b"")
 
 
 # ------------------------------------------------------------------ Builder mode hint

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Model pill no longer misses a transcript rewritten within one mtime tick)
+
+The model shown for an agent (heading pill, list rows) now notices a transcript that changed within one filesystem timestamp tick: the transcript cache is keyed on inode, mtime in nanoseconds and size instead of the mtime alone.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

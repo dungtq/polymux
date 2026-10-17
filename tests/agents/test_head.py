@@ -62,6 +62,22 @@ def test_live_model_prefers_the_transcript(tmp_path):
     assert live_model(_live(tmp_path, transcript=str(t), aid="claude-6"), tmp_path, proc) == "claude-opus-5-5"
 
 
+def test_record_model_sees_a_rewrite_within_one_mtime_tick(tmp_path):
+    """A transcript rewritten inside one filesystem timestamp tick keeps its mtime: the cache must still miss."""
+    import os
+
+    from pm.agents.head import record_meta, record_model
+    t = tmp_path / ".claude/projects/-x/tick.jsonl"
+    t.parent.mkdir(parents=True)
+    t.write_text('{"type":"assistant","message":{"model":"claude-sonnet-5-5"}}\n')
+    st = os.stat(t)
+    assert record_model(str(t), tmp_path) == "claude-sonnet-5-5"
+    t.write_text('{"type":"assistant","message":{"model":"claude-opus-5-5"}}\n{"type":"user"}\n')
+    os.utime(t, ns=(st.st_atime_ns, st.st_mtime_ns))  # same mtime as the first write
+    assert record_model(str(t), tmp_path) == "claude-opus-5-5"
+    assert record_meta(str(t), tmp_path / ".claude/projects")[0] == "claude-opus-5-5"
+
+
 def test_live_pill_is_no_jinja_filter():
     """The heading pill is computed in Python (chatctx.composer_ctx head_pill), never by a filter that reads files."""
     from pm.web.render import env

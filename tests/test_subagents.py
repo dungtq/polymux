@@ -81,6 +81,12 @@ def test_route_and_tab(env, monkeypatch, tmp_path):
     lst = c.get("/a/claude-12/subagents")
     assert lst.status_code == 200 and "Explore" in lst.text and "&lt;b&gt;routes" in lst.text
     assert "/a/claude-12/subagents?id=agent-aaa" in lst.text
+    # agent-aaa is running: its "running 3s" / "Waiting · 3s" text ticks each second, so freeze the clock for the
+    # two ETag requests (under load they could straddle a second and rightly answer 200)
+    from pm.web.render import env as jenv
+    frozen = time.time()
+    monkeypatch.setattr(subagents, "time", types.SimpleNamespace(time=lambda: frozen, monotonic=time.monotonic))
+    monkeypatch.setitem(jenv.globals, "now_epoch", lambda: frozen)
     w = c.get("/a/claude-12/subagents?id=agent-aaa")
     assert w.status_code == 200 and "Grep" in w.text and TOK not in w.text
     assert c.get("/a/claude-12/subagents?id=agent-aaa", headers={"If-None-Match": w.headers["etag"]}).status_code == 304
