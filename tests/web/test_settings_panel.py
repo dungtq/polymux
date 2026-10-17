@@ -119,3 +119,26 @@ def test_revoke_current_session_json_redirects(fake_tmux, tmp_path):
     r = c.post("/settings/sessions/revoke", data={"csrf": tok, "h": h, "confirm": "1"}, headers=JSON)
     assert r.json() == {"ok": True, "notice": "Logged out.", "redirect": "/login"}
     assert COOKIE_NAME in r.headers["set-cookie"]
+
+
+def test_panel_renders_off_the_event_loop(fake_tmux, tmp_path, monkeypatch):
+    """GET /settings/panel reads prefs, servers and keys from disk: it renders in a worker thread, never inside
+    the running event loop (blocking file IO in an async handler)."""
+    import asyncio
+
+    from pm.web.routes import settings as settings_routes
+
+    c, _ = _client(fake_tmux, tmp_path)
+    seen = []
+
+    def render(request, notice=""):
+        try:
+            asyncio.get_running_loop()
+            seen.append("loop")
+        except RuntimeError:
+            seen.append("thread")
+        return settings_panel.render(request, notice)
+
+    monkeypatch.setattr(settings_routes, "render_panel", render)
+    r = c.get("/settings/panel")
+    assert r.status_code == 200 and 'id="settings-panel"' in r.text and seen == ["thread"]

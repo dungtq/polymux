@@ -145,6 +145,64 @@ def test_argv_shape(tmp_path):
     assert "BatchMode=no" in b and all(PW not in x for x in b)
 
 
+def test_shell_argv_is_interactive_key_only(tmp_path):
+    s = _st(tmp_path)
+    a = ss.shell_argv(s, {"host": "h.test", "port": 2222, "user": "me"})
+    assert a[0] == "ssh" and a[1:3] == ["-F", "/dev/null"] and a[-2:] == ["--", "me@h.test"]  # no remote command
+    assert "BatchMode=yes" not in a and "PasswordAuthentication=no" in a and "StrictHostKeyChecking=yes" in a
+    assert f"UserKnownHostsFile={ss.known_hosts(s)}" in a and a[a.index("-i") + 1] == str(sshkeys.key_path(s))
+    assert ss.shell_window_name("lab 2.x") == "lab-2.x"
+
+
+def test_open_shell_in_the_ssh_session(tmp_path, monkeypatch):
+    s = _st(tmp_path)
+    srv = ss.add(s, "lab one", "h.test", "", "me")
+    calls = []
+    monkeypatch.setattr(ss.tmuxctl, "list_sessions", lambda st: ())
+    monkeypatch.setattr(ss.tmuxctl, "new_session", lambda st, name, cwd: calls.append(("new", name)) or "$7")
+    monkeypatch.setattr(ss.tmuxctl, "new_agent_window",
+                        lambda st, sid, name, cwd, argv: calls.append(("win", sid, name, argv[-1])) or ("@9", "%9"))
+    with pytest.raises(ss.ServerError, match="generate the pm key first"):
+        ss.open_shell(s, srv["id"])
+    sshkeys.key_path(s).parent.mkdir(parents=True, exist_ok=True)
+    sshkeys.key_path(s).write_text("k")
+    with pytest.raises(ss.ServerError, match="pin the host key first"):
+        ss.open_shell(s, srv["id"])
+    assert calls == []
+    ss._apply(s, srv["id"], hostkey_fp="SHA256:x")
+    got, wid = ss.open_shell(s, srv["id"])
+    assert wid == "@9" and got["id"] == srv["id"]
+    assert calls == [("new", "ssh"), ("win", "$7", "lab-one", "me@h.test")]
+    calls.clear()
+    from pm.core.models import TmuxSession
+    monkeypatch.setattr(ss.tmuxctl, "list_sessions", lambda st: (TmuxSession("$3", "ssh"),))
+    ss.open_shell(s, srv["id"])
+    assert calls == [("win", "$3", "lab-one", "me@h.test")]  # the existing session is reused
+
+    def boom(*a, **k):
+        raise ss.tmuxctl.TmuxError("no server")
+    monkeypatch.setattr(ss.tmuxctl, "new_agent_window", boom)
+    with pytest.raises(ss.ServerError, match="tmux could not open the window"):
+        ss.open_shell(s, srv["id"])
+    with pytest.raises(ss.ServerError, match="unknown server"):
+        ss.open_shell(s, "ffffffff")
+
+
+@need_keygen
+def test_shell_route_audits_and_answers(env, fake, monkeypatch):
+    s, c = env
+    tok, sid = _setup(s, c, fake)
+    p = f"/settings/servers/{sid}/shell"
+    j = c.post(p, headers={**H, "accept": "application/json"}, data={"csrf": tok}).json()
+    assert j == {"ok": False, "notice": "Shell not opened: pin the host key first."}
+    monkeypatch.setattr(ss, "open_shell", lambda st, i: (ss.get(st, i), "@5"))
+    j = c.post(p, headers={**H, "accept": "application/json"}, data={"csrf": tok}).json()
+    assert j == {"ok": True, "notice": "Opened a shell on web in tmux session ssh."}
+    sh = [a for a in _audit(s) if a["action"] == "ssh_shell"]
+    assert [a["result"] for a in sh] == ["attempt", "denied", "attempt", "ok"]
+    assert sh[-1]["target"] == sid and sh[-1]["detail"]["window"] == "@5" and sh[-1]["detail"]["host"] == "example.test"
+
+
 # ------------------------------------------------------------------ routes
 def _setup(s, c, fake):
     login(s, c)
@@ -287,7 +345,7 @@ def test_guards(env, fake, monkeypatch):
     s, c = env
     paths = ["/settings/servers/add", "/settings/servers/aaaaaaaa/test", "/settings/servers/aaaaaaaa/install",
              "/settings/servers/aaaaaaaa/scan", "/settings/servers/aaaaaaaa/pin", "/settings/servers/aaaaaaaa/remove",
-             "/settings/servers/aaaaaaaa/repin"]
+             "/settings/servers/aaaaaaaa/repin", "/settings/servers/aaaaaaaa/shell"]
     for p in paths:
         assert c.post(p, data={"csrf": "x"}, headers=H).status_code == 401
     login(s, c)
@@ -301,6 +359,7 @@ def test_guards(env, fake, monkeypatch):
     # install and repin (replaces a pinned host key) need tier 2
     assert c.post(paths[2], data={"csrf": tok, "password": PW}, headers=H).status_code == 403
     assert c.post(paths[6], data={"csrf": tok, "fp": "SHA256:x", "confirm": "x"}, headers=H).status_code == 403
+    assert c.post(paths[7], data={"csrf": tok}, headers=H).status_code == 403  # a remote shell needs tier 2 too
     assert any(a["action"] == "ssh_hostkey_repin" and a["result"] == "denied" and a["detail"].get("reason") == "tier"
                for a in _audit(s))
     c.app.state.settings = replace(s, tier_ceiling=s.tier_ceiling.__class__(0))

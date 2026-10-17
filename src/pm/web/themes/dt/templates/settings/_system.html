@@ -1,10 +1,16 @@
 {#- Settings › System (pm.toml, read-only): Git (default remote, allowed remote hosts) and pm service (status, config
     file, state folder, ntfy topics, tier ceiling, alert thresholds, Reload pm with a confirm; off on a dev instance).
-    Lines from dt_settings() (pm.web.dt.settings). Context: s (the section), sv (Page). -#}
+    Plugins (only when a plugin adds Settings sections): the core's plugin_sections markup as the plugins render it
+    (each plugin owns its section's look and forms). Lines from dt_settings() (pm.web.dt.settings). Context: s (the
+    section), sv (Page). -#}
 {%- import "settings/_ui.html" as su %}
+{%- if s.id == "plugins" %}
+<div class="s-plug" data-s-q="plugins {{ s.label | lower }}">{{ sv.plugins }}</div>
+{%- else %}
 {%- set lines = sv.git if s.id == "git" else sv.system %}
 {% call su.grp("Remotes" if s.id == "git" else "Service", "file", s.label, acts=none if s.id == "git" else [sv.acts.reload], note=("" if s.id == "git" else sv.reload_why)) %}{% call su.box() %}
   {%- for l in lines %}
   {% call su.row(l.label, l.help, "Remotes" if s.id == "git" else "Service", s.label) %}{{ su.ro(l.value) }}{% endcall %}
   {%- endfor %}
 {% endcall %}{% endcall %}
+{%- endif %}

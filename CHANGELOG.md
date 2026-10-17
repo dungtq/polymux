@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-17 (v7 app: Settings — Open a shell on a remote server, Set up TOTP, plugin sections)
+
+- dt Settings › Remote servers: a server's ⋯ menu has **Open a shell in tmux**. It opens `ssh` with pm's own key and the pinned host key in a new window of the tmux session `ssh` (pm creates the session if needed). It needs tier 2, is audited as `ssh_shell`, and is greyed out until the host key is pinned and pm's key exists. The core route is `POST /settings/servers/<id>/shell`.
+- dt Settings › Access: with `require_unlock = true` and no TOTP yet, a **Set up TOTP** row creates the secret through `POST /unlock/provision` and shows it in the row once. After that the row says "set up".
+- dt Settings › System › Plugins shows the Settings sections that installed plugins add. The entry only appears when a plugin adds one.
+- `GET /settings/panel` now renders in a worker thread instead of reading files on the event loop.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.
