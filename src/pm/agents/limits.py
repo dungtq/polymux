@@ -1,7 +1,8 @@
 """Plan usage limits (5-hour, daily, weekly, per-model weekly) for the agent page (Claude, Antigravity, Devin).
 
 Claude source: the ``rate_limits`` object Claude Code hands to ``tools/pm-statusline.sh`` (stdin JSON),
-written to ``<state_dir>/claude-limits.json``.
+written to ``<state_dir>/claude-limits.json`` (the CLI's own login folder) or ``claude-limits-<account>.json`` (a named
+account: the script reads the account from ``CLAUDE_CONFIG_DIR``). Each account has its own plan limits.
 Antigravity source: ``agy -p /usage --output-format json``, cached in ``<state_dir>/antigravity-limits.json``
 and refreshed via ``SWR`` at most once per ``AGY_FRESH_S``.
 Devin source: the CLI keeps quotas server-side and prints them only for the interactive ``/usage`` command.
@@ -21,6 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from pm.agents import registry  # stored account of an agent: each Claude account has its own limits
 from pm.core import timefmt
 from pm.core.cache import SWR
 from pm.core.fsutil import atomic_write
@@ -107,10 +109,15 @@ def _window(label: str, name: str, raw: object, now: float, tag: str = "") -> Wi
     return Window(label, pct, rel, _level(pct), name, rel if ra - now < 86400 else short, full, tag)
 
 
-def read_limits(state_dir: Path, now: float | None = None) -> list[Window]:
-    """Windows in display order (5h, weekly, per-model weekly); [] when nothing usable is stored."""
+def limits_file(account: str = "") -> str:
+    """File the status line script writes for a Claude login account ('' = the CLI's own folder)."""
+    return f"claude-limits-{account}.json" if account else FILE
+
+
+def read_limits(state_dir: Path, now: float | None = None, account: str = "") -> list[Window]:
+    """Windows in display order (5h, weekly, per-model weekly) of one Claude account; [] when nothing usable is stored."""
     now = time.time() if now is None else now
-    path = Path(state_dir) / FILE
+    path = Path(state_dir) / limits_file(account)
     try:
         if now - path.stat().st_mtime > STALE_S:
             return []
@@ -350,7 +357,7 @@ def for_agent(agent, settings, model: str = "", now: float | None = None) -> lis
     """Plan usage windows for ``agent`` (Claude, Antigravity or Devin)."""
     kind = agent.kind.value
     if kind == "claude":
-        return read_limits(settings.state_dir, now)
+        return read_limits(settings.state_dir, now, registry.account_of(settings, agent.id))
     if kind == "antigravity":
         return read_agy_limits(settings.state_dir, model=model, now=now, settings=settings)
     if kind == "devin":

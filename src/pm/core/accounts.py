@@ -9,6 +9,7 @@ or a name; ``resolve`` turns it into the account to launch with.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from pm.core import filelock
 from pm.core.cache import LRU
 from pm.core.config import ACCOUNT_KINDS, ACCOUNT_NAME_RE, Settings
 from pm.core.errors import Invalid
-from pm.core.fsutil import JsonStore
+from pm.core.fsutil import JsonStore, atomic_write
 
 CLI_DEFAULT = "-"  # a project's explicit choice of the CLI's own folder (never a valid account name)
 _CACHE = LRU(max_bytes=1 << 20, max_entries=16)
@@ -99,10 +100,33 @@ def account_dir(settings: Settings, kind: str, name: str) -> Path | None:
     return Path(settings.state_dir) / "accounts" / kind / name
 
 
+def _share_statusline(settings: Settings, folder: Path) -> None:
+    """Give a named Claude account the CLI's own ``statusLine`` setting when it has none, so its sessions feed pm's
+    per-account plan limits (``tools/pm-statusline.sh``). Best effort, never overwrites, other keys are kept."""
+    try:
+        own = json.loads((cli_dir(settings, "claude") / "settings.json").read_text()).get("statusLine")
+        f = folder / "settings.json"
+        try:
+            cur = json.loads(f.read_text())
+        except FileNotFoundError:
+            cur = {}
+        if not isinstance(own, dict) or not isinstance(cur, dict) or "statusLine" in cur:
+            return
+        folder.mkdir(parents=True, exist_ok=True)
+        atomic_write(f, json.dumps({**cur, "statusLine": own}, indent=2) + "\n")
+    except (OSError, ValueError):
+        pass
+
+
 def account_env(settings: Settings, kind: str, name: str) -> dict[str, str]:
-    """Env that points a CLI at an account's login folder; ``{}`` for the CLI's own."""
+    """Env that points a CLI at an account's login folder; ``{}`` for the CLI's own. A named Claude account also gets
+    the CLI's status line (``_share_statusline``) so it reports its own plan limits."""
     d = account_dir(settings, kind, name)
-    return {} if d is None else {ACCOUNT_KINDS[kind]: str(d)}
+    if d is None:
+        return {}
+    if kind == "claude":
+        _share_statusline(settings, d)
+    return {ACCOUNT_KINDS[kind]: str(d)}
 
 
 def cli_dir(settings: Settings, kind: str) -> Path:
