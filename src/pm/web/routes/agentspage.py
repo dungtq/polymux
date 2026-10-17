@@ -1,16 +1,23 @@
-"""Agents pages (read-only): overview at /agents, one agent at /agents/{name}.
+"""Agents pages (read-only): overview at /agents, one agent at /agents/{name}, one library file at
+/agents/library/view?path= (the markdown reader's fragment).
 
 Review/apply, the editor and Re-scan are in agentsedit.py; login state (incl. /agents/auth.json) in agentsauth.py."""
 
 from __future__ import annotations
 
+import re
+from html import escape
 from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
 
+from pm.agents.inventory import fsread
 from pm.agents.inventory import mutate as agentsmut
 from pm.core import accounts, executors
+from pm.core.errors import NotFound
+from pm.core.markdown_render import render_markdown
 from pm.core.models import AgentInfo, Inventory, Sidebar, SideRow
 from pm.web import agentslib as lib
 from pm.web.agentslib import INST_COLS, SECTIONS, TABS, TITLES
@@ -246,3 +253,38 @@ def _sync_targets(inv: Inventory, current: str) -> list[tuple[str, str, bool]]:
 
 async def _validation() -> list[tuple[str, str, str]]:
     return await executors.run_collectors(agentsmut.validate_rules, home=lib.home())
+
+
+# ------------------------------------------------------------------ one library file, read-only
+MD_EXTS = (".md", ".mdc", ".markdown")
+
+
+def _fence(text: str, lang: str = "") -> str:
+    ticks = "`" * (max((len(m) for m in re.findall(r"`{3,}", text)), default=2) + 1)
+    return f"{ticks}{lang}\n{text.rstrip()}\n{ticks}\n"
+
+
+def _view_html(v: fsread.Viewed) -> str:
+    """The markdown reader's fragment (as ``/a/<id>/md``): Markdown rendered (its frontmatter as a YAML block, not a
+    heading), anything else as one code block."""
+    if v.file.lower().endswith(MD_EXTS):
+        m = re.match(r"---\n(.*?\n)---\n", v.text, re.DOTALL)
+        text = _fence(m.group(1), "yaml") + "\n" + v.text[m.end():] if m else v.text
+    else:
+        text = _fence(v.text)
+    body = render_markdown(text, fsread.VIEW_MAX + 64)
+    note = '<p class="muted small">Cut at 256 KB.</p>' if v.cut else ""
+    return f'<div class="mdv" data-path="{escape(v.file, quote=True)}"><div class="md">{body}</div>{note}</div>'
+
+
+@router.get("/agents/library/view", dependencies=AUTH)
+async def library_view(request: Request, path: str = "") -> HTMLResponse:
+    """One file the library lists (a skill's SKILL.md, a rule, a script), read-only, for a theme's file reader.
+    The domain refuses every path the inventory does not list, symlink escapes and hidden folders it does not list
+    (``fsread.read_listed``); 404 for all of them."""
+    inv = await lib.inventory()
+    try:
+        v = await executors.run_collectors(fsread.read_listed, path[:4096], fsread.listed_paths(inv), lib.home())
+    except NotFound:
+        raise HTTPException(404, "not a file the library lists") from None
+    return HTMLResponse(_view_html(v), headers={"Cache-Control": "no-store"})
