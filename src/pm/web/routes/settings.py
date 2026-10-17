@@ -29,7 +29,9 @@ router = APIRouter()
 _AUTH = [Depends(require_session)]
 @router.get("/settings/panel", response_class=HTMLResponse, dependencies=_AUTH)
 async def panel(request: Request) -> Response:
-    return fragment(request, render_panel(request))
+    """The panel reads prefs, servers, keys and passkeys from disk: rendered in the collectors pool, never on the
+    event loop (same as GET /settings)."""
+    return fragment(request, await executors.run_collectors(render_panel, request))
 
 
 @router.post("/settings/sessions/revoke",

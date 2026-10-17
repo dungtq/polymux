@@ -1,8 +1,9 @@
 {#- Settings › Security: Access (passkeys: register with classic passkey.js, remove; sign-ins: Log out / Revoke /
-    Revoke all others; require_unlock from pm.toml), SSH keys (pm's key: generate, copy; ~/.ssh: read-only) and
-    Remote servers (add → scan → compare the fingerprint → pin, Test, Install pm key with a one-time password that is
-    never stored, Re-pin with the server's name typed, Remove: js/settings-servers.js and ⋯ items). Rows and ⋯ items
-    come from dt_settings() (pm.web.dt.settings). Context: s (the section), sv (Page). -#}
+    Revoke all others; require_unlock from pm.toml; with it on, Set up TOTP once: POST /unlock/provision shows the
+    secret in #s-totp-msg), SSH keys (pm's key: generate, copy; ~/.ssh: read-only) and Remote servers (add → scan →
+    compare the fingerprint → pin, Test, Open a shell in tmux, Install pm key with a one-time password that is never
+    stored, Re-pin with the server's name typed, Remove: js/settings-servers.js and ⋯ items). Rows and ⋯ items come
+    from dt_settings() (pm.web.dt.settings). Context: s (the section), sv (Page). -#}
 {%- import "settings/_ui.html" as su %}{% import "parts/_table.html" as tb %}{% import "parts/_menu.html" as pm %}
 {%- if s.id == "access" %}
 {% call su.grp("Passkeys", "all", s.label, q="register remove") %}
@@ -46,6 +47,19 @@
   {% call su.row("Require unlock (TOTP or passkey) before changes", "Off: one user on this host, login is token or passkey. Set require_unlock = true in pm.toml to turn it on.", "Unlock", s.label) %}
     {{ su.ro("on" if sv.require_unlock else "off") }}
   {% endcall %}
+  {%- if sv.totp == "missing" %}
+  {% call su.row("Set up TOTP", "Creates the TOTP secret once and shows it here once: add it to your authenticator app.", "Unlock", s.label, wide=true) %}
+    <form class="s-totp" method="post" action="/unlock/provision" hx-post="/unlock/provision" hx-target="#s-totp-msg" hx-swap="innerHTML">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="x-btn sm" type="submit"><svg class="i" aria-hidden="true" focusable="false"><use href="/static/t/dt/icons.svg#lock"/></svg>Set up TOTP</button>
+    </form>
+    <div id="s-totp-msg" class="s-msg s-totp-msg" role="status" aria-live="polite"></div>
+  {% endcall %}
+  {%- elif sv.totp == "ready" %}
+  {% call su.row("TOTP", "Set up. Unlock with a code from your authenticator app or with a passkey.", "Unlock", s.label) %}
+    {{ su.ro("set up") }}
+  {% endcall %}
+  {%- endif %}
 {% endcall %}{% endcall %}
 
 {%- elif s.id == "ssh" %}

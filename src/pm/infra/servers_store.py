@@ -29,6 +29,7 @@ from pm.core.filelock import LockTimeout, lock_path, locked
 from pm.core.fsutil import JsonStore, atomic_write
 from pm.core.proc import ProcError, ProcTimeout, run_argv
 from pm.infra import sshkeys
+from pm.tmux import ctl as tmuxctl
 
 SSH_BIN = "ssh"
 KEYSCAN_BIN = "ssh-keyscan"
@@ -38,6 +39,7 @@ INSTALL_TIMEOUT_S = 30.0
 SCAN_TIMEOUT_S = 10.0
 MAX_SERVERS = 50
 MAX_PASSWORD = 256
+SHELL_SESSION = "ssh"  # tmux session that holds the "Open a shell" windows (created on first use)
 
 _HOST = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.\-]{0,251}[A-Za-z0-9])?", re.ASCII)
 _USER = re.compile(r"[a-z_][a-z0-9_\-]{0,31}", re.ASCII)
@@ -312,6 +314,41 @@ def probe(settings: Settings, sid: str) -> tuple[dict, str]:
     except LockTimeout:
         raise ServerError("another change is in progress") from None
     return s, res
+
+
+# ------------------------------------------------------------------ interactive shell in tmux
+def shell_argv(settings: Settings, s: dict) -> list[str]:
+    """``ssh`` into ``s`` interactively with pm's key and the pinned host key only (no password, no other key,
+    no ssh config)."""
+    return [SSH_BIN, "-F", "/dev/null", "-i", str(sshkeys.key_path(settings)),
+            "-o", "IdentitiesOnly=yes", "-o", "PasswordAuthentication=no", "-o", "KbdInteractiveAuthentication=no",
+            "-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known_hosts(settings)}",
+            "-o", "GlobalKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
+            "-p", str(s["port"]), "--", f"{s['user']}@{s['host']}"]
+
+
+def shell_window_name(name: str) -> str:
+    """The tmux window name of a server's shell: its name with every character tmux names refuse as ``-``."""
+    return re.sub(r"[^A-Za-z0-9._-]", "-", name)[:64] or "server"
+
+
+def open_shell(settings: Settings, sid: str) -> tuple[dict, str]:
+    """Open an ssh shell on the server in a new window of the tmux session ``SHELL_SESSION`` (created in the home
+    folder when missing); pm never types into it, the user attaches with tmux. The window stays (dead, with its exit
+    status) when ssh ends. Returns (server, @window id). Needs pm's key and a pinned host key."""
+    s = get(settings, sid)
+    _need_key(settings)
+    if not s["hostkey_fp"]:
+        raise ServerError("pin the host key first")
+    home = str(Path.home())
+    try:
+        sessions = {x.name: x.id for x in tmuxctl.list_sessions(settings)}
+        target = sessions.get(SHELL_SESSION) or tmuxctl.new_session(settings, SHELL_SESSION, home)
+        wid, _ = tmuxctl.new_agent_window(settings, target, shell_window_name(s["name"]), home,
+                                          shell_argv(settings, s))
+    except tmuxctl.TmuxError:
+        raise ServerError("tmux could not open the window") from None
+    return s, wid
 
 
 # ------------------------------------------------------------------ host key pinning

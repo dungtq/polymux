@@ -21,9 +21,9 @@ both UIs.
 
 | Status | Count |
 |---|---|
-| ported | 78 |
+| ported | 80 |
 | classic-in-shell | 33 |
-| partial | 5 |
+| partial | 3 |
 | missing | 0 |
 | n/a | 24 |
 | **total** | **140** |
@@ -180,10 +180,10 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Quick chat settings | ported | Settings › Quick chat | dev | |
 | Auto-exit idle agents | ported | Settings › Agents (Auto-exit) | dev | |
 | SSH keys | ported | Settings › SSH keys | dev | |
-| Remote servers | ported | Settings › Remote servers | dev | |
+| Remote servers | ported | Settings › Remote servers | dev | ⋯ › Open a shell in tmux (`POST /settings/servers/<id>/shell`: ssh with pm's key into a new window of the tmux session `ssh`) is dt only so far; classic has no button for it |
 | Config file options | n/a | pm.toml | — | Settings › pm service shows a read-only subset |
 | UI theme | ported | Settings › Appearance › UI theme; account menu › Classic UI | dev | the pm.toml key is n/a |
-| Plugins | partial | plugin nav items in the dt sidebar | code | dt Settings does not render plugin Settings sections (`settings_sections_html`); none exist today |
+| Plugins | ported | plugin nav items in the dt sidebar; Settings › System › Plugins renders the plugins' Settings sections (`plugin_sections`; the entry shows only when a plugin adds one) | code | no plugin has a Settings section today (tested with a fake plugin) |
 | External links from plugins | ported | project links row under the head; agent folder link in the session meta | dev | M5: `ext_groups` rendered; "Full Transcript" only in the classic chat |
 
 ## Notifications
@@ -201,7 +201,7 @@ All of these sit in the session tab's classic content (README A5), except where 
 | Login | n/a | `/login` is theme-neutral (core `security/auth.py`) | — | |
 | Passkeys | ported | Settings › Access | dev | Register uses classic `passkey.js` |
 | Sessions | ported | Settings › Access | dev | |
-| Unlock (optional) | partial | lock bar in dt `base.html` | dev ✗ | no "Set up TOTP" (`/unlock/provision`); only matters with `require_unlock = true` |
+| Unlock (optional) | ported | lock bar in dt `base.html`; Settings › Access › Set up TOTP (`POST /unlock/provision`, the secret shown once in the row) when `require_unlock` and not provisioned | dev | |
 | Audit log | ported | `/audit` | dev | |
 | Client error log | ported | `/audit?tab=errors` | dev | |
 | Health check | n/a | `/healthz` | — | |
@@ -259,8 +259,6 @@ removal-debt list. Still open:
 | TODO card | file-mode TODO.md | dt-only if the project context's file TODO summary is enough to list and tick (`POST /p/<n>/todo/toggle` handles files); else needs core for `todo_groups` of file projects |
 | Backlog | file-mode BACKLOG.md items and whole-file editor | dt-only: list `entries` items of non-tracker projects; port the lease/lock editor (or keep the classic link until those projects are imported) |
 | btw | phones | dt-only: a full-screen btw panel on phones (Quick chat full-screen layout) |
-| Plugins | plugin Settings sections | dt-only: a Settings section that renders `settings_sections_html` (no plugin uses it today) |
-| Unlock (optional) | no TOTP set-up | dt-only: "Set up TOTP" in Settings › Access when `require_unlock` and not provisioned (`POST /unlock/provision`) |
 
 ## Classic in shell (removal debt)
 

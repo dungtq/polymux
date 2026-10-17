@@ -57,6 +57,14 @@
 .s-msg{color:var(--muted);font-size:var(--fs-s)}
 .s-msg.ok{color:var(--ok-fg)}
 .s-msg.err{color:var(--failed)}
+/* Set up TOTP: the core answers <p>…</p><code>otpauth://…</code> once; the long URI wraps */
+.s-totp{margin:0}
+.s-totp-msg{flex:1 1 100%;min-width:0}
+.s-totp-msg p{margin:0 0 var(--s1)}
+.s-totp-msg code{display:block;font-family:var(--font-mono);color:var(--fg);overflow-wrap:anywhere;user-select:all}
+/* System › Plugins: each plugin's section (section.set-section > h2.set-h + its own markup) as a group */
+.s-plug .set-section{margin:0 0 var(--s5)}
+.s-plug .set-h{margin:0 0 var(--s2);font-size:var(--fs-m);font-weight:600}
 .s-ui{display:flex;align-items:center;gap:var(--s2);margin:0}
 
 /* ---------- controls ---------- */

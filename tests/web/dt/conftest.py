@@ -126,8 +126,8 @@ class Env:
         return self.c.post(url, data=data, headers=h)
 
 
-def make_env(settings, plugin, logged_in=True):
-    app = create_app(settings, plugin_eps=[EP("dt", plugin)])
+def make_env(settings, plugin, logged_in=True, more=()):
+    app = create_app(settings, plugin_eps=[EP("dt", plugin), *more])
     c = TestClient(app, base_url=ORIGIN, follow_redirects=False)
     tok = ""
     if logged_in:

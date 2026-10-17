@@ -13,12 +13,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from markupsafe import Markup
 
 from pm.web import themes
 from pm.web.dt import DtTheme, prefs, stores
 from pm.web.dt import settings as dts
 
-from .conftest import make_env
+from .conftest import EP, make_env
 from .kit import render_base
 
 THEME = themes.HERE / "dt"
@@ -88,6 +89,35 @@ def test_build_section_and_system_lines(settings):
     assert "none" in p.system[1].value  # no pm.toml in the test settings
 
 
+def test_server_menu_opens_a_shell_once_pinned_with_a_key(settings):
+    srv = [{"id": "s1", "name": "lab", "host": "lab", "port": 22, "user": "me", "hostkey_fp": "SHA256:x"}]
+    rows = dts.server_rows(srv, {}, has_key=True)
+    sh = next(m for m in rows[0].menu if m.get("id") == "shell")
+    assert sh["post"] == "/settings/servers/s1/shell" and sh["label"] == "Open a shell in tmux" and "confirm" not in sh
+    ids = [m.get("id") for m in rows[0].menu]
+    assert ids.index("test") < ids.index("shell") < ids.index("install")
+    off = next(m for m in dts.server_rows(srv, {}, has_key=False)[0].menu if m.get("id") == "shell")
+    assert off["disabled"] and off["why"] == "generate pm's key first" and "post" not in off
+    srv[0]["hostkey_fp"] = ""
+    off = next(m for m in dts.server_rows(srv, {}, has_key=True)[0].menu if m.get("id") == "shell")
+    assert off["disabled"] and off["why"] == "pin the host key first"
+
+
+def test_totp_state_only_with_require_unlock(settings):
+    base = {"request": req("access")}
+    assert dts.build(base, settings).totp == ""  # require_unlock off: nothing to set up
+    assert dts.build({**base, "require_unlock": True, "provisioned": False}, settings).totp == "missing"
+    assert dts.build({**base, "require_unlock": True, "provisioned": True}, settings).totp == "ready"
+
+
+def test_plugins_section_only_when_a_plugin_adds_one(settings):
+    p = dts.build({"request": req("plugins")}, settings)
+    assert "plugins" not in p.secs and p.cur == "appearance" and p.view == "list"  # unknown without plugins
+    p = dts.build({"request": req("plugins"), "plugin_sections": Markup("<section>x</section>")}, settings)
+    assert p.cur == "plugins" and p.view == "sec" and p.secs["plugins"].group == "System"
+    assert [s.id for s in p.nav[-1].secs] == ["git", "system", "plugins"] and str(p.plugins) == "<section>x</section>"
+
+
 def test_tabs_count_and_prefs_come_from_the_stores(settings):
     stores.apply(settings, stores.open_tab, ("agent", "claude-aaa111"))
     prefs.apply(settings, {"run_status": "off"})
@@ -104,6 +134,51 @@ def senv(settings, snap):
             return [themes.Theme(name="dt", templates=TPL, static=THEME / "static", label="dt")]
 
     return make_env(settings, RealDt())
+
+
+def test_plugin_settings_section_renders_in_dt(settings, snap, tmp_path):
+    tpl = tmp_path / "plug-tpl"
+    tpl.mkdir()
+    (tpl / "plug_settings.html").write_text('<p class="plug-body">Plug value {{ plug_v }}</p>')
+
+    class Plug:
+        name = "plug"
+
+        def templates_dir(self):
+            return tpl
+
+        def settings_sections(self):
+            return [("Plug options", "plug_settings.html", lambda request: {"plug_v": "42"})]
+
+    class RealDt(DtTheme):
+        def themes(self):
+            return [themes.Theme(name="dt", templates=TPL, static=THEME / "static", label="dt")]
+
+    assert 'data-s-go="plugins"' not in make_env(settings, RealDt()).c.get("/settings").text  # none: no entry
+    e = make_env(settings, RealDt(), more=[EP("plug", Plug())])
+    t = e.c.get("/settings?s=plugins").text
+    head = re.search(r'<section class="s-sec" id="s-sec-plugins"[^>]*>', t)
+    assert head and " hidden" not in head.group(0) and 'data-s-go="plugins"' in t, t[:3000]
+    assert '<h2 class="set-h">Plug options</h2>' in t and '<p class="plug-body">Plug value 42</p>' in t
+    frag = e.c.get("/settings/panel?s=plugins").text
+    assert "Plug value 42" in frag and 'hx-select="#s-sec-plugins"' in frag
+
+
+def test_totp_setup_row_in_access(settings, snap):
+    class RealDt(DtTheme):
+        def themes(self):
+            return [themes.Theme(name="dt", templates=TPL, static=THEME / "static", label="dt")]
+
+    e = make_env(dataclasses.replace(settings, require_unlock=True), RealDt())
+    t = e.c.get("/settings?s=access").text
+    assert 'hx-post="/unlock/provision"' in t and 'hx-target="#s-totp-msg"' in t and 'id="s-totp-msg"' in t
+    r = e.post("/unlock/provision", headers={"HX-Request": "true"})
+    assert r.status_code == 200 and "otpauth://" in r.text and "shown once" in r.text
+    t = e.c.get("/settings?s=access").text
+    assert "/unlock/provision" not in t and "set up" in t and "otpauth" not in t  # the secret is never shown again
+    off = make_env(settings, RealDt())
+    t = off.c.get("/settings?s=access").text
+    assert "/unlock/provision" not in t and "Set up TOTP" not in t  # require_unlock off: no TOTP row
 
 
 def test_settings_page_renders_every_section(senv):

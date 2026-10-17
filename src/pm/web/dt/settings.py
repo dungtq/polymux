@@ -2,8 +2,9 @@
 
 ``dt_settings`` is a Jinja global (``template_globals()``, bound to the plugin's settings). It reads the context of the
 core's ``GET /settings`` / ``GET /settings/panel`` (``settings_panel.context``: sessions, passkeys, prefs, agents,
-pm_key, user_keys, servers, srv_results, git_hosts, notify_rules, composer + page_ctx ui_theme, ui_themes,
-require_unlock) and returns a ``Page``: the section nav (groups You · Work · Security · System), the current section
+pm_key, user_keys, servers, srv_results, git_hosts, notify_rules, composer, plugin_sections + page_ctx ui_theme,
+ui_themes, require_unlock, provisioned) and returns a ``Page``: the section nav (groups You · Work · Security · System;
+System › Plugins only when a plugin adds Settings sections), the current section
 (``?s=<id>``; none = the phone's section list, the first section on wider screens), the table rows of Access and
 Remote servers with their ⋯ items, and the read-only System lines. It also reads the v7 "all devices" prefs
 (``pm.web.dt.prefs``, stat-cached) and the servers panel's cached "pm service" metric; no other IO.
@@ -57,6 +58,8 @@ SECTIONS = (
     ("system", "pm service", "gear", "System", "Read-only view of pm.toml and the running service. Edit the file, "
      "then reload pm."),
 )
+# shown only when an installed plugin adds Settings sections (the core's plugin_sections, plugins.settings_sections)
+PLUGINS = ("plugins", "Plugins", "box", "System", "Settings that installed plugins add. Each plugin owns its part.")
 IDS = tuple(s[0] for s in SECTIONS)
 # hash / group aliases (/settings#security): the group's first section
 ALIASES = {"you": "appearance", "work": "agents", "security": "access", "system": "system", "colours": "colors",
@@ -171,6 +174,8 @@ class Page:
     reload_ok: bool
     reload_why: str
     require_unlock: bool
+    totp: str = ""  # require_unlock only: "ready" (TOTP set up) | "missing" (Set up TOTP, POST /unlock/provision)
+    plugins: str = ""  # the plugins' Settings sections (Markup from the core); "" = no Plugins section
     pm_key: object = None  # sshkeys key (name, type, fingerprint, line) or None
     user_keys: tuple = ()
     key_menus: Mapping[str, list] = None  # ~/.ssh key name -> ⋯ (Copy)
@@ -185,14 +190,18 @@ class Page:
     aside_pcts: tuple[tuple[str, str], ...] = ASIDE_PCTS
 
 
-def sec_of(raw: str | None) -> str | None:
-    """A section id from ``?s=`` or a hash alias; None when unknown or empty."""
+def sec_of(raw: str | None, plugins: bool = False) -> str | None:
+    """A section id from ``?s=`` or a hash alias; None when unknown or empty (``plugins``: the Plugins section
+    exists)."""
     s = (raw or "").strip().lower()
+    if plugins and s == PLUGINS[0]:
+        return s
     return s if s in IDS else ALIASES.get(s)
 
 
-def nav(cur: str) -> tuple[tuple[NavGroup, ...], dict[str, Sec]]:
-    secs = {i: Sec(i, label, icon, grp, lead, f"/settings?s={i}", i == cur) for i, label, icon, grp, lead in SECTIONS}
+def nav(cur: str, plugins: bool = False) -> tuple[tuple[NavGroup, ...], dict[str, Sec]]:
+    rows = (*SECTIONS, PLUGINS) if plugins else SECTIONS
+    secs = {i: Sec(i, label, icon, grp, lead, f"/settings?s={i}", i == cur) for i, label, icon, grp, lead in rows}
     groups: list[NavGroup] = []
     for s in secs.values():
         if not groups or groups[-1].label != s.group:
@@ -255,6 +264,8 @@ def server_rows(servers, results: Mapping[str, str], has_key: bool) -> tuple[Srv
             menus.item("pin", "Pin host key…", "shield", event="s:pin") if not fp else None,
             menus.item("test", "Test connection", "refresh", post=base + "/test", refresh=_refresh("servers"))
             if not why_test else menus.item("test", "Test connection", "refresh", disabled=True, why=why_test),
+            menus.item("shell", "Open a shell in tmux", "tmux", post=base + "/shell")
+            if not why_test else menus.item("shell", "Open a shell in tmux", "tmux", disabled=True, why=why_test),
             menus.item("install", "Install pm key…", "lock", note="one-time password", event="s:install")
             if not why_test else menus.item("install", "Install pm key…", "lock", disabled=True, why=why_test),
             menus.item("repin", "Re-pin host key…", "shield", event="s:repin") if fp else None,
@@ -339,9 +350,10 @@ def _actions(tabs_open: int, reload_ok: bool) -> dict[str, dict]:
 def build(ctx, settings) -> Page:
     req = ctx.get("request")
     raw = req.query_params.get("s") if req is not None else None
-    chosen = sec_of(raw)
+    plug = ctx.get("plugin_sections") or ""
+    chosen = sec_of(raw, plugins=bool(plug))
     cur = chosen or IDS[0]
-    groups, secs = nav(cur)
+    groups, secs = nav(cur, plugins=bool(plug))
     p = ctx.get("prefs") or {}
     launch = {k: str((p.get("launch") or {}).get(k) or "") for k in ("agent", "model", "mode")}
     notify = tuple((k, label, NOTIFY_HELP.get(k, ""), bool((p.get("notify") or {}).get(k, True)))
@@ -370,7 +382,8 @@ def build(ctx, settings) -> Page:
         pm_key_menu=menus.menu(menus.item("copy", "Copy public key", "copy", copy=pm_key.line)) if pm_key else [],
         stats=("Changes save as you make them", "this browser · all devices · pm.toml (read-only)"),
         reload_ok=reload_ok, reload_why="" if reload_ok else "Reload is off on this instance (dev, or no unit).",
-        require_unlock=bool(ctx.get("require_unlock")), pm_key=pm_key,
+        require_unlock=bool(ctx.get("require_unlock")), pm_key=pm_key, plugins=plug,
+        totp=("ready" if ctx.get("provisioned", True) else "missing") if ctx.get("require_unlock") else "",
         user_keys=tuple(ctx.get("user_keys") or ()),
         key_menus={k.name: menus.menu(menus.item("copy", "Copy public key", "copy", copy=k.line))
                    for k in (ctx.get("user_keys") or ())},

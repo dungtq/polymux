@@ -2,8 +2,8 @@
 panel (web.routes.settings).
 
 Mutations: POST + CSRF + Origin + session + tier + audit (``ssh_keygen``, ``ssh_server_add|remove``,
-``ssh_hostkey_scan|pin|repin``, ``ssh_test``, ``ssh_key_install``). Private key material is never read, rendered,
-logged or audited; the audit detail carries only a fingerprint prefix. The install password is read from the
+``ssh_hostkey_scan|pin|repin``, ``ssh_test``, ``ssh_shell``, ``ssh_key_install``). Private key material is never
+read, rendered, logged or audited; the audit detail carries only a fingerprint prefix. The install password is read from the
 POST body, handed to ssh through a private FIFO and zeroed; it is never audited (not even its length),
 logged or echoed, and ssh stderr is reduced to a result class.
 """
@@ -136,6 +136,18 @@ async def server_test(request: Request, sid: str) -> Response:
         return html(request, f"Test not run: {e}.", ok=False)
     _srv_done(request, "ssh_test", s["id"], "ok" if res == "ok" else "denied", _d(s, result=res))
     return html(request, f"{s['name']}: {ss.RESULTS.get(res, res)}.", ok=res == "ok")
+
+
+@router.post("/settings/servers/{sid}/shell", dependencies=[Depends(mutation_guard("ssh_shell", Tier.MESSAGE))])
+async def server_shell(request: Request, sid: str) -> Response:
+    """Open an interactive ssh shell on the server in a new tmux window (pm's key, pinned host key)."""
+    try:
+        s, wid = await executors.run_tmux(ss.open_shell, request.app.state.settings, sid)
+    except ss.ServerError as e:
+        _srv_done(request, "ssh_shell", sid if ss.valid_id(sid) else "", "denied", {"reason": str(e)[:80]})
+        return html(request, f"Shell not opened: {e}.", ok=False)
+    _srv_done(request, "ssh_shell", s["id"], "ok", _d(s, window=wid))
+    return html(request, f"Opened a shell on {s['name']} in tmux session {ss.SHELL_SESSION}.")
 
 
 @router.post("/settings/servers/{sid}/install", dependencies=[Depends(mutation_guard("ssh_key_install", Tier.MESSAGE))])
