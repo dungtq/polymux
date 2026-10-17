@@ -11,6 +11,9 @@ the main tree on the default branch ``classify`` (run under the main file's floc
 the drafts such a render shows into landed rows, and marks the drafts of a branch that no longer exists as
 abandoned, so a branch deleted unmerged never reaches main and a branch re-created under the same name does
 not revive them.
+The merge driver never lands drafts itself: git also runs it for ``merge-tree``, a merge that is aborted and a
+rebase (a detached HEAD counts as main), so it only previews the landing; the post-merge / post-commit hook
+(or the next change on main) lands them through ``classify`` once the merge commit exists.
 
 Restamping: a draft whose ``sha`` is not an ancestor of HEAD any more (amend, rebase) is stamped again, but
 only when its ``base_sha`` is still an ancestor of HEAD, so drafts of an older branch of the same name stay

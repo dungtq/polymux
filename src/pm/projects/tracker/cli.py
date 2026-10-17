@@ -210,14 +210,16 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--stage", action="store_true", help="render into this work tree and git add (pre-commit)")
     g.add_argument("--merge", nargs=4, metavar=("BASE", "RESULT", "THEIRS", "PATH"),
                    help="merge driver (%%O %%A %%B %%P): take THEIRS' new/ticked items, render PATH into RESULT")
-    g.add_argument("--post-commit", action="store_true", help="post-commit hook: stamp this branch's drafts")
+    g.add_argument("--post-commit", action="store_true",
+                   help="post-commit / post-merge hook: stamp this branch's drafts (main: land merged ones)")
     i = sub.add_parser("import", parents=[common], help="move the tracker files into pm.db")
     i.add_argument("--replace", action="store_true", help="re-import an imported file")
     i.add_argument("--file", action="append", choices=list(schema.ALL_FILES),
                    help="only this file (repeat; default all, missing ones skipped)")
     h = sub.add_parser("hooks", help="git hooks")
     hs = h.add_subparsers(dest="action", required=True, parser_class=_Parser)
-    hs.add_parser("install", parents=[common], help="pre-commit + post-commit hooks + merge driver").add_argument(
+    hs.add_parser("install", parents=[common],
+                  help="pre-commit + post-commit + post-merge hooks + merge driver").add_argument(
         "--force", action="store_true", help="replace a foreign hook (kept as <hook>.pmctl-old)")
     b = sub.add_parser("backup", parents=[common], help="copy pm.db to state_dir/backups/pm-<today>.db now")
     b.add_argument("--force", action="store_true", help="overwrite today's copy")

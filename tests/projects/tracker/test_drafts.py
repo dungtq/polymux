@@ -73,6 +73,47 @@ def test_branch_entry_lands_through_the_merge_driver(tk, repo, pmctl, setup):
     assert "<<<<<<<" not in text + ft
 
 
+def test_trial_merges_and_rebases_do_not_land_drafts(tk, repo, pmctl, setup):
+    """The driver also runs for ``git merge-tree``, ``merge --no-commit`` + ``--abort`` and a rebase (detached
+    HEAD): none of them may land the branch's drafts; the real merge does (post-merge hook)."""
+    wt = _wt(tk, repo)
+    pmctl("change", "add", "on b", "--body-file", str(setup), cwd=wt)
+    pmctl("feature", "set", "Chat", "Send", "--text", "send faster.", cwd=wt)
+    _commit(wt, "work-on-b")
+    pmctl("change", "add", "on main", "--body-file", str(setup))
+    pmctl("feature", "set", "Chat", "Copy", "--text", "copy on main.")
+    _commit(repo, "main-work")
+    main_cl, main_ft = (repo / "CHANGELOG.md").read_text(), (repo / "FEATURES.md").read_text()
+
+    def still_drafts():
+        assert next(s for t, s in _states(tk).items() if t.endswith("(on b)")) == "draft"
+        assert all(d["state"] == "draft" for d in _feature_drafts(tk))
+        assert (repo / "CHANGELOG.md").read_text() == main_cl and (repo / "FEATURES.md").read_text() == main_ft
+    tree = git(repo, "merge-tree", "--write-tree", "main", "b").split()[0]
+    assert "(on b)" in git(repo, "show", f"{tree}:CHANGELOG.md")  # the trial result still has the entry
+    still_drafts()
+    git(repo, "merge", "-q", "--no-commit", "--no-ff", "b")
+    git(repo, "merge", "--abort")
+    still_drafts()
+    git(wt, "rebase", "-q", "main")  # both sides changed both files: the driver runs on a detached HEAD
+    still_drafts()
+    _commit(wt, "after-rebase")  # restamps the drafts on the rebased branch
+    git(repo, "merge", "-q", "--no-edit", "b")
+    assert set(_states(tk).values()) == {"landed"} and _feature_drafts(tk) == []
+    assert (repo / "CHANGELOG.md").read_text() == changelog.render_text(tk, "proj", repo)
+    assert "send faster." in (repo / "FEATURES.md").read_text()
+    assert git(repo, "status", "--porcelain") == ""
+
+
+def _feature_drafts(tk):
+    from pm.projects.tracker import featurestore, schema
+    con = schema.connect(tk)
+    try:
+        return featurestore.draft_revs(con, "proj")
+    finally:
+        con.close()
+
+
 def test_fast_forward_lands_on_the_next_main_render(tk, repo, pmctl, setup):
     wt = _wt(tk, repo)
     pmctl("change", "add", "ff entry", "--body-file", str(setup), cwd=wt)
