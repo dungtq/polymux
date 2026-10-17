@@ -2,7 +2,7 @@
     the project view's Files tab body (PRD §6.4), loaded into [data-pj-fbody] by js/project.js; every link is
     a[data-pj-in] (loads in place, keeps the path in the URL hash). View model: dt_files() (pm.web.dt.files).
     Layout .pj-fw: the project tree (nav.pj-ft, only the folders on the path open; hidden on phones, where the listing
-    and the breadcrumb are the way around) · the main column: breadcrumb (nav.pj-fcr, 36px targets; 44px on touch) then
+    and the breadcrumb are the way around) · the main column: breadcrumb (nav.p-crumb, 36px targets; 44px on touch) then
     a directory as one grid table (parts/_table.html: Name · Git · Size · Modified · Created; ".." first below the root;
     J/K, ↵ = its link) or a file view. The file view (meta line, Rendered / Raw, Changes / File, Markdown, code, diff)
     is still classic markup in its own .x-cl box, styled by the classic filespane.css (README A5). -#}
@@ -22,13 +22,13 @@
   {{ branch(fv.tree) }}
 </nav>
 <div class="pj-fm">
-<nav class="pj-fcr" aria-label="Path">
+<nav class="p-crumb" aria-label="Path">
   {%- for c in fv.crumbs %}{% if not loop.first %}<span class="sep" aria-hidden="true">/</span>{% endif %}
   {%- if c.href %}<a href="{{ c.href }}" data-pj-in{% if loop.last %} aria-current="page"{% endif %}>{{ c.label }}</a>{% else %}<b aria-current="page">{{ c.label }}</b>{% endif %}
   {%- endfor -%}
 </nav>
 {%- if tree.kind == "dir" %}
-{% call tb.table("pj-files", "Files in " ~ (fv.path or project_name), cls="pj-fl", list="pj-files",
+{% call tb.table("pj-files", "Files in " ~ (fv.path or project_name), cls="pj-fl p-files", list="pj-files",
                  keys={"enter": "a[data-pj-in]"}, labels={"enter": "Open"}) %}
   {{ tb.gh([{"label": "Name"}, {"label": "Git", "title": "git status"}, {"label": "Size", "num": true, "cls": "hide-s"},
             {"label": "Modified", "num": true}, {"label": "Created", "num": true, "cls": "hide-n"}]) }}

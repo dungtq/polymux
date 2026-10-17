@@ -62,6 +62,11 @@
 .gc-nm>a.nm:focus-visible{outline-offset:-2px}
 .gc-nm>.chip{flex:0 0 auto}
 .p-gr.un .gc-nm{font-weight:600}
+/* a file listing (.p-files: the project Files tab, the quick look; rows .k-file / .k-dir / .k-up): the name cell's
+   icon muted, folders and ".." in accent; names in text colour, the row is the link (DESIGN §1.7) */
+.p-files .gc-nm svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.p-files :is(.k-dir,.k-up) .gc-nm svg.i{color:var(--accent)}
+.p-files .gc-nm>a.nm{color:var(--fg)}
 .gc-end{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
 .gc-m{display:none}
 .p-gr>:is(.gc-act,.gc-sw){display:flex;align-items:center;justify-content:flex-end;gap:2px;overflow:visible}

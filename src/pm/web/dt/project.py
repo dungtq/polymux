@@ -90,6 +90,12 @@ class Tile:
     sub: str = ""
     cls: str = ""  # sub line tone: warn | ""
 
+    @property
+    def meter(self) -> dict:
+        """The tile as a parts/_meter.html cell: a button that opens its tab (js/project.js [data-pj-goto])."""
+        return {"key": self.key, "label": self.label, "value": self.value, "small": self.small, "sub": self.sub,
+                "sub_tone": self.cls, "data": {"pj-goto": self.key}, "title": f"Open the {self.label} tab"}
+
 
 @dataclass(frozen=True)
 class PlanRow:

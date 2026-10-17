@@ -66,12 +66,13 @@ def test_files_fragment_is_one_grid_table(app_env, tmp_path):  # noqa: F811
     assert not any("x-cl" in n.cls for n in t.all())  # the listing is dt markup, not classic content
     sub = Tree(app_env.c.get("/p/alpha/files?path=src", headers=HX).text).root
     assert [n.attrs["data-row-id"] for n in sub.one("pj-fl").by_cls("p-gr")] == ["..", "src/app.py"]
-    crumb = sub.one("pj-fcr")
+    assert "p-files" in sub.one("pj-fl").cls  # the shared file-row look (css/table.css), also the quick look's
+    crumb = sub.one("p-crumb")
     assert [a.attrs.get("href") for a in crumb.find(lambda n: n.tag == "a")] == ["/p/alpha/files",
                                                                                  "/p/alpha/files?path=src"]
     f = Tree(app_env.c.get("/p/alpha/files?path=src%2Fapp.py", headers=HX).text).root
     assert not f.by_cls("pj-fl") and "x-cl" in f.one("pj-fv").cls and f.by_cls("pj-file")
-    assert [n.tag for n in f.one("pj-fcr").kids][-1] == "b"  # the file itself: no link
+    assert [n.tag for n in f.one("p-crumb").kids][-1] == "b"  # the file itself: no link
 
 
 def test_doc_fragment_document_or_empty_box(app_env):  # noqa: F811

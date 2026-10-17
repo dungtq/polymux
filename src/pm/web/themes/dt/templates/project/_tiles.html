@@ -2,14 +2,8 @@
     3 per row when the project main is <= 760px). A tile is a button: a click opens its tab (js/project.js,
     [data-pj-goto]). Each: label, value (+ small unit text), one muted sub line (yellow with the word when it needs a
     look: "2 need you", "3 dirty"). View model: ProjectView.tiles (Tile); a tile whose tab is hidden in the project's
-    settings is left out. -#}
+    settings is left out. The strip is the shared meter part (parts/_meter.html; Tile.meter: a button cell, no bar). -#}
+{%- import "parts/_meter.html" as pmt -%}
 {%- set keys = v.tabs | map(attribute="key") | list -%}
-<div class="pj-sum" role="group" aria-label="Summary of {{ v.name }}">
-  {%- for t in v.tiles if t.key in keys %}
-  <button class="pj-tile" type="button" data-pj-goto="{{ t.key }}" title="Open the {{ t.label }} tab">
-    <span class="l">{{ t.label }}</span>
-    <span class="v">{{ t.value }}{% if t.small %} <small>{{ t.small }}</small>{% endif %}</span>
-    <span class="s{{ ' warn' if t.cls == 'warn' }}">{{ t.sub }}</span>
-  </button>
-  {%- endfor %}
-</div>
+{{ pmt.meters(v.tiles | selectattr("key", "in", keys) | map(attribute="meter") | list, label="Summary of " ~ v.name,
+              cls="pj-sum") }}

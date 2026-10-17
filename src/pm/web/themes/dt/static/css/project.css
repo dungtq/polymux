@@ -86,22 +86,9 @@ button.pj-tc:hover{background:none;color:var(--fg)}
 .pj-lg>a.chip:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
 .pj-lg>a.chip>svg.i{width:var(--icon-xs);height:var(--icon-xs);color:var(--muted)}
 
-/* ---------- summary tiles: 6 per row, 3 when the project main is <= 760px (LAYOUT §5) ---------- */
-.pj-sum{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin:0 0 var(--s4);overflow:hidden;
-  border:1px solid var(--line);border-radius:var(--r)}
-@container pj (max-width:760px){.pj-sum{grid-template-columns:repeat(3,minmax(0,1fr))}}
-button.pj-tile{display:block;width:100%;min-width:0;height:auto;min-height:0;margin:0 -1px -1px 0;
-  padding:var(--s2) var(--s3) var(--s3);border:0;border-right:1px solid var(--line2);
-  border-bottom:1px solid var(--line2);border-radius:0;background:none;color:var(--fg);font:inherit;font-weight:400;
-  text-align:left;cursor:pointer}
-button.pj-tile:hover{background:var(--hover)}
-button.pj-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.pj-tile>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pj-tile .l{color:var(--muted);font-size:var(--fs-s)}
-.pj-tile .v{font-size:var(--fs-xl);font-weight:600;line-height:1.35}
-.pj-tile .v small{margin-left:var(--s1);color:var(--muted);font-size:var(--fs-s);font-weight:400}
-.pj-tile .s{color:var(--muted);font-size:var(--fs-s)}
-.pj-tile .s.warn{color:var(--waiting)}
+/* ---------- summary tiles (parts/_meter.html button cells): 6 per row, 3 when the main is <= 760px (LAYOUT §5) */
+.p-sum.pj-sum{grid-template-columns:repeat(6,minmax(0,1fr))}
+@container pj (max-width:760px){.p-sum.pj-sum{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* ---------- tab panels ---------- */
 .pj-tab{min-width:0}
@@ -134,10 +121,6 @@ button.pj-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px
 .pjs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:0 var(--s3)}
 .pjs-l{display:block;margin:var(--s3) 0 var(--s1);font-weight:600}
 .pjs input.x-in:not([type=checkbox]),.pjs textarea.x-in,.pjs select.sel{width:100%;max-width:var(--field-w)}
-.pjs textarea.x-in{display:block;min-height:calc(var(--ctl-h) * 2);margin:0;padding:var(--s1) var(--s2);
-  border:1px solid var(--ctl-line);border-radius:var(--r);background:var(--page);color:var(--fg);
-  font-family:var(--font-mono);font-size:var(--fs-in);resize:vertical}
-.pjs textarea.x-in:focus{border-color:var(--accent);outline:0;box-shadow:inset 0 0 0 1px var(--accent)}
 .pjs-hint{margin:var(--s1) 0 0;color:var(--muted);font-size:var(--fs-s)}
 .pjs-ft{display:flex;justify-content:flex-end;margin-top:var(--s3)}
 .pjs-grid.pjs-links{grid-template-columns:minmax(0,1fr)}  /* project names: one per row, the row's full width */
@@ -175,20 +158,12 @@ button.pj-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px
 .pj-ftn[aria-current]{background:var(--accent-soft);font-weight:600}
 .pj-ftn:focus-visible{outline-offset:-2px}
 .pj-ftn>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-:is(.pj-ftn,.pj-fl .gc-nm) svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
-:is(.pj-ftn.dir,.pj-fl .k-dir .gc-nm,.pj-fl .k-up .gc-nm) svg.i{color:var(--accent)}
+.pj-ftn svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
+.pj-ftn.dir svg.i{color:var(--accent)}
 .pj-fm{min-width:0}
-.pj-fcr{display:flex;flex-wrap:wrap;align-items:center;margin:0 0 var(--s2);font-size:var(--fs-ui)}
-.pj-fcr>:is(a,b){display:inline-flex;align-items:center;min-height:calc(var(--ib) + var(--s1));padding:0 var(--s1);
-  border-radius:var(--r);overflow-wrap:anywhere}
-.pj-fcr>a{color:var(--accent);text-decoration:none}
-.pj-fcr>a:hover{background:var(--hover);text-decoration:none}
-.pj-fcr>:is(a,b)[aria-current]{color:var(--fg);font-weight:600}
-.pj-fcr>.sep{color:var(--muted)}
 /* listing: Name · Git · Size (hide-s) · Modified · Created (hide-n) */
 .pj-fl{--g-cols:minmax(10rem,1fr) auto auto auto auto;--g-cols-n:minmax(10rem,1fr) auto auto auto;
   --g-cols-s:minmax(8rem,1fr) auto auto}
-.pj-fl .gc-nm>a.nm{color:var(--fg)}  /* the row is the link (DESIGN §1.7): names in text colour, as in every list */
 .pj-fv{min-width:0}
 
 /* ---------- reader aside: a column >= 1560px, an overlay below ---------- */
@@ -233,9 +208,9 @@ button.pj-tile:focus-visible{outline:2px solid var(--accent);outline-offset:-2px
   .pj-nn,.pj-ng .x-sr{font-size:var(--fs-m)}
   .pj-tc{width:var(--ib);flex-basis:var(--ib)}
   .pj-ng .x-sr,.pj-nmore{padding-left:calc(var(--ib) + var(--s2))}
-  .pj-sum{grid-template-columns:repeat(3,minmax(0,1fr))}
-  button.pj-tile{padding:var(--s2)}
-  .pj-tile .s{display:none}
+  .p-sum.pj-sum{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .pj-sum .p-m{padding:var(--s2)}
+  .pj-sum .p-m .s{display:none}
   .pj-fa{top:0;bottom:0;z-index:var(--z-drawer);width:100vw;border:0;padding-top:env(safe-area-inset-top)}
   /* a table that opens a tab panel: the tab strip's rule is its top edge (no second rule 12px lower) */
   .pj-tab :is(#pj-agents,[data-pjs-body],[data-pjv-body])>.p-g:first-child{border-top:0}

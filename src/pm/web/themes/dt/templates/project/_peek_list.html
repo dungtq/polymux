@@ -10,13 +10,13 @@
 {%- set parts = fv.path.split("/") if fv.path else [] -%}
 {%- set tgt = ' target="_blank" rel="noopener"' if new_tab else '' -%}
 <div class="pk-in" data-pk-path="{{ fv.path }}" data-pk-meta="{{ meta }}" data-pk-new="{{ '1' if new_tab else '0' }}">
-<nav class="pk-cr" aria-label="Path">
+<nav class="p-crumb pk-cr" aria-label="Path">
   {%- for c in fv.crumbs %}{% if not loop.first %}<span class="sep" aria-hidden="true">/</span>{% endif %}
   {%- if loop.last %}<b aria-current="page">{{ c.label }}</b>
   {%- else %}<a href="{{ c.href }}" data-pk-dir="{{ parts[:loop.index0] | join('/') }}">{{ c.label }}</a>{% endif %}
   {%- endfor -%}
 </nav>
-{% call tb.table("peek", "Files in " ~ (fv.path or name), cls="pk-list") %}
+{% call tb.table("peek", "Files in " ~ (fv.path or name), cls="pk-list p-files") %}
   {{ tb.gh([{"label": "Name"}, {"label": "Size", "num": true}, {"label": "Modified", "num": true}]) }}
   {%- for r in fv.rows %}
   {%- set dir = r.kind in ("dir", "up") %}

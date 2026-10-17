@@ -2,8 +2,8 @@
    Settings popup's (dialog.sp-dlg, .sp-hd, .sp-bd, .sp-wait, .sp-err in css/settings.css, loaded before this file):
    here only its width (--pal-w, the form dialogs' width, README A11) on wider screens; under 700px it stays full
    screen. Body: breadcrumb nav.pk-cr and the folder as one grid table (parts/_table.html, css/table.css): Name ·
-   Size · Modified. The row and breadcrumb looks follow the project Files tab (css/project.css .pj-fcr / .pj-fl),
-   which is not loaded on every page. Tokens only. */
+   Size · Modified. The breadcrumb (.p-crumb, css/parts.css) and the file rows (.p-files, css/table.css) are the
+   project Files tab's. Tokens only. */
 @media (min-width:700px){
   dialog.sp-dlg.pk-dlg{width:min(var(--pal-w),calc(100vw - var(--s6)))}
 }
@@ -11,21 +11,9 @@
 .pk-hd .pk-open{flex:0 0 auto}
 .pk-bd{padding-top:var(--s3)}
 
-/* breadcrumb: folders load in the popup */
-.pk-cr{display:flex;flex-wrap:wrap;align-items:center;margin:0 0 var(--s2);font-size:var(--fs-ui)}
-.pk-cr>:is(a,b){display:inline-flex;align-items:center;min-height:calc(var(--ib) + var(--s1));padding:0 var(--s1);
-  border-radius:var(--r);overflow-wrap:anywhere}
-.pk-cr>a{color:var(--accent);text-decoration:none}
-.pk-cr>a:hover{background:var(--hover);text-decoration:none}
-.pk-cr>b[aria-current]{color:var(--fg);font-weight:600}
-.pk-cr>.sep{color:var(--muted)}
-
-/* listing: Name · Size · Modified */
+/* listing: Name · Size · Modified (breadcrumb: folders load in the popup) */
 .pk-list{--g-cols:minmax(10rem,1fr) auto auto}
 .pk-list .pk-r{cursor:pointer}
-.pk-list .gc-nm svg.i{flex:0 0 auto;width:var(--icon-sm);height:var(--icon-sm);color:var(--muted)}
-.pk-list :is(.k-dir,.k-up) .gc-nm svg.i{color:var(--accent)}
-.pk-list .gc-nm>a.nm{color:var(--fg)}  /* the row is the link (DESIGN §1.7): names in text colour, as in every list */
 
 @media (max-width:699px){
   .pk-bd{padding-right:var(--s4);padding-left:var(--s4)}  /* the phone table runs edge to edge with -s4 margins */
