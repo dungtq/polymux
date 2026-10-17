@@ -1,0 +1,57 @@
+{#- dt Backlog: the whole-file BACKLOG.md editor of a file-mode project (GET /backlog?p=<n>&edit=1; the core refuses it
+    for a tracker project with 409 and the list). Included by backlog/_page.html; context = the core's editor context
+    (project, content, token, open_n, max_kb, error, lease_id, lease_other {owner, since}, diff, new_token, cancel,
+    csrf). A real form: Save posts /backlog/save {content, token, project, lease} as a page navigation; the core
+    answers 303 to the Backlog, or re-renders this page with the error (409: the file changed meanwhile, with the diff
+    and Reload current / Overwrite anyway; Overwrite asks first, js/backlog-file.js). Someone else's live edit lease
+    (lease_other) makes the text read-only and offers Take over (POST /backlog/lease/take). js/backlog-file.js holds
+    the lease while the page is open (acquire, renew every 60 s and when the tab shows again, release on leave).
+    Classes: bl-fe* (the classic .bl-edit / .bl-lease / .bl-diff names stay classic's). -#}
+{%- import "parts/_head.html" as ph -%}
+{%- set _ic = "/static/t/dt/icons.svg#" -%}
+{%- set _back = '<input type="hidden" name="back" value="' ~ back ~ '">' if back in ("project", "embed") else "" -%}
+<div class="bl-fe">
+{{ ph.head("Edit BACKLOG.md", stats=[project, (open_n | default(0)) ~ " open", "max " ~ max_kb ~ " KB"]) }}
+{%- if error %}
+<p class="bl-alert" role="alert">{{ error }}</p>
+{%- endif %}
+{%- if lease_other %}
+<div class="bl-fe-lease" role="status">
+  <p><b>Being edited by {{ lease_other.owner }} since {{ lease_other.since }}.</b> Read-only until they save, cancel or
+    the 5 minute lease runs out.</p>
+  <form method="post" action="/backlog/lease/take">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="project" value="{{ project }}">{{ _back | safe }}
+    <button class="x-btn sm" type="submit">Take over</button>
+  </form>
+</div>
+{%- endif %}
+{%- if diff %}
+<div class="bl-fe-diff">
+  <p class="bl-note">Differences: <span class="bl-fe-del">- current file</span> / <span class="bl-fe-add">+ your text</span></p>
+  <pre tabindex="0" aria-label="Differences between the current file and your text">{{ diff }}</pre>
+</div>
+{%- endif %}
+<form class="bl-f bl-fe-f" id="bl-fe" method="post" action="/backlog/save" data-bl-fe data-project="{{ project }}"
+  {%- if lease_other %} data-readonly{% endif %}>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="project" value="{{ project }}">
+  <input type="hidden" name="lease" value="{{ lease_id }}">{{ _back | safe }}
+  <label class="bl-fl" for="bl-fe-ta"><span>{{ project }}/BACKLOG.md <span class="muted">(Markdown; items are
+    <code>- [ ] text</code> lines)</span></span></label>
+  <textarea class="bl-ta bl-fe-ta" id="bl-fe-ta" name="content" rows="24" spellcheck="false" autocapitalize="off"
+    {%- if lease_other %} readonly{% endif %}>{{ content }}</textarea>
+  <p class="bl-note" data-bl-femsg role="status" hidden></p>
+  <div class="ft">
+    <a class="x-btn" href="{{ cancel }}">Cancel</a>
+    {%- if not lease_other %}
+    {%- if diff %}
+    <input type="hidden" name="new_token" value="{{ new_token }}">
+    <a class="x-btn" href="/backlog?p={{ project | urlencode }}&amp;edit=1">Reload current</a>
+    <button class="x-btn danger" type="submit" name="force" value="1" data-bl-feforce>Overwrite anyway</button>
+    {%- endif %}
+    <button class="x-btn pri" type="submit"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}check"/></svg>Save</button>
+    {%- endif %}
+  </div>
+</form>
+</div>

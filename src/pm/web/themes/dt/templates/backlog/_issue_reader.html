@@ -2,9 +2,9 @@
     by the core's GET /p/{n}/issues/{num} through the dt _issue_detail.html (ctx d, it, pname, csrf, send); view
     model dt_backlog("reader"). Title, state + meta (#N, the project and Close are the dialog frame's fixed head, never
     repeated here), actions (Mark done / Reopen, Dispatch, Copy pmctl command, Open project, Edit, Delete, the
-    project's running agents with a draft about the issue), the Edit form (title as the list shows it + Markdown body, hidden until
-    Edit; it takes the body's place; data-bl-sfx = the stored title's date suffix, added back on save), body (Markdown, the core's safe HTML), images, notes, Add note. js/backlog-reader.js runs
-    [data-bl-rda], the Edit form (POST .../edit), Delete (typed confirm "#N", POST .../delete) and the note form (POSTs
+    project's running agents with a draft about the issue), the Edit form (title as the list shows it + Markdown body + images to add: picker, paste or drop; hidden
+    until Edit; it takes the body's place; data-bl-sfx = the stored title's date suffix, added back on save), body (Markdown, the core's safe HTML), images, notes, Add note. js/backlog-reader.js runs
+    [data-bl-rda], the Edit form (each new image POST /p/{n}/image then .../image {path}; then POST .../edit), Delete (typed confirm "#N", POST .../delete) and the note form (POSTs
     with CSRF, toast after OK, then reloads this body and the lists). -#}
 {%- set r = dt_backlog("reader") -%}
 {%- set _ic = "/static/t/dt/icons.svg#" -%}
@@ -30,6 +30,9 @@
 <form class="bl-f bl-editf" id="bl-ed" data-bl-editform data-bl-sfx="{{ r.title_sfx }}" novalidate hidden>
   <label class="bl-fl"><span>Title</span><input class="x-in" type="text" name="title" value="{{ r.title }}" maxlength="500" required autocomplete="off" spellcheck="true"></label>
   <label class="bl-fl"><span>Description <span class="muted">(Markdown)</span></span><textarea class="bl-ta" name="body" rows="10">{{ r.body }}</textarea></label>
+  <div class="bl-fl"><span>Add images <span class="muted">(png, jpg, gif, webp; optional; paste or drop them here)</span></span>
+    <span class="bl-pickrow"><button class="x-btn sm" type="button" data-bl-pick><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}img"/></svg>Attach images</button><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-bl-edfiles hidden>
+    <span class="bl-chips" data-bl-chips aria-live="polite"></span></span></div>
   <p class="bl-alert" role="alert" data-bl-ferr hidden></p>
   <div class="ft"><button class="x-btn" type="button" data-bl-rda="cancel">Cancel</button><button class="x-btn pri" type="submit">Save</button></div>
 </form>

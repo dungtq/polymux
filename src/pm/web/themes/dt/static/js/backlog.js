@@ -8,7 +8,8 @@
    - selection: checkboxes [data-bl-sel], bl:select (⋯ Select, X); kept in memory per component across swaps; rows in
      folded groups are never selected (folding a group drops its rows); the bulk bar [data-bl-bulkbar] shows the count
      and runs Done / Dispatch / Move as one POST per issue, then reports per item.
-   - issue rows: [data-bl-run=<⋯ item id>] runs that ⋯ item (the visible action); bl:dispatch (confirm, then POST
+   - issue rows: [data-bl-run=<⋯ item id>] runs that ⋯ item (the visible action; BACKLOG.md item rows too, whose
+     own events are js/backlog-file.js's); bl:dispatch (confirm, then POST
      /p/{n}/issues/{num}/dispatch), bl:move (confirm with a project select, POST .../move {to}), bl:open (reader),
      bl:edit (the reader with its Edit form open).
    - TODO rows: [data-bl-tick] / bl:tick (POST /p/{n}/todo/toggle {line, text}), bl:tdispatch / [data-bl-run=dispatch]
@@ -230,9 +231,13 @@
     }
   });
   const on = (type, fn) => d.addEventListener(type, (e) => { const r = rowOf(e.target); if (r && comp(r)) fn(r, e); });
-  on('bl:open', (r) => { const i = info(r); if (pm7.backlog.reader) pm7.backlog.reader(i.p, i.n, r); });
+  // a BACKLOG.md item (no number) opens in js/backlog-file.js
+  on('bl:open', (r) => { const i = info(r); if (i.n && pm7.backlog.reader) pm7.backlog.reader(i.p, i.n, r); });
   on('bl:edit', (r) => { const i = info(r); if (pm7.backlog.reader) pm7.backlog.reader(i.p, i.n, r, { edit: true }); });
-  on('bl:select', (r) => { if (!select(r)) pm7.toast('Unfold the group to select its rows'); });
+  on('bl:select', (r) => {
+    if (!select(r)) pm7.toast(r.querySelector('[data-bl-sel]') ? 'Unfold the group to select its rows'
+      : 'Only tracker issues can be selected');
+  });
   on('bl:dispatch', (r, e) => { dispatch(info(r), e.target); });
   on('bl:move', (r, e) => { move(comp(r), [info(r)], e.target); });
   on('bl:tick', (r) => { tick(r); });

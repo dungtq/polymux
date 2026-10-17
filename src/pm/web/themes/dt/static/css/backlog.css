@@ -136,6 +136,24 @@
 .bl-editf .ft{margin-top:var(--s3)}
 .bl-notef .bl-ta{margin-top:var(--s2)}
 
+/* ---------- the whole-file BACKLOG.md editor (backlog/_editor.html) ---------- */
+.bl-fe{display:flex;flex-direction:column;gap:var(--s3)}
+.bl-fe>.bl-alert{margin:0}
+.bl-fe-lease{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);padding:var(--s2) var(--s3);
+  border:1px solid var(--line);border-radius:var(--r);background:var(--subtle);font-size:var(--fs-ui)}
+.bl-fe-lease p{flex:1 1 var(--field-w);margin:0}
+.bl-fe-lease b{font-weight:600}
+.bl-fe-diff pre{max-height:40vh;margin:var(--s1) 0 0;padding:var(--s2);overflow:auto;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--subtle);font-family:var(--font-mono);font-size:var(--fs-s);white-space:pre}
+.bl-fe-del{padding:0 var(--s1);background:var(--df-del-bg)}
+.bl-fe-add{padding:0 var(--s1);background:var(--df-add-bg)}
+.bl-fe-f>.bl-fl:first-of-type{margin-top:0}
+.bl-fe-f .bl-fl code{font-family:var(--font-mono);font-size:var(--fs-s)}
+.bl-fe .bl-fe-ta{min-height:calc(14 * var(--row-h));margin-top:var(--s1);font-family:var(--font-mono);
+  font-size:var(--fs-s);line-height:1.5;tab-size:2}
+.bl-fe-f>.bl-note{margin-top:var(--s2)}
+.bl-fe-f .ft{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--s2);margin-top:var(--s3)}
+
 /* ---------- phone (< 700px) ---------- */
 @media (max-width:699px){
   .bl-sels{flex:1 1 100%}

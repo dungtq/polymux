@@ -4,18 +4,24 @@
     one visible action (Dispatch; Agent when one is on it; Reopen when done) + ⋯; bands per project (Group: project).
     Rows: data-row-id "<project>:<num>", data-bl-p / data-bl-n; a click or ↵ opens the issue reader (event bl:open),
     X selects (bl:select), E marks done / reopens (⋯ item "state"). js/backlog.js: reader, selection + bulk bar,
-    Dispatch, Move. -#}
+    Dispatch, Move. A file-mode project's BACKLOG.md items (r.line >= 0) are rows without a number, a select box,
+    notes or age: data-row-id "<project>:l<line>", data-bl-p / data-bl-fl (line) / data-bl-text; the visible action
+    and E tick them (⋯ "state": POST /backlog/toggle), a click, ↵ or R edits the text (js/backlog-file.js), their
+    band (or ⋯) opens the whole-file editor. -#}
 {%- import "backlog/_bar.html" as bb with context -%}
 {%- import "parts/_table.html" as tb -%}
 {%- import "parts/_menu.html" as pm -%}
 {%- set _ic = "/static/t/dt/icons.svg#" -%}
 {%- set flat = bl.st.scope == "page" and bl.st.group == "none" -%}
 {%- macro irow(r) -%}
-{% call tb.row(r.id, cls="bl-row" ~ (" bl-done" if r.done else ""), title=r.title,
-               attrs={"data-bl-p": r.project, "data-bl-n": r.num}) %}
-<label class="bl-ckc" role="cell"><input type="checkbox" class="bl-ck" data-bl-sel aria-label="Select #{{ r.num }} ({{ r.project }})"></label>
+{%- set file = r.line >= 0 -%}
+{% call tb.row(r.id, cls="bl-row" ~ (" bl-done" if r.done else "") ~ (" bl-frow" if file else ""), title=r.title,
+               attrs={"data-bl-p": r.project, "data-bl-fl": r.line, "data-bl-text": r.text} if file else
+                     {"data-bl-p": r.project, "data-bl-n": r.num}) %}
+{%- if file %}<span class="bl-ckc" role="cell"></span>
+{%- else %}<label class="bl-ckc" role="cell"><input type="checkbox" class="bl-ck" data-bl-sel aria-label="Select #{{ r.num }} ({{ r.project }})"></label>{% endif %}
 {%- if r.dot %}{{ tb.dot(r.dot, r.dot_title) }}{% else %}<span class="gc-dot" role="cell"></span>{% endif %}
-<span class="num muted" role="cell">#{{ r.num }}</span>
+<span class="num muted" role="cell">{% if not file %}#{{ r.num }}{% endif %}</span>
 <span class="gc-nm" role="cell"><span class="nm bl-t">{{ r.html | safe }}</span></span>
 {%- if flat %}{% call tb.cell("hide-n") %}<span class="chip bl-chip">{{ r.project }}</span>{% endcall %}{% endif %}
 {% call tb.cell("hide-n bl-att") %}{% for icon, n, t in r.att %}<span class="bl-a" title="{{ t }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ icon }}"/></svg>{{ n }}<span class="vh"> {{ t }}</span></span>{% endfor %}{% endcall %}
@@ -24,7 +30,7 @@
 {% call tb.acts() %}
   {%- if r.act.href %}<a class="x-btn sm" href="{{ r.act.href }}" title="{{ r.act.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ r.act.icon }}"/></svg>{{ r.act.label }}</a>
   {%- else %}<button class="x-btn sm" type="button" data-bl-run="{{ r.act.run }}" title="{{ r.act.title }}"><svg class="i" aria-hidden="true" focusable="false"><use href="{{ _ic }}{{ r.act.icon }}"/></svg>{{ r.act.label }}</button>{% endif %}
-  {{- pm.menu(r.menu, label="Actions for #" ~ r.num ~ " (" ~ r.project ~ ")") }}
+  {{- pm.menu(r.menu, label=("Actions for the BACKLOG.md item" if file else "Actions for #" ~ r.num) ~ " (" ~ r.project ~ ")") }}
 {% endcall %}
 {% endcall %}
 {%- endmacro -%}
@@ -41,7 +47,7 @@
             {"sr": "Actions"}]) }}
 {%- for g in bl.issues %}
 {%- if g.key %}
-{% call tb.group(g.key, g.label, count=g.count, note=g.note) %}{% for r in g.rows %}{{ irow(r) }}{% endfor %}{% endcall %}
+{% call tb.group(g.key, g.label, count=g.count, note=g.note, actions=g.actions or none) %}{% for r in g.rows %}{{ irow(r) }}{% endfor %}{% endcall %}
 {%- else %}{% for r in g.rows %}{{ irow(r) }}{% endfor %}{% endif %}
 {%- endfor %}
 {{ bb.empty() }}

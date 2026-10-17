@@ -1,6 +1,7 @@
 /* dt attachments (docs/themes/dt/PARTS.md §15 "Attachments"): the one way a dt form uploads a file and shows it as a
    removable chip. Used by the Launch prompt box (js/launch-prompt.js: upload at once, chip .up meanwhile) and the
-   Add issue dialog (js/backlog.js: chips for the picked files, upload on Add).
+   Add issue dialog (js/backlog-add.js) and the issue reader's Edit form (js/backlog-reader.js): chips for the picked
+   files, upload on Add / Save.
    Globals: pm7.attach = {
      upload(base, file) -> Promise<path>   POST <base>/image (multipart field image; pm7.fetch adds the CSRF token).
                                           The server answers <p class="flash ok" data-image-path="..."> (parsed, never

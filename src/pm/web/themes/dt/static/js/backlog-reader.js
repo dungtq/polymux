@@ -11,7 +11,10 @@
      then the reader closes and the lists refresh);
    - form[data-bl-editform]: POST .../edit {title, body} (the title as the list shows it and the raw Markdown are the
      form's values; the stored title's " (YYYY-MM-DD)" suffix, data-bl-sfx, is added back unless the title ends in
-     a date of its own, so a save never drops or doubles it);
+     a date of its own, so a save never drops or doubles it); images to add come from its picker [data-bl-edfiles]
+     or a paste / drop on the form (pm7.attach.wire, images only), one pm7.attach chip each; on Save each goes to
+     POST /p/{n}/image (pm7.attach.upload), then POST .../image {path}, before the edit; a failure stops there and
+     keeps the images not attached yet in the form;
    - form[data-bl-noteform]: POST .../note {body}.
    After a write the reader body reloads (GET again) and the lists refresh.
    Globals: sets pm7.backlog.reader(project, num, opener, {edit}) (edit: the Edit form shows once the body loaded:
@@ -22,6 +25,7 @@
   if (!pm7 || !pm7.backlog || !pm7.backlog.lib || pm7.backlog.reader) return;
   const B = pm7.backlog.lib, el = pm7.el;
   let rd = null;  // the issue in the reader: {p, n}
+  const pending = new WeakMap();  // Edit form -> [File] to attach on Save
   const DATED = /\s\(\d{4}-\d\d-\d\d\)$/;  // a title's date suffix (the tracker's short_title)
 
   const dlg = () => d.getElementById('bl-rd');
@@ -48,6 +52,8 @@
     try { r = await pm7.fetch(B.issueUrl(rd)); } catch (e) { r = null; }
     if (r && r.ok) box.innerHTML = await r.text();  // the server's own fragment (_issue_reader.html), no script
     else box.replaceChildren(line('bl-alert', await pm7.why(r, 'Could not load the issue')));
+    const ef = box.querySelector('[data-bl-editform]');
+    if (ef && pm7.attach) pm7.attach.wire(ef, (fl) => take(ef, fl));
     const a = d.activeElement;  // focus was in the replaced body (or nowhere): back to Close
     if (dl.open && (!a || a === d.body || !dl.contains(a))) {
       const x = closeBtn(dl);
@@ -75,13 +81,42 @@
     const f = art.querySelector('[data-bl-editform]'), view = art.querySelector('[data-bl-rdbodyv]');
     const b = art.querySelector('[data-bl-rda=edit]');
     if (!f) return;
-    if (!on) f.reset();
+    if (!on) { f.reset(); pending.delete(f); chips(f); }
     say(f.querySelector('[data-bl-ferr]'), '');
     f.hidden = !on;
     if (view) view.hidden = on;
     if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
     const t = on ? f.elements.title : b;
     if (t) t.focus({ preventScroll: !on });
+  }
+  /* ---------- images to add (Edit form) ---------- */
+  function chips(f) {  // one pm7.attach chip per pending file; × drops the file
+    const box = f.querySelector('[data-bl-chips]'), list = pending.get(f) || [];
+    if (!box) return;
+    box.replaceChildren();
+    list.forEach((x) => { pm7.attach.chip(box, x.name || 'image', () => {
+      pending.set(f, (pending.get(f) || []).filter((y) => y !== x));
+    }); });
+  }
+  function take(f, list) {
+    const imgs = Array.from(list || []).filter((x) => /^image\//.test(x.type)), err = f.querySelector('[data-bl-ferr]');
+    if (!imgs.length) { say(err, 'Only png, jpg, gif or webp images can be attached.'); return; }
+    say(err, '');
+    pending.set(f, (pending.get(f) || []).concat(imgs));
+    chips(f);
+  }
+  async function attach(f, i) {  // '' when every pending image is on the issue, else the reason it stopped
+    const list = (pending.get(f) || []).slice();
+    for (const file of list) {
+      let path = '';
+      try { path = await pm7.attach.upload('/p/' + encodeURIComponent(i.p), file); }
+      catch (e) { return e.message || 'Upload failed'; }
+      const res = await B.post(B.issueUrl(i) + '/image', { path: path }, file.name || 'image');
+      if (!res.ok) return res.why;
+      pending.set(f, (pending.get(f) || []).filter((y) => y !== file));
+      chips(f);
+    }
+    return '';
   }
   async function save(f) {
     const art = f.closest('[data-bl-rd]'), err = f.querySelector('[data-bl-ferr]');
@@ -90,9 +125,12 @@
     if (!typed) { say(err, 'The title is required.'); f.elements.title.focus(); return; }
     const title = typed + (sfx && !DATED.test(typed) ? sfx : '');
     say(err, '');
-    const btn = f.querySelector('[type=submit]');
+    const btn = f.querySelector('[type=submit]'), n = (pending.get(f) || []).length;
     btn.disabled = true;
-    const res = await B.post(B.issueUrl(i) + '/edit', { title: title, body: f.elements.body.value }, 'Save');
+    const stop = n ? await attach(f, i) : '';
+    if (n && (pending.get(f) || []).length < n) B.refreshAll();  // some image went on: the list's count
+    const res = stop ? { ok: false, why: stop } :
+      await B.post(B.issueUrl(i) + '/edit', { title: title, body: f.elements.body.value }, 'Save');
     btn.disabled = false;
     if (!res.ok) { say(err, res.why); return; }
     pm7.toast('#' + i.n + ' saved');
@@ -156,8 +194,16 @@
     else if (f.matches('[data-bl-editform]')) { e.preventDefault(); save(f); }
   });
   d.addEventListener('click', (e) => {
-    const b = e.target && e.target.closest ? e.target.closest('[data-bl-rda]') : null;
-    if (b) act(b);
+    const t = e.target && e.target.closest ? e.target : null;
+    const b = t && t.closest('[data-bl-rda]');
+    if (b) { act(b); return; }
+    const pick = t && t.closest('[data-bl-editform] [data-bl-pick]');
+    const inp = pick && pick.parentNode.querySelector('[data-bl-edfiles]');
+    if (inp) inp.click();
+  });
+  d.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.matches && t.matches('[data-bl-edfiles]')) { take(t.closest('form'), t.files); t.value = ''; }
   });
 
   pm7.backlog.reader = reader;
