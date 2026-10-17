@@ -238,6 +238,7 @@ autoexit_idle_s = 0
 vm_manage = false
 virsh_bin = "/bin/false"
 dev_banner = true
+builder_frame_hosts = ["https://mock.example.test"]
 """
     (root / "pm.base.toml").write_text(toml)
     (home / ".config/pm/pm.toml").write_text(toml)

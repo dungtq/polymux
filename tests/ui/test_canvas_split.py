@@ -7,7 +7,9 @@ pytestmark = pytest.mark.ui
 
 
 def _open(page, inst):
-    # Canvas sits only on the last reply of a finished turn (the idle agent's last turn has ended)
+    # Canvas sits only on the last reply of a finished turn (the idle agent's last turn has ended). Detail view:
+    # in Compact (the default) a short final reply stays a working note without the canvas button.
+    page.add_init_script("try{localStorage.setItem('pm.chatView','detail')}catch(e){}")
     page.goto(f"/a/{inst['agents']['idle']}")
     btn = page.locator("#ci .ci-done-last [data-canvas-open]").first
     btn.wait_for(timeout=20000)
