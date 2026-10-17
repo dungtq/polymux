@@ -9,6 +9,7 @@
    review) says so and reviews again; other refusals toast the server's message (pm7.fail). quiet = no dialog (the
    skills switch: a reversible link).
    Hooks: ⋯ items {event: "a:plan"} with the row's data-a-plans = {item id: plan}; {event: "a:sync"} opens #a-sync;
+     {event: "a:view"} opens the row's data-a-file path in the markdown reader (pm7.md.file, read-only);
      button[data-a-run] = a plan (Findings Fix, the editor's Remove); button[data-a-fixall=<kind>] = every Fix of that
      band in one dialog, applied in order; form[data-a-plan] (editor, #a-new, #a-sync: data-a-title / -ok / -done /
      -after) = a plan from its fields, errors in its [data-a-ferr]; [data-a-open=<dialog id>] opens a dialog;
@@ -218,6 +219,11 @@
     try { plans = row ? JSON.parse(row.getAttribute('data-a-plans')) : null; } catch (err) { plans = null; }
     const p = plans && det.item ? plans[det.item] : null;
     if (p) run(p, t);
+  });
+  d.addEventListener('a:view', (e) => {
+    const t = e.target, row = t && t.closest ? t.closest('[data-a-file]') : null;
+    const ok = row && pm7.md && pm7.md.file(row.getAttribute('data-a-file'));
+    if (!ok) pm7.toast('Nothing to show', '', { error: true });
   });
   d.addEventListener('a:sync', (e) => {
     const dl = d.getElementById('a-sync');

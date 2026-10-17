@@ -3,10 +3,13 @@
    (classic chat-md.js in the aside's embed posts {pm: 'drawer', act: 'md', id, path}), and for a chat's .md links
    (classic chat-md.js a[data-md]) on a page without classic's docked reader #mdpane (Builder): there chat-md.js
    finds no pane and does nothing, so this file opens them here (capture phase, before chat-md.js).
-   Globals: pm7.md = {open(agentId, path) -> bool, current() -> path | null}.
+   Globals: pm7.md = {open(agentId, path) -> bool, file(path) -> bool, current() -> path | null}.
      open: loads GET /a/<id>/md?path= (the server's rendered, escaped markdown: div.mdv[data-path] > div.md; a
      relative path is looked up in the agent's folder, its project, then the files its chat named) into
      [data-md-body] and shows the dialog (pm7.dialog: Esc, backdrop, focus trap and return).
+     file: the same dialog for a file the Agents Library lists (a skill's SKILL.md, a rule, a script; the ⋯ View of a
+     Library row, js/agents.js), from the core's read-only GET /agents/library/view?path= (same markup; a script is one
+     code block); a link inside opens only another listed file.
    Inside the body: a relative .md link opens in the same dialog, against the shown file's folder (an absolute one
    as is; #frag scrolls to that heading); #frag alone scrolls to its heading (GitHub-style slug); other relative
    links stay (toast); http(s) / mailto links open a new tab (the server set target=_blank).
@@ -19,7 +22,9 @@
   const AGENT = /^[A-Za-z0-9][\w.:@-]{0,79}$/, SCHEME = /^[a-z][a-z0-9+.-]*:/i, MIN = 10, MAX = 32;
   const MISSING = 'Not found: pm looked in the agent\'s folder, its project, the files its chat named and the ' +
     'folders it worked in. Files in hidden folders never open.';
-  let agent = '', cur = '', seq = 0;
+  const UNLISTED = 'Not shown: only files the Agents Library lists open here (no symlink out of them, no other ' +
+    'hidden folder).';
+  let agent = '', cur = '', seq = 0;  // agent '' = a Library file (pm7.md.file)
   const D = () => d.getElementById('x-md');
   const q = (sel) => { const x = D(); return x ? x.querySelector(sel) : null; };
 
@@ -74,10 +79,14 @@
     cur = path;
     title(path);
     note('Loading…');
-    const url = '/a/' + encodeURIComponent(agent) + '/md?path=' + encodeURIComponent(path);
+    const url = (agent ? '/a/' + encodeURIComponent(agent) + '/md' : '/agents/library/view') + '?path=' +
+      encodeURIComponent(path);
     pm7.fetch(url, { headers: { Accept: 'text/html' } }).then(async (r) => {
       if (n !== seq) return;
-      if (!r.ok) { note(r.status === 404 ? MISSING : 'Could not load the file (' + r.status + ').', true); return; }
+      if (!r.ok) {
+        note(r.status === 404 ? (agent ? MISSING : UNLISTED) : 'Could not load the file (' + r.status + ').', true);
+        return;
+      }
       const html = await r.text();
       if (n !== seq) return;
       b.innerHTML = html;  // server-rendered, escaped markdown (core markdown_render), as classic chat-md.js
@@ -95,8 +104,11 @@
   }
   function open(id, path) {
     id = String(id == null ? '' : id);
+    return AGENT.test(id) && show(id, path);
+  }
+  function show(id, path) {  // id '' = a Library file
     const x = D();
-    if (!x || !AGENT.test(id) || typeof path !== 'string' || !path || path.length > 4096) return false;
+    if (!x || typeof path !== 'string' || !path || path.length > 4096) return false;
     agent = id;
     applySize();
     load(path);
@@ -143,5 +155,6 @@
     e.stopPropagation();
   }, true);
 
-  pm7.md = { open: open, current: () => (D() && D().open && cur ? cur : null) };
+  pm7.md = { open: open, file: (path) => /^~\//.test(String(path || '')) && show('', path),
+    current: () => (D() && D().open && cur ? cur : null) };
 })();

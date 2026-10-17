@@ -11,7 +11,7 @@
    Markup (built here, css/aside.css): div.x-btw[data-btw-agent] > p.x-btwh (the note) + div.x-btwlog (div.x-btwm.u /
    .a items; the empty state .x-btwe with suggestions [data-btw-q]) + form.x-btwf (textarea[data-btw-input], Ask).
    Keys: Enter asks, Shift+Enter is a new line (the textarea's own listener; no document keydown). Phones have no
-   aside, so no btw there yet (aside.js says so; Quick chat is not ported). */
+   aside: there aside.js opens the btw in Quick chat instead (pm7.qchat.btw, full screen). */
 (function () {
   'use strict';
   const pm7 = window.pm7, d = document;

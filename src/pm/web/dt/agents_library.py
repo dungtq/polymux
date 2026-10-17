@@ -10,7 +10,8 @@ and the sort headers load ``#a-lib`` (the core answers htmx with ``_agents_lib_l
 
 Edit / Remove are offered where the core's editor works: skills in ``~/.agents/skills``, rules in ``~/agents`` (the
 top files only edited, never removed), scripts in ``~/.agents/hooks``; the core re-checks every path. Remove backs
-the files up (no pm trash). MCP: names only; per-agent on/off and "add to an agent" are not in the core, so the
+the files up (no pm trash). View opens the item's first listed file in the markdown reader (js/mdview.js
+``pm7.md.file``) from the core's read-only ``GET /agents/library/view?path=``. MCP: names only; per-agent on/off and "add to an agent" are not in the core, so the
 coverage dots are read-only.
 """
 
@@ -104,6 +105,12 @@ def _editable(g: Group) -> str:
     return ""
 
 
+def _viewable(g: Group) -> str:
+    """The path View opens in the reader (the core's ``/agents/library/view``, which re-checks it): the first
+    listed path that is not a glob; "" = nothing to show."""
+    return next((p for p in g.paths if p.startswith("~/") and "*" not in p), "")
+
+
 def _host(g: Group, inv) -> str:
     """An agent whose detail page hosts the editor (any agent works; its own first)."""
     names = [a.name for a in inv.agents]
@@ -152,7 +159,8 @@ def _menu(g: Group, inv) -> tuple[list[dict], dict]:
         plans["rm"] = plan([("action", f"{g.type}_delete"), ("name", base), ("confirm", base)],
                            f"Remove {g.type} {base}", "Remove", f"Removed {base} (backed up to {BACKUPS})", typed=base,
                            undo=BACKED)
-    view = menus.item("view", "View", "file", disabled=True, why="no reader for files outside a session yet")
+    view = menus.item("view", "View", "file", event="a:view") if _viewable(g) else \
+        menus.item("view", "View", "file", disabled=True, why="no single file to show")
     return menus.menu(view, edit, sync, links, menus.SEP,
                       menus.item("copy", "Copy path", "copy", copy=g.paths[0]) if g.paths else None, menus.SEP,
                       rm), plans
@@ -215,6 +223,12 @@ def _sort(rows: list[Group], sort: str) -> list[Group]:
     return out[::-1] if sort.startswith("-") and key == sort.lstrip("-") else out
 
 
+def _attrs(g: Group, plans: dict) -> dict | None:
+    """The row's attrs: its planned changes, and ``data-a-file`` = the path View opens (js/agents.js)."""
+    out = {**(plans_attr(plans) or {}), **({"data-a-file": v} if (v := _viewable(g)) else {})}
+    return out or None
+
+
 def _row(g: Group, inv) -> LRow:
     menu, plans = _menu(g, inv)
     n = len(g.agents)
@@ -224,7 +238,7 @@ def _row(g: Group, inv) -> LRow:
                                   f"{len(g.drift)} differ" if g.drift else "") if x)
     return LRow(id=f"{g.type}:{g.name}", type=g.type, name=g.name, desc=g.desc, chips=chips, copies=copies,
                 unused=UNUSED[g.type] if g.type == "skill" else "–",
-                differ=len(g.drift), path=", ".join(g.paths), meta=meta, menu=menu, attrs=plans_attr(plans))
+                differ=len(g.drift), path=", ".join(g.paths), meta=meta, menu=menu, attrs=_attrs(g, plans))
 
 
 def library(ctx: Mapping) -> Library:

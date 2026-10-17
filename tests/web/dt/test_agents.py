@@ -153,7 +153,9 @@ def test_library_view_filters_counts_sort_and_foot():
 def test_library_menu_edit_sync_link_remove():
     by = {r.id: r for r in agents_library.library(lib_ctx()).rows}
     m = {i["id"]: i for i in by["rule:AGENTS.md"].menu if "id" in i}
-    assert m["view"]["disabled"] and m["edit"]["href"] == "/agents/claude/edit?kind=rule&name=AGENTS.md"
+    view = by["rule:AGENTS.md"].attrs["data-a-file"]  # View: the reader (pm7.md.file) on the first listed path
+    assert m["view"]["event"] == "a:view" and view == by["rule:AGENTS.md"].path.split(", ")[0] and view[:2] == "~/"
+    assert m["edit"]["href"] == "/agents/claude/edit?kind=rule&name=AGENTS.md"
     assert m["sync"]["event"] == "a:plan" and m["rm"]["disabled"]  # a top rules file is never removed here
     p = plans_of(by["rule:AGENTS.md"].attrs)
     assert fields(p["sync"]) == [("action", "rules_sync"), ("source", "canonical"), ("targets", "claude"),
@@ -166,6 +168,9 @@ def test_library_menu_edit_sync_link_remove():
     assert "link:cursor" in sk and "link:claude" not in sk
     m = {i["id"]: i for i in by["skill:short"].menu if "id" in i}
     assert m["edit"]["disabled"] and m["rm"]["disabled"]  # an agent's own skill: not in a folder pm edits
+    glob = agents_library.Group("rule", "x", paths=["~/.x/*.md"])
+    assert agents_library._attrs(glob, {}) is None  # a glob is no single file: View disabled
+    assert {i["id"]: i for i in agents_library._menu(glob, INV)[0] if "id" in i}["view"]["disabled"]
 
 
 # ---------------------------------------------------------------- MCP

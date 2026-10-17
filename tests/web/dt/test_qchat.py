@@ -88,6 +88,10 @@ def test_js_contract():
                                                               "/qchat/delete-all"}
     assert "pm7.qstream.read(" in btw and "getReader" not in btw  # one SSE reader (js/qstream.js)
     assert "pm7.qstream.send(" in q
+    # btw on phones (README A9): a new conversation about the agent; its first send carries agent=<id>, no tools
+    bt = q[q.index("async function btw("):q.index("/* ---------- send, stream, stop")]
+    assert "agent: id" in bt and "profile: 'none'" in bt and "await open()" in bt
+    assert "else if (C && C.agent) f.set('agent', C.agent);" in q and "btw: btw," in q
     assert "Open as a tab" not in menus.split("*/", 1)[1]  # not offered: the tab store has no quick chat kind
     # Delete and Delete all cannot be undone: typed confirms naming the object (V7-SEC-6)
     dl = menus[menus.index("async function del("):menus.index("function convMenu")]

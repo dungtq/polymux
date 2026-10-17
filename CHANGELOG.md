@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-17 (v7 app: btw on phones opens in Quick chat)
+
+btw on phones: there is no chat aside on phones, so btw (session ⋯ › btw, the composer btw button, `/btw <question>`) now opens a new side-question conversation in Quick chat, full screen, instead of a toast. The first send carries the agent id, so the answer uses its recent chat (masked) without tools; Copy works, Use in composer is aside-only.
+
+## 2026-10-17 (v7 app: Library View opens the file read-only)
+
+Agents › Library: the row ⋯ View is no longer disabled. It opens the skill (its SKILL.md), rule or script in the markdown reader dialog (full screen on phones), read-only, from the new core route `GET /agents/library/view?path=`, which reads only files the agent inventory lists (symlinks resolved and re-checked, no hidden-folder escapes, text masked). Frontmatter shows as a YAML block, scripts as one code block.
+
 ## 2026-10-17 (Per-account Claude plan limits)
 
 Claude plan limits (5h / weekly) are now read per login account. The status line script writes claude-limits-<account>.json for a named account, the agent page shows its own account's limits, and a named account gets the CLI's statusLine copied into its settings.json so it reports at all.

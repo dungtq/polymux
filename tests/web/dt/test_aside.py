@@ -306,8 +306,15 @@ def test_btw_shows_the_panel_in_the_aside_without_storage():
 
 
 @needs_node
-def test_btw_is_not_used_on_phones():
-    got = run(BTW_STUB + "out.push(A.btw('claude-1c70ee'), state().html, log);", width=390)
+def test_btw_on_phones_opens_quick_chat_full_screen():
+    """No aside on phones: btw is a new btw conversation in Quick chat (README A9), never the aside."""
+    qc = "window.pm7.qchat = {btw: (id, q) => log.push(['qchat.btw', id, q])};"
+    got = run(BTW_STUB + qc + "out.push(A.btw('claude-1c70ee'), A.btw('codex-44aa01', 'why?'), state().html, log,"
+              " A.btw('$3'));", width=390)
+    assert got[:2] == [True, True] and got[2] == [] and got[4] is False
+    assert ["qchat.btw", "claude-1c70ee", ""] in got[3] and ["qchat.btw", "codex-44aa01", "why?"] in got[3]
+    assert not any(x[0] in ("ask", "focus") for x in got[3] if isinstance(x, list))  # the aside panel stays unused
+    got = run(BTW_STUB + "out.push(A.btw('claude-1c70ee'), state().html, log);", width=390)  # no Quick chat here
     assert got[0] is False and got[1] == [] and any(x[0] == "toast" for x in got[2] if isinstance(x, list))
 
 
