@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-17 (Leak guard checks commit messages)
+
+The leak guard (`tools/leakcheck.sh`) now checks commit messages too. `--install` adds a `commit-msg` hook (a chain runner over `commit-msg.d/`, like `pre-commit.d/`) that runs the new `--msg FILE` mode; comment lines and the verbose diff below the scissors line are skipped, as git strips them. `--push` (pre-push) now also scans the full message of every outgoing commit, merges included. A new `msg:ERE` line in the pattern file applies to commit messages only (never to file text), e.g. `msg:#[0-9]+` for numbers of a private tracker that would link to unrelated public issues; the core ships none. Re-run `./tools/leakcheck.sh --install` to get the new hook.
+
 ## 2026-10-17 (pmctl: branch drafts no longer land on main from trial merges or rebases)
 
 - The merge driver for CHANGELOG.md / FEATURES.md no longer writes pm.db: git also runs it for `git merge-tree`, a merge that is aborted and a rebase, which used to land unmerged branch drafts on main (main renders showed them, other branches committed them). It now only writes the merge result; the drafts land once the merge commit exists.
